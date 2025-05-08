@@ -1,0 +1,427 @@
+basePath: /api/v1
+definitions:
+  models.CollectionField:
+    properties:
+      facet:
+        type: boolean
+      index:
+        type: boolean
+      name:
+        type: string
+      optional:
+        type: boolean
+      type:
+        type: string
+    type: object
+  models.CollectionResponse:
+    properties:
+      created_at:
+        type: integer
+      default_sorting_field:
+        type: string
+      enable_nested_fields:
+        type: boolean
+      fields:
+        items:
+          $ref: '#/definitions/models.CollectionField'
+        type: array
+      name:
+        type: string
+      num_documents:
+        type: integer
+      symbols_to_index:
+        items:
+          type: string
+        type: array
+      symbols_to_index_separate:
+        items:
+          type: string
+        type: array
+      token_separators:
+        items:
+          type: string
+        type: array
+    type: object
+  models.CreateCollectionRequest:
+    properties:
+      default_sorting_field:
+        type: string
+      enable_nested_fields:
+        type: boolean
+      fields:
+        items:
+          $ref: '#/definitions/models.CollectionField'
+        type: array
+      name:
+        type: string
+      symbols_to_index:
+        items:
+          type: string
+        type: array
+      symbols_to_index_separate:
+        items:
+          type: string
+        type: array
+      token_separators:
+        items:
+          type: string
+        type: array
+    type: object
+  models.Document:
+    additionalProperties: true
+    type: object
+  models.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    type: object
+  models.SearchDocumentsResponse:
+    properties:
+      found:
+        type: integer
+      hits:
+        items:
+          additionalProperties: true
+          type: object
+        type: array
+      page:
+        type: integer
+      request_params:
+        additionalProperties: true
+        type: object
+    type: object
+  models.SearchParameters:
+    properties:
+      exclude_fields:
+        type: string
+      facet_by:
+        type: string
+      facet_query:
+        type: string
+      filter_by:
+        type: string
+      highlight_fields:
+        type: string
+      highlight_full_fields:
+        type: string
+      include_fields:
+        type: string
+      max_facet_values:
+        type: integer
+      num_typos:
+        type: integer
+      page:
+        type: integer
+      per_page:
+        type: integer
+      prefix:
+        type: boolean
+      q:
+        type: string
+      query_by:
+        type: string
+      sort_by:
+        type: string
+    type: object
+  models.UpsertDocumentRequest:
+    properties:
+      action_on_match:
+        description: '"update", "create", "upsert"'
+        type: string
+      document:
+        $ref: '#/definitions/models.Document'
+    type: object
+info:
+  contact:
+    email: support@prefeitura.rio
+    name: API Support
+  description: API REST para a Prefeitura do Rio de Janeiro
+  title: API Go Prefeitura do Rio de Janeiro
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Retorna o status de saúde da API v1
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Verificar saúde da API
+      tags:
+      - health
+  /typesense/collections:
+    get:
+      description: Lista todas as coleções no Typesense
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.CollectionResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar coleções
+      tags:
+      - collections
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova coleção no Typesense
+      parameters:
+      - description: Dados da coleção
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateCollectionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CollectionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar coleção
+      tags:
+      - collections
+  /typesense/collections/{collection}/documents:
+    post:
+      consumes:
+      - application/json
+      description: Insere ou atualiza um documento em uma coleção
+      parameters:
+      - description: Nome da coleção
+        in: path
+        name: collection
+        required: true
+        type: string
+      - description: Dados do documento
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpsertDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Document'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Inserir/atualizar documento
+      tags:
+      - documents
+  /typesense/collections/{collection}/documents/{id}:
+    delete:
+      description: Exclui um documento pelo ID
+      parameters:
+      - description: Nome da coleção
+        in: path
+        name: collection
+        required: true
+        type: string
+      - description: ID do documento
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir documento
+      tags:
+      - documents
+    get:
+      description: Obtém um documento pelo ID
+      parameters:
+      - description: Nome da coleção
+        in: path
+        name: collection
+        required: true
+        type: string
+      - description: ID do documento
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Document'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter documento
+      tags:
+      - documents
+  /typesense/collections/{collection}/documents/import:
+    post:
+      consumes:
+      - application/json
+      description: Importa múltiplos documentos em batch para uma coleção
+      parameters:
+      - description: Nome da coleção
+        in: path
+        name: collection
+        required: true
+        type: string
+      - description: 'Ação em caso de documento existente (default: create)'
+        in: query
+        name: action
+        type: string
+      - description: Lista de documentos
+        in: body
+        name: documents
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.Document'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Importar documentos
+      tags:
+      - documents
+  /typesense/collections/{collection}/documents/search:
+    post:
+      consumes:
+      - application/json
+      description: Busca documentos em uma coleção
+      parameters:
+      - description: Nome da coleção
+        in: path
+        name: collection
+        required: true
+        type: string
+      - description: Parâmetros de busca
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/models.SearchParameters'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SearchDocumentsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Buscar documentos
+      tags:
+      - documents
+  /typesense/collections/{name}:
+    delete:
+      description: Exclui uma coleção pelo nome
+      parameters:
+      - description: Nome da coleção
+        in: path
+        name: name
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir coleção
+      tags:
+      - collections
+    get:
+      description: Obtém uma coleção pelo nome
+      parameters:
+      - description: Nome da coleção
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CollectionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter coleção
+      tags:
+      - collections
+swagger: "2.0"

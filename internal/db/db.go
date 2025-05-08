@@ -1,1 +1,3 @@
-//Só para inicializar o repo
+package db
+
+// Só para inicializar o repo
