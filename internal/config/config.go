@@ -19,6 +19,8 @@ type Config struct {
 	LogLevel      string `mapstructure:"LOG_LEVEL"`
 	Database      DatabaseConfig
 	JWT           JWTConfig
+	Typesense     TypesenseConfig
+	Swagger       SwaggerConfig
 }
 
 // DatabaseConfig armazena as configurações relacionadas ao banco de dados
@@ -38,10 +40,31 @@ type JWTConfig struct {
 	Expiration time.Duration `mapstructure:"JWT_EXPIRATION"`
 }
 
+// TypesenseConfig armazena as configurações relacionadas ao Typesense
+type TypesenseConfig struct {
+	Host     string `mapstructure:"TYPESENSE_HOST"`
+	Port     int    `mapstructure:"TYPESENSE_PORT"`
+	Protocol string `mapstructure:"TYPESENSE_PROTOCOL"`
+	APIKey   string `mapstructure:"TYPESENSE_API_KEY"`
+}
+
+// SwaggerConfig armazena as configurações relacionadas à documentação Swagger
+type SwaggerConfig struct {
+	Host string `mapstructure:"SWAGGER_HOST"`
+}
+
 // GetDSN retorna o DSN formatado para conexão com o PostgreSQL
 func (d *DatabaseConfig) GetDSN() string {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
 		d.Host, d.Port, d.User, d.Password, d.Name, d.SSLMode, d.TimeZone)
+}
+
+// GetSwaggerHost retorna o host para o Swagger (com a porta)
+func (c *Config) GetSwaggerHost() string {
+	if c.Swagger.Host != "" {
+		return c.Swagger.Host
+	}
+	return fmt.Sprintf("localhost:%s", c.Port)
 }
 
 var cfg *Config
@@ -103,6 +126,19 @@ func Load() (*Config, error) {
 		Expiration: duration,
 	}
 
+	// Configurações do Typesense
+	cfg.Typesense = TypesenseConfig{
+		Host:     v.GetString("TYPESENSE_HOST"),
+		Port:     v.GetInt("TYPESENSE_PORT"),
+		Protocol: v.GetString("TYPESENSE_PROTOCOL"),
+		APIKey:   v.GetString("TYPESENSE_API_KEY"),
+	}
+
+	// Configurações do Swagger
+	cfg.Swagger = SwaggerConfig{
+		Host: v.GetString("SWAGGER_HOST"),
+	}
+
 	return cfg, nil
 }
 
@@ -151,6 +187,13 @@ func setDefaults(v *viper.Viper) {
 	
 	v.SetDefault("JWT_SECRET", "default_jwt_secret")
 	v.SetDefault("JWT_EXPIRATION", "24h")
+
+	v.SetDefault("TYPESENSE_HOST", "localhost")
+	v.SetDefault("TYPESENSE_PORT", 8108)
+	v.SetDefault("TYPESENSE_PROTOCOL", "http")
+	v.SetDefault("TYPESENSE_API_KEY", "")
+	
+	v.SetDefault("SWAGGER_HOST", "")
 }
 
 // PrepareEnvForTests configura o ambiente para testes

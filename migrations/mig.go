@@ -1,1 +1,2 @@
-//Só para inicializar o repo
+// Só para inicializar o repo
+package migrations
