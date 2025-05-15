@@ -3,53 +3,99 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
-	"github.com/gin-gonic/gin"
-	"github.com/prefeitura-rio/app-go-api/docs"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
 	"github.com/prefeitura-rio/app-go-api/internal/config"
+	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/router"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-// @title        API Go Prefeitura do Rio de Janeiro
-// @version      1.0
-// @description  API REST para a Prefeitura do Rio de Janeiro
-// @contact.name   API Support
-// @contact.email  support@prefeitura.rio
-// @BasePath      /api/v1
+// @title API Go
+// @version 1.0
+// @description API de serviços para aplicativos da Prefeitura do Rio
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url https://iplan.rio
+// @contact.email frederico.zolio@prefeitura.rio
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8081
+// @BasePath /
+// @schemes http https
 func main() {
-	// Carregar configurações
+	// Imprimir todas as variáveis de ambiente para debug
+	if os.Getenv("DEBUG") == "true" {
+		log.Println("Variáveis de ambiente disponíveis:")
+		for _, env := range os.Environ() {
+			log.Println(env)
+		}
+	}
+
+	// Carrega configurações
+	log.Println("Carregando configurações...")
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Erro ao carregar configurações: %v", err)
 	}
 
-	// Definir o modo do Gin com base nas configurações
-	if cfg.IsProduction() {
-		gin.SetMode(gin.ReleaseMode)
+	// Conecta ao banco de dados usando GORM
+	dsn := cfg.Database.DSN()
+	
+	// Configura o logger do GORM de acordo com o ambiente
+	var logMode logger.LogLevel
+	if cfg.App.IsDevelopment() {
+		logMode = logger.Info
+	} else {
+		logMode = logger.Silent
+	}
+	
+	gormConfig := &gorm.Config{
+		Logger: logger.Default.LogMode(logMode),
+	}
+	
+	log.Println("Tentando conectar ao banco de dados...")
+	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
+	if err != nil {
+		log.Fatalf("Erro ao conectar ao banco de dados: %v", err)
+	}
+	log.Println("Conexão com o banco de dados estabelecida com sucesso!")
+
+	// Auto-migração do GORM (opcional)
+	if cfg.Migrations.Run {
+		log.Println("Iniciando auto-migração...")
+		err = db.AutoMigrate(
+			&models.Curso{},
+			&models.Emprego{},
+			&models.Categoria{},
+			&models.Acessibilidade{},
+			&models.Orgao{},
+			&models.InstituicaoEnsino{},
+			&models.Empresa{},
+			&models.Escolaridade{},
+			&models.CursoCategoria{},
+			&models.CursoAcessibilidade{},
+		)
+		if err != nil {
+			log.Fatalf("Erro ao executar auto-migração: %v", err)
+		}
+		log.Println("Auto-migração concluída com sucesso!")
 	}
 
-	// Inicializar o router
-	r := gin.Default()
+	// Configura o router
+	r := router.SetupRouter(db)
+
+	// Inicia o servidor
+	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	log.Printf("Servidor iniciado em %s", addr)
 	
-	// Configurar rotas
-	router.SetupRouter(r)
-
-	// Definir host do Swagger usando as configurações
-	swaggerHost := cfg.GetSwaggerHost()
-	docs.SwaggerInfo.Host = swaggerHost
-
-	// Rota para o Swagger
-	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	// Logar informações sobre o servidor
-	log.Printf("Aplicação rodando em modo: %s", cfg.AppEnv)
-	log.Printf("Servidor iniciado na porta %s", cfg.Port)
-	log.Printf("Documentação Swagger disponível em: http://%s/docs/index.html", swaggerHost)
-	
-	// Iniciar o servidor
-	if err := r.Run(fmt.Sprintf(":%s", cfg.Port)); err != nil {
+	if err := r.Run(addr); err != nil {
 		log.Fatalf("Erro ao iniciar o servidor: %v", err)
 	}
 }

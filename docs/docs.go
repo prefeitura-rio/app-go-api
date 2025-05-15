@@ -9,15 +9,523 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
+        "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "API Support",
-            "email": "support@prefeitura.rio"
+            "url": "https://iplan.rio",
+            "email": "frederico.zolio@prefeitura.rio"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
         },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/cursos": {
+            "get": {
+                "description": "Retorna uma lista paginada de cursos com filtros opcionais",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cursos"
+                ],
+                "summary": "Listar cursos",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por ID do órgão",
+                        "name": "orgao_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por ID da instituição",
+                        "name": "instituicao_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por modalidade",
+                        "name": "modalidade",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo curso",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cursos"
+                ],
+                "summary": "Criar curso",
+                "parameters": [
+                    {
+                        "description": "Dados do curso",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cursos/{id}": {
+            "get": {
+                "description": "Retorna um curso pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cursos"
+                ],
+                "summary": "Obter curso por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de um curso existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cursos"
+                ],
+                "summary": "Atualizar curso",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do curso",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove um curso pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cursos"
+                ],
+                "summary": "Excluir curso",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregos": {
+            "get": {
+                "description": "Retorna uma lista paginada de empregos com filtros opcionais",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregos"
+                ],
+                "summary": "Listar empregos",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por ID do órgão",
+                        "name": "orgao_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por ID da empresa",
+                        "name": "empresa_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por ID da escolaridade",
+                        "name": "escolaridade_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por tipo de contratação",
+                        "name": "tipo_contratacao",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por jornada de trabalho",
+                        "name": "jornada_trabalho",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova oportunidade de emprego",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregos"
+                ],
+                "summary": "Criar emprego",
+                "parameters": [
+                    {
+                        "description": "Dados do emprego",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Emprego"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Emprego"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregos/{id}": {
+            "get": {
+                "description": "Retorna um emprego pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregos"
+                ],
+                "summary": "Obter emprego por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do emprego",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Emprego"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de um emprego existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregos"
+                ],
+                "summary": "Atualizar emprego",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do emprego",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do emprego",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Emprego"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Emprego"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove um emprego pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregos"
+                ],
+                "summary": "Excluir emprego",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do emprego",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Retorna o status de saúde da API v1",
@@ -447,6 +955,42 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "models.Acessibilidade": {
+            "type": "object",
+            "properties": {
+                "cursos": {
+                    "description": "Relacionamentos",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Curso"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nome": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Categoria": {
+            "type": "object",
+            "properties": {
+                "cursos": {
+                    "description": "Relacionamentos",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Curso"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nome": {
+                    "type": "string"
+                }
+            }
+        },
         "models.CollectionField": {
             "type": "object",
             "properties": {
@@ -549,9 +1093,203 @@ const docTemplate = `{
                 }
             }
         },
+        "models.Curso": {
+            "type": "object",
+            "properties": {
+                "acessibilidades": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Acessibilidade"
+                    }
+                },
+                "carga_horaria": {
+                    "type": "integer"
+                },
+                "categorias": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Categoria"
+                    }
+                },
+                "certificacao_oferecida": {
+                    "type": "boolean"
+                },
+                "contato_duvidas": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "data_inicio": {
+                    "type": "string"
+                },
+                "data_limite_inscricoes": {
+                    "type": "string"
+                },
+                "data_termino": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "formato_aula": {
+                    "$ref": "#/definitions/models.FormatoAula"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "instituicao": {
+                    "$ref": "#/definitions/models.InstituicaoEnsino"
+                },
+                "instituicao_id": {
+                    "type": "integer"
+                },
+                "link_inscricao": {
+                    "type": "string"
+                },
+                "local_realizacao": {
+                    "type": "string"
+                },
+                "modalidade": {
+                    "$ref": "#/definitions/models.Modalidade"
+                },
+                "numero_vagas": {
+                    "type": "integer"
+                },
+                "orgao": {
+                    "description": "Relacionamentos",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Orgao"
+                        }
+                    ]
+                },
+                "orgao_id": {
+                    "type": "integer"
+                },
+                "pre_requisitos": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.StatusCurso"
+                },
+                "titulo": {
+                    "type": "string"
+                },
+                "turno": {
+                    "$ref": "#/definitions/models.Turno"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Document": {
             "type": "object",
             "additionalProperties": true
+        },
+        "models.Emprego": {
+            "type": "object",
+            "properties": {
+                "beneficios": {
+                    "type": "string"
+                },
+                "contato_duvidas": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "data_inicio_prevista": {
+                    "type": "string"
+                },
+                "data_limite_candidatura": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "empresa": {
+                    "$ref": "#/definitions/models.Empresa"
+                },
+                "empresa_id": {
+                    "type": "integer"
+                },
+                "escolaridade": {
+                    "$ref": "#/definitions/models.Escolaridade"
+                },
+                "escolaridade_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "jornada_trabalho": {
+                    "$ref": "#/definitions/models.JornadaTrabalho"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "numero_vagas": {
+                    "type": "integer"
+                },
+                "orgao": {
+                    "description": "Relacionamentos",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Orgao"
+                        }
+                    ]
+                },
+                "orgao_id": {
+                    "type": "integer"
+                },
+                "pre_requisitos": {
+                    "type": "string"
+                },
+                "salario_max": {
+                    "type": "integer"
+                },
+                "salario_min": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.StatusEmprego"
+                },
+                "tipo_contratacao": {
+                    "$ref": "#/definitions/models.TipoContratacao"
+                },
+                "titulo": {
+                    "type": "string"
+                },
+                "turno": {
+                    "$ref": "#/definitions/models.Turno"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Empresa": {
+            "type": "object",
+            "properties": {
+                "empregos": {
+                    "description": "Relacionamentos",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Emprego"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nome": {
+                    "type": "string"
+                }
+            }
         },
         "models.ErrorResponse": {
             "type": "object",
@@ -560,6 +1298,107 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Escolaridade": {
+            "type": "object",
+            "properties": {
+                "empregos": {
+                    "description": "Relacionamentos",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Emprego"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nivel": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.FormatoAula": {
+            "type": "string",
+            "enum": [
+                "GRAVADO",
+                "AO_VIVO"
+            ],
+            "x-enum-varnames": [
+                "FormatoAulaGravado",
+                "FormatoAulaAoVivo"
+            ]
+        },
+        "models.InstituicaoEnsino": {
+            "type": "object",
+            "properties": {
+                "cursos": {
+                    "description": "Relacionamentos",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Curso"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nome": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.JornadaTrabalho": {
+            "type": "string",
+            "enum": [
+                "INTEGRAL",
+                "MEIO_PERIODO",
+                "FLEXIVEL",
+                "ESTAGIO",
+                "HOME_OFFICE"
+            ],
+            "x-enum-varnames": [
+                "JornadaIntegral",
+                "JornadaMeioPeriodo",
+                "JornadaFlexivel",
+                "JornadaEstagio",
+                "JornadaHomeOffice"
+            ]
+        },
+        "models.Modalidade": {
+            "type": "string",
+            "enum": [
+                "PRESENCIAL",
+                "ONLINE",
+                "HIBRIDO"
+            ],
+            "x-enum-varnames": [
+                "ModalidadePresencial",
+                "ModalidadeOnline",
+                "ModalidadeHibrido"
+            ]
+        },
+        "models.Orgao": {
+            "type": "object",
+            "properties": {
+                "cursos": {
+                    "description": "Relacionamentos",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Curso"
+                    }
+                },
+                "empregos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Emprego"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nome": {
                     "type": "string"
                 }
             }
@@ -636,6 +1475,68 @@ const docTemplate = `{
                 }
             }
         },
+        "models.StatusCurso": {
+            "type": "string",
+            "enum": [
+                "CRIADO",
+                "ABERTO",
+                "ENCERRADO"
+            ],
+            "x-enum-varnames": [
+                "StatusCursoCriado",
+                "StatusCursoAberto",
+                "StatusCursoEncerrado"
+            ]
+        },
+        "models.StatusEmprego": {
+            "type": "string",
+            "enum": [
+                "CRIADO",
+                "ABERTO",
+                "EM_ANALISE",
+                "ENCERRADO"
+            ],
+            "x-enum-varnames": [
+                "StatusEmpregoCriado",
+                "StatusEmpregoAberto",
+                "StatusEmpregoEmAnalise",
+                "StatusEmpregoEncerrado"
+            ]
+        },
+        "models.TipoContratacao": {
+            "type": "string",
+            "enum": [
+                "CLT",
+                "ESTAGIO",
+                "JOVEM_APRENDIZ",
+                "MEI",
+                "PJ"
+            ],
+            "x-enum-varnames": [
+                "TipoContratacaoCLT",
+                "TipoContratacaoEstagio",
+                "TipoContratacaoJovemAprendiz",
+                "TipoContratacaoMEI",
+                "TipoContratacaoPJ"
+            ]
+        },
+        "models.Turno": {
+            "type": "string",
+            "enum": [
+                "MANHA",
+                "TARDE",
+                "NOITE",
+                "INTEGRAL",
+                "LIVRE"
+            ],
+            "x-enum-varnames": [
+                "TurnoManha",
+                "TurnoTarde",
+                "TurnoNoite",
+                "TurnoIntegral",
+                "TurnoLivre"
+            ]
+        },
         "models.UpsertDocumentRequest": {
             "type": "object",
             "properties": {
@@ -654,11 +1555,11 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "",
-	BasePath:         "/api/v1",
-	Schemes:          []string{},
-	Title:            "API Go Prefeitura do Rio de Janeiro",
-	Description:      "API REST para a Prefeitura do Rio de Janeiro",
+	Host:             "localhost:8081",
+	BasePath:         "/",
+	Schemes:          []string{"http", "https"},
+	Title:            "API Go",
+	Description:      "API de serviços para aplicativos da Prefeitura do Rio",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -1,207 +1,266 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/viper"
 )
 
-// Config armazena todas as configurações da aplicação
-type Config struct {
-	AppEnv        string `mapstructure:"APP_ENV"`
-	Port          string `mapstructure:"PORT"`
-	Debug         bool   `mapstructure:"DEBUG"`
-	APIPrefix     string `mapstructure:"API_PREFIX"`
-	LogLevel      string `mapstructure:"LOG_LEVEL"`
-	Database      DatabaseConfig
-	JWT           JWTConfig
-	Typesense     TypesenseConfig
-	Swagger       SwaggerConfig
+// AppConfig contém todas as configurações da aplicação
+type AppConfig struct {
+	App        AppSettings
+	Database   DatabaseSettings
+	Server     ServerSettings
+	JWT        JWTSettings
+	Swagger    SwaggerSettings
+	TypeSense  TypeSenseSettings
+	Migrations MigrationSettings
 }
 
-// DatabaseConfig armazena as configurações relacionadas ao banco de dados
-type DatabaseConfig struct {
-	Host     string `mapstructure:"DB_HOST"`
-	Port     string `mapstructure:"DB_PORT"`
-	User     string `mapstructure:"DB_USER"`
-	Password string `mapstructure:"DB_PASSWORD"`
-	Name     string `mapstructure:"DB_NAME"`
-	SSLMode  string `mapstructure:"DB_SSL_MODE"`
-	TimeZone string `mapstructure:"DB_TIMEZONE"`
+// AppSettings define configurações gerais da aplicação
+type AppSettings struct {
+	Environment string
+	Debug       bool
+	LogLevel    string
+	APIPrefix   string
 }
 
-// JWTConfig armazena as configurações relacionadas a autenticação JWT
-type JWTConfig struct {
-	Secret     string        `mapstructure:"JWT_SECRET"`
-	Expiration time.Duration `mapstructure:"JWT_EXPIRATION"`
+// DatabaseSettings define configurações do banco de dados
+type DatabaseSettings struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Name     string
+	SSLMode  string
+	Timezone string
 }
 
-// TypesenseConfig armazena as configurações relacionadas ao Typesense
-type TypesenseConfig struct {
-	Host     string `mapstructure:"TYPESENSE_HOST"`
-	Port     int    `mapstructure:"TYPESENSE_PORT"`
-	Protocol string `mapstructure:"TYPESENSE_PROTOCOL"`
-	APIKey   string `mapstructure:"TYPESENSE_API_KEY"`
+// ServerSettings define configurações do servidor HTTP
+type ServerSettings struct {
+	Host string
+	Port int
 }
 
-// SwaggerConfig armazena as configurações relacionadas à documentação Swagger
-type SwaggerConfig struct {
-	Host string `mapstructure:"SWAGGER_HOST"`
+// JWTSettings define configurações de autenticação
+type JWTSettings struct {
+	Secret    string
+	ExpiresIn string
 }
 
-// GetDSN retorna o DSN formatado para conexão com o PostgreSQL
-func (d *DatabaseConfig) GetDSN() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
-		d.Host, d.Port, d.User, d.Password, d.Name, d.SSLMode, d.TimeZone)
+// SwaggerSettings define configurações da documentação Swagger
+type SwaggerSettings struct {
+	Host string
 }
 
-// GetSwaggerHost retorna o host para o Swagger (com a porta)
-func (c *Config) GetSwaggerHost() string {
-	if c.Swagger.Host != "" {
-		return c.Swagger.Host
-	}
-	return fmt.Sprintf("localhost:%s", c.Port)
+// TypeSenseSettings define configurações do TypeSense
+type TypeSenseSettings struct {
+	Protocol string
+	Host     string
+	Port     int
+	APIKey   string
 }
 
-var cfg *Config
-
-// Load carrega as configurações do ambiente para a estrutura Config
-func Load() (*Config, error) {
-	if cfg != nil {
-		return cfg, nil
-	}
-
-	v := viper.New()
-	
-	// Configuração para leitura do arquivo .env
-	v.SetConfigFile(".env")
-	v.AddConfigPath(".")
-	v.SetConfigType("env")
-	
-	// Ler variáveis de ambiente
-	v.AutomaticEnv()
-	
-	// Definir valores padrão
-	setDefaults(v)
-	
-	// Tentar carregar do arquivo .env
-	if err := v.ReadInConfig(); err != nil {
-		// Apenas logar o erro, não é fatal se o arquivo não existir
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			log.Println("Arquivo .env não encontrado, usando variáveis de ambiente")
-		} else {
-			log.Printf("Erro ao carregar .env: %v\n", err)
-		}
-	}
-	
-	// Mapear as configurações para a estrutura
-	cfg = &Config{}
-	if err := v.Unmarshal(cfg); err != nil {
-		return nil, fmt.Errorf("erro ao decodificar configurações: %w", err)
-	}
-	
-	// Definir configurações adicionais não mapeadas diretamente
-	cfg.Database = DatabaseConfig{
-		Host:     v.GetString("DB_HOST"),
-		Port:     v.GetString("DB_PORT"),
-		User:     v.GetString("DB_USER"),
-		Password: v.GetString("DB_PASSWORD"),
-		Name:     v.GetString("DB_NAME"),
-		SSLMode:  v.GetString("DB_SSL_MODE"),
-		TimeZone: v.GetString("DB_TIMEZONE"),
-	}
-	
-	jwtExpiration := v.GetString("JWT_EXPIRATION")
-	duration, err := time.ParseDuration(jwtExpiration)
-	if err != nil {
-		duration = 24 * time.Hour // Padrão de 24 horas
-	}
-	
-	cfg.JWT = JWTConfig{
-		Secret:     v.GetString("JWT_SECRET"),
-		Expiration: duration,
-	}
-
-	// Configurações do Typesense
-	cfg.Typesense = TypesenseConfig{
-		Host:     v.GetString("TYPESENSE_HOST"),
-		Port:     v.GetInt("TYPESENSE_PORT"),
-		Protocol: v.GetString("TYPESENSE_PROTOCOL"),
-		APIKey:   v.GetString("TYPESENSE_API_KEY"),
-	}
-
-	// Configurações do Swagger
-	cfg.Swagger = SwaggerConfig{
-		Host: v.GetString("SWAGGER_HOST"),
-	}
-
-	return cfg, nil
+// MigrationSettings define configurações para migrações
+type MigrationSettings struct {
+	Run bool
 }
 
-// Get retorna a configuração atual
-func Get() *Config {
-	if cfg == nil {
-		var err error
-		cfg, err = Load()
-		if err != nil {
-			log.Fatalf("Erro fatal ao carregar configurações: %v", err)
-		}
-	}
-	return cfg
+// Singleton instance
+var (
+	config        *AppConfig
+	ErrNoHost     = errors.New("host não pode estar vazio")
+	ErrInvalidPort = errors.New("porta deve ser maior que zero")
+)
+
+// Construtor de DSN para conexão PostgreSQL
+func (db *DatabaseSettings) DSN() string {
+	return fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
+		db.Host, db.Port, db.User, db.Password, db.Name, db.SSLMode, db.Timezone,
+	)
 }
 
 // IsDevelopment verifica se o ambiente é de desenvolvimento
-func (c *Config) IsDevelopment() bool {
-	return strings.ToLower(c.AppEnv) == "development"
+func (a *AppSettings) IsDevelopment() bool {
+	return strings.ToLower(a.Environment) == "development"
 }
 
 // IsProduction verifica se o ambiente é de produção
-func (c *Config) IsProduction() bool {
-	return strings.ToLower(c.AppEnv) == "production"
+func (a *AppSettings) IsProduction() bool {
+	return strings.ToLower(a.Environment) == "production"
 }
 
 // IsTest verifica se o ambiente é de teste
-func (c *Config) IsTest() bool {
-	return strings.ToLower(c.AppEnv) == "test"
+func (a *AppSettings) IsTest() bool {
+	return strings.ToLower(a.Environment) == "test"
 }
 
-// setDefaults define os valores padrão para as configurações
-func setDefaults(v *viper.Viper) {
-	v.SetDefault("APP_ENV", "development")
-	v.SetDefault("PORT", "8081")
-	v.SetDefault("DEBUG", true)
-	v.SetDefault("API_PREFIX", "/api/v1")
-	v.SetDefault("LOG_LEVEL", "debug")
-	
-	v.SetDefault("DB_HOST", "localhost")
-	v.SetDefault("DB_PORT", "5432")
-	v.SetDefault("DB_USER", "postgres")
-	v.SetDefault("DB_PASSWORD", "postgres")
-	v.SetDefault("DB_NAME", "app_db")
-	v.SetDefault("DB_SSL_MODE", "disable")
-	v.SetDefault("DB_TIMEZONE", "UTC")
-	
-	v.SetDefault("JWT_SECRET", "default_jwt_secret")
-	v.SetDefault("JWT_EXPIRATION", "24h")
-
-	v.SetDefault("TYPESENSE_HOST", "localhost")
-	v.SetDefault("TYPESENSE_PORT", 8108)
-	v.SetDefault("TYPESENSE_PROTOCOL", "http")
-	v.SetDefault("TYPESENSE_API_KEY", "")
-	
-	v.SetDefault("SWAGGER_HOST", "")
+// Validate valida as configurações do banco de dados
+func (db *DatabaseSettings) Validate() error {
+	if db.Host == "" {
+		return ErrNoHost
+	}
+	if db.Port <= 0 {
+		return ErrInvalidPort
+	}
+	return nil
 }
 
-// PrepareEnvForTests configura o ambiente para testes
-func PrepareEnvForTests() {
-	os.Setenv("APP_ENV", "test")
-	os.Setenv("DB_NAME", "app_db_test")
-	
-	// Recarregar configurações
-	cfg = nil
-	Get()
+// Validate valida as configurações do servidor
+func (s *ServerSettings) Validate() error {
+	if s.Host == "" {
+		return ErrNoHost
+	}
+	if s.Port <= 0 {
+		return ErrInvalidPort
+	}
+	return nil
 }
+
+// Validate valida todas as configurações
+func (c *AppConfig) Validate() error {
+	if err := c.Database.Validate(); err != nil {
+		return fmt.Errorf("configuração de banco de dados inválida: %w", err)
+	}
+	
+	if err := c.Server.Validate(); err != nil {
+		return fmt.Errorf("configuração de servidor inválida: %w", err)
+	}
+	
+	return nil
+}
+
+// Load carrega configurações de variáveis de ambiente e arquivo .env
+func Load() (*AppConfig, error) {
+	// Inicializa o Viper
+	v := viper.New()
+	v.AutomaticEnv()
+	
+	// Configura leitura de arquivo .env
+	v.SetConfigType("env")
+	v.SetConfigName(".env")
+	v.AddConfigPath(".")
+	
+	// Ler arquivo .env (ignorar erro se não existir)
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			log.Printf("Aviso: erro ao ler arquivo .env: %v", err)
+		}
+	}
+	
+	// Carregar configurações
+	appConfig := &AppConfig{
+		App: AppSettings{
+			Environment: getEnv(v, "APP_ENV", "development"),
+			Debug:       getBool(v, "DEBUG", true),
+			LogLevel:    getEnv(v, "LOG_LEVEL", "debug"),
+			APIPrefix:   getEnv(v, "API_PREFIX", "/api/v1"),
+		},
+		Database: DatabaseSettings{
+			Host:     getEnv(v, "DB_HOST", "localhost"),
+			Port:     getInt(v, "DB_PORT", 5432),
+			User:     getEnv(v, "DB_USER", "postgres"),
+			Password: getEnv(v, "DB_PASSWORD", "postgres"),
+			Name:     getEnv(v, "DB_NAME", "app_go_api"),
+			SSLMode:  getEnv(v, "DB_SSL_MODE", "disable"),
+			Timezone: getEnv(v, "DB_TIMEZONE", "UTC"),
+		},
+		Server: ServerSettings{
+			Host: getEnv(v, "SERVER_HOST", "0.0.0.0"),
+			Port: getInt(v, "SERVER_PORT", 8080),
+		},
+		JWT: JWTSettings{
+			Secret:    getEnv(v, "JWT_SECRET", "sua_chave_secreta_aqui"),
+			ExpiresIn: getEnv(v, "JWT_EXPIRATION", "24h"),
+		},
+		Swagger: SwaggerSettings{
+			Host: getEnv(v, "SWAGGER_HOST", "localhost:8080"),
+		},
+		TypeSense: TypeSenseSettings{
+			Protocol: getEnv(v, "TYPESENSE_PROTOCOL", "http"),
+			Host:     getEnv(v, "TYPESENSE_HOST", "localhost"),
+			Port:     getInt(v, "TYPESENSE_PORT", 8108),
+			APIKey:   getEnv(v, "TYPESENSE_API_KEY", ""),
+		},
+		Migrations: MigrationSettings{
+			Run: getBool(v, "RUN_MIGRATIONS", false),
+		},
+	}
+	
+	// Validar configurações
+	if err := appConfig.Validate(); err != nil {
+		return nil, err
+	}
+	
+	// Exibir configurações se em modo debug
+	if appConfig.App.Debug {
+		logConfig(appConfig)
+	}
+	
+	return appConfig, nil
+}
+
+// Get retorna a instância singleton da configuração
+func Get() *AppConfig {
+	if config == nil {
+		var err error
+		config, err = Load()
+		if err != nil {
+			panic(fmt.Sprintf("erro fatal ao carregar configurações: %v", err))
+		}
+	}
+	return config
+}
+
+// Funções auxiliares para obter valores do Viper com fallback
+
+func getEnv(v *viper.Viper, key, defaultValue string) string {
+	if value := v.GetString(key); value != "" {
+		return value
+	}
+	// Fallback para os.Getenv diretamente, para casos onde viper falha
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getInt(v *viper.Viper, key string, defaultValue int) int {
+	if v.IsSet(key) {
+		return v.GetInt(key)
+	}
+	// Fallback para os.Getenv diretamente
+	if value := os.Getenv(key); value != "" {
+		if val, err := fmt.Sscanf(value, "%d", new(int)); err == nil && val > 0 {
+			return val
+		}
+	}
+	return defaultValue
+}
+
+func getBool(v *viper.Viper, key string, defaultValue bool) bool {
+	if v.IsSet(key) {
+		return v.GetBool(key)
+	}
+	// Fallback para os.Getenv diretamente
+	if value := os.Getenv(key); value != "" {
+		return strings.ToLower(value) == "true"
+	}
+	return defaultValue
+}
+
+// Função de logging para depuração
+func logConfig(config *AppConfig) {
+	log.Println("===== Configurações Carregadas =====")
+	log.Printf("Ambiente: %s (Debug: %v)", config.App.Environment, config.App.Debug)
+	log.Printf("Servidor: %s:%d", config.Server.Host, config.Server.Port)
+	log.Printf("Banco de Dados: %s:%d/%s (User: %s, SSL: %s)", 
+		config.Database.Host, config.Database.Port, config.Database.Name, 
+		config.Database.User, config.Database.SSLMode)
+	log.Println("====================================")
+} 
