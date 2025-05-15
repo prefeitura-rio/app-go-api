@@ -19,7 +19,7 @@ type TypesenseService struct {
 
 // NewTypesenseService cria uma nova instância do TypesenseService
 func NewTypesenseService() (*TypesenseService, error) {
-	cfg := config.Get().Typesense
+	cfg := config.Get().TypeSense
 	
 	if cfg.Host == "" || cfg.APIKey == "" {
 		return nil, errors.New("configuração do Typesense incompleta")

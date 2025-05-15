@@ -1,5 +1,29 @@
-basePath: /api/v1
+basePath: /
 definitions:
+  models.Acessibilidade:
+    properties:
+      cursos:
+        description: Relacionamentos
+        items:
+          $ref: '#/definitions/models.Curso'
+        type: array
+      id:
+        type: integer
+      nome:
+        type: string
+    type: object
+  models.Categoria:
+    properties:
+      cursos:
+        description: Relacionamentos
+        items:
+          $ref: '#/definitions/models.Curso'
+        type: array
+      id:
+        type: integer
+      nome:
+        type: string
+    type: object
   models.CollectionField:
     properties:
       facet:
@@ -67,14 +91,212 @@ definitions:
           type: string
         type: array
     type: object
+  models.Curso:
+    properties:
+      acessibilidades:
+        items:
+          $ref: '#/definitions/models.Acessibilidade'
+        type: array
+      carga_horaria:
+        type: integer
+      categorias:
+        items:
+          $ref: '#/definitions/models.Categoria'
+        type: array
+      certificacao_oferecida:
+        type: boolean
+      contato_duvidas:
+        type: string
+      created_at:
+        type: string
+      data_inicio:
+        type: string
+      data_limite_inscricoes:
+        type: string
+      data_termino:
+        type: string
+      descricao:
+        type: string
+      formato_aula:
+        $ref: '#/definitions/models.FormatoAula'
+      id:
+        type: integer
+      instituicao:
+        $ref: '#/definitions/models.InstituicaoEnsino'
+      instituicao_id:
+        type: integer
+      link_inscricao:
+        type: string
+      local_realizacao:
+        type: string
+      modalidade:
+        $ref: '#/definitions/models.Modalidade'
+      numero_vagas:
+        type: integer
+      orgao:
+        allOf:
+        - $ref: '#/definitions/models.Orgao'
+        description: Relacionamentos
+      orgao_id:
+        type: integer
+      pre_requisitos:
+        type: string
+      status:
+        $ref: '#/definitions/models.StatusCurso'
+      titulo:
+        type: string
+      turno:
+        $ref: '#/definitions/models.Turno'
+      updated_at:
+        type: string
+    type: object
   models.Document:
     additionalProperties: true
+    type: object
+  models.Emprego:
+    properties:
+      beneficios:
+        type: string
+      contato_duvidas:
+        type: string
+      created_at:
+        type: string
+      data_inicio_prevista:
+        type: string
+      data_limite_candidatura:
+        type: string
+      descricao:
+        type: string
+      empresa:
+        $ref: '#/definitions/models.Empresa'
+      empresa_id:
+        type: integer
+      escolaridade:
+        $ref: '#/definitions/models.Escolaridade'
+      escolaridade_id:
+        type: integer
+      id:
+        type: integer
+      jornada_trabalho:
+        $ref: '#/definitions/models.JornadaTrabalho'
+      latitude:
+        type: number
+      longitude:
+        type: number
+      numero_vagas:
+        type: integer
+      orgao:
+        allOf:
+        - $ref: '#/definitions/models.Orgao'
+        description: Relacionamentos
+      orgao_id:
+        type: integer
+      pre_requisitos:
+        type: string
+      salario_max:
+        type: integer
+      salario_min:
+        type: integer
+      status:
+        $ref: '#/definitions/models.StatusEmprego'
+      tipo_contratacao:
+        $ref: '#/definitions/models.TipoContratacao'
+      titulo:
+        type: string
+      turno:
+        $ref: '#/definitions/models.Turno'
+      updated_at:
+        type: string
+    type: object
+  models.Empresa:
+    properties:
+      empregos:
+        description: Relacionamentos
+        items:
+          $ref: '#/definitions/models.Emprego'
+        type: array
+      id:
+        type: integer
+      nome:
+        type: string
     type: object
   models.ErrorResponse:
     properties:
       code:
         type: integer
       message:
+        type: string
+    type: object
+  models.Escolaridade:
+    properties:
+      empregos:
+        description: Relacionamentos
+        items:
+          $ref: '#/definitions/models.Emprego'
+        type: array
+      id:
+        type: integer
+      nivel:
+        type: string
+    type: object
+  models.FormatoAula:
+    enum:
+    - GRAVADO
+    - AO_VIVO
+    type: string
+    x-enum-varnames:
+    - FormatoAulaGravado
+    - FormatoAulaAoVivo
+  models.InstituicaoEnsino:
+    properties:
+      cursos:
+        description: Relacionamentos
+        items:
+          $ref: '#/definitions/models.Curso'
+        type: array
+      id:
+        type: integer
+      nome:
+        type: string
+    type: object
+  models.JornadaTrabalho:
+    enum:
+    - INTEGRAL
+    - MEIO_PERIODO
+    - FLEXIVEL
+    - ESTAGIO
+    - HOME_OFFICE
+    type: string
+    x-enum-varnames:
+    - JornadaIntegral
+    - JornadaMeioPeriodo
+    - JornadaFlexivel
+    - JornadaEstagio
+    - JornadaHomeOffice
+  models.Modalidade:
+    enum:
+    - PRESENCIAL
+    - ONLINE
+    - HIBRIDO
+    type: string
+    x-enum-varnames:
+    - ModalidadePresencial
+    - ModalidadeOnline
+    - ModalidadeHibrido
+  models.Orgao:
+    properties:
+      cursos:
+        description: Relacionamentos
+        items:
+          $ref: '#/definitions/models.Curso'
+        type: array
+      empregos:
+        items:
+          $ref: '#/definitions/models.Emprego'
+        type: array
+      id:
+        type: integer
+      nome:
         type: string
     type: object
   models.SearchDocumentsResponse:
@@ -125,6 +347,56 @@ definitions:
       sort_by:
         type: string
     type: object
+  models.StatusCurso:
+    enum:
+    - CRIADO
+    - ABERTO
+    - ENCERRADO
+    type: string
+    x-enum-varnames:
+    - StatusCursoCriado
+    - StatusCursoAberto
+    - StatusCursoEncerrado
+  models.StatusEmprego:
+    enum:
+    - CRIADO
+    - ABERTO
+    - EM_ANALISE
+    - ENCERRADO
+    type: string
+    x-enum-varnames:
+    - StatusEmpregoCriado
+    - StatusEmpregoAberto
+    - StatusEmpregoEmAnalise
+    - StatusEmpregoEncerrado
+  models.TipoContratacao:
+    enum:
+    - CLT
+    - ESTAGIO
+    - JOVEM_APRENDIZ
+    - MEI
+    - PJ
+    type: string
+    x-enum-varnames:
+    - TipoContratacaoCLT
+    - TipoContratacaoEstagio
+    - TipoContratacaoJovemAprendiz
+    - TipoContratacaoMEI
+    - TipoContratacaoPJ
+  models.Turno:
+    enum:
+    - MANHA
+    - TARDE
+    - NOITE
+    - INTEGRAL
+    - LIVRE
+    type: string
+    x-enum-varnames:
+    - TurnoManha
+    - TurnoTarde
+    - TurnoNoite
+    - TurnoIntegral
+    - TurnoLivre
   models.UpsertDocumentRequest:
     properties:
       action_on_match:
@@ -133,14 +405,352 @@ definitions:
       document:
         $ref: '#/definitions/models.Document'
     type: object
+host: localhost:8081
 info:
   contact:
-    email: support@prefeitura.rio
+    email: frederico.zolio@prefeitura.rio
     name: API Support
-  description: API REST para a Prefeitura do Rio de Janeiro
-  title: API Go Prefeitura do Rio de Janeiro
+    url: https://iplan.rio
+  description: API de serviços para aplicativos da Prefeitura do Rio
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: API Go
   version: "1.0"
 paths:
+  /api/v1/cursos:
+    get:
+      description: Retorna uma lista paginada de cursos com filtros opcionais
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filtrar por ID do órgão
+        in: query
+        name: orgao_id
+        type: integer
+      - description: Filtrar por ID da instituição
+        in: query
+        name: instituicao_id
+        type: integer
+      - description: Filtrar por status
+        in: query
+        name: status
+        type: string
+      - description: Filtrar por modalidade
+        in: query
+        name: modalidade
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar cursos
+      tags:
+      - cursos
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo curso
+      parameters:
+      - description: Dados do curso
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Curso'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Curso'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar curso
+      tags:
+      - cursos
+  /api/v1/cursos/{id}:
+    delete:
+      description: Remove um curso pelo ID
+      parameters:
+      - description: ID do curso
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir curso
+      tags:
+      - cursos
+    get:
+      description: Retorna um curso pelo seu ID
+      parameters:
+      - description: ID do curso
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Curso'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter curso por ID
+      tags:
+      - cursos
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de um curso existente
+      parameters:
+      - description: ID do curso
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados do curso
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Curso'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Curso'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar curso
+      tags:
+      - cursos
+  /api/v1/empregos:
+    get:
+      description: Retorna uma lista paginada de empregos com filtros opcionais
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filtrar por ID do órgão
+        in: query
+        name: orgao_id
+        type: integer
+      - description: Filtrar por ID da empresa
+        in: query
+        name: empresa_id
+        type: integer
+      - description: Filtrar por ID da escolaridade
+        in: query
+        name: escolaridade_id
+        type: integer
+      - description: Filtrar por status
+        in: query
+        name: status
+        type: string
+      - description: Filtrar por tipo de contratação
+        in: query
+        name: tipo_contratacao
+        type: string
+      - description: Filtrar por jornada de trabalho
+        in: query
+        name: jornada_trabalho
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar empregos
+      tags:
+      - empregos
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova oportunidade de emprego
+      parameters:
+      - description: Dados do emprego
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Emprego'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Emprego'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar emprego
+      tags:
+      - empregos
+  /api/v1/empregos/{id}:
+    delete:
+      description: Remove um emprego pelo ID
+      parameters:
+      - description: ID do emprego
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir emprego
+      tags:
+      - empregos
+    get:
+      description: Retorna um emprego pelo seu ID
+      parameters:
+      - description: ID do emprego
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Emprego'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter emprego por ID
+      tags:
+      - empregos
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de um emprego existente
+      parameters:
+      - description: ID do emprego
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados do emprego
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Emprego'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Emprego'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar emprego
+      tags:
+      - empregos
   /health:
     get:
       description: Retorna o status de saúde da API v1
@@ -424,4 +1034,7 @@ paths:
       summary: Obter coleção
       tags:
       - collections
+schemes:
+- http
+- https
 swagger: "2.0"
