@@ -29,6 +29,13 @@ import (
 // @host localhost:8081
 // @BasePath /
 // @schemes http https
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Autenticação usando token JWT no formato 'Bearer {token}'
+
+// @Security BearerAuth
 func main() {
 	// Imprimir todas as variáveis de ambiente para debug
 	if os.Getenv("DEBUG") == "true" {

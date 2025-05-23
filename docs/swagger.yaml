@@ -777,4 +777,12 @@ paths:
 schemes:
 - http
 - https
+security:
+- BearerAuth: []
+securityDefinitions:
+  BearerAuth:
+    description: Autenticação usando token JWT no formato 'Bearer {token}'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"
