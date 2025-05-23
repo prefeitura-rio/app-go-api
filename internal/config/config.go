@@ -81,7 +81,7 @@ type MigrationSettings struct {
 
 // Erros comuns de validação
 var (
-	ErrNoHost     = errors.New("host não pode estar vazio")
+	ErrNoHost      = errors.New("host não pode estar vazio")
 	ErrInvalidPort = errors.New("porta deve ser maior que zero")
 )
 
@@ -143,11 +143,11 @@ func (c *AppConfig) Validate() error {
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("configuração de banco de dados inválida: %w", err)
 	}
-	
+
 	if err := c.Server.Validate(); err != nil {
 		return fmt.Errorf("configuração de servidor inválida: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -169,7 +169,7 @@ func NewConfigProvider() (ConfigProvider, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &defaultConfigProvider{
 		config: config,
 		viper:  v,
@@ -188,12 +188,12 @@ func (p *defaultConfigProvider) Reload() error {
 			return fmt.Errorf("erro ao recarregar configurações: %w", err)
 		}
 	}
-	
+
 	config, err := Load()
 	if err != nil {
 		return err
 	}
-	
+
 	p.config = config
 	return nil
 }
@@ -202,22 +202,22 @@ func (p *defaultConfigProvider) Reload() error {
 func Initialize() error {
 	v = viper.New()
 	v.AutomaticEnv()
-	
+
 	// Configura leitura de arquivo .env
 	v.SetConfigType("env")
 	v.SetConfigName(".env")
 	v.AddConfigPath(".")
-	
+
 	// Configuração de observação de alterações no arquivo
 	v.WatchConfig()
-	
+
 	// Ler arquivo .env (ignorar erro se não existir)
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			log.Printf("Aviso: erro ao ler arquivo .env: %v", err)
 		}
 	}
-	
+
 	// Carregar configuração inicial
 	_, err := Get()
 	return err
@@ -230,7 +230,7 @@ func Load() (*AppConfig, error) {
 			return nil, err
 		}
 	}
-	
+
 	// Carregar configurações
 	appConfig := &AppConfig{
 		App: AppSettings{
@@ -253,10 +253,6 @@ func Load() (*AppConfig, error) {
 			Host: getEnv(v, "SERVER_HOST", "0.0.0.0"),
 			Port: getInt(v, "SERVER_PORT", 8080),
 		},
-		JWT: JWTSettings{
-			Secret:    getEnv(v, "JWT_SECRET", "sua_chave_secreta_aqui"),
-			ExpiresIn: getEnv(v, "JWT_EXPIRATION", "24h"),
-		},
 		Swagger: SwaggerSettings{
 			Host: getEnv(v, "SWAGGER_HOST", "localhost:8080"),
 		},
@@ -270,17 +266,17 @@ func Load() (*AppConfig, error) {
 			Run: getBool(v, "RUN_MIGRATIONS", false),
 		},
 	}
-	
+
 	// Validar configurações
 	if err := appConfig.Validate(); err != nil {
 		return nil, err
 	}
-	
+
 	// Exibir configurações se em modo debug
 	if appConfig.App.Debug {
 		logConfig(appConfig)
 	}
-	
+
 	return appConfig, nil
 }
 
@@ -294,11 +290,11 @@ func Get() (*AppConfig, error) {
 		}
 		instance = cfg
 	})
-	
+
 	if instance == nil {
 		return nil, errors.New("falha ao inicializar configurações")
 	}
-	
+
 	mu.RLock()
 	defer mu.RUnlock()
 	return instance, nil
@@ -352,4 +348,4 @@ func logConfig(config *AppConfig) {
 	log.Printf("Server: %s:%d", config.Server.Host, config.Server.Port)
 	log.Printf("Migrations: %v", config.Migrations.Run)
 	log.Println("====================================")
-} 
+}
