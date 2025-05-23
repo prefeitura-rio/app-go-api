@@ -24,73 +24,6 @@ definitions:
       nome:
         type: string
     type: object
-  models.CollectionField:
-    properties:
-      facet:
-        type: boolean
-      index:
-        type: boolean
-      name:
-        type: string
-      optional:
-        type: boolean
-      type:
-        type: string
-    type: object
-  models.CollectionResponse:
-    properties:
-      created_at:
-        type: integer
-      default_sorting_field:
-        type: string
-      enable_nested_fields:
-        type: boolean
-      fields:
-        items:
-          $ref: '#/definitions/models.CollectionField'
-        type: array
-      name:
-        type: string
-      num_documents:
-        type: integer
-      symbols_to_index:
-        items:
-          type: string
-        type: array
-      symbols_to_index_separate:
-        items:
-          type: string
-        type: array
-      token_separators:
-        items:
-          type: string
-        type: array
-    type: object
-  models.CreateCollectionRequest:
-    properties:
-      default_sorting_field:
-        type: string
-      enable_nested_fields:
-        type: boolean
-      fields:
-        items:
-          $ref: '#/definitions/models.CollectionField'
-        type: array
-      name:
-        type: string
-      symbols_to_index:
-        items:
-          type: string
-        type: array
-      symbols_to_index_separate:
-        items:
-          type: string
-        type: array
-      token_separators:
-        items:
-          type: string
-        type: array
-    type: object
   models.Curso:
     properties:
       acessibilidades:
@@ -149,9 +82,6 @@ definitions:
         $ref: '#/definitions/models.Turno'
       updated_at:
         type: string
-    type: object
-  models.Document:
-    additionalProperties: true
     type: object
   models.Emprego:
     properties:
@@ -283,6 +213,28 @@ definitions:
     - ModalidadePresencial
     - ModalidadeOnline
     - ModalidadeHibrido
+  models.MultiCollectionSearchParameters:
+    properties:
+      collections:
+        description: Lista de nomes das coleções para buscar
+        items:
+          type: string
+        type: array
+      params:
+        allOf:
+        - $ref: '#/definitions/models.SearchParameters'
+        description: Parâmetros de busca
+    type: object
+  models.MultiCollectionSearchResponse:
+    properties:
+      results:
+        additionalProperties:
+          $ref: '#/definitions/models.SearchDocumentsResponse'
+        description: Mapa de resultados por coleção
+        type: object
+      total_found:
+        type: integer
+    type: object
   models.Orgao:
     properties:
       cursos:
@@ -397,14 +349,6 @@ definitions:
     - TurnoNoite
     - TurnoIntegral
     - TurnoLivre
-  models.UpsertDocumentRequest:
-    properties:
-      action_on_match:
-        description: '"update", "create", "upsert"'
-        type: string
-      document:
-        $ref: '#/definitions/models.Document'
-    type: object
 host: localhost:8081
 info:
   contact:
@@ -765,191 +709,6 @@ paths:
       summary: Verificar saúde da API
       tags:
       - health
-  /typesense/collections:
-    get:
-      description: Lista todas as coleções no Typesense
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/models.CollectionResponse'
-            type: array
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-      summary: Listar coleções
-      tags:
-      - collections
-    post:
-      consumes:
-      - application/json
-      description: Cria uma nova coleção no Typesense
-      parameters:
-      - description: Dados da coleção
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.CreateCollectionRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/models.CollectionResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-      summary: Criar coleção
-      tags:
-      - collections
-  /typesense/collections/{collection}/documents:
-    post:
-      consumes:
-      - application/json
-      description: Insere ou atualiza um documento em uma coleção
-      parameters:
-      - description: Nome da coleção
-        in: path
-        name: collection
-        required: true
-        type: string
-      - description: Dados do documento
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.UpsertDocumentRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.Document'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-      summary: Inserir/atualizar documento
-      tags:
-      - documents
-  /typesense/collections/{collection}/documents/{id}:
-    delete:
-      description: Exclui um documento pelo ID
-      parameters:
-      - description: Nome da coleção
-        in: path
-        name: collection
-        required: true
-        type: string
-      - description: ID do documento
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-      summary: Excluir documento
-      tags:
-      - documents
-    get:
-      description: Obtém um documento pelo ID
-      parameters:
-      - description: Nome da coleção
-        in: path
-        name: collection
-        required: true
-        type: string
-      - description: ID do documento
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.Document'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-      summary: Obter documento
-      tags:
-      - documents
-  /typesense/collections/{collection}/documents/import:
-    post:
-      consumes:
-      - application/json
-      description: Importa múltiplos documentos em batch para uma coleção
-      parameters:
-      - description: Nome da coleção
-        in: path
-        name: collection
-        required: true
-        type: string
-      - description: 'Ação em caso de documento existente (default: create)'
-        in: query
-        name: action
-        type: string
-      - description: Lista de documentos
-        in: body
-        name: documents
-        required: true
-        schema:
-          items:
-            $ref: '#/definitions/models.Document'
-          type: array
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: integer
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-      summary: Importar documentos
-      tags:
-      - documents
   /typesense/collections/{collection}/documents/search:
     post:
       consumes:
@@ -982,47 +741,28 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/models.ErrorResponse'
-      summary: Buscar documentos
+      summary: Buscar documentos em uma coleção
       tags:
-      - documents
-  /typesense/collections/{name}:
-    delete:
-      description: Exclui uma coleção pelo nome
+      - search
+  /typesense/multi-search:
+    post:
+      consumes:
+      - application/json
+      description: Realiza busca em várias coleções simultaneamente
       parameters:
-      - description: Nome da coleção
-        in: path
-        name: name
+      - description: Parâmetros de busca
+        in: body
+        name: params
         required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-      summary: Excluir coleção
-      tags:
-      - collections
-    get:
-      description: Obtém uma coleção pelo nome
-      parameters:
-      - description: Nome da coleção
-        in: path
-        name: name
-        required: true
-        type: string
+        schema:
+          $ref: '#/definitions/models.MultiCollectionSearchParameters'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.CollectionResponse'
+            $ref: '#/definitions/models.MultiCollectionSearchResponse'
         "400":
           description: Bad Request
           schema:
@@ -1031,9 +771,9 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/models.ErrorResponse'
-      summary: Obter coleção
+      summary: Buscar em múltiplas coleções
       tags:
-      - collections
+      - search
 schemes:
 - http
 - https

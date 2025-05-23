@@ -547,197 +547,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/typesense/collections": {
-            "get": {
-                "description": "Lista todas as coleções no Typesense",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "collections"
-                ],
-                "summary": "Listar coleções",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.CollectionResponse"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Cria uma nova coleção no Typesense",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "collections"
-                ],
-                "summary": "Criar coleção",
-                "parameters": [
-                    {
-                        "description": "Dados da coleção",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.CreateCollectionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.CollectionResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/typesense/collections/{collection}/documents": {
-            "post": {
-                "description": "Insere ou atualiza um documento em uma coleção",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "documents"
-                ],
-                "summary": "Inserir/atualizar documento",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Nome da coleção",
-                        "name": "collection",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Dados do documento",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.UpsertDocumentRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Document"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/typesense/collections/{collection}/documents/import": {
-            "post": {
-                "description": "Importa múltiplos documentos em batch para uma coleção",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "documents"
-                ],
-                "summary": "Importar documentos",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Nome da coleção",
-                        "name": "collection",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Ação em caso de documento existente (default: create)",
-                        "name": "action",
-                        "in": "query"
-                    },
-                    {
-                        "description": "Lista de documentos",
-                        "name": "documents",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.Document"
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "integer"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/typesense/collections/{collection}/documents/search": {
             "post": {
                 "description": "Busca documentos em uma coleção",
@@ -748,9 +557,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "documents"
+                    "search"
                 ],
-                "summary": "Buscar documentos",
+                "summary": "Buscar documentos em uma coleção",
                 "parameters": [
                     {
                         "type": "string",
@@ -791,152 +600,36 @@ const docTemplate = `{
                 }
             }
         },
-        "/typesense/collections/{collection}/documents/{id}": {
-            "get": {
-                "description": "Obtém um documento pelo ID",
+        "/typesense/multi-search": {
+            "post": {
+                "description": "Realiza busca em várias coleções simultaneamente",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "documents"
+                    "search"
                 ],
-                "summary": "Obter documento",
+                "summary": "Buscar em múltiplas coleções",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Nome da coleção",
-                        "name": "collection",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "ID do documento",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
+                        "description": "Parâmetros de busca",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.MultiCollectionSearchParameters"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Document"
+                            "$ref": "#/definitions/models.MultiCollectionSearchResponse"
                         }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Exclui um documento pelo ID",
-                "tags": [
-                    "documents"
-                ],
-                "summary": "Excluir documento",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Nome da coleção",
-                        "name": "collection",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "ID do documento",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/typesense/collections/{name}": {
-            "get": {
-                "description": "Obtém uma coleção pelo nome",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "collections"
-                ],
-                "summary": "Obter coleção",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Nome da coleção",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.CollectionResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Exclui uma coleção pelo nome",
-                "tags": [
-                    "collections"
-                ],
-                "summary": "Excluir coleção",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Nome da coleção",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -988,108 +681,6 @@ const docTemplate = `{
                 },
                 "nome": {
                     "type": "string"
-                }
-            }
-        },
-        "models.CollectionField": {
-            "type": "object",
-            "properties": {
-                "facet": {
-                    "type": "boolean"
-                },
-                "index": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "optional": {
-                    "type": "boolean"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.CollectionResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "integer"
-                },
-                "default_sorting_field": {
-                    "type": "string"
-                },
-                "enable_nested_fields": {
-                    "type": "boolean"
-                },
-                "fields": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.CollectionField"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "num_documents": {
-                    "type": "integer"
-                },
-                "symbols_to_index": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "symbols_to_index_separate": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "token_separators": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "models.CreateCollectionRequest": {
-            "type": "object",
-            "properties": {
-                "default_sorting_field": {
-                    "type": "string"
-                },
-                "enable_nested_fields": {
-                    "type": "boolean"
-                },
-                "fields": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.CollectionField"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "symbols_to_index": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "symbols_to_index_separate": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "token_separators": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },
@@ -1183,10 +774,6 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
-        },
-        "models.Document": {
-            "type": "object",
-            "additionalProperties": true
         },
         "models.Emprego": {
             "type": "object",
@@ -1379,6 +966,41 @@ const docTemplate = `{
                 "ModalidadeHibrido"
             ]
         },
+        "models.MultiCollectionSearchParameters": {
+            "type": "object",
+            "properties": {
+                "collections": {
+                    "description": "Lista de nomes das coleções para buscar",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "params": {
+                    "description": "Parâmetros de busca",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.SearchParameters"
+                        }
+                    ]
+                }
+            }
+        },
+        "models.MultiCollectionSearchResponse": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "description": "Mapa de resultados por coleção",
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/models.SearchDocumentsResponse"
+                    }
+                },
+                "total_found": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.Orgao": {
             "type": "object",
             "properties": {
@@ -1536,18 +1158,6 @@ const docTemplate = `{
                 "TurnoIntegral",
                 "TurnoLivre"
             ]
-        },
-        "models.UpsertDocumentRequest": {
-            "type": "object",
-            "properties": {
-                "action_on_match": {
-                    "description": "\"update\", \"create\", \"upsert\"",
-                    "type": "string"
-                },
-                "document": {
-                    "$ref": "#/definitions/models.Document"
-                }
-            }
         }
     }
 }`
