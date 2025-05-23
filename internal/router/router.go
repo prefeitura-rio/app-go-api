@@ -37,6 +37,8 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 
 	// API v1
 	apiV1 := r.Group("/api/v1")
+	// Aplicar middleware de autenticação para proteger todas as rotas da API
+	apiV1.Use(middlewares.AuthMiddleware())
 
 	// Inicializando repositórios
 	cursoRepo := repository.NewCursoRepository(db)

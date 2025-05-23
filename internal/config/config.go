@@ -30,6 +30,7 @@ type AppSettings struct {
 	Debug       bool
 	LogLevel    string
 	APIPrefix   string
+	APIToken    string
 }
 
 // DatabaseSettings define configurações do banco de dados
@@ -234,9 +235,10 @@ func Load() (*AppConfig, error) {
 	appConfig := &AppConfig{
 		App: AppSettings{
 			Environment: getEnv(v, "APP_ENV", "development"),
-			Debug:       getBool(v, "DEBUG", true),
-			LogLevel:    getEnv(v, "LOG_LEVEL", "debug"),
-			APIPrefix:   getEnv(v, "API_PREFIX", "/api/v1"),
+			Debug:       getBool(v, "APP_DEBUG", true),
+			LogLevel:    getEnv(v, "LOG_LEVEL", "info"),
+			APIPrefix:   getEnv(v, "API_PREFIX", "/api"),
+			APIToken:    getEnv(v, "API_TOKEN", ""),
 		},
 		Database: DatabaseSettings{
 			Host:     getEnv(v, "DB_HOST", "localhost"),
