@@ -43,15 +43,8 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
     echo "Migrações concluídas."
 fi
 
-# Atualizar documentação Swagger
-echo "Atualizando documentação Swagger..."
-if command -v swag > /dev/null; then
-    swag init -g cmd/server/main.go
-    echo "Documentação Swagger atualizada com sucesso."
-else
-    echo "Comando 'swag' não encontrado. A documentação Swagger não será atualizada automaticamente."
-    echo "Considere instalar swag no container: go install github.com/swaggo/swag/cmd/swag@latest"
-fi
+# Documentação Swagger já foi gerada durante o build
+echo "Documentação Swagger já gerada durante o build..."
 
 # Executar o comando fornecido (normalmente ./api)
 echo "Executando servidor: $@"
