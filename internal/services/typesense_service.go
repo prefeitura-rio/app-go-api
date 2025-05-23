@@ -12,314 +12,30 @@ import (
 	"github.com/typesense/typesense-go/v3/typesense/api"
 )
 
-// TypesenseService fornece operações para gerenciar coleções e documentos no Typesense
+// TypesenseService fornece operações de busca no Typesense
 type TypesenseService struct {
 	client *typesense.Client
 }
 
 // NewTypesenseService cria uma nova instância do TypesenseService
 func NewTypesenseService() (*TypesenseService, error) {
-	cfg := config.Get().TypeSense
+	cfg, err := config.Get()
+	if err != nil {
+		return nil, fmt.Errorf("erro ao obter configurações: %w", err)
+	}
 	
-	if cfg.Host == "" || cfg.APIKey == "" {
+	if cfg.TypeSense.Host == "" || cfg.TypeSense.APIKey == "" {
 		return nil, errors.New("configuração do Typesense incompleta")
 	}
 
 	client := typesense.NewClient(
-		typesense.WithServer(fmt.Sprintf("%s://%s:%d", cfg.Protocol, cfg.Host, cfg.Port)),
-		typesense.WithAPIKey(cfg.APIKey),
+		typesense.WithServer(fmt.Sprintf("%s://%s:%d", cfg.TypeSense.Protocol, cfg.TypeSense.Host, cfg.TypeSense.Port)),
+		typesense.WithAPIKey(cfg.TypeSense.APIKey),
 	)
 
 	return &TypesenseService{
 		client: client,
 	}, nil
-}
-
-// CreateCollection cria uma nova coleção no Typesense
-func (s *TypesenseService) CreateCollection(ctx context.Context, req models.CreateCollectionRequest) (*models.CollectionResponse, error) {
-	// Converter para o formato esperado pelo Typesense
-	var fields []api.Field
-	for _, field := range req.Fields {
-		fields = append(fields, api.Field{
-			Name:     field.Name,
-			Type:     field.Type,
-			Facet:    &field.Facet,
-			Index:    &field.Index,
-			Optional: &field.Optional,
-		})
-	}
-
-	// Ajustando os tipos para ponteiros onde necessário
-	tokenSeparators := req.TokenSeparators
-	symbolsToIndex := req.SymbolsToIndex
-
-	schema := &api.CollectionSchema{
-		Name:                   req.Name,
-		Fields:                 fields,
-		DefaultSortingField:    &req.DefaultSortingField,
-		EnableNestedFields:     &req.EnableNestedFields,
-		TokenSeparators:        &tokenSeparators,
-		SymbolsToIndex:         &symbolsToIndex,
-	}
-
-	collection, err := s.client.Collections().Create(ctx, schema)
-	if err != nil {
-		return nil, err
-	}
-
-	// Converter resposta para o formato da API
-	var tokenSeps []string
-	if collection.TokenSeparators != nil {
-		tokenSeps = *collection.TokenSeparators
-	}
-	
-	var symToIndex []string
-	if collection.SymbolsToIndex != nil {
-		symToIndex = *collection.SymbolsToIndex
-	}
-	
-	var createdAt int64
-	if collection.CreatedAt != nil {
-		createdAt = *collection.CreatedAt
-	}
-	
-	var numDocs int
-	if collection.NumDocuments != nil {
-		numDocs = int(*collection.NumDocuments)
-	}
-
-	result := &models.CollectionResponse{
-		Name:               collection.Name,
-		DefaultSortingField: *collection.DefaultSortingField,
-		EnableNestedFields: *collection.EnableNestedFields,
-		TokenSeparators:    tokenSeps,
-		SymbolsToIndex:     symToIndex,
-		CreatedAt:          createdAt,
-		NumDocuments:       numDocs,
-	}
-
-	// Converter campos
-	for _, field := range collection.Fields {
-		facet := false
-		index := true
-		optional := false
-		if field.Facet != nil {
-			facet = *field.Facet
-		}
-		if field.Index != nil {
-			index = *field.Index
-		}
-		if field.Optional != nil {
-			optional = *field.Optional
-		}
-
-		result.Fields = append(result.Fields, models.CollectionField{
-			Name:     field.Name,
-			Type:     field.Type,
-			Facet:    facet,
-			Index:    index,
-			Optional: optional,
-		})
-	}
-
-	return result, nil
-}
-
-// GetCollection obtém uma coleção pelo nome
-func (s *TypesenseService) GetCollection(ctx context.Context, name string) (*models.CollectionResponse, error) {
-	collection, err := s.client.Collection(name).Retrieve(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Extrair valores de ponteiros
-	var tokenSeps []string
-	if collection.TokenSeparators != nil {
-		tokenSeps = *collection.TokenSeparators
-	}
-	
-	var symToIndex []string
-	if collection.SymbolsToIndex != nil {
-		symToIndex = *collection.SymbolsToIndex
-	}
-	
-	var createdAt int64
-	if collection.CreatedAt != nil {
-		createdAt = *collection.CreatedAt
-	}
-	
-	var numDocs int
-	if collection.NumDocuments != nil {
-		numDocs = int(*collection.NumDocuments)
-	}
-
-	// Converter resposta para o formato da API
-	result := &models.CollectionResponse{
-		Name:               collection.Name,
-		DefaultSortingField: *collection.DefaultSortingField,
-		EnableNestedFields: *collection.EnableNestedFields,
-		TokenSeparators:    tokenSeps,
-		SymbolsToIndex:     symToIndex,
-		CreatedAt:          createdAt,
-		NumDocuments:       numDocs,
-	}
-
-	// Converter campos
-	for _, field := range collection.Fields {
-		facet := false
-		index := true
-		optional := false
-		if field.Facet != nil {
-			facet = *field.Facet
-		}
-		if field.Index != nil {
-			index = *field.Index
-		}
-		if field.Optional != nil {
-			optional = *field.Optional
-		}
-
-		result.Fields = append(result.Fields, models.CollectionField{
-			Name:     field.Name,
-			Type:     field.Type,
-			Facet:    facet,
-			Index:    index,
-			Optional: optional,
-		})
-	}
-
-	return result, nil
-}
-
-// ListCollections lista todas as coleções
-func (s *TypesenseService) ListCollections(ctx context.Context) ([]models.CollectionResponse, error) {
-	collections, err := s.client.Collections().Retrieve(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []models.CollectionResponse
-	for _, collection := range collections {
-		var createdAt int64
-		if collection.CreatedAt != nil {
-			createdAt = *collection.CreatedAt
-		}
-		
-		var numDocs int
-		if collection.NumDocuments != nil {
-			numDocs = int(*collection.NumDocuments)
-		}
-		
-		collectionData := models.CollectionResponse{
-			Name:          collection.Name,
-			CreatedAt:     createdAt,
-			NumDocuments:  numDocs,
-		}
-
-		if collection.DefaultSortingField != nil {
-			collectionData.DefaultSortingField = *collection.DefaultSortingField
-		}
-		
-		if collection.EnableNestedFields != nil {
-			collectionData.EnableNestedFields = *collection.EnableNestedFields
-		}
-
-		for _, field := range collection.Fields {
-			facet := false
-			index := true
-			optional := false
-			if field.Facet != nil {
-				facet = *field.Facet
-			}
-			if field.Index != nil {
-				index = *field.Index
-			}
-			if field.Optional != nil {
-				optional = *field.Optional
-			}
-
-			collectionData.Fields = append(collectionData.Fields, models.CollectionField{
-				Name:     field.Name,
-				Type:     field.Type,
-				Facet:    facet,
-				Index:    index,
-				Optional: optional,
-			})
-		}
-
-		result = append(result, collectionData)
-	}
-
-	return result, nil
-}
-
-// DeleteCollection exclui uma coleção pelo nome
-func (s *TypesenseService) DeleteCollection(ctx context.Context, name string) error {
-	_, err := s.client.Collection(name).Delete(ctx)
-	return err
-}
-
-// UpsertDocument insere ou atualiza um documento em uma coleção
-func (s *TypesenseService) UpsertDocument(ctx context.Context, collectionName string, document models.Document, action string) (models.Document, error) {
-	// Criar os parâmetros de indexação sem o campo Action que não existe
-	indexParams := &api.DocumentIndexParameters{}
-
-	// Serializar o documento para JSON
-	docBytes, err := json.Marshal(document)
-	if err != nil {
-		return nil, err
-	}
-
-	// Deserializar para map[string]interface{} para compatibilidade com a API do Typesense
-	var docMap map[string]interface{}
-	if err := json.Unmarshal(docBytes, &docMap); err != nil {
-		return nil, err
-	}
-
-	result, err := s.client.Collection(collectionName).Documents().Upsert(ctx, docMap, indexParams)
-	if err != nil {
-		return nil, err
-	}
-
-	// Converter resposta de volta para Document
-	resultBytes, err := json.Marshal(result)
-	if err != nil {
-		return nil, err
-	}
-
-	var resultDoc models.Document
-	if err := json.Unmarshal(resultBytes, &resultDoc); err != nil {
-		return nil, err
-	}
-
-	return resultDoc, nil
-}
-
-// GetDocument obtém um documento pelo ID
-func (s *TypesenseService) GetDocument(ctx context.Context, collectionName, docID string) (models.Document, error) {
-	doc, err := s.client.Collection(collectionName).Document(docID).Retrieve(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Converter resposta de volta para Document
-	docBytes, err := json.Marshal(doc)
-	if err != nil {
-		return nil, err
-	}
-
-	var resultDoc models.Document
-	if err := json.Unmarshal(docBytes, &resultDoc); err != nil {
-		return nil, err
-	}
-
-	return resultDoc, nil
-}
-
-// DeleteDocument exclui um documento pelo ID
-func (s *TypesenseService) DeleteDocument(ctx context.Context, collectionName, docID string) error {
-	_, err := s.client.Collection(collectionName).Document(docID).Delete(ctx)
-	return err
 }
 
 // SearchDocuments busca documentos em uma coleção
@@ -412,37 +128,48 @@ func (s *TypesenseService) SearchDocuments(ctx context.Context, collectionName s
 	return response, nil
 }
 
-// ImportDocuments importa múltiplos documentos em batch
-func (s *TypesenseService) ImportDocuments(ctx context.Context, collectionName string, documents []models.Document, action string) (int, error) {
-	// Criar parâmetros sem o campo Action inválido
-	options := &api.ImportDocumentsParams{}
 
-	// Preparar os documentos como array de interface{}
-	var docsInterface []interface{}
-	for _, doc := range documents {
-		docBytes, err := json.Marshal(doc)
+
+// SearchMultiCollection busca documentos em múltiplas coleções
+func (s *TypesenseService) SearchMultiCollection(ctx context.Context, params models.MultiCollectionSearchParameters) (*models.MultiCollectionSearchResponse, error) {
+	if len(params.Collections) == 0 {
+		return nil, errors.New("nenhuma coleção especificada para busca")
+	}
+
+	// Inicializa resposta com mapa de resultados
+	response := &models.MultiCollectionSearchResponse{
+		Results: make(map[string]models.SearchDocumentsResponse),
+	}
+
+	// Contador de total de documentos encontrados em todas as coleções
+	totalFound := 0
+
+	// Busca em cada coleção
+	for _, collectionName := range params.Collections {
+		// Executa a busca na coleção atual
+		result, err := s.SearchDocuments(ctx, collectionName, params.Params)
 		if err != nil {
-			return 0, err
+			// Se houver erro em uma coleção, continua com as próximas
+			// mas registra o erro nos resultados
+			response.Results[collectionName] = models.SearchDocumentsResponse{
+				Found: 0,
+				Hits: []map[string]interface{}{},
+				RequestParams: map[string]interface{}{
+					"error": err.Error(),
+				},
+			}
+			continue
 		}
-		var docMap map[string]interface{}
-		if err := json.Unmarshal(docBytes, &docMap); err != nil {
-			return 0, err
-		}
-		docsInterface = append(docsInterface, docMap)
+
+		// Adiciona resultado ao mapa de resultados
+		response.Results[collectionName] = *result
+
+		// Incrementa o contador total
+		totalFound += result.Found
 	}
 
-	result, err := s.client.Collection(collectionName).Documents().Import(ctx, docsInterface, options)
-	if err != nil {
-		return 0, err
-	}
+	// Atualiza o total encontrado
+	response.TotalFound = totalFound
 
-	// Contar documentos importados com sucesso
-	successCount := 0
-	for _, item := range result {
-		if item.Success {
-			successCount++
-		}
-	}
-
-	return successCount, nil
+	return response, nil
 }
