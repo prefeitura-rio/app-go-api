@@ -1,3 +1,4 @@
+// Package config gerencia as configurações da aplicação
 package config
 
 import (
@@ -6,6 +7,8 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -52,6 +55,11 @@ type JWTSettings struct {
 	ExpiresIn string
 }
 
+// GetExpirationDuration retorna a duração de expiração do token
+func (j *JWTSettings) GetExpirationDuration() (time.Duration, error) {
+	return time.ParseDuration(j.ExpiresIn)
+}
+
 // SwaggerSettings define configurações da documentação Swagger
 type SwaggerSettings struct {
 	Host string
@@ -70,11 +78,18 @@ type MigrationSettings struct {
 	Run bool
 }
 
-// Singleton instance
+// Erros comuns de validação
 var (
-	config        *AppConfig
 	ErrNoHost     = errors.New("host não pode estar vazio")
 	ErrInvalidPort = errors.New("porta deve ser maior que zero")
+)
+
+// Singleton instance com proteção para concorrência
+var (
+	instance *AppConfig
+	once     sync.Once
+	mu       sync.RWMutex
+	v        *viper.Viper
 )
 
 // Construtor de DSN para conexão PostgreSQL
@@ -135,10 +150,56 @@ func (c *AppConfig) Validate() error {
 	return nil
 }
 
-// Load carrega configurações de variáveis de ambiente e arquivo .env
-func Load() (*AppConfig, error) {
-	// Inicializa o Viper
-	v := viper.New()
+// ConfigProvider define uma interface para obter configurações
+type ConfigProvider interface {
+	GetAppConfig() *AppConfig
+	Reload() error
+}
+
+// defaultConfigProvider implementa ConfigProvider
+type defaultConfigProvider struct {
+	config *AppConfig
+	viper  *viper.Viper
+}
+
+// NewConfigProvider cria uma nova instância de provedor de configuração
+func NewConfigProvider() (ConfigProvider, error) {
+	config, err := Load()
+	if err != nil {
+		return nil, err
+	}
+	
+	return &defaultConfigProvider{
+		config: config,
+		viper:  v,
+	}, nil
+}
+
+// GetAppConfig retorna a configuração atual
+func (p *defaultConfigProvider) GetAppConfig() *AppConfig {
+	return p.config
+}
+
+// Reload recarrega as configurações
+func (p *defaultConfigProvider) Reload() error {
+	if err := p.viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return fmt.Errorf("erro ao recarregar configurações: %w", err)
+		}
+	}
+	
+	config, err := Load()
+	if err != nil {
+		return err
+	}
+	
+	p.config = config
+	return nil
+}
+
+// Initialize inicializa o viper e carrega as configurações iniciais
+func Initialize() error {
+	v = viper.New()
 	v.AutomaticEnv()
 	
 	// Configura leitura de arquivo .env
@@ -146,10 +207,26 @@ func Load() (*AppConfig, error) {
 	v.SetConfigName(".env")
 	v.AddConfigPath(".")
 	
+	// Configuração de observação de alterações no arquivo
+	v.WatchConfig()
+	
 	// Ler arquivo .env (ignorar erro se não existir)
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			log.Printf("Aviso: erro ao ler arquivo .env: %v", err)
+		}
+	}
+	
+	// Carregar configuração inicial
+	_, err := Get()
+	return err
+}
+
+// Load carrega configurações de variáveis de ambiente e arquivo .env
+func Load() (*AppConfig, error) {
+	if v == nil {
+		if err := Initialize(); err != nil {
+			return nil, err
 		}
 	}
 	
@@ -205,16 +282,24 @@ func Load() (*AppConfig, error) {
 	return appConfig, nil
 }
 
-// Get retorna a instância singleton da configuração
-func Get() *AppConfig {
-	if config == nil {
-		var err error
-		config, err = Load()
+// Get retorna a instância singleton da configuração de forma thread-safe
+func Get() (*AppConfig, error) {
+	once.Do(func() {
+		cfg, err := Load()
 		if err != nil {
-			panic(fmt.Sprintf("erro fatal ao carregar configurações: %v", err))
+			log.Printf("Erro ao carregar configurações: %v", err)
+			return
 		}
+		instance = cfg
+	})
+	
+	if instance == nil {
+		return nil, errors.New("falha ao inicializar configurações")
 	}
-	return config
+	
+	mu.RLock()
+	defer mu.RUnlock()
+	return instance, nil
 }
 
 // Funções auxiliares para obter valores do Viper com fallback
@@ -254,13 +339,15 @@ func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-// Função de logging para depuração
+// logConfig imprime as configurações atuais para depuração
 func logConfig(config *AppConfig) {
-	log.Println("===== Configurações Carregadas =====")
-	log.Printf("Ambiente: %s (Debug: %v)", config.App.Environment, config.App.Debug)
-	log.Printf("Servidor: %s:%d", config.Server.Host, config.Server.Port)
-	log.Printf("Banco de Dados: %s:%d/%s (User: %s, SSL: %s)", 
-		config.Database.Host, config.Database.Port, config.Database.Name, 
-		config.Database.User, config.Database.SSLMode)
+	log.Println("=== Configurações Carregadas ====")
+	log.Printf("Ambiente: %s", config.App.Environment)
+	log.Printf("Debug: %v", config.App.Debug)
+	log.Printf("Log Level: %s", config.App.LogLevel)
+	log.Printf("API Prefix: %s", config.App.APIPrefix)
+	log.Printf("DB: %s@%s:%d/%s", config.Database.User, config.Database.Host, config.Database.Port, config.Database.Name)
+	log.Printf("Server: %s:%d", config.Server.Host, config.Server.Port)
+	log.Printf("Migrations: %v", config.Migrations.Run)
 	log.Println("====================================")
 } 
