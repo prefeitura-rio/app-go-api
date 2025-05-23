@@ -1157,5 +1157,18 @@
                 "TurnoLivre"
             ]
         }
-    }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Autenticação usando token JWT no formato 'Bearer {token}'",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    },
+    "security": [
+        {
+            "BearerAuth": []
+        }
+    ]
 }
