@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -37,14 +36,6 @@ import (
 
 // @Security BearerAuth
 func main() {
-	// Imprimir todas as variáveis de ambiente para debug
-	if os.Getenv("DEBUG") == "true" {
-		log.Println("Variáveis de ambiente disponíveis:")
-		for _, env := range os.Environ() {
-			log.Println(env)
-		}
-	}
-
 	// Carrega configurações
 	log.Println("Carregando configurações...")
 	cfg, err := config.Load()
@@ -54,7 +45,7 @@ func main() {
 
 	// Conecta ao banco de dados usando GORM
 	dsn := cfg.Database.DSN()
-	
+
 	// Configura o logger do GORM de acordo com o ambiente
 	var logMode logger.LogLevel
 	if cfg.App.IsDevelopment() {
@@ -62,11 +53,11 @@ func main() {
 	} else {
 		logMode = logger.Silent
 	}
-	
+
 	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logMode),
 	}
-	
+
 	log.Println("Tentando conectar ao banco de dados...")
 	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
 	if err != nil {
@@ -101,7 +92,7 @@ func main() {
 	// Inicia o servidor
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("Servidor iniciado em %s", addr)
-	
+
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("Erro ao iniciar o servidor: %v", err)
 	}
