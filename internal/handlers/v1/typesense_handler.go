@@ -36,8 +36,6 @@ func handleError(c *gin.Context, status int, message string, err error) {
 	c.JSON(status, response)
 }
 
-
-
 // @Summary      Buscar em múltiplas coleções
 // @Description  Realiza busca em várias coleções simultaneamente
 // @Tags         search
@@ -47,7 +45,7 @@ func handleError(c *gin.Context, status int, message string, err error) {
 // @Success      200     {object}  models.MultiCollectionSearchResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
-// @Router       /typesense/multi-search [post]
+// @Router       /api/v1/typesense/multi-search [post]
 func (h *TypesenseHandler) SearchMultiCollection(c *gin.Context) {
 	var params models.MultiCollectionSearchParameters
 	if err := c.ShouldBindJSON(&params); err != nil {
@@ -88,7 +86,7 @@ func (h *TypesenseHandler) SearchMultiCollection(c *gin.Context) {
 // @Success      200         {object}  models.SearchDocumentsResponse
 // @Failure      400         {object}  models.ErrorResponse
 // @Failure      500         {object}  models.ErrorResponse
-// @Router       /typesense/collections/{collection}/documents/search [post]
+// @Router       /api/v1/typesense/collections/{collection}/documents/search [post]
 func (h *TypesenseHandler) SearchDocuments(c *gin.Context) {
 	collectionName := c.Param("collection")
 	if collectionName == "" {
