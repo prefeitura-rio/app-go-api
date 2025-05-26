@@ -11,10 +11,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
-
-	_ "github.com/prefeitura-rio/app-go-api/docs" // importação dos docs gerados pelo Swag
+	_ "github.com/prefeitura-rio/app-go-api/docs"
 )
 
 func SetupRouter(db *gorm.DB) *gin.Engine {
@@ -25,8 +22,8 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	r.Use(gin.Logger())
 	r.Use(middlewares.CorsMiddleware())
 
-	// Configuração do Swagger
-	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Configuração do Swagger com host dinâmico
+	r.GET("/docs/*any", middlewares.DynamicSwaggerHandler())
 
 	// Rota de saúde
 	r.GET("/health", func(c *gin.Context) {
