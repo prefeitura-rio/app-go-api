@@ -43,14 +43,32 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	// Inicializando repositórios
 	cursoRepo := repository.NewCursoRepository(db)
 	empregoRepo := repository.NewEmpregoRepository(db)
+	acessibilidadeRepo := repository.NewAcessibilidadeRepository(db)
+	categoriaRepo := repository.NewCategoriaRepository(db)
+	empresaRepo := repository.NewEmpresaRepository(db)
+	escolaridadeRepo := repository.NewEscolaridadeRepository(db)
+	instituicaoRepo := repository.NewInstituicaoRepository(db)
+	orgaoRepo := repository.NewOrgaoRepository(db)
 
 	// Inicializando serviços
 	cursoService := services.NewCursoService(cursoRepo)
 	empregoService := services.NewEmpregoService(empregoRepo)
+	acessibilidadeService := services.NewAcessibilidadeService(acessibilidadeRepo)
+	categoriaService := services.NewCategoriaService(categoriaRepo)
+	empresaService := services.NewEmpresaService(empresaRepo)
+	escolaridadeService := services.NewEscolaridadeService(escolaridadeRepo)
+	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
+	orgaoService := services.NewOrgaoService(orgaoRepo)
 
 	// Inicializando handlers
 	cursoHandler := v1.NewCursoHandler(cursoService)
 	empregoHandler := v1.NewEmpregoHandler(empregoService)
+	acessibilidadeHandler := v1.NewAcessibilidadeHandler(acessibilidadeService)
+	categoriaHandler := v1.NewCategoriaHandler(categoriaService)
+	empresaHandler := v1.NewEmpresaHandler(empresaService)
+	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService)
+	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
+	orgaoHandler := v1.NewOrgaoHandler(orgaoService)
 	typesenseHandler, err := v1.NewTypesenseHandler()
 	if err != nil {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)
@@ -74,6 +92,66 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		empregos.GET("/:id", empregoHandler.GetByID)
 		empregos.PUT("/:id", empregoHandler.Update)
 		empregos.DELETE("/:id", empregoHandler.Delete)
+	}
+
+	// Rotas de acessibilidades
+	acessibilidades := apiV1.Group("/acessibilidades")
+	{
+		acessibilidades.POST("", acessibilidadeHandler.Create)
+		acessibilidades.GET("", acessibilidadeHandler.List)
+		acessibilidades.GET("/:id", acessibilidadeHandler.GetByID)
+		acessibilidades.PUT("/:id", acessibilidadeHandler.Update)
+		acessibilidades.DELETE("/:id", acessibilidadeHandler.Delete)
+	}
+
+	// Rotas de categorias
+	categorias := apiV1.Group("/categorias")
+	{
+		categorias.POST("", categoriaHandler.Create)
+		categorias.GET("", categoriaHandler.List)
+		categorias.GET("/:id", categoriaHandler.GetByID)
+		categorias.PUT("/:id", categoriaHandler.Update)
+		categorias.DELETE("/:id", categoriaHandler.Delete)
+	}
+
+	// Rotas de empresas
+	empresas := apiV1.Group("/empresas")
+	{
+		empresas.POST("", empresaHandler.Create)
+		empresas.GET("", empresaHandler.List)
+		empresas.GET("/:id", empresaHandler.GetByID)
+		empresas.PUT("/:id", empresaHandler.Update)
+		empresas.DELETE("/:id", empresaHandler.Delete)
+	}
+
+	// Rotas de escolaridades
+	escolaridades := apiV1.Group("/escolaridades")
+	{
+		escolaridades.POST("", escolaridadeHandler.Create)
+		escolaridades.GET("", escolaridadeHandler.List)
+		escolaridades.GET("/:id", escolaridadeHandler.GetByID)
+		escolaridades.PUT("/:id", escolaridadeHandler.Update)
+		escolaridades.DELETE("/:id", escolaridadeHandler.Delete)
+	}
+
+	// Rotas de instituições de ensino
+	instituicoes := apiV1.Group("/instituicoes")
+	{
+		instituicoes.POST("", instituicaoHandler.Create)
+		instituicoes.GET("", instituicaoHandler.List)
+		instituicoes.GET("/:id", instituicaoHandler.GetByID)
+		instituicoes.PUT("/:id", instituicaoHandler.Update)
+		instituicoes.DELETE("/:id", instituicaoHandler.Delete)
+	}
+
+	// Rotas de órgãos
+	orgaos := apiV1.Group("/orgaos")
+	{
+		orgaos.POST("", orgaoHandler.Create)
+		orgaos.GET("", orgaoHandler.List)
+		orgaos.GET("/:id", orgaoHandler.GetByID)
+		orgaos.PUT("/:id", orgaoHandler.Update)
+		orgaos.DELETE("/:id", orgaoHandler.Delete)
 	}
 
 	// Rotas de Typesense
