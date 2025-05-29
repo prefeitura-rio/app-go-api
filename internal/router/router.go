@@ -154,6 +154,8 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	// Rotas de Typesense
 	if typesenseHandler != nil {
 		apiV1.POST("/typesense/multi-search", typesenseHandler.SearchMultiCollection)
+		apiV1.POST("/typesense/cursos/search", typesenseHandler.SearchCursos)
+		apiV1.POST("/typesense/empregos/search", typesenseHandler.SearchEmpregos)
 		typesenseCollections := apiV1.Group("/typesense/collections")
 		typesenseCollections.POST("/:collection/documents/search", typesenseHandler.SearchDocuments)
 	}
