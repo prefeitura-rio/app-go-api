@@ -36,6 +36,72 @@ func handleError(c *gin.Context, status int, message string, err error) {
 	c.JSON(status, response)
 }
 
+// @Summary      Buscar cursos
+// @Description  Realiza busca otimizada em cursos com parâmetros específicos
+// @Tags         search
+// @Accept       json
+// @Produce      json
+// @Param        params  body  models.CursoSearchParameters  true  "Parâmetros de busca para cursos"
+// @Success      200     {object}  models.SearchDocumentsResponse
+// @Failure      400     {object}  models.ErrorResponse
+// @Failure      500     {object}  models.ErrorResponse
+// @Router       /api/v1/typesense/cursos/search [post]
+func (h *TypesenseHandler) SearchCursos(c *gin.Context) {
+	var params models.CursoSearchParameters
+	if err := c.ShouldBindJSON(&params); err != nil {
+		handleError(c, http.StatusBadRequest, "Parâmetros de busca inválidos", err)
+		return
+	}
+
+	// Validar termo de busca obrigatório
+	if params.Q == "" {
+		handleError(c, http.StatusBadRequest, "Termo de busca (q) é obrigatório", nil)
+		return
+	}
+
+	// Executar busca específica para cursos
+	results, err := h.service.SearchCursos(c.Request.Context(), params)
+	if err != nil {
+		handleError(c, http.StatusInternalServerError, "Erro ao buscar cursos", err)
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
+// @Summary      Buscar empregos
+// @Description  Realiza busca otimizada em empregos com parâmetros específicos
+// @Tags         search
+// @Accept       json
+// @Produce      json
+// @Param        params  body  models.EmpregoSearchParameters  true  "Parâmetros de busca para empregos"
+// @Success      200     {object}  models.SearchDocumentsResponse
+// @Failure      400     {object}  models.ErrorResponse
+// @Failure      500     {object}  models.ErrorResponse
+// @Router       /api/v1/typesense/empregos/search [post]
+func (h *TypesenseHandler) SearchEmpregos(c *gin.Context) {
+	var params models.EmpregoSearchParameters
+	if err := c.ShouldBindJSON(&params); err != nil {
+		handleError(c, http.StatusBadRequest, "Parâmetros de busca inválidos", err)
+		return
+	}
+
+	// Validar termo de busca obrigatório
+	if params.Q == "" {
+		handleError(c, http.StatusBadRequest, "Termo de busca (q) é obrigatório", nil)
+		return
+	}
+
+	// Executar busca específica para empregos
+	results, err := h.service.SearchEmpregos(c.Request.Context(), params)
+	if err != nil {
+		handleError(c, http.StatusInternalServerError, "Erro ao buscar empregos", err)
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
 // @Summary      Buscar em múltiplas coleções
 // @Description  Realiza busca em várias coleções simultaneamente
 // @Tags         search

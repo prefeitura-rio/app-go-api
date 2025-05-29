@@ -38,6 +38,78 @@ func NewTypesenseService() (*TypesenseService, error) {
 	}, nil
 }
 
+// SearchCursos busca cursos usando parâmetros específicos e otimizados para a estrutura aninhada
+func (s *TypesenseService) SearchCursos(ctx context.Context, params models.CursoSearchParameters) (*models.SearchDocumentsResponse, error) {
+	// Converter para parâmetros padrão
+	searchParams := params.ToSearchParameters()
+	
+	// Executar busca na collection de cursos
+	response, err := s.SearchDocuments(ctx, "cursos", searchParams)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar cursos: %w", err)
+	}
+	
+	// Processar hits para extrair apenas dados do record
+	if response.Hits != nil {
+		for i, hit := range response.Hits {
+			if record, exists := hit["record"]; exists {
+				// Mover dados do record para o nível principal do hit
+				if recordMap, ok := record.(map[string]interface{}); ok {
+					// Preservar campos importantes do documento original
+					recordMap["document_id"] = hit["id"]
+					recordMap["action"] = hit["action"]
+					
+					// Preservar highlights se existirem
+					if highlights, exists := hit["highlights"]; exists {
+						recordMap["highlights"] = highlights
+					}
+					
+					// Substituir o hit pelos dados do record
+					response.Hits[i] = recordMap
+				}
+			}
+		}
+	}
+	
+	return response, nil
+}
+
+// SearchEmpregos busca empregos usando parâmetros específicos e otimizados para a estrutura aninhada
+func (s *TypesenseService) SearchEmpregos(ctx context.Context, params models.EmpregoSearchParameters) (*models.SearchDocumentsResponse, error) {
+	// Converter para parâmetros padrão
+	searchParams := params.ToSearchParameters()
+	
+	// Executar busca na collection de empregos
+	response, err := s.SearchDocuments(ctx, "empregos", searchParams)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar empregos: %w", err)
+	}
+	
+	// Processar hits para extrair apenas dados do record
+	if response.Hits != nil {
+		for i, hit := range response.Hits {
+			if record, exists := hit["record"]; exists {
+				// Mover dados do record para o nível principal do hit
+				if recordMap, ok := record.(map[string]interface{}); ok {
+					// Preservar campos importantes do documento original
+					recordMap["document_id"] = hit["id"]
+					recordMap["action"] = hit["action"]
+					
+					// Preservar highlights se existirem
+					if highlights, exists := hit["highlights"]; exists {
+						recordMap["highlights"] = highlights
+					}
+					
+					// Substituir o hit pelos dados do record
+					response.Hits[i] = recordMap
+				}
+			}
+		}
+	}
+	
+	return response, nil
+}
+
 // SearchDocuments busca documentos em uma coleção
 func (s *TypesenseService) SearchDocuments(ctx context.Context, collectionName string, params models.SearchParameters) (*models.SearchDocumentsResponse, error) {
 	// Converte os valores para ponteiros quando necessário
@@ -127,8 +199,6 @@ func (s *TypesenseService) SearchDocuments(ctx context.Context, collectionName s
 
 	return response, nil
 }
-
-
 
 // SearchMultiCollection busca documentos em múltiplas coleções
 func (s *TypesenseService) SearchMultiCollection(ctx context.Context, params models.MultiCollectionSearchParameters) (*models.MultiCollectionSearchResponse, error) {
