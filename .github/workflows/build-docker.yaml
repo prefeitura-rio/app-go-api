@@ -39,9 +39,9 @@ jobs:
       - name: Post-process OpenAPI v3 JSON
         run: |
           if [ "${GITHUB_REF##*/}" == "main" ]; then
-            SERVER_URL="https://services.app.dados.rio/rmi/v1"
+            SERVER_URL="https://services.app.dados.rio/go"
           elif [ "${GITHUB_REF##*/}" == "staging" ]; then
-            SERVER_URL="https://services.staging.app.dados.rio/rmi/v1"
+            SERVER_URL="https://services.staging.app.dados.rio/go"
           fi
           jq --arg url "$SERVER_URL" '.servers = [{"url": $url}] |
               .components.securitySchemes = {
