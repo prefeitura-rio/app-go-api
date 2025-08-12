@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: go
-          image: ghcr.io/prefeitura-rio/app-go-api:latest
+          image: ghcr.io/prefeitura-rio/app-go-api:stable
           ports:
             - containerPort: 8080
           envFrom:
