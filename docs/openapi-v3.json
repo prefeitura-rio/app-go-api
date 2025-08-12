@@ -2504,7 +2504,7 @@
   ],
   "servers": [
     {
-      "url": "https://services.staging.app.dados.rio/go"
+      "url": "https://services.app.dados.rio/go"
     }
   ],
   "components": {
