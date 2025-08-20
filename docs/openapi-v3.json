@@ -2504,7 +2504,12 @@
   ],
   "servers": [
     {
-      "url": "https://services.staging.app.dados.rio/go"
+      "url": "https://services.pref.rio/go/v1",
+      "description": "Production"
+    },
+    {
+      "url": "https://services.staging.app.dados.rio/go/v1",
+      "description": "Staging"
     }
   ],
   "components": {
