@@ -1,11 +1,12 @@
 -- +goose Up
--- +goose StatementBegin
 
--- Update course status enum to include draft and match specification
+-- Update course status enum to include draft and match specification (outside transaction)
 ALTER TYPE status_curso_enum ADD VALUE 'draft';
-ALTER TYPE status_curso_enum ADD VALUE 'opened';
+ALTER TYPE status_curso_enum ADD VALUE 'opened';  
 ALTER TYPE status_curso_enum ADD VALUE 'closed';
 ALTER TYPE status_curso_enum ADD VALUE 'canceled';
+
+-- +goose StatementBegin
 
 -- Create enrollment status enum
 CREATE TYPE status_inscricao_enum AS ENUM ('pending', 'approved', 'rejected', 'cancelled');
