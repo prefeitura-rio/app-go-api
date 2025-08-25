@@ -164,11 +164,8 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		typesenseCollections.POST("/:collection/documents/search", typesenseHandler.SearchDocuments)
 	}
 
-	// New API endpoints following specification
-	api := r.Group("/api")
-
-	// Course endpoints following specification
-	courses := api.Group("/courses")
+	// New Course API endpoints following specification (in v1)
+	courses := apiV1.Group("/courses")
 	{
 		courses.POST("", courseHandler.Create)
 		courses.POST("/draft", courseHandler.CreateDraft)
