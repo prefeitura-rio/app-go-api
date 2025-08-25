@@ -60,7 +60,7 @@ type LocationClass struct {
 	CursoID        int       `json:"curso_id" gorm:"column:curso_id;not null"`
 	Address        string    `json:"address" gorm:"type:varchar(500);not null"`
 	Neighborhood   string    `json:"neighborhood" gorm:"type:varchar(100);not null"`
-	Vacancies      int       `json:"vacancies" gorm:"not null;check:vacancies > 0 AND vacancies <= 1000"`
+	Vacancies      int       `json:"vacancies" gorm:"not null"`
 	ClassStartDate time.Time `json:"class_start_date" gorm:"type:date;column:class_start_date;not null"`
 	ClassEndDate   time.Time `json:"class_end_date" gorm:"type:date;column:class_end_date;not null"`
 	ClassTime      string    `json:"class_time" gorm:"type:varchar(50);column:class_time;not null"`
@@ -79,7 +79,7 @@ func (LocationClass) TableName() string {
 type RemoteClass struct {
 	ID             uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	CursoID        int       `json:"curso_id" gorm:"column:curso_id;not null"`
-	Vacancies      int       `json:"vacancies" gorm:"not null;check:vacancies > 0 AND vacancies <= 1000"`
+	Vacancies      int       `json:"vacancies" gorm:"not null"`
 	ClassStartDate time.Time `json:"class_start_date" gorm:"type:date;column:class_start_date;not null"`
 	ClassEndDate   time.Time `json:"class_end_date" gorm:"type:date;column:class_end_date;not null"`
 	ClassTime      string    `json:"class_time" gorm:"type:varchar(50);column:class_time;not null"`
