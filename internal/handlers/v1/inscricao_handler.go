@@ -33,7 +33,7 @@ func NewInscricaoHandler(service *services.InscricaoService) *InscricaoHandler {
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      409      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
-// @Router       /api/courses/{courseId}/enrollments [post]
+// @Router       /api/v1/courses/{courseId}/enrollments [post]
 func (h *InscricaoHandler) Create(c *gin.Context) {
 	cursoID, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
@@ -83,7 +83,7 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 // @Success      200      {object}  object
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
-// @Router       /api/courses/{courseId}/enrollments [get]
+// @Router       /api/v1/courses/{courseId}/enrollments [get]
 func (h *InscricaoHandler) List(c *gin.Context) {
 	cursoID, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
@@ -153,7 +153,7 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 // @Success      200      {object}  models.EnrollmentStatusUpdateResponse
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
-// @Router       /api/courses/{courseId}/enrollments/status [put]
+// @Router       /api/v1/courses/{courseId}/enrollments/status [put]
 func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 	_, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
@@ -204,7 +204,7 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 // @Failure      400          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
-// @Router       /api/courses/{courseId}/enrollments/{enrollmentId}/status [put]
+// @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId}/status [put]
 func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 	_, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
@@ -260,7 +260,7 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 // @Failure      400          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
-// @Router       /api/courses/{courseId}/enrollments/{enrollmentId} [get]
+// @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId} [get]
 func (h *InscricaoHandler) GetByID(c *gin.Context) {
 	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
 	if err != nil {
@@ -295,7 +295,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 // @Failure      400          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
-// @Router       /api/courses/{courseId}/enrollments/{enrollmentId} [delete]
+// @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId} [delete]
 func (h *InscricaoHandler) Delete(c *gin.Context) {
 	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
 	if err != nil {
