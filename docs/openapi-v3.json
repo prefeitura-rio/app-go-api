@@ -16,6 +16,928 @@
     "version": "1.0"
   },
   "paths": {
+    "/api/courses": {
+      "get": {
+        "description": "Retorna lista paginada de cursos criados (status: \"opened\", \"closed\", \"canceled\")",
+        "tags": [
+          "courses"
+        ],
+        "summary": "Listar cursos criados",
+        "parameters": [
+          {
+            "description": "Número da página (default: 1)",
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Tamanho da página (default: 10)",
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por status",
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por modalidade",
+            "name": "modalidade",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por organização",
+            "name": "organization",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Buscar no título",
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "description": "Cria um novo curso no sistema (status: \"opened\")",
+        "tags": [
+          "courses"
+        ],
+        "summary": "Criar curso",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/models.Curso"
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/courses/draft": {
+      "post": {
+        "description": "Cria um curso e salva como rascunho (status: \"draft\")",
+        "tags": [
+          "courses"
+        ],
+        "summary": "Criar curso como rascunho",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/models.Curso"
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/courses/drafts": {
+      "get": {
+        "description": "Retorna lista paginada de cursos salvos como rascunho (status: \"draft\")",
+        "tags": [
+          "courses"
+        ],
+        "summary": "Listar cursos rascunho",
+        "parameters": [
+          {
+            "description": "Número da página (default: 1)",
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Tamanho da página (default: 10)",
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por organização",
+            "name": "organization",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Buscar no título",
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/courses/{courseId}": {
+      "get": {
+        "description": "Retorna dados completos de um curso específico",
+        "tags": [
+          "courses"
+        ],
+        "summary": "Buscar curso específico",
+        "parameters": [
+          {
+            "description": "ID do curso",
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.Curso"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "description": "Atualiza um curso existente. Também usado para publicar rascunhos mudando status de \"draft\" para \"opened\"",
+        "tags": [
+          "courses"
+        ],
+        "summary": "Editar curso",
+        "parameters": [
+          {
+            "description": "ID do curso",
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/models.Curso"
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "description": "Remove um curso pelo ID",
+        "tags": [
+          "courses"
+        ],
+        "summary": "Excluir curso",
+        "parameters": [
+          {
+            "description": "ID do curso",
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/courses/{courseId}/enrollments": {
+      "get": {
+        "description": "Retorna lista paginada de inscrições de um curso específico",
+        "tags": [
+          "inscricoes"
+        ],
+        "summary": "Listar inscrições de um curso",
+        "parameters": [
+          {
+            "description": "ID do curso",
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Número da página (default: 1)",
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Tamanho da página (default: 20)",
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por status",
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Buscar por CPF, nome ou email",
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "description": "Cria uma nova inscrição em um curso",
+        "tags": [
+          "inscricoes"
+        ],
+        "summary": "Criar inscrição",
+        "parameters": [
+          {
+            "description": "ID do curso",
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/models.Inscricao"
+              }
+            }
+          },
+          "description": "Dados da inscrição",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.Inscricao"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/courses/{courseId}/enrollments/status": {
+      "put": {
+        "description": "Atualiza o status de várias inscrições de uma vez (aprovação em lote)",
+        "tags": [
+          "inscricoes"
+        ],
+        "summary": "Atualizar status de múltiplas inscrições",
+        "parameters": [
+          {
+            "description": "ID do curso",
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/models.EnrollmentStatusUpdateRequest"
+              }
+            }
+          },
+          "description": "Dados para atualização",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.EnrollmentStatusUpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/courses/{courseId}/enrollments/{enrollmentId}": {
+      "get": {
+        "description": "Retorna dados completos de uma inscrição específica",
+        "tags": [
+          "inscricoes"
+        ],
+        "summary": "Obter inscrição por ID",
+        "parameters": [
+          {
+            "description": "ID do curso",
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "UUID da inscrição",
+            "name": "enrollmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.Inscricao"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "description": "Remove uma inscrição específica",
+        "tags": [
+          "inscricoes"
+        ],
+        "summary": "Excluir inscrição",
+        "parameters": [
+          {
+            "description": "ID do curso",
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "UUID da inscrição",
+            "name": "enrollmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/courses/{courseId}/enrollments/{enrollmentId}/status": {
+      "put": {
+        "description": "Atualiza o status de uma inscrição específica",
+        "tags": [
+          "inscricoes"
+        ],
+        "summary": "Atualizar status de inscrição individual",
+        "parameters": [
+          {
+            "description": "ID do curso",
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "UUID da inscrição",
+            "name": "enrollmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "Dados para atualização: {\\",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/acessibilidades": {
       "get": {
         "description": "Retorna uma lista paginada de acessibilidades",
@@ -2671,8 +3593,18 @@
           "contato_duvidas": {
             "type": "string"
           },
+          "cover_image": {
+            "type": "string"
+          },
           "created_at": {
             "type": "string"
+          },
+          "custom_fields": {
+            "description": "New relationships for enrollment system",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.CustomField"
+            }
           },
           "data_inicio": {
             "type": "string"
@@ -2683,11 +3615,32 @@
           "data_termino": {
             "type": "string"
           },
-          "descricao": {
+          "description": {
+            "type": "string"
+          },
+          "enrollment_end_date": {
+            "type": "string"
+          },
+          "enrollment_start_date": {
+            "type": "string"
+          },
+          "enrollments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.Inscricao"
+            }
+          },
+          "expected_results": {
+            "type": "string"
+          },
+          "facilitator": {
             "type": "string"
           },
           "formato_aula": {
             "$ref": "#/components/schemas/models.FormatoAula"
+          },
+          "has_certificate": {
+            "type": "boolean"
           },
           "id": {
             "type": "integer"
@@ -2698,10 +3651,25 @@
           "instituicao_id": {
             "type": "integer"
           },
+          "institutional_logo": {
+            "type": "string"
+          },
           "link_inscricao": {
             "type": "string"
           },
           "local_realizacao": {
+            "type": "string"
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.LocationClass"
+            }
+          },
+          "material_used": {
+            "type": "string"
+          },
+          "methodology": {
             "type": "string"
           },
           "modalidade": {
@@ -2709,6 +3677,12 @@
           },
           "numero_vagas": {
             "type": "integer"
+          },
+          "objectives": {
+            "type": "string"
+          },
+          "organization": {
+            "type": "string"
           },
           "orgao": {
             "description": "Relacionamentos",
@@ -2719,19 +3693,85 @@
             ]
           },
           "orgao_id": {
+            "description": "Legacy and additional fields",
             "type": "integer"
           },
           "pre_requisitos": {
+            "description": "Legacy compatibility - kept for backwards compatibility",
+            "type": "string"
+          },
+          "prerequisites": {
+            "description": "Optional fields matching specification",
+            "type": "string"
+          },
+          "program_content": {
+            "type": "string"
+          },
+          "remote_class": {
+            "$ref": "#/components/schemas/models.RemoteClass"
+          },
+          "resources_used": {
             "type": "string"
           },
           "status": {
             "$ref": "#/components/schemas/models.StatusCurso"
           },
-          "titulo": {
+          "target_audience": {
+            "type": "string"
+          },
+          "teaching_material": {
+            "type": "string"
+          },
+          "theme": {
+            "type": "string"
+          },
+          "title": {
+            "description": "Core fields (always required)",
             "type": "string"
           },
           "turno": {
             "$ref": "#/components/schemas/models.Turno"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "workload": {
+            "type": "string"
+          }
+        }
+      },
+      "models.CustomField": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "curso": {
+            "description": "Relacionamentos",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.Curso"
+              }
+            ]
+          },
+          "curso_id": {
+            "type": "integer"
+          },
+          "field_type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
           },
           "updated_at": {
             "type": "string"
@@ -2841,6 +3881,44 @@
           }
         }
       },
+      "models.EnrollmentStatusUpdateRequest": {
+        "type": "object",
+        "required": [
+          "enrollment_ids",
+          "status"
+        ],
+        "properties": {
+          "admin_notes": {
+            "type": "string"
+          },
+          "enrollment_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/models.StatusInscricao"
+          }
+        }
+      },
+      "models.EnrollmentStatusUpdateResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/models.StatusInscricao"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_count": {
+            "type": "integer"
+          }
+        }
+      },
       "models.ErrorResponse": {
         "type": "object",
         "properties": {
@@ -2881,6 +3959,56 @@
           "FormatoAulaAoVivo"
         ]
       },
+      "models.Inscricao": {
+        "type": "object",
+        "properties": {
+          "admin_notes": {
+            "type": "string"
+          },
+          "course_id": {
+            "type": "integer"
+          },
+          "cpf": {
+            "type": "string"
+          },
+          "curso": {
+            "description": "Relacionamentos",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.Curso"
+              }
+            ]
+          },
+          "custom_fields": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "email": {
+            "type": "string"
+          },
+          "enrolled_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/models.StatusInscricao"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
       "models.InstituicaoEnsino": {
         "type": "object",
         "properties": {
@@ -2916,15 +4044,67 @@
           "JornadaHomeOffice"
         ]
       },
+      "models.LocationClass": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "class_days": {
+            "type": "string"
+          },
+          "class_end_date": {
+            "type": "string"
+          },
+          "class_start_date": {
+            "type": "string"
+          },
+          "class_time": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "curso": {
+            "description": "Relacionamentos",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.Curso"
+              }
+            ]
+          },
+          "curso_id": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "neighborhood": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "vacancies": {
+            "type": "integer"
+          }
+        }
+      },
       "models.Modalidade": {
         "type": "string",
         "enum": [
+          "Presencial",
+          "Semipresencial",
+          "Remoto",
           "PRESENCIAL",
           "ONLINE",
           "HIBRIDO"
         ],
         "x-enum-varnames": [
           "ModalidadePresencial",
+          "ModalidadeSemipresencial",
+          "ModalidadeRemoto",
+          "ModalidadePresencialLegacy",
           "ModalidadeOnline",
           "ModalidadeHibrido"
         ]
@@ -2985,6 +4165,46 @@
           },
           "nome": {
             "type": "string"
+          }
+        }
+      },
+      "models.RemoteClass": {
+        "type": "object",
+        "properties": {
+          "class_days": {
+            "type": "string"
+          },
+          "class_end_date": {
+            "type": "string"
+          },
+          "class_start_date": {
+            "type": "string"
+          },
+          "class_time": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "curso": {
+            "description": "Relacionamentos",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.Curso"
+              }
+            ]
+          },
+          "curso_id": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "vacancies": {
+            "type": "integer"
           }
         }
       },
@@ -3063,11 +4283,19 @@
       "models.StatusCurso": {
         "type": "string",
         "enum": [
+          "draft",
+          "opened",
+          "closed",
+          "canceled",
           "CRIADO",
           "ABERTO",
           "ENCERRADO"
         ],
         "x-enum-varnames": [
+          "StatusCursoDraft",
+          "StatusCursoOpened",
+          "StatusCursoClosed",
+          "StatusCursoCanceled",
           "StatusCursoCriado",
           "StatusCursoAberto",
           "StatusCursoEncerrado"
@@ -3086,6 +4314,21 @@
           "StatusEmpregoAberto",
           "StatusEmpregoEmAnalise",
           "StatusEmpregoEncerrado"
+        ]
+      },
+      "models.StatusInscricao": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "cancelled"
+        ],
+        "x-enum-varnames": [
+          "StatusInscricaoPending",
+          "StatusInscricaoApproved",
+          "StatusInscricaoRejected",
+          "StatusInscricaoCancelled"
         ]
       },
       "models.TipoContratacao": {
