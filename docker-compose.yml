@@ -1,13 +1,13 @@
 services:
-  api:
-    build: .
-    env_file:
-      - .env
-    ports:
-      - "8081:8081"
-    depends_on:
-      - db
-    networks: [backend]
+  # api:
+  #   build: .
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "8081:8081"
+  #   depends_on:
+  #     - db
+  #   networks: [backend]
 
   db:
     image: postgres:16

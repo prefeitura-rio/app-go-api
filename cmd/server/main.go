@@ -79,6 +79,10 @@ func main() {
 			&models.Escolaridade{},
 			&models.CursoCategoria{},
 			&models.CursoAcessibilidade{},
+			&models.Inscricao{},
+			&models.CustomField{},
+			&models.LocationClass{},
+			&models.RemoteClass{},
 		)
 		if err != nil {
 			log.Fatalf("Erro ao executar auto-migração: %v", err)
