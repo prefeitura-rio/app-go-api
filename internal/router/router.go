@@ -60,7 +60,6 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
 
 	// Inicializando handlers
-	cursoHandler := v1.NewCursoHandler(cursoService)
 	empregoHandler := v1.NewEmpregoHandler(empregoService)
 	acessibilidadeHandler := v1.NewAcessibilidadeHandler(acessibilidadeService)
 	categoriaHandler := v1.NewCategoriaHandler(categoriaService)
@@ -75,15 +74,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)
 	}
 
-	// Rotas de cursos
-	cursos := apiV1.Group("/cursos")
-	{
-		cursos.POST("", cursoHandler.Create)
-		cursos.GET("", cursoHandler.List)
-		cursos.GET("/:id", cursoHandler.GetByID)
-		cursos.PUT("/:id", cursoHandler.Update)
-		cursos.DELETE("/:id", cursoHandler.Delete)
-	}
+	// Rotas de cursos removidas - usar /api/v1/courses
 
 	// Rotas de empregos
 	empregos := apiV1.Group("/empregos")
