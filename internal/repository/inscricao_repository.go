@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -84,7 +85,7 @@ func (r *InscricaoRepository) GetByCursoID(ctx context.Context, cursoID int, fil
 func (r *InscricaoRepository) UpdateStatus(ctx context.Context, inscricaoID uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error {
 	updates := map[string]interface{}{
 		"status":      status,
-		"updated_at":  "CURRENT_TIMESTAMP",
+		"updated_at":  time.Now(),
 	}
 	
 	if reason != "" {
@@ -114,7 +115,7 @@ func (r *InscricaoRepository) UpdateStatus(ctx context.Context, inscricaoID uuid
 func (r *InscricaoRepository) UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
 	updates := map[string]interface{}{
 		"status":     status,
-		"updated_at": "CURRENT_TIMESTAMP",
+		"updated_at": time.Now(),
 	}
 	
 	if reason != "" {
