@@ -46,6 +46,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	escolaridadeRepo := repository.NewEscolaridadeRepository(db)
 	instituicaoRepo := repository.NewInstituicaoRepository(db)
 	orgaoRepo := repository.NewOrgaoRepository(db)
+	inscricaoRepo := repository.NewInscricaoRepository(db)
 
 	// Inicializando serviços
 	cursoService := services.NewCursoService(cursoRepo)
@@ -56,6 +57,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	escolaridadeService := services.NewEscolaridadeService(escolaridadeRepo)
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
 	orgaoService := services.NewOrgaoService(orgaoRepo)
+	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
 
 	// Inicializando handlers
 	cursoHandler := v1.NewCursoHandler(cursoService)
@@ -66,6 +68,8 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService)
 	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
 	orgaoHandler := v1.NewOrgaoHandler(orgaoService)
+	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService)
+	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService)
 	typesenseHandler, err := v1.NewTypesenseHandler()
 	if err != nil {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)
@@ -158,6 +162,29 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		apiV1.POST("/typesense/empregos/search", typesenseHandler.SearchEmpregos)
 		typesenseCollections := apiV1.Group("/typesense/collections")
 		typesenseCollections.POST("/:collection/documents/search", typesenseHandler.SearchDocuments)
+	}
+
+	// New API endpoints following specification
+	api := r.Group("/api")
+
+	// Course endpoints following specification
+	courses := api.Group("/courses")
+	{
+		courses.POST("", courseHandler.Create)
+		courses.POST("/draft", courseHandler.CreateDraft)
+		courses.PUT("/:courseId", courseHandler.Update)
+		courses.GET("", courseHandler.List)
+		courses.GET("/drafts", courseHandler.ListDrafts)
+		courses.GET("/:courseId", courseHandler.GetByID)
+		courses.DELETE("/:courseId", courseHandler.Delete)
+
+		// Enrollment endpoints
+		courses.POST("/:courseId/enrollments", inscricaoHandler.Create)
+		courses.GET("/:courseId/enrollments", inscricaoHandler.List)
+		courses.PUT("/:courseId/enrollments/status", inscricaoHandler.UpdateStatus)
+		courses.PUT("/:courseId/enrollments/:enrollmentId/status", inscricaoHandler.UpdateIndividualStatus)
+		courses.GET("/:courseId/enrollments/:enrollmentId", inscricaoHandler.GetByID)
+		courses.DELETE("/:courseId/enrollments/:enrollmentId", inscricaoHandler.Delete)
 	}
 
 	return r
