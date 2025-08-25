@@ -85,12 +85,12 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 	
 	// Contar total de registros
 	db := r.db.WithContext(ctx).Model(&models.Curso{})
-	for key, value := range filter {
-		db = db.Where(key+" = ?", value)
-	}
+	db = r.applyFilters(db, filter)
 	db.Count(&total)
 	
 	// Buscar registros com paginação
+	db = r.db.WithContext(ctx).Model(&models.Curso{})
+	db = r.applyFilters(db, filter)
 	result := db.
 		Preload("Categorias").
 		Preload("Acessibilidades").
@@ -106,6 +106,20 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 	}
 	
 	return cursos, int(total), nil
+}
+
+func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{}) *gorm.DB {
+	for key, value := range filter {
+		switch key {
+		case "status NOT":
+			db = db.Where("status != ?", value)
+		case "title ILIKE":
+			db = db.Where("titulo ILIKE ?", value)
+		default:
+			db = db.Where(key+" = ?", value)
+		}
+	}
+	return db
 }
 
 // Métodos auxiliares para manipulação dos relacionamentos
