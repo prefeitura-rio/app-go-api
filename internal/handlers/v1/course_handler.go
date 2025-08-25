@@ -31,7 +31,7 @@ func NewCourseHandler(cursoService *services.CursoService, inscricaoService *ser
 // @Success      201      {object}  object
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
-// @Router       /api/courses [post]
+// @Router       /api/v1/courses [post]
 func (h *CourseHandler) Create(c *gin.Context) {
 	var curso models.Curso
 	if err := c.ShouldBindJSON(&curso); err != nil {
@@ -71,7 +71,7 @@ func (h *CourseHandler) Create(c *gin.Context) {
 // @Success      201      {object}  object
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
-// @Router       /api/courses/draft [post]
+// @Router       /api/v1/courses/draft [post]
 func (h *CourseHandler) CreateDraft(c *gin.Context) {
 	var curso models.Curso
 	if err := c.ShouldBindJSON(&curso); err != nil {
@@ -113,7 +113,7 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      404      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
-// @Router       /api/courses/{courseId} [put]
+// @Router       /api/v1/courses/{courseId} [put]
 func (h *CourseHandler) Update(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
@@ -175,7 +175,7 @@ func (h *CourseHandler) Update(c *gin.Context) {
 // @Param        search       query     string  false  "Buscar no título"
 // @Success      200          {object}  object
 // @Failure      500          {object}  models.ErrorResponse
-// @Router       /api/courses [get]
+// @Router       /api/v1/courses [get]
 func (h *CourseHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
@@ -258,7 +258,7 @@ func (h *CourseHandler) List(c *gin.Context) {
 // @Param        search       query     string  false  "Buscar no título"
 // @Success      200          {object}  object
 // @Failure      500          {object}  models.ErrorResponse
-// @Router       /api/courses/drafts [get]
+// @Router       /api/v1/courses/drafts [get]
 func (h *CourseHandler) ListDrafts(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
@@ -330,7 +330,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      404      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
-// @Router       /api/courses/{courseId} [get]
+// @Router       /api/v1/courses/{courseId} [get]
 func (h *CourseHandler) GetByID(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
@@ -364,7 +364,7 @@ func (h *CourseHandler) GetByID(c *gin.Context) {
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      404      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
-// @Router       /api/courses/{courseId} [delete]
+// @Router       /api/v1/courses/{courseId} [delete]
 func (h *CourseHandler) Delete(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
