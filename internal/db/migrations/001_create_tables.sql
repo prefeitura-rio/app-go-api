@@ -31,7 +31,7 @@ CREATE TABLE acessibilidades (
 );
 
 CREATE TYPE modalidade_enum AS ENUM ('Presencial', 'Semipresencial', 'Remoto', 'PRESENCIAL', 'ONLINE', 'HIBRIDO');
-CREATE TYPE status_curso_enum AS ENUM ('CRIADO', 'ABERTO', 'ENCERRADO');
+CREATE TYPE status_curso_enum AS ENUM ('draft', 'opened', 'closed', 'canceled', 'CRIADO', 'ABERTO', 'ENCERRADO');
 CREATE TYPE turno_enum AS ENUM ('MANHA', 'TARDE', 'NOITE', 'INTEGRAL', 'LIVRE');
 CREATE TYPE formato_aula_enum AS ENUM ('GRAVADO', 'AO_VIVO');
 CREATE TYPE tipo_contratacao_enum AS ENUM ('CLT', 'ESTAGIO', 'JOVEM_APRENDIZ', 'MEI', 'PJ');
