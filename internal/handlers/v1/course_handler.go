@@ -8,6 +8,7 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type CourseHandler struct {
@@ -44,7 +45,11 @@ func (h *CourseHandler) Create(c *gin.Context) {
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar curso: " + err.Error()})
+		dbErr := utils.ParseDatabaseError(err)
+		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
+			"error": dbErr.GetUserFriendlyMessage(),
+			"field": dbErr.Field,
+		})
 		return
 	}
 
@@ -84,7 +89,11 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar curso: " + err.Error()})
+		dbErr := utils.ParseDatabaseError(err)
+		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
+			"error": dbErr.GetUserFriendlyMessage(),
+			"field": dbErr.Field,
+		})
 		return
 	}
 
@@ -140,7 +149,11 @@ func (h *CourseHandler) Update(c *gin.Context) {
 
 	curso.ID = id
 	if err := h.cursoService.Update(c.Request.Context(), &curso); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar curso: " + err.Error()})
+		dbErr := utils.ParseDatabaseError(err)
+		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
+			"error": dbErr.GetUserFriendlyMessage(),
+			"field": dbErr.Field,
+		})
 		return
 	}
 
