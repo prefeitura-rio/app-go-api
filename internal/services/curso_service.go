@@ -114,8 +114,9 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 		return fmt.Errorf("turno inválido: %s", curso.Turno)
 	}
 
-	if strings.TrimSpace(curso.Organization) == "" {
-		return fmt.Errorf("organização é obrigatória")
+	// Organization can be empty for some cases, just normalize it
+	if curso.Organization != "" && len(curso.Organization) > 255 {
+		return fmt.Errorf("organização deve ter no máximo 255 caracteres")
 	}
 
 	if curso.NumeroVagas < 0 {
@@ -124,6 +125,28 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 
 	if curso.CargaHoraria < 0 {
 		return fmt.Errorf("carga horária deve ser positiva")
+	}
+
+	// Validate URL fields if not empty
+	if curso.InstitutionalLogo != "" && len(curso.InstitutionalLogo) > 500 {
+		return fmt.Errorf("URL do logo institucional deve ter no máximo 500 caracteres")
+	}
+	
+	if curso.CoverImage != "" && len(curso.CoverImage) > 500 {
+		return fmt.Errorf("URL da imagem de capa deve ter no máximo 500 caracteres")
+	}
+
+	// Validate text fields length
+	if len(curso.Theme) > 100 {
+		return fmt.Errorf("tema deve ter no máximo 100 caracteres")
+	}
+	
+	if len(curso.Workload) > 50 {
+		return fmt.Errorf("carga de trabalho deve ter no máximo 50 caracteres")
+	}
+	
+	if len(curso.TargetAudience) > 200 {
+		return fmt.Errorf("público-alvo deve ter no máximo 200 caracteres")
 	}
 
 	return nil
@@ -135,6 +158,20 @@ func (s *CursoService) normalizeCurso(curso *models.Curso) {
 	curso.Modalidade = curso.Modalidade.Normalize()
 	curso.Titulo = strings.TrimSpace(curso.Titulo)
 	curso.Organization = strings.TrimSpace(curso.Organization)
+
+	// Normalize other text fields
+	curso.Theme = strings.TrimSpace(curso.Theme)
+	curso.Workload = strings.TrimSpace(curso.Workload)
+	curso.TargetAudience = strings.TrimSpace(curso.TargetAudience)
+	curso.PreRequisitos = strings.TrimSpace(curso.PreRequisitos)
+	curso.Facilitator = strings.TrimSpace(curso.Facilitator)
+	curso.Objectives = strings.TrimSpace(curso.Objectives)
+	curso.ExpectedResults = strings.TrimSpace(curso.ExpectedResults)
+	curso.ProgramContent = strings.TrimSpace(curso.ProgramContent)
+	curso.Methodology = strings.TrimSpace(curso.Methodology)
+	curso.ResourcesUsed = strings.TrimSpace(curso.ResourcesUsed)
+	curso.MaterialUsed = strings.TrimSpace(curso.MaterialUsed)
+	curso.TeachingMaterial = strings.TrimSpace(curso.TeachingMaterial)
 
 	if curso.Status == "" {
 		curso.Status = models.StatusCursoDraft
