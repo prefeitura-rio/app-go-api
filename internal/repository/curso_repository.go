@@ -52,41 +52,44 @@ func (r *CursoRepository) GetByID(ctx context.Context, id int) (*models.Curso, e
 }
 
 func (r *CursoRepository) Update(ctx context.Context, curso *models.Curso) error {
-	// Salvar as relações many-to-many
-	if err := r.atualizarCategorias(ctx, curso); err != nil {
-		return fmt.Errorf("erro ao atualizar categorias: %w", err)
-	}
+	// Usar transação para garantir atomicidade
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Salvar as relações many-to-many
+		if err := r.atualizarCategoriasWithTx(ctx, tx, curso); err != nil {
+			return fmt.Errorf("erro ao atualizar categorias: %w", err)
+		}
 
-	if err := r.atualizarAcessibilidades(ctx, curso); err != nil {
-		return fmt.Errorf("erro ao atualizar acessibilidades: %w", err)
-	}
-	
-	// Atualizar custom fields
-	if err := r.updateCustomFields(ctx, curso); err != nil {
-		return fmt.Errorf("erro ao atualizar custom fields: %w", err)
-	}
-	
-	// Atualizar remote class
-	if err := r.updateRemoteClass(ctx, curso); err != nil {
-		return fmt.Errorf("erro ao atualizar remote class: %w", err)
-	}
-	
-	// Atualizar location classes
-	if err := r.updateLocationClasses(ctx, curso); err != nil {
-		return fmt.Errorf("erro ao atualizar location classes: %w", err)
-	}
-	
-	// Atualizar o curso
-	result := r.db.WithContext(ctx).Model(curso).
-		Where("id = ?", curso.ID).
-		Omit("Categorias", "Acessibilidades", "Orgao", "Instituicao", "CustomFields", "RemoteClass", "LocationClasses"). // Ignorar relações
-		Updates(curso)
-	
-	if result.Error != nil {
-		return fmt.Errorf("erro ao atualizar curso: %w", result.Error)
-	}
-	
-	return nil
+		if err := r.atualizarAcessibilidadesWithTx(ctx, tx, curso); err != nil {
+			return fmt.Errorf("erro ao atualizar acessibilidades: %w", err)
+		}
+		
+		// Atualizar custom fields
+		if err := r.updateCustomFieldsWithTx(ctx, tx, curso); err != nil {
+			return fmt.Errorf("erro ao atualizar custom fields: %w", err)
+		}
+		
+		// Atualizar remote class
+		if err := r.updateRemoteClassWithTx(ctx, tx, curso); err != nil {
+			return fmt.Errorf("erro ao atualizar remote class: %w", err)
+		}
+		
+		// Atualizar location classes
+		if err := r.updateLocationClassesWithTx(ctx, tx, curso); err != nil {
+			return fmt.Errorf("erro ao atualizar location classes: %w", err)
+		}
+		
+		// Atualizar o curso
+		result := tx.Model(curso).
+			Where("id = ?", curso.ID).
+			Omit("Categorias", "Acessibilidades", "Orgao", "Instituicao", "CustomFields", "RemoteClass", "LocationClasses").
+			Updates(curso)
+		
+		if result.Error != nil {
+			return fmt.Errorf("erro ao atualizar curso: %w", result.Error)
+		}
+		
+		return nil
+	})
 }
 
 func (r *CursoRepository) Delete(ctx context.Context, id int) error {
@@ -143,9 +146,13 @@ func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{
 // Métodos auxiliares para manipulação dos relacionamentos
 
 func (r *CursoRepository) atualizarCategorias(ctx context.Context, curso *models.Curso) error {
+	return r.atualizarCategoriasWithTx(ctx, r.db, curso)
+}
+
+func (r *CursoRepository) atualizarCategoriasWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
 	// Obter o curso atual com suas categorias
 	var cursoAtual models.Curso
-	if err := r.db.WithContext(ctx).Preload("Categorias").First(&cursoAtual, curso.ID).Error; err != nil {
+	if err := tx.WithContext(ctx).Preload("Categorias").First(&cursoAtual, curso.ID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil // Curso não existe ainda, nada a fazer
 		}
@@ -153,13 +160,13 @@ func (r *CursoRepository) atualizarCategorias(ctx context.Context, curso *models
 	}
 	
 	// Limpar associações existentes
-	if err := r.db.WithContext(ctx).Model(&cursoAtual).Association("Categorias").Clear(); err != nil {
+	if err := tx.WithContext(ctx).Model(&cursoAtual).Association("Categorias").Clear(); err != nil {
 		return err
 	}
 	
 	// Adicionar novas associações
 	if len(curso.Categorias) > 0 {
-		if err := r.db.WithContext(ctx).Model(curso).Association("Categorias").Replace(curso.Categorias); err != nil {
+		if err := tx.WithContext(ctx).Model(curso).Association("Categorias").Replace(curso.Categorias); err != nil {
 			return err
 		}
 	}
@@ -168,9 +175,13 @@ func (r *CursoRepository) atualizarCategorias(ctx context.Context, curso *models
 }
 
 func (r *CursoRepository) atualizarAcessibilidades(ctx context.Context, curso *models.Curso) error {
+	return r.atualizarAcessibilidadesWithTx(ctx, r.db, curso)
+}
+
+func (r *CursoRepository) atualizarAcessibilidadesWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
 	// Obter o curso atual com suas acessibilidades
 	var cursoAtual models.Curso
-	if err := r.db.WithContext(ctx).Preload("Acessibilidades").First(&cursoAtual, curso.ID).Error; err != nil {
+	if err := tx.WithContext(ctx).Preload("Acessibilidades").First(&cursoAtual, curso.ID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil // Curso não existe ainda, nada a fazer
 		}
@@ -178,13 +189,13 @@ func (r *CursoRepository) atualizarAcessibilidades(ctx context.Context, curso *m
 	}
 	
 	// Limpar associações existentes
-	if err := r.db.WithContext(ctx).Model(&cursoAtual).Association("Acessibilidades").Clear(); err != nil {
+	if err := tx.WithContext(ctx).Model(&cursoAtual).Association("Acessibilidades").Clear(); err != nil {
 		return err
 	}
 	
 	// Adicionar novas associações
 	if len(curso.Acessibilidades) > 0 {
-		if err := r.db.WithContext(ctx).Model(curso).Association("Acessibilidades").Replace(curso.Acessibilidades); err != nil {
+		if err := tx.WithContext(ctx).Model(curso).Association("Acessibilidades").Replace(curso.Acessibilidades); err != nil {
 			return err
 		}
 	}
@@ -236,9 +247,13 @@ func (r *CursoRepository) CreateLocationClasses(ctx context.Context, locationCla
 
 // updateCustomFields updates custom fields for a course
 func (r *CursoRepository) updateCustomFields(ctx context.Context, curso *models.Curso) error {
+	return r.updateCustomFieldsWithTx(ctx, r.db, curso)
+}
+
+func (r *CursoRepository) updateCustomFieldsWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
 	// Get existing custom fields
 	var existingFields []models.CustomField
-	r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingFields)
+	tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingFields)
 	
 	// Build map of IDs to keep
 	idsToKeep := make(map[string]bool)
@@ -251,7 +266,7 @@ func (r *CursoRepository) updateCustomFields(ctx context.Context, curso *models.
 	// Delete fields that are not in the update list
 	for _, existing := range existingFields {
 		if !idsToKeep[existing.ID.String()] {
-			r.db.WithContext(ctx).Delete(&existing)
+			tx.WithContext(ctx).Delete(&existing)
 		}
 	}
 	
@@ -260,10 +275,10 @@ func (r *CursoRepository) updateCustomFields(ctx context.Context, curso *models.
 		curso.CustomFields[i].CursoID = curso.ID
 		if curso.CustomFields[i].ID.String() != "00000000-0000-0000-0000-000000000000" {
 			// Update existing field
-			r.db.WithContext(ctx).Model(&curso.CustomFields[i]).Updates(&curso.CustomFields[i])
+			tx.WithContext(ctx).Model(&curso.CustomFields[i]).Updates(&curso.CustomFields[i])
 		} else {
 			// Create new field
-			r.db.WithContext(ctx).Create(&curso.CustomFields[i])
+			tx.WithContext(ctx).Create(&curso.CustomFields[i])
 		}
 	}
 	
@@ -272,24 +287,28 @@ func (r *CursoRepository) updateCustomFields(ctx context.Context, curso *models.
 
 // updateRemoteClass updates remote class for a course
 func (r *CursoRepository) updateRemoteClass(ctx context.Context, curso *models.Curso) error {
+	return r.updateRemoteClassWithTx(ctx, r.db, curso)
+}
+
+func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
 	if curso.RemoteClass != nil {
 		// Check if a remote class already exists
 		var existingRemote models.RemoteClass
-		err := r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).First(&existingRemote).Error
+		err := tx.WithContext(ctx).Where("curso_id = ?", curso.ID).First(&existingRemote).Error
 		
 		curso.RemoteClass.CursoID = curso.ID
 		
 		if err == nil {
 			// Update existing remote class
 			curso.RemoteClass.ID = existingRemote.ID
-			r.db.WithContext(ctx).Model(&existingRemote).Updates(curso.RemoteClass)
+			tx.WithContext(ctx).Model(&existingRemote).Updates(curso.RemoteClass)
 		} else {
 			// Create new remote class
-			r.db.WithContext(ctx).Create(curso.RemoteClass)
+			tx.WithContext(ctx).Create(curso.RemoteClass)
 		}
 	} else {
 		// If no remote class provided, delete existing one if any
-		r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.RemoteClass{})
+		tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.RemoteClass{})
 	}
 	
 	return nil
@@ -297,9 +316,13 @@ func (r *CursoRepository) updateRemoteClass(ctx context.Context, curso *models.C
 
 // updateLocationClasses updates location classes for a course
 func (r *CursoRepository) updateLocationClasses(ctx context.Context, curso *models.Curso) error {
+	return r.updateLocationClassesWithTx(ctx, r.db, curso)
+}
+
+func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
 	// Get existing location classes
 	var existingLocations []models.LocationClass
-	r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingLocations)
+	tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingLocations)
 	
 	// Build map of IDs to keep
 	idsToKeep := make(map[string]bool)
@@ -312,7 +335,7 @@ func (r *CursoRepository) updateLocationClasses(ctx context.Context, curso *mode
 	// Delete locations that are not in the update list
 	for _, existing := range existingLocations {
 		if !idsToKeep[existing.ID.String()] {
-			r.db.WithContext(ctx).Delete(&existing)
+			tx.WithContext(ctx).Delete(&existing)
 		}
 	}
 	
@@ -321,10 +344,10 @@ func (r *CursoRepository) updateLocationClasses(ctx context.Context, curso *mode
 		curso.LocationClasses[i].CursoID = curso.ID
 		if curso.LocationClasses[i].ID.String() != "00000000-0000-0000-0000-000000000000" {
 			// Update existing location
-			r.db.WithContext(ctx).Model(&curso.LocationClasses[i]).Updates(&curso.LocationClasses[i])
+			tx.WithContext(ctx).Model(&curso.LocationClasses[i]).Updates(&curso.LocationClasses[i])
 		} else {
 			// Create new location
-			r.db.WithContext(ctx).Create(&curso.LocationClasses[i])
+			tx.WithContext(ctx).Create(&curso.LocationClasses[i])
 		}
 	}
 	
