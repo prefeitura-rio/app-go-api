@@ -61,10 +61,25 @@ func (r *CursoRepository) Update(ctx context.Context, curso *models.Curso) error
 		return fmt.Errorf("erro ao atualizar acessibilidades: %w", err)
 	}
 	
+	// Atualizar custom fields
+	if err := r.updateCustomFields(ctx, curso); err != nil {
+		return fmt.Errorf("erro ao atualizar custom fields: %w", err)
+	}
+	
+	// Atualizar remote class
+	if err := r.updateRemoteClass(ctx, curso); err != nil {
+		return fmt.Errorf("erro ao atualizar remote class: %w", err)
+	}
+	
+	// Atualizar location classes
+	if err := r.updateLocationClasses(ctx, curso); err != nil {
+		return fmt.Errorf("erro ao atualizar location classes: %w", err)
+	}
+	
 	// Atualizar o curso
 	result := r.db.WithContext(ctx).Model(curso).
 		Where("id = ?", curso.ID).
-		Omit("Categorias", "Acessibilidades", "Orgao", "Instituicao"). // Ignorar relações
+		Omit("Categorias", "Acessibilidades", "Orgao", "Instituicao", "CustomFields", "RemoteClass", "LocationClasses"). // Ignorar relações
 		Updates(curso)
 	
 	if result.Error != nil {
@@ -214,6 +229,64 @@ func (r *CursoRepository) CreateLocationClasses(ctx context.Context, locationCla
 	result := r.db.WithContext(ctx).Create(&locationClasses)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao criar location classes: %w", result.Error)
+	}
+	
+	return nil
+}
+
+// updateCustomFields updates custom fields for a course
+func (r *CursoRepository) updateCustomFields(ctx context.Context, curso *models.Curso) error {
+	// Delete existing custom fields
+	if err := r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.CustomField{}).Error; err != nil {
+		return fmt.Errorf("erro ao deletar custom fields existentes: %w", err)
+	}
+	
+	// Create new custom fields if provided
+	if len(curso.CustomFields) > 0 {
+		for i := range curso.CustomFields {
+			curso.CustomFields[i].CursoID = curso.ID
+		}
+		if err := r.CreateCustomFields(ctx, curso.CustomFields); err != nil {
+			return err
+		}
+	}
+	
+	return nil
+}
+
+// updateRemoteClass updates remote class for a course
+func (r *CursoRepository) updateRemoteClass(ctx context.Context, curso *models.Curso) error {
+	// Delete existing remote class
+	if err := r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.RemoteClass{}).Error; err != nil {
+		return fmt.Errorf("erro ao deletar remote class existente: %w", err)
+	}
+	
+	// Create new remote class if provided
+	if curso.RemoteClass != nil {
+		curso.RemoteClass.CursoID = curso.ID
+		if err := r.CreateRemoteClass(ctx, curso.RemoteClass); err != nil {
+			return err
+		}
+	}
+	
+	return nil
+}
+
+// updateLocationClasses updates location classes for a course
+func (r *CursoRepository) updateLocationClasses(ctx context.Context, curso *models.Curso) error {
+	// Delete existing location classes
+	if err := r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.LocationClass{}).Error; err != nil {
+		return fmt.Errorf("erro ao deletar location classes existentes: %w", err)
+	}
+	
+	// Create new location classes if provided
+	if len(curso.LocationClasses) > 0 {
+		for i := range curso.LocationClasses {
+			curso.LocationClasses[i].CursoID = curso.ID
+		}
+		if err := r.CreateLocationClasses(ctx, curso.LocationClasses); err != nil {
+			return err
+		}
 	}
 	
 	return nil
