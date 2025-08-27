@@ -131,7 +131,7 @@ func (s StatusCurso) IsValid() bool {
 }
 
 func (f FormatoAula) IsValid() bool {
-	validValues := []string{"GRAVADO", "AO_VIVO"}
+	validValues := []string{"GRAVADO", "AO_VIVO", "PRESENCIAL", ""}
 	for _, v := range validValues {
 		if string(f) == v {
 			return true
@@ -165,6 +165,14 @@ func (m Modalidade) Normalize() Modalidade {
 	default:
 		return m
 	}
+}
+
+func (f FormatoAula) Normalize() FormatoAula {
+	normalized := strings.ToUpper(strings.TrimSpace(string(f)))
+	if normalized == "" {
+		return ""
+	}
+	return FormatoAula(normalized)
 }
 
 // Validate validates a course instance

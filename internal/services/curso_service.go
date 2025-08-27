@@ -156,6 +156,7 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 func (s *CursoService) normalizeCurso(curso *models.Curso) {
 	curso.Status = curso.Status.Normalize()
 	curso.Modalidade = curso.Modalidade.Normalize()
+	curso.FormatoAula = curso.FormatoAula.Normalize()
 	curso.Titulo = strings.TrimSpace(curso.Titulo)
 	curso.Organization = strings.TrimSpace(curso.Organization)
 
