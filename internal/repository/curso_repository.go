@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -251,34 +252,21 @@ func (r *CursoRepository) updateCustomFields(ctx context.Context, curso *models.
 }
 
 func (r *CursoRepository) updateCustomFieldsWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
-	// Get existing custom fields
-	var existingFields []models.CustomField
-	tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingFields)
-	
-	// Build map of IDs to keep
-	idsToKeep := make(map[string]bool)
-	for _, field := range curso.CustomFields {
-		if field.ID.String() != "00000000-0000-0000-0000-000000000000" {
-			idsToKeep[field.ID.String()] = true
-		}
+	// Delete all existing custom fields for this course
+	if err := tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.CustomField{}).Error; err != nil {
+		return fmt.Errorf("erro ao deletar custom fields existentes: %w", err)
 	}
 	
-	// Delete fields that are not in the update list
-	for _, existing := range existingFields {
-		if !idsToKeep[existing.ID.String()] {
-			tx.WithContext(ctx).Delete(&existing)
+	// Create new custom fields
+	if len(curso.CustomFields) > 0 {
+		for i := range curso.CustomFields {
+			// Reset ID to ensure new ones are created
+			curso.CustomFields[i].ID = uuid.UUID{}
+			curso.CustomFields[i].CursoID = curso.ID
 		}
-	}
-	
-	// Update or create fields
-	for i := range curso.CustomFields {
-		curso.CustomFields[i].CursoID = curso.ID
-		if curso.CustomFields[i].ID.String() != "00000000-0000-0000-0000-000000000000" {
-			// Update existing field
-			tx.WithContext(ctx).Model(&curso.CustomFields[i]).Updates(&curso.CustomFields[i])
-		} else {
-			// Create new field
-			tx.WithContext(ctx).Create(&curso.CustomFields[i])
+		
+		if err := tx.WithContext(ctx).Create(&curso.CustomFields).Error; err != nil {
+			return fmt.Errorf("erro ao criar custom fields: %w", err)
 		}
 	}
 	
