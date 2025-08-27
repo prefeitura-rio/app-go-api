@@ -34,6 +34,7 @@ func ParseDatabaseError(err error) *DatabaseError {
 	// Verifica se é um erro do PostgreSQL
 	var pqErr *pq.Error
 	if !errors.As(err, &pqErr) {
+		// In production, hide detailed error messages
 		return &DatabaseError{
 			Type:    UnknownError,
 			Message: "Erro interno do servidor",

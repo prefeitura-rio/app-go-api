@@ -74,7 +74,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)
 	}
 
-	// Rotas de cursos removidas - usar /api/v1/courses
+	// Rotas legacy removidas - usar apenas /api/v1/courses
 
 	// Rotas de empregos
 	empregos := apiV1.Group("/empregos")
