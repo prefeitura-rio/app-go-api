@@ -236,18 +236,34 @@ func (r *CursoRepository) CreateLocationClasses(ctx context.Context, locationCla
 
 // updateCustomFields updates custom fields for a course
 func (r *CursoRepository) updateCustomFields(ctx context.Context, curso *models.Curso) error {
-	// Delete existing custom fields
-	if err := r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.CustomField{}).Error; err != nil {
-		return fmt.Errorf("erro ao deletar custom fields existentes: %w", err)
+	// Get existing custom fields
+	var existingFields []models.CustomField
+	r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingFields)
+	
+	// Build map of IDs to keep
+	idsToKeep := make(map[string]bool)
+	for _, field := range curso.CustomFields {
+		if field.ID.String() != "00000000-0000-0000-0000-000000000000" {
+			idsToKeep[field.ID.String()] = true
+		}
 	}
 	
-	// Create new custom fields if provided
-	if len(curso.CustomFields) > 0 {
-		for i := range curso.CustomFields {
-			curso.CustomFields[i].CursoID = curso.ID
+	// Delete fields that are not in the update list
+	for _, existing := range existingFields {
+		if !idsToKeep[existing.ID.String()] {
+			r.db.WithContext(ctx).Delete(&existing)
 		}
-		if err := r.CreateCustomFields(ctx, curso.CustomFields); err != nil {
-			return err
+	}
+	
+	// Update or create fields
+	for i := range curso.CustomFields {
+		curso.CustomFields[i].CursoID = curso.ID
+		if curso.CustomFields[i].ID.String() != "00000000-0000-0000-0000-000000000000" {
+			// Update existing field
+			r.db.WithContext(ctx).Model(&curso.CustomFields[i]).Updates(&curso.CustomFields[i])
+		} else {
+			// Create new field
+			r.db.WithContext(ctx).Create(&curso.CustomFields[i])
 		}
 	}
 	
@@ -256,17 +272,24 @@ func (r *CursoRepository) updateCustomFields(ctx context.Context, curso *models.
 
 // updateRemoteClass updates remote class for a course
 func (r *CursoRepository) updateRemoteClass(ctx context.Context, curso *models.Curso) error {
-	// Delete existing remote class
-	if err := r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.RemoteClass{}).Error; err != nil {
-		return fmt.Errorf("erro ao deletar remote class existente: %w", err)
-	}
-	
-	// Create new remote class if provided
 	if curso.RemoteClass != nil {
+		// Check if a remote class already exists
+		var existingRemote models.RemoteClass
+		err := r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).First(&existingRemote).Error
+		
 		curso.RemoteClass.CursoID = curso.ID
-		if err := r.CreateRemoteClass(ctx, curso.RemoteClass); err != nil {
-			return err
+		
+		if err == nil {
+			// Update existing remote class
+			curso.RemoteClass.ID = existingRemote.ID
+			r.db.WithContext(ctx).Model(&existingRemote).Updates(curso.RemoteClass)
+		} else {
+			// Create new remote class
+			r.db.WithContext(ctx).Create(curso.RemoteClass)
 		}
+	} else {
+		// If no remote class provided, delete existing one if any
+		r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.RemoteClass{})
 	}
 	
 	return nil
@@ -274,18 +297,34 @@ func (r *CursoRepository) updateRemoteClass(ctx context.Context, curso *models.C
 
 // updateLocationClasses updates location classes for a course
 func (r *CursoRepository) updateLocationClasses(ctx context.Context, curso *models.Curso) error {
-	// Delete existing location classes
-	if err := r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.LocationClass{}).Error; err != nil {
-		return fmt.Errorf("erro ao deletar location classes existentes: %w", err)
+	// Get existing location classes
+	var existingLocations []models.LocationClass
+	r.db.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingLocations)
+	
+	// Build map of IDs to keep
+	idsToKeep := make(map[string]bool)
+	for _, location := range curso.LocationClasses {
+		if location.ID.String() != "00000000-0000-0000-0000-000000000000" {
+			idsToKeep[location.ID.String()] = true
+		}
 	}
 	
-	// Create new location classes if provided
-	if len(curso.LocationClasses) > 0 {
-		for i := range curso.LocationClasses {
-			curso.LocationClasses[i].CursoID = curso.ID
+	// Delete locations that are not in the update list
+	for _, existing := range existingLocations {
+		if !idsToKeep[existing.ID.String()] {
+			r.db.WithContext(ctx).Delete(&existing)
 		}
-		if err := r.CreateLocationClasses(ctx, curso.LocationClasses); err != nil {
-			return err
+	}
+	
+	// Update or create locations
+	for i := range curso.LocationClasses {
+		curso.LocationClasses[i].CursoID = curso.ID
+		if curso.LocationClasses[i].ID.String() != "00000000-0000-0000-0000-000000000000" {
+			// Update existing location
+			r.db.WithContext(ctx).Model(&curso.LocationClasses[i]).Updates(&curso.LocationClasses[i])
+		} else {
+			// Create new location
+			r.db.WithContext(ctx).Create(&curso.LocationClasses[i])
 		}
 	}
 	
