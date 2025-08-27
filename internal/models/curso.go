@@ -67,7 +67,6 @@ type Curso struct {
 	ContatoDuvidas       string         `json:"contato_duvidas" gorm:"column:contato_duvidas"`
 
 	// Optional fields matching specification
-	Prerequisites        string         `json:"prerequisites,omitempty" gorm:"column:pre_requisitos;type:text"`
 	HasCertificate       bool           `json:"has_certificate" gorm:"column:has_certificate;default:false"`
 	Facilitator          string         `json:"facilitator,omitempty" gorm:"type:varchar(255)"`
 	Objectives           string         `json:"objectives,omitempty" gorm:"type:text"`
@@ -78,7 +77,7 @@ type Curso struct {
 	MaterialUsed         string         `json:"material_used,omitempty" gorm:"type:text;column:material_used"`
 	TeachingMaterial     string         `json:"teaching_material,omitempty" gorm:"type:text;column:teaching_material"`
 
-	// Legacy compatibility - kept for backwards compatibility
+	// Unified field for prerequisites - using single JSON tag
 	PreRequisitos         string         `json:"pre_requisitos" gorm:"column:pre_requisitos;type:text"`
 	CertificacaoOferecida bool          `json:"certificacao_oferecida" gorm:"column:certificacao_oferecida"`
 
