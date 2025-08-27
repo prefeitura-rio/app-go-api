@@ -20,7 +20,7 @@ func NewCursoRepository(db *gorm.DB) *CursoRepository {
 }
 
 func (r *CursoRepository) Create(ctx context.Context, curso *models.Curso) (int, error) {
-	result := r.db.WithContext(ctx).Create(curso)
+	result := r.db.WithContext(ctx).Omit("CustomFields", "LocationClasses", "RemoteClass", "Inscricoes").Create(curso)
 	if result.Error != nil {
 		return 0, fmt.Errorf("erro ao criar curso: %w", result.Error)
 	}
@@ -36,6 +36,9 @@ func (r *CursoRepository) GetByID(ctx context.Context, id int) (*models.Curso, e
 		Preload("Acessibilidades").
 		Preload("Orgao").
 		Preload("Instituicao").
+		Preload("CustomFields").
+		Preload("LocationClasses").
+		Preload("RemoteClass").
 		First(&curso, id)
 	
 	if result.Error != nil {
@@ -169,6 +172,48 @@ func (r *CursoRepository) atualizarAcessibilidades(ctx context.Context, curso *m
 		if err := r.db.WithContext(ctx).Model(curso).Association("Acessibilidades").Replace(curso.Acessibilidades); err != nil {
 			return err
 		}
+	}
+	
+	return nil
+}
+
+// CreateCustomFields creates custom fields for a course
+func (r *CursoRepository) CreateCustomFields(ctx context.Context, customFields []models.CustomField) error {
+	if len(customFields) == 0 {
+		return nil
+	}
+	
+	result := r.db.WithContext(ctx).Create(&customFields)
+	if result.Error != nil {
+		return fmt.Errorf("erro ao criar custom fields: %w", result.Error)
+	}
+	
+	return nil
+}
+
+// CreateRemoteClass creates a remote class for a course
+func (r *CursoRepository) CreateRemoteClass(ctx context.Context, remoteClass *models.RemoteClass) error {
+	if remoteClass == nil {
+		return nil
+	}
+	
+	result := r.db.WithContext(ctx).Create(remoteClass)
+	if result.Error != nil {
+		return fmt.Errorf("erro ao criar remote class: %w", result.Error)
+	}
+	
+	return nil
+}
+
+// CreateLocationClasses creates location classes for a course
+func (r *CursoRepository) CreateLocationClasses(ctx context.Context, locationClasses []models.LocationClass) error {
+	if len(locationClasses) == 0 {
+		return nil
+	}
+	
+	result := r.db.WithContext(ctx).Create(&locationClasses)
+	if result.Error != nil {
+		return fmt.Errorf("erro ao criar location classes: %w", result.Error)
 	}
 	
 	return nil
