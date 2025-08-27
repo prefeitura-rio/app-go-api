@@ -79,10 +79,11 @@ func (r *CursoRepository) Update(ctx context.Context, curso *models.Curso) error
 			return fmt.Errorf("erro ao atualizar location classes: %w", err)
 		}
 		
-		// Atualizar o curso
+		// Atualizar o curso - usar Select para incluir valores zero (como false para booleanos)
 		result := tx.Model(curso).
 			Where("id = ?", curso.ID).
 			Omit("Categorias", "Acessibilidades", "Orgao", "Instituicao", "CustomFields", "RemoteClass", "LocationClasses").
+			Select("*").
 			Updates(curso)
 		
 		if result.Error != nil {
