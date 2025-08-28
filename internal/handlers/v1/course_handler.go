@@ -231,19 +231,64 @@ func (h *CourseHandler) List(c *gin.Context) {
 
 	totalPages := (total + limit - 1) / limit
 
-	// Transform courses to match specification format
+	// Transform courses to include all fields
 	coursesData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
 		coursesData[i] = gin.H{
+			// Core fields
 			"id":                    curso.ID,
 			"title":                 curso.Titulo,
 			"description":           curso.Descricao,
 			"modalidade":            curso.Modalidade,
 			"status":                curso.Status,
 			"organization":          curso.Organization,
+			"theme":                 curso.Theme,
+			"workload":              curso.Workload,
+			"target_audience":       curso.TargetAudience,
+			"institutional_logo":    curso.InstitutionalLogo,
+			"cover_image":           curso.CoverImage,
 			"enrollment_start_date": curso.EnrollmentStartDate,
 			"enrollment_end_date":   curso.EnrollmentEndDate,
-			"created_at":            curso.CreatedAt,
+			
+			// Legacy and additional fields
+			"orgao_id":               curso.OrgaoID,
+			"instituicao_id":         curso.InstituicaoID,
+			"local_realizacao":       curso.LocalRealizacao,
+			"data_inicio":            curso.DataInicio,
+			"data_termino":           curso.DataTermino,
+			"data_limite_inscricoes": curso.DataLimiteInscricoes,
+			"numero_vagas":           curso.NumeroVagas,
+			"carga_horaria":          curso.CargaHoraria,
+			"turno":                  curso.Turno,
+			"formato_aula":           curso.FormatoAula,
+			"link_inscricao":         curso.LinkInscricao,
+			"contato_duvidas":        curso.ContatoDuvidas,
+			
+			// Optional fields
+			"has_certificate":        curso.HasCertificate,
+			"facilitator":            curso.Facilitator,
+			"objectives":             curso.Objectives,
+			"expected_results":       curso.ExpectedResults,
+			"program_content":        curso.ProgramContent,
+			"methodology":            curso.Methodology,
+			"resources_used":         curso.ResourcesUsed,
+			"material_used":          curso.MaterialUsed,
+			"teaching_material":      curso.TeachingMaterial,
+			"pre_requisitos":         curso.PreRequisitos,
+			"certificacao_oferecida": curso.CertificacaoOferecida,
+			
+			// Timestamps
+			"created_at":             curso.CreatedAt,
+			"updated_at":             curso.UpdatedAt,
+			
+			// Related objects
+			"orgao":                  curso.Orgao,
+			"instituicao":            curso.Instituicao,
+			"categorias":             curso.Categorias,
+			"acessibilidades":        curso.Acessibilidades,
+			"custom_fields":          curso.CustomFields,
+			"locations":              curso.LocationClasses,
+			"remote_class":           curso.RemoteClass,
 		}
 	}
 
