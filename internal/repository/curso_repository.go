@@ -119,6 +119,9 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 		Preload("Acessibilidades").
 		Preload("Orgao").
 		Preload("Instituicao").
+		Preload("CustomFields").
+		Preload("LocationClasses").
+		Preload("RemoteClass").
 		Order("id DESC").
 		Limit(limit).
 		Offset(offset).
