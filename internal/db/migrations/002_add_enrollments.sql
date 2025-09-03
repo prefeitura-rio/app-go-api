@@ -1,10 +1,7 @@
 -- +goose Up
 
 -- Update course status enum to include draft and match specification (outside transaction)
-ALTER TYPE status_curso_enum ADD VALUE 'draft';
-ALTER TYPE status_curso_enum ADD VALUE 'opened';  
-ALTER TYPE status_curso_enum ADD VALUE 'closed';
-ALTER TYPE status_curso_enum ADD VALUE 'canceled';
+-- Skip enum value addition as they already exist in the database
 
 -- +goose StatementBegin
 

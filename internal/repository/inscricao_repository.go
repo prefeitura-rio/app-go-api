@@ -201,3 +201,40 @@ func (r *InscricaoRepository) ExistsByCPFAndCurso(ctx context.Context, cpf strin
 	
 	return count > 0, nil
 }
+
+func (r *InscricaoRepository) ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error) {
+	var inscricoes []*models.Inscricao
+	var total int64
+
+	// Base query
+	query := r.db.WithContext(ctx).Model(&models.Inscricao{}).Where("cpf = ?", cpf)
+
+	// Apply additional filters
+	for key, value := range filter {
+		if key != "cpf" { // cpf already applied above
+			query = query.Where(key+" = ?", value)
+		}
+	}
+
+	// Count total
+	countQuery := query
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar inscrições: %w", err)
+	}
+
+	// Get records with pagination and preload course data
+	result := query.
+		Preload("Curso").
+		Preload("Curso.Orgao").
+		Preload("Curso.Instituicao").
+		Offset(offset).
+		Limit(limit).
+		Order("enrolled_at DESC").
+		Find(&inscricoes)
+
+	if result.Error != nil {
+		return nil, 0, fmt.Errorf("erro ao buscar inscrições por CPF: %w", result.Error)
+	}
+
+	return inscricoes, int(total), nil
+}

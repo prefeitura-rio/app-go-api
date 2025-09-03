@@ -1,16 +1,6 @@
 basePath: /
 definitions:
   models.Acessibilidade:
-    properties:
-      cursos:
-        description: Relacionamentos
-        items:
-          $ref: '#/definitions/models.Curso'
-        type: array
-      id:
-        type: integer
-      nome:
-        type: string
     type: object
   models.Categoria:
     properties:
@@ -25,142 +15,6 @@ definitions:
         type: string
     type: object
   models.Curso:
-    properties:
-      acessibilidades:
-        items:
-          $ref: '#/definitions/models.Acessibilidade'
-        type: array
-      carga_horaria:
-        type: integer
-      categorias:
-        items:
-          $ref: '#/definitions/models.Categoria'
-        type: array
-      certificacao_oferecida:
-        type: boolean
-      contato_duvidas:
-        type: string
-      cover_image:
-        type: string
-      created_at:
-        type: string
-      custom_fields:
-        description: New relationships for enrollment system
-        items:
-          $ref: '#/definitions/models.CustomField'
-        type: array
-      data_inicio:
-        type: string
-      data_limite_inscricoes:
-        type: string
-      data_termino:
-        type: string
-      description:
-        type: string
-      enrollment_end_date:
-        type: string
-      enrollment_start_date:
-        type: string
-      enrollments:
-        items:
-          $ref: '#/definitions/models.Inscricao'
-        type: array
-      expected_results:
-        type: string
-      facilitator:
-        type: string
-      formato_aula:
-        $ref: '#/definitions/models.FormatoAula'
-      has_certificate:
-        type: boolean
-      id:
-        type: integer
-      instituicao:
-        $ref: '#/definitions/models.InstituicaoEnsino'
-      instituicao_id:
-        type: integer
-      institutional_logo:
-        type: string
-      link_inscricao:
-        type: string
-      local_realizacao:
-        type: string
-      locations:
-        items:
-          $ref: '#/definitions/models.LocationClass'
-        type: array
-      material_used:
-        type: string
-      methodology:
-        type: string
-      modalidade:
-        $ref: '#/definitions/models.Modalidade'
-      numero_vagas:
-        type: integer
-      objectives:
-        type: string
-      organization:
-        type: string
-      orgao:
-        allOf:
-        - $ref: '#/definitions/models.Orgao'
-        description: Relacionamentos
-      orgao_id:
-        description: Legacy and additional fields
-        type: integer
-      pre_requisitos:
-        description: Legacy compatibility - kept for backwards compatibility
-        type: string
-      prerequisites:
-        description: Optional fields matching specification
-        type: string
-      program_content:
-        type: string
-      remote_class:
-        $ref: '#/definitions/models.RemoteClass'
-      resources_used:
-        type: string
-      status:
-        $ref: '#/definitions/models.StatusCurso'
-      target_audience:
-        type: string
-      teaching_material:
-        type: string
-      theme:
-        type: string
-      title:
-        description: Core fields (always required)
-        type: string
-      turno:
-        $ref: '#/definitions/models.Turno'
-      updated_at:
-        type: string
-      workload:
-        type: string
-    type: object
-  models.CustomField:
-    properties:
-      created_at:
-        type: string
-      curso:
-        allOf:
-        - $ref: '#/definitions/models.Curso'
-        description: Relacionamentos
-      curso_id:
-        type: integer
-      field_type:
-        type: string
-      id:
-        type: string
-      options:
-        additionalProperties: true
-        type: object
-      required:
-        type: boolean
-      title:
-        type: string
-      updated_at:
-        type: string
     type: object
   models.Emprego:
     properties:
@@ -282,36 +136,6 @@ definitions:
     - FormatoAulaGravado
     - FormatoAulaAoVivo
   models.Inscricao:
-    properties:
-      admin_notes:
-        type: string
-      course_id:
-        type: integer
-      cpf:
-        type: string
-      curso:
-        allOf:
-        - $ref: '#/definitions/models.Curso'
-        description: Relacionamentos
-      custom_fields:
-        additionalProperties: true
-        type: object
-      email:
-        type: string
-      enrolled_at:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      phone:
-        type: string
-      reason:
-        type: string
-      status:
-        $ref: '#/definitions/models.StatusInscricao'
-      updated_at:
-        type: string
     type: object
   models.InstituicaoEnsino:
     properties:
@@ -339,35 +163,6 @@ definitions:
     - JornadaFlexivel
     - JornadaEstagio
     - JornadaHomeOffice
-  models.LocationClass:
-    properties:
-      address:
-        type: string
-      class_days:
-        type: string
-      class_end_date:
-        type: string
-      class_start_date:
-        type: string
-      class_time:
-        type: string
-      created_at:
-        type: string
-      curso:
-        allOf:
-        - $ref: '#/definitions/models.Curso'
-        description: Relacionamentos
-      curso_id:
-        type: integer
-      id:
-        type: string
-      neighborhood:
-        type: string
-      updated_at:
-        type: string
-      vacancies:
-        type: integer
-    type: object
   models.Modalidade:
     enum:
     - Presencial
@@ -421,31 +216,6 @@ definitions:
         type: integer
       nome:
         type: string
-    type: object
-  models.RemoteClass:
-    properties:
-      class_days:
-        type: string
-      class_end_date:
-        type: string
-      class_start_date:
-        type: string
-      class_time:
-        type: string
-      created_at:
-        type: string
-      curso:
-        allOf:
-        - $ref: '#/definitions/models.Curso'
-        description: Relacionamentos
-      curso_id:
-        type: integer
-      id:
-        type: string
-      updated_at:
-        type: string
-      vacancies:
-        type: integer
     type: object
   models.SearchDocumentsResponse:
     properties:
@@ -2159,6 +1929,89 @@ paths:
       summary: Buscar em múltiplas coleções
       tags:
       - search
+  /api/v1/users/{cpf}/enrollments:
+    get:
+      description: Retorna lista paginada de inscrições realizadas por um usuário
+        (identificado pelo CPF)
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Filtrar por status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar inscrições de um usuário específico
+      tags:
+      - enrollments
+  /api/v1/users/{userId}/courses:
+    get:
+      description: Retorna lista paginada de cursos criados por um usuário/organização
+      parameters:
+      - description: ID do usuário/orgão
+        in: path
+        name: userId
+        required: true
+        type: integer
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Filtrar por status
+        in: query
+        name: status
+        type: string
+      - description: Filtrar por modalidade
+        in: query
+        name: modalidade
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar cursos de um usuário específico
+      tags:
+      - courses
   /health:
     get:
       description: Retorna o status de saúde da API v1

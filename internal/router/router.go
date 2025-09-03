@@ -175,5 +175,25 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		courses.DELETE("/:courseId/enrollments/:enrollmentId", inscricaoHandler.Delete)
 	}
 
+	// Endpoints públicos (sem autenticação) para busca e listagem de cursos
+	apiPublic := r.Group("/api/public")
+	{
+		// Endpoints públicos para cursos - reutilizam os handlers mas sem autenticação
+		apiPublic.GET("/courses", courseHandler.List)
+		apiPublic.GET("/courses/:courseId", courseHandler.GetByID)
+	}
+
+	// Endpoints para usuários - cursos por usuário (orgão)
+	users := apiV1.Group("/users")
+	{
+		users.GET("/:userId/courses", courseHandler.ListByUser)
+	}
+
+	// Endpoints para inscrições por CPF
+	enrollments := apiV1.Group("/enrollments")
+	{
+		enrollments.GET("/user/:cpf", inscricaoHandler.ListByUser)
+	}
+
 	return r
 }

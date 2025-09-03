@@ -350,18 +350,64 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 
 	totalPages := (total + limit - 1) / limit
 
-	// Transform drafts to match specification format
+	// Transform drafts to include all fields like the main course list
 	draftsData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
 		draftsData[i] = gin.H{
-			"id":           curso.ID,
-			"title":        curso.Titulo,
-			"description":  curso.Descricao,
-			"modalidade":   curso.Modalidade,
-			"status":       curso.Status,
-			"organization": curso.Organization,
-			"created_at":   curso.CreatedAt,
-			"updated_at":   curso.UpdatedAt,
+			// Core fields
+			"id":                    curso.ID,
+			"title":                 curso.Titulo,
+			"description":           curso.Descricao,
+			"modalidade":            curso.Modalidade,
+			"status":                curso.Status,
+			"organization":          curso.Organization,
+			"theme":                 curso.Theme,
+			"workload":              curso.Workload,
+			"target_audience":       curso.TargetAudience,
+			"institutional_logo":    curso.InstitutionalLogo,
+			"cover_image":           curso.CoverImage,
+			"enrollment_start_date": curso.EnrollmentStartDate,
+			"enrollment_end_date":   curso.EnrollmentEndDate,
+			
+			// Legacy and additional fields
+			"orgao_id":               curso.OrgaoID,
+			"instituicao_id":         curso.InstituicaoID,
+			"local_realizacao":       curso.LocalRealizacao,
+			"data_inicio":            curso.DataInicio,
+			"data_termino":           curso.DataTermino,
+			"data_limite_inscricoes": curso.DataLimiteInscricoes,
+			"numero_vagas":           curso.NumeroVagas,
+			"carga_horaria":          curso.CargaHoraria,
+			"turno":                  curso.Turno,
+			"formato_aula":           curso.FormatoAula,
+			"link_inscricao":         curso.LinkInscricao,
+			"contato_duvidas":        curso.ContatoDuvidas,
+			
+			// Optional fields
+			"has_certificate":        curso.HasCertificate,
+			"facilitator":            curso.Facilitator,
+			"objectives":             curso.Objectives,
+			"expected_results":       curso.ExpectedResults,
+			"program_content":        curso.ProgramContent,
+			"methodology":            curso.Methodology,
+			"resources_used":         curso.ResourcesUsed,
+			"material_used":          curso.MaterialUsed,
+			"teaching_material":      curso.TeachingMaterial,
+			"pre_requisitos":         curso.PreRequisitos,
+			"certificacao_oferecida": curso.CertificacaoOferecida,
+			
+			// Timestamps
+			"created_at":             curso.CreatedAt,
+			"updated_at":             curso.UpdatedAt,
+			
+			// Related objects
+			"orgao":                  curso.Orgao,
+			"instituicao":            curso.Instituicao,
+			"categorias":             curso.Categorias,
+			"acessibilidades":        curso.Acessibilidades,
+			"custom_fields":          curso.CustomFields,
+			"locations":              curso.LocationClasses,
+			"remote_class":           curso.RemoteClass,
 		}
 	}
 
@@ -449,5 +495,133 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Curso excluído com sucesso",
+	})
+}
+
+// @Summary      Listar cursos de um usuário específico
+// @Description  Retorna lista paginada de cursos criados por um usuário/organização
+// @Tags         courses
+// @Produce      json
+// @Param        userId       path      int     true   "ID do usuário/orgão"
+// @Param        page         query     int     false  "Número da página (default: 1)"
+// @Param        limit        query     int     false  "Tamanho da página (default: 10)"
+// @Param        status       query     string  false  "Filtrar por status"
+// @Param        modalidade   query     string  false  "Filtrar por modalidade"
+// @Success      200          {object}  object
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Router       /api/v1/users/{userId}/courses [get]
+func (h *CourseHandler) ListByUser(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("userId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do usuário inválido"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	// Build filters for user's courses
+	filter := map[string]interface{}{
+		"orgao_id": userID,
+	}
+
+	// Add additional filters
+	if status := c.Query("status"); status != "" {
+		filter["status"] = status
+	}
+
+	if modalidade := c.Query("modalidade"); modalidade != "" {
+		filter["modalidade"] = modalidade
+	}
+
+	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos do usuário: " + err.Error()})
+		return
+	}
+
+	totalPages := (total + limit - 1) / limit
+
+	// Transform courses to include all fields
+	coursesData := make([]gin.H, len(cursos))
+	for i, curso := range cursos {
+		coursesData[i] = gin.H{
+			// Core fields
+			"id":                    curso.ID,
+			"title":                 curso.Titulo,
+			"description":           curso.Descricao,
+			"modalidade":            curso.Modalidade,
+			"status":                curso.Status,
+			"organization":          curso.Organization,
+			"theme":                 curso.Theme,
+			"workload":              curso.Workload,
+			"target_audience":       curso.TargetAudience,
+			"institutional_logo":    curso.InstitutionalLogo,
+			"cover_image":           curso.CoverImage,
+			"enrollment_start_date": curso.EnrollmentStartDate,
+			"enrollment_end_date":   curso.EnrollmentEndDate,
+			
+			// Legacy and additional fields
+			"orgao_id":               curso.OrgaoID,
+			"instituicao_id":         curso.InstituicaoID,
+			"local_realizacao":       curso.LocalRealizacao,
+			"data_inicio":            curso.DataInicio,
+			"data_termino":           curso.DataTermino,
+			"data_limite_inscricoes": curso.DataLimiteInscricoes,
+			"numero_vagas":           curso.NumeroVagas,
+			"carga_horaria":          curso.CargaHoraria,
+			"turno":                  curso.Turno,
+			"formato_aula":           curso.FormatoAula,
+			"link_inscricao":         curso.LinkInscricao,
+			"contato_duvidas":        curso.ContatoDuvidas,
+			
+			// Optional fields
+			"has_certificate":        curso.HasCertificate,
+			"facilitator":            curso.Facilitator,
+			"objectives":             curso.Objectives,
+			"expected_results":       curso.ExpectedResults,
+			"program_content":        curso.ProgramContent,
+			"methodology":            curso.Methodology,
+			"resources_used":         curso.ResourcesUsed,
+			"material_used":          curso.MaterialUsed,
+			"teaching_material":      curso.TeachingMaterial,
+			"pre_requisitos":         curso.PreRequisitos,
+			"certificacao_oferecida": curso.CertificacaoOferecida,
+			
+			// Timestamps
+			"created_at":             curso.CreatedAt,
+			"updated_at":             curso.UpdatedAt,
+			
+			// Related objects
+			"orgao":                  curso.Orgao,
+			"instituicao":            curso.Instituicao,
+			"categorias":             curso.Categorias,
+			"acessibilidades":        curso.Acessibilidades,
+			"custom_fields":          curso.CustomFields,
+			"locations":              curso.LocationClasses,
+			"remote_class":           curso.RemoteClass,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"courses": coursesData,
+			"pagination": gin.H{
+				"page":        page,
+				"limit":       limit,
+				"total":       total,
+				"total_pages": totalPages,
+			},
+		},
 	})
 }

@@ -41,8 +41,8 @@ type Curso struct {
 	// Core fields (always required)
 	Titulo               string         `json:"title" gorm:"not null"`
 	Descricao            string         `json:"description" gorm:"type:text"`
-	EnrollmentStartDate  *time.Time     `json:"enrollment_start_date" gorm:"type:date;column:enrollment_start_date"`
-	EnrollmentEndDate    *time.Time     `json:"enrollment_end_date" gorm:"type:date;column:enrollment_end_date"`
+	EnrollmentStartDate  *time.Time     `json:"enrollment_start_date" gorm:"type:timestamp with time zone;column:enrollment_start_date"`
+	EnrollmentEndDate    *time.Time     `json:"enrollment_end_date" gorm:"type:timestamp with time zone;column:enrollment_end_date"`
 	Organization         string         `json:"organization" gorm:"type:varchar(255)"`
 	Modalidade           Modalidade     `json:"modalidade" gorm:"type:varchar(50)"`
 	Theme                string         `json:"theme" gorm:"type:varchar(100)"`
