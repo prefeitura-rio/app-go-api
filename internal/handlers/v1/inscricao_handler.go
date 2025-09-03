@@ -329,7 +329,7 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 // @Success      200          {object}  object
 // @Failure      400          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
-// @Router       /api/v1/users/{cpf}/enrollments [get]
+// @Router       /api/v1/enrollments/user/{cpf} [get]
 func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 	cpf := c.Param("cpf")
 	if cpf == "" {
