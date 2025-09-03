@@ -2408,6 +2408,130 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/users/{cpf}/enrollments": {
+            "get": {
+                "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enrollments"
+                ],
+                "summary": "Listar inscrições de um usuário específico",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/{userId}/courses": {
+            "get": {
+                "description": "Retorna lista paginada de cursos criados por um usuário/organização",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "Listar cursos de um usuário específico",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do usuário/orgão",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por modalidade",
+                        "name": "modalidade",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Retorna o status de saúde da API v1",
@@ -2432,22 +2556,7 @@ const docTemplate = `{
     },
     "definitions": {
         "models.Acessibilidade": {
-            "type": "object",
-            "properties": {
-                "cursos": {
-                    "description": "Relacionamentos",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Curso"
-                    }
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "nome": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "models.Categoria": {
             "type": "object",
@@ -2468,213 +2577,7 @@ const docTemplate = `{
             }
         },
         "models.Curso": {
-            "type": "object",
-            "properties": {
-                "acessibilidades": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Acessibilidade"
-                    }
-                },
-                "carga_horaria": {
-                    "type": "integer"
-                },
-                "categorias": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Categoria"
-                    }
-                },
-                "certificacao_oferecida": {
-                    "type": "boolean"
-                },
-                "contato_duvidas": {
-                    "type": "string"
-                },
-                "cover_image": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "custom_fields": {
-                    "description": "New relationships for enrollment system",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.CustomField"
-                    }
-                },
-                "data_inicio": {
-                    "type": "string"
-                },
-                "data_limite_inscricoes": {
-                    "type": "string"
-                },
-                "data_termino": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "enrollment_end_date": {
-                    "type": "string"
-                },
-                "enrollment_start_date": {
-                    "type": "string"
-                },
-                "enrollments": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Inscricao"
-                    }
-                },
-                "expected_results": {
-                    "type": "string"
-                },
-                "facilitator": {
-                    "type": "string"
-                },
-                "formato_aula": {
-                    "$ref": "#/definitions/models.FormatoAula"
-                },
-                "has_certificate": {
-                    "type": "boolean"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "instituicao": {
-                    "$ref": "#/definitions/models.InstituicaoEnsino"
-                },
-                "instituicao_id": {
-                    "type": "integer"
-                },
-                "institutional_logo": {
-                    "type": "string"
-                },
-                "link_inscricao": {
-                    "type": "string"
-                },
-                "local_realizacao": {
-                    "type": "string"
-                },
-                "locations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.LocationClass"
-                    }
-                },
-                "material_used": {
-                    "type": "string"
-                },
-                "methodology": {
-                    "type": "string"
-                },
-                "modalidade": {
-                    "$ref": "#/definitions/models.Modalidade"
-                },
-                "numero_vagas": {
-                    "type": "integer"
-                },
-                "objectives": {
-                    "type": "string"
-                },
-                "organization": {
-                    "type": "string"
-                },
-                "orgao": {
-                    "description": "Relacionamentos",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Orgao"
-                        }
-                    ]
-                },
-                "orgao_id": {
-                    "description": "Legacy and additional fields",
-                    "type": "integer"
-                },
-                "pre_requisitos": {
-                    "description": "Legacy compatibility - kept for backwards compatibility",
-                    "type": "string"
-                },
-                "prerequisites": {
-                    "description": "Optional fields matching specification",
-                    "type": "string"
-                },
-                "program_content": {
-                    "type": "string"
-                },
-                "remote_class": {
-                    "$ref": "#/definitions/models.RemoteClass"
-                },
-                "resources_used": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/models.StatusCurso"
-                },
-                "target_audience": {
-                    "type": "string"
-                },
-                "teaching_material": {
-                    "type": "string"
-                },
-                "theme": {
-                    "type": "string"
-                },
-                "title": {
-                    "description": "Core fields (always required)",
-                    "type": "string"
-                },
-                "turno": {
-                    "$ref": "#/definitions/models.Turno"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "workload": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.CustomField": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "curso": {
-                    "description": "Relacionamentos",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Curso"
-                        }
-                    ]
-                },
-                "curso_id": {
-                    "type": "integer"
-                },
-                "field_type": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "options": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "required": {
-                    "type": "boolean"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "models.Emprego": {
             "type": "object",
@@ -2858,54 +2761,7 @@ const docTemplate = `{
             ]
         },
         "models.Inscricao": {
-            "type": "object",
-            "properties": {
-                "admin_notes": {
-                    "type": "string"
-                },
-                "course_id": {
-                    "type": "integer"
-                },
-                "cpf": {
-                    "type": "string"
-                },
-                "curso": {
-                    "description": "Relacionamentos",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Curso"
-                        }
-                    ]
-                },
-                "custom_fields": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "email": {
-                    "type": "string"
-                },
-                "enrolled_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "reason": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/models.StatusInscricao"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "models.InstituicaoEnsino": {
             "type": "object",
@@ -2941,52 +2797,6 @@ const docTemplate = `{
                 "JornadaEstagio",
                 "JornadaHomeOffice"
             ]
-        },
-        "models.LocationClass": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "class_days": {
-                    "type": "string"
-                },
-                "class_end_date": {
-                    "type": "string"
-                },
-                "class_start_date": {
-                    "type": "string"
-                },
-                "class_time": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "curso": {
-                    "description": "Relacionamentos",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Curso"
-                        }
-                    ]
-                },
-                "curso_id": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "neighborhood": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "vacancies": {
-                    "type": "integer"
-                }
-            }
         },
         "models.Modalidade": {
             "type": "string",
@@ -3063,46 +2873,6 @@ const docTemplate = `{
                 },
                 "nome": {
                     "type": "string"
-                }
-            }
-        },
-        "models.RemoteClass": {
-            "type": "object",
-            "properties": {
-                "class_days": {
-                    "type": "string"
-                },
-                "class_end_date": {
-                    "type": "string"
-                },
-                "class_start_date": {
-                    "type": "string"
-                },
-                "class_time": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "curso": {
-                    "description": "Relacionamentos",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Curso"
-                        }
-                    ]
-                },
-                "curso_id": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "vacancies": {
-                    "type": "integer"
                 }
             }
         },

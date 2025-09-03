@@ -120,3 +120,7 @@ func (s *InscricaoService) Delete(ctx context.Context, id uuid.UUID) error {
 	
 	return s.repo.Delete(ctx, id)
 }
+
+func (s *InscricaoService) ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error) {
+	return s.repo.ListByCPF(ctx, cpf, filter, offset, limit)
+}

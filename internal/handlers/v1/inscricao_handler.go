@@ -317,3 +317,87 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 		"message": "Inscrição excluída com sucesso",
 	})
 }
+
+// @Summary      Listar inscrições de um usuário específico
+// @Description  Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF)
+// @Tags         enrollments
+// @Produce      json
+// @Param        cpf          path      string  true   "CPF do usuário"
+// @Param        page         query     int     false  "Número da página (default: 1)"
+// @Param        limit        query     int     false  "Tamanho da página (default: 10)"
+// @Param        status       query     string  false  "Filtrar por status"
+// @Success      200          {object}  object
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Router       /api/v1/users/{cpf}/enrollments [get]
+func (h *InscricaoHandler) ListByUser(c *gin.Context) {
+	cpf := c.Param("cpf")
+	if cpf == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "CPF é obrigatório"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	// Build filters for user's enrollments
+	filter := map[string]interface{}{
+		"cpf": cpf,
+	}
+
+	// Add status filter if provided
+	if status := c.Query("status"); status != "" {
+		filter["status"] = status
+	}
+
+	inscricoes, total, err := h.service.ListByCPF(c.Request.Context(), cpf, filter, offset, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar inscrições do usuário: " + err.Error()})
+		return
+	}
+
+	totalPages := (total + limit - 1) / limit
+
+	// Transform enrollments to include course information
+	enrollmentsData := make([]gin.H, len(inscricoes))
+	for i, inscricao := range inscricoes {
+		enrollmentsData[i] = gin.H{
+			"id":                inscricao.ID,
+			"course_id":         inscricao.CursoID,
+			"cpf":               inscricao.CPF,
+			"name":              inscricao.Name,
+			"email":             inscricao.Email,
+			"phone":             inscricao.Phone,
+			"status":            inscricao.Status,
+			"custom_fields":     inscricao.CustomFieldsData,
+			"admin_notes":       inscricao.AdminNotes,
+			"reason":            inscricao.Reason,
+			"enrolled_at":       inscricao.EnrolledAt,
+			"updated_at":        inscricao.UpdatedAt,
+			"curso":             inscricao.Curso,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"enrollments": enrollmentsData,
+			"pagination": gin.H{
+				"page":        page,
+				"limit":       limit,
+				"total":       total,
+				"total_pages": totalPages,
+			},
+		},
+	})
+}
