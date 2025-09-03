@@ -2110,6 +2110,87 @@
         ]
       }
     },
+    "/api/v1/enrollments/user/{cpf}": {
+      "get": {
+        "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF)",
+        "tags": [
+          "enrollments"
+        ],
+        "summary": "Listar inscrições de um usuário específico",
+        "parameters": [
+          {
+            "description": "CPF do usuário",
+            "name": "cpf",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Número da página (default: 1)",
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Tamanho da página (default: 10)",
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por status",
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/escolaridades": {
       "get": {
         "description": "Retorna uma lista paginada de escolaridades",
@@ -3046,87 +3127,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/models.MultiCollectionSearchResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/models.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/models.ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/users/{cpf}/enrollments": {
-      "get": {
-        "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF)",
-        "tags": [
-          "enrollments"
-        ],
-        "summary": "Listar inscrições de um usuário específico",
-        "parameters": [
-          {
-            "description": "CPF do usuário",
-            "name": "cpf",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Número da página (default: 1)",
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Tamanho da página (default: 10)",
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Filtrar por status",
-            "name": "status",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
                 }
               }
             }
