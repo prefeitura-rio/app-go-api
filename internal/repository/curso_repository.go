@@ -80,9 +80,10 @@ func (r *CursoRepository) Update(ctx context.Context, curso *models.Curso) error
 		}
 		
 		// Atualizar o curso - usar Select para incluir valores zero (como false para booleanos)
+		// Omitir created_at para preservar a data original de criação
 		result := tx.Model(curso).
 			Where("id = ?", curso.ID).
-			Omit("Categorias", "Acessibilidades", "Orgao", "Instituicao", "CustomFields", "RemoteClass", "LocationClasses").
+			Omit("Categorias", "Acessibilidades", "Orgao", "Instituicao", "CustomFields", "RemoteClass", "LocationClasses", "created_at").
 			Select("*").
 			Updates(curso)
 		
