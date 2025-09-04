@@ -68,6 +68,7 @@ func main() {
 	// Auto-migração do GORM (opcional)
 	if cfg.Migrations.Run {
 		log.Println("Iniciando auto-migração...")
+		// Migrar apenas as tabelas básicas que já existem
 		err = db.AutoMigrate(
 			&models.Curso{},
 			&models.Emprego{},
@@ -81,9 +82,32 @@ func main() {
 			&models.CursoAcessibilidade{},
 		)
 		if err != nil {
-			log.Fatalf("Erro ao executar auto-migração: %v", err)
+			log.Fatalf("Erro ao executar auto-migração básica: %v", err)
 		}
-		log.Println("Auto-migração concluída com sucesso!")
+		
+		// Tentar migrar as novas tabelas individualmente para melhor controle de erros
+		log.Println("Migrando tabelas de inscrições...")
+		err = db.AutoMigrate(&models.Inscricao{})
+		if err != nil {
+			log.Printf("Aviso: Erro ao migrar tabela inscricoes: %v", err)
+		}
+		
+		err = db.AutoMigrate(&models.CustomField{})
+		if err != nil {
+			log.Printf("Aviso: Erro ao migrar tabela custom_fields: %v", err)
+		}
+		
+		err = db.AutoMigrate(&models.LocationClass{})
+		if err != nil {
+			log.Printf("Aviso: Erro ao migrar tabela location_classes: %v", err)
+		}
+		
+		err = db.AutoMigrate(&models.RemoteClass{})
+		if err != nil {
+			log.Printf("Aviso: Erro ao migrar tabela remote_classes: %v", err)
+		}
+		
+		log.Println("Auto-migração concluída!")
 	}
 
 	// Configura o router

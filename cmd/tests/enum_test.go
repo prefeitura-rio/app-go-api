@@ -8,17 +8,28 @@ import (
 )
 
 func TestModalidadeCurso(t *testing.T) {
-	// Teste de enums da Modalidade
-	assert.Equal(t, "PRESENCIAL", string(models.ModalidadePresencial), "Modalidade presencial deve ser PRESENCIAL")
+	// Teste de enums da Modalidade - legacy values
+	assert.Equal(t, "PRESENCIAL", string(models.ModalidadePresencialLegacy), "Modalidade presencial legacy deve ser PRESENCIAL")
 	assert.Equal(t, "ONLINE", string(models.ModalidadeOnline), "Modalidade online deve ser ONLINE")
 	assert.Equal(t, "HIBRIDO", string(models.ModalidadeHibrido), "Modalidade híbrido deve ser HIBRIDO")
+	
+	// Teste de enums da Modalidade - new values
+	assert.Equal(t, "Presencial", string(models.ModalidadePresencial), "Modalidade presencial deve ser Presencial")
+	assert.Equal(t, "Semipresencial", string(models.ModalidadeSemipresencial), "Modalidade semipresencial deve ser Semipresencial")
+	assert.Equal(t, "Remoto", string(models.ModalidadeRemoto), "Modalidade remoto deve ser Remoto")
 }
 
 func TestStatusCurso(t *testing.T) {
-	// Teste de enums do Status do Curso
+	// Teste de enums do Status do Curso - legacy values
 	assert.Equal(t, "CRIADO", string(models.StatusCursoCriado), "Status criado deve ser CRIADO")
 	assert.Equal(t, "ABERTO", string(models.StatusCursoAberto), "Status aberto deve ser ABERTO")
 	assert.Equal(t, "ENCERRADO", string(models.StatusCursoEncerrado), "Status encerrado deve ser ENCERRADO")
+	
+	// Teste de enums do Status do Curso - new values
+	assert.Equal(t, "draft", string(models.StatusCursoDraft), "Status draft deve ser draft")
+	assert.Equal(t, "opened", string(models.StatusCursoOpened), "Status opened deve ser opened")
+	assert.Equal(t, "closed", string(models.StatusCursoClosed), "Status closed deve ser closed")
+	assert.Equal(t, "canceled", string(models.StatusCursoCanceled), "Status canceled deve ser canceled")
 }
 
 func TestFormatoAula(t *testing.T) {
@@ -60,4 +71,12 @@ func TestTurno(t *testing.T) {
 	assert.Equal(t, "NOITE", string(models.TurnoNoite), "Turno noite deve ser NOITE")
 	assert.Equal(t, "INTEGRAL", string(models.TurnoIntegral), "Turno integral deve ser INTEGRAL")
 	assert.Equal(t, "LIVRE", string(models.TurnoLivre), "Turno livre deve ser LIVRE")
+}
+
+func TestStatusInscricao(t *testing.T) {
+	// Teste de enums do Status da Inscrição
+	assert.Equal(t, "pending", string(models.StatusInscricaoPending), "Status pending deve ser pending")
+	assert.Equal(t, "approved", string(models.StatusInscricaoApproved), "Status approved deve ser approved")
+	assert.Equal(t, "rejected", string(models.StatusInscricaoRejected), "Status rejected deve ser rejected")
+	assert.Equal(t, "cancelled", string(models.StatusInscricaoCancelled), "Status cancelled deve ser cancelled")
 } 

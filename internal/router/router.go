@@ -46,6 +46,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	escolaridadeRepo := repository.NewEscolaridadeRepository(db)
 	instituicaoRepo := repository.NewInstituicaoRepository(db)
 	orgaoRepo := repository.NewOrgaoRepository(db)
+	inscricaoRepo := repository.NewInscricaoRepository(db)
 
 	// Inicializando serviços
 	cursoService := services.NewCursoService(cursoRepo)
@@ -56,9 +57,9 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	escolaridadeService := services.NewEscolaridadeService(escolaridadeRepo)
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
 	orgaoService := services.NewOrgaoService(orgaoRepo)
+	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
 
 	// Inicializando handlers
-	cursoHandler := v1.NewCursoHandler(cursoService)
 	empregoHandler := v1.NewEmpregoHandler(empregoService)
 	acessibilidadeHandler := v1.NewAcessibilidadeHandler(acessibilidadeService)
 	categoriaHandler := v1.NewCategoriaHandler(categoriaService)
@@ -66,20 +67,14 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService)
 	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
 	orgaoHandler := v1.NewOrgaoHandler(orgaoService)
+	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService)
+	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService)
 	typesenseHandler, err := v1.NewTypesenseHandler()
 	if err != nil {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)
 	}
 
-	// Rotas de cursos
-	cursos := apiV1.Group("/cursos")
-	{
-		cursos.POST("", cursoHandler.Create)
-		cursos.GET("", cursoHandler.List)
-		cursos.GET("/:id", cursoHandler.GetByID)
-		cursos.PUT("/:id", cursoHandler.Update)
-		cursos.DELETE("/:id", cursoHandler.Delete)
-	}
+	// Rotas legacy removidas - usar apenas /api/v1/courses
 
 	// Rotas de empregos
 	empregos := apiV1.Group("/empregos")
@@ -158,6 +153,46 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		apiV1.POST("/typesense/empregos/search", typesenseHandler.SearchEmpregos)
 		typesenseCollections := apiV1.Group("/typesense/collections")
 		typesenseCollections.POST("/:collection/documents/search", typesenseHandler.SearchDocuments)
+	}
+
+	// New Course API endpoints following specification (in v1)
+	courses := apiV1.Group("/courses")
+	{
+		courses.POST("", courseHandler.Create)
+		courses.POST("/draft", courseHandler.CreateDraft)
+		courses.PUT("/:courseId", courseHandler.Update)
+		courses.GET("", courseHandler.List)
+		courses.GET("/drafts", courseHandler.ListDrafts)
+		courses.GET("/:courseId", courseHandler.GetByID)
+		courses.DELETE("/:courseId", courseHandler.Delete)
+
+		// Enrollment endpoints
+		courses.POST("/:courseId/enrollments", inscricaoHandler.Create)
+		courses.GET("/:courseId/enrollments", inscricaoHandler.List)
+		courses.PUT("/:courseId/enrollments/status", inscricaoHandler.UpdateStatus)
+		courses.PUT("/:courseId/enrollments/:enrollmentId/status", inscricaoHandler.UpdateIndividualStatus)
+		courses.GET("/:courseId/enrollments/:enrollmentId", inscricaoHandler.GetByID)
+		courses.DELETE("/:courseId/enrollments/:enrollmentId", inscricaoHandler.Delete)
+	}
+
+	// Endpoints públicos (sem autenticação) para busca e listagem de cursos
+	apiPublic := r.Group("/api/public")
+	{
+		// Endpoints públicos para cursos - reutilizam os handlers mas sem autenticação
+		apiPublic.GET("/courses", courseHandler.List)
+		apiPublic.GET("/courses/:courseId", courseHandler.GetByID)
+	}
+
+	// Endpoints para usuários - cursos por usuário (orgão)
+	users := apiV1.Group("/users")
+	{
+		users.GET("/:userId/courses", courseHandler.ListByUser)
+	}
+
+	// Endpoints para inscrições por CPF
+	enrollments := apiV1.Group("/enrollments")
+	{
+		enrollments.GET("/user/:cpf", inscricaoHandler.ListByUser)
 	}
 
 	return r
