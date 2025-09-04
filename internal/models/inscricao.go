@@ -27,8 +27,8 @@ type Inscricao struct {
 	CustomFieldsData datatypes.JSON            `json:"custom_fields" gorm:"type:jsonb;column:custom_fields_data"`
 	AdminNotes       string                     `json:"admin_notes,omitempty" gorm:"type:text;column:admin_notes"`
 	Reason           string                     `json:"reason,omitempty" gorm:"type:text"`
-	EnrolledAt       time.Time                  `json:"enrolled_at" gorm:"column:enrolled_at;default:CURRENT_TIMESTAMP"`
-	UpdatedAt        time.Time                  `json:"updated_at" gorm:"column:updated_at;default:CURRENT_TIMESTAMP"`
+	EnrolledAt       time.Time                  `json:"enrolled_at" gorm:"column:enrolled_at;autoCreateTime"`
+	UpdatedAt        time.Time                  `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relacionamentos
 	Curso *Curso `json:"curso,omitempty" gorm:"foreignKey:CursoID"`
@@ -45,8 +45,8 @@ type CustomField struct {
 	FieldType  string                 `json:"field_type" gorm:"type:varchar(50);default:'text'"`
 	Required   bool                   `json:"required" gorm:"default:false"`
 	Options    datatypes.JSON         `json:"options,omitempty" gorm:"type:jsonb"`
-	CreatedAt  time.Time              `json:"created_at" gorm:"default:CURRENT_TIMESTAMP"`
-	UpdatedAt  time.Time              `json:"updated_at" gorm:"default:CURRENT_TIMESTAMP"`
+	CreatedAt  time.Time              `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt  time.Time              `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos
 	Curso *Curso `json:"curso,omitempty" gorm:"foreignKey:CursoID"`
@@ -66,8 +66,8 @@ type LocationClass struct {
 	ClassEndDate   time.Time `json:"class_end_date" gorm:"type:timestamp with time zone;column:class_end_date;not null"`
 	ClassTime      string    `json:"class_time" gorm:"type:varchar(50);column:class_time;not null"`
 	ClassDays      string    `json:"class_days" gorm:"type:varchar(200);column:class_days;not null"`
-	CreatedAt      time.Time `json:"created_at" gorm:"default:CURRENT_TIMESTAMP"`
-	UpdatedAt      time.Time `json:"updated_at" gorm:"default:CURRENT_TIMESTAMP"`
+	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos
 	Curso *Curso `json:"curso,omitempty" gorm:"foreignKey:CursoID"`
@@ -85,8 +85,8 @@ type RemoteClass struct {
 	ClassEndDate   time.Time `json:"class_end_date" gorm:"type:timestamp with time zone;column:class_end_date;not null"`
 	ClassTime      string    `json:"class_time" gorm:"type:varchar(50);column:class_time;not null"`
 	ClassDays      string    `json:"class_days" gorm:"type:varchar(200);column:class_days;not null"`
-	CreatedAt      time.Time `json:"created_at" gorm:"default:CURRENT_TIMESTAMP"`
-	UpdatedAt      time.Time `json:"updated_at" gorm:"default:CURRENT_TIMESTAMP"`
+	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos
 	Curso *Curso `json:"curso,omitempty" gorm:"foreignKey:CursoID"`

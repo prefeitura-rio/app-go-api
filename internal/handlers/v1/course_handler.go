@@ -148,6 +148,9 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	}
 
 	curso.ID = id
+	// Preserve original created_at
+	curso.CreatedAt = existingCurso.CreatedAt
+	
 	if err := h.cursoService.Update(c.Request.Context(), &curso); err != nil {
 		dbErr := utils.ParseDatabaseError(err)
 		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
@@ -170,6 +173,7 @@ func (h *CourseHandler) Update(c *gin.Context) {
 			"id":         curso.ID,
 			"title":      curso.Titulo,
 			"status":     curso.Status,
+			"created_at": curso.CreatedAt,
 			"updated_at": curso.UpdatedAt,
 		},
 		"message": message,
