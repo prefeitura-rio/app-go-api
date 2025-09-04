@@ -1,16 +1,6 @@
 basePath: /
 definitions:
   models.Acessibilidade:
-    properties:
-      cursos:
-        description: Relacionamentos
-        items:
-          $ref: '#/definitions/models.Curso'
-        type: array
-      id:
-        type: integer
-      nome:
-        type: string
     type: object
   models.Categoria:
     properties:
@@ -25,63 +15,6 @@ definitions:
         type: string
     type: object
   models.Curso:
-    properties:
-      acessibilidades:
-        items:
-          $ref: '#/definitions/models.Acessibilidade'
-        type: array
-      carga_horaria:
-        type: integer
-      categorias:
-        items:
-          $ref: '#/definitions/models.Categoria'
-        type: array
-      certificacao_oferecida:
-        type: boolean
-      contato_duvidas:
-        type: string
-      created_at:
-        type: string
-      data_inicio:
-        type: string
-      data_limite_inscricoes:
-        type: string
-      data_termino:
-        type: string
-      descricao:
-        type: string
-      formato_aula:
-        $ref: '#/definitions/models.FormatoAula'
-      id:
-        type: integer
-      instituicao:
-        $ref: '#/definitions/models.InstituicaoEnsino'
-      instituicao_id:
-        type: integer
-      link_inscricao:
-        type: string
-      local_realizacao:
-        type: string
-      modalidade:
-        $ref: '#/definitions/models.Modalidade'
-      numero_vagas:
-        type: integer
-      orgao:
-        allOf:
-        - $ref: '#/definitions/models.Orgao'
-        description: Relacionamentos
-      orgao_id:
-        type: integer
-      pre_requisitos:
-        type: string
-      status:
-        $ref: '#/definitions/models.StatusCurso'
-      titulo:
-        type: string
-      turno:
-        $ref: '#/definitions/models.Turno'
-      updated_at:
-        type: string
     type: object
   models.Emprego:
     properties:
@@ -150,6 +83,31 @@ definitions:
       nome:
         type: string
     type: object
+  models.EnrollmentStatusUpdateRequest:
+    properties:
+      admin_notes:
+        type: string
+      enrollment_ids:
+        items:
+          type: string
+        type: array
+      reason:
+        type: string
+      status:
+        $ref: '#/definitions/models.StatusInscricao'
+    required:
+    - enrollment_ids
+    - status
+    type: object
+  models.EnrollmentStatusUpdateResponse:
+    properties:
+      status:
+        $ref: '#/definitions/models.StatusInscricao'
+      updated_at:
+        type: string
+      updated_count:
+        type: integer
+    type: object
   models.ErrorResponse:
     properties:
       code:
@@ -177,6 +135,8 @@ definitions:
     x-enum-varnames:
     - FormatoAulaGravado
     - FormatoAulaAoVivo
+  models.Inscricao:
+    type: object
   models.InstituicaoEnsino:
     properties:
       cursos:
@@ -205,12 +165,18 @@ definitions:
     - JornadaHomeOffice
   models.Modalidade:
     enum:
+    - Presencial
+    - Semipresencial
+    - Remoto
     - PRESENCIAL
     - ONLINE
     - HIBRIDO
     type: string
     x-enum-varnames:
     - ModalidadePresencial
+    - ModalidadeSemipresencial
+    - ModalidadeRemoto
+    - ModalidadePresencialLegacy
     - ModalidadeOnline
     - ModalidadeHibrido
   models.MultiCollectionSearchParameters:
@@ -301,11 +267,19 @@ definitions:
     type: object
   models.StatusCurso:
     enum:
+    - draft
+    - opened
+    - closed
+    - canceled
     - CRIADO
     - ABERTO
     - ENCERRADO
     type: string
     x-enum-varnames:
+    - StatusCursoDraft
+    - StatusCursoOpened
+    - StatusCursoClosed
+    - StatusCursoCanceled
     - StatusCursoCriado
     - StatusCursoAberto
     - StatusCursoEncerrado
@@ -321,6 +295,18 @@ definitions:
     - StatusEmpregoAberto
     - StatusEmpregoEmAnalise
     - StatusEmpregoEncerrado
+  models.StatusInscricao:
+    enum:
+    - pending
+    - approved
+    - rejected
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - StatusInscricaoPending
+    - StatusInscricaoApproved
+    - StatusInscricaoRejected
+    - StatusInscricaoCancelled
   models.TipoContratacao:
     enum:
     - CLT
@@ -363,9 +349,9 @@ info:
   title: API Go
   version: "1.0"
 paths:
-  /api/v1/cursos:
+  /api/v1/acessibilidades:
     get:
-      description: Retorna uma lista paginada de cursos com filtros opcionais
+      description: Retorna uma lista paginada de acessibilidades
       parameters:
       - description: 'Número da página (default: 1)'
         in: query
@@ -375,13 +361,298 @@ paths:
         in: query
         name: pageSize
         type: integer
-      - description: Filtrar por ID do órgão
-        in: query
-        name: orgao_id
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar acessibilidades
+      tags:
+      - acessibilidades
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo tipo de acessibilidade
+      parameters:
+      - description: Dados da acessibilidade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Acessibilidade'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Acessibilidade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar acessibilidade
+      tags:
+      - acessibilidades
+  /api/v1/acessibilidades/{id}:
+    delete:
+      description: Remove uma acessibilidade pelo ID
+      parameters:
+      - description: ID da acessibilidade
+        in: path
+        name: id
+        required: true
         type: integer
-      - description: Filtrar por ID da instituição
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir acessibilidade
+      tags:
+      - acessibilidades
+    get:
+      description: Retorna uma acessibilidade pelo seu ID
+      parameters:
+      - description: ID da acessibilidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Acessibilidade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter acessibilidade por ID
+      tags:
+      - acessibilidades
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma acessibilidade existente
+      parameters:
+      - description: ID da acessibilidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da acessibilidade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Acessibilidade'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Acessibilidade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar acessibilidade
+      tags:
+      - acessibilidades
+  /api/v1/categorias:
+    get:
+      description: Retorna uma lista paginada de categorias
+      parameters:
+      - description: 'Nu00famero da pu00e1gina (default: 1)'
         in: query
-        name: instituicao_id
+        name: page
+        type: integer
+      - description: 'Tamanho da pu00e1gina (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar categorias
+      tags:
+      - categorias
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova categoria
+      parameters:
+      - description: Dados da categoria
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Categoria'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Categoria'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar categoria
+      tags:
+      - categorias
+  /api/v1/categorias/{id}:
+    delete:
+      description: Remove uma categoria pelo ID
+      parameters:
+      - description: ID da categoria
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir categoria
+      tags:
+      - categorias
+    get:
+      description: Retorna uma categoria pelo seu ID
+      parameters:
+      - description: ID da categoria
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Categoria'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter categoria por ID
+      tags:
+      - categorias
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma categoria existente
+      parameters:
+      - description: ID da categoria
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da categoria
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Categoria'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Categoria'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar categoria
+      tags:
+      - categorias
+  /api/v1/courses:
+    get:
+      description: 'Retorna lista paginada de cursos criados (status: "opened", "closed",
+        "canceled")'
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: limit
         type: integer
       - description: Filtrar por status
         in: query
@@ -390,6 +661,14 @@ paths:
       - description: Filtrar por modalidade
         in: query
         name: modalidade
+        type: string
+      - description: Filtrar por organização
+        in: query
+        name: organization
+        type: string
+      - description: Buscar no título
+        in: query
+        name: search
         type: string
       produces:
       - application/json
@@ -402,13 +681,13 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/models.ErrorResponse'
-      summary: Listar cursos
+      summary: Listar cursos criados
       tags:
-      - cursos
+      - courses
     post:
       consumes:
       - application/json
-      description: Cria um novo curso
+      description: 'Cria um novo curso no sistema (status: "opened")'
       parameters:
       - description: Dados do curso
         in: body
@@ -422,7 +701,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.Curso'
+            type: object
         "400":
           description: Bad Request
           schema:
@@ -433,14 +712,14 @@ paths:
             $ref: '#/definitions/models.ErrorResponse'
       summary: Criar curso
       tags:
-      - cursos
-  /api/v1/cursos/{id}:
+      - courses
+  /api/v1/courses/{courseId}:
     delete:
       description: Remove um curso pelo ID
       parameters:
       - description: ID do curso
         in: path
-        name: id
+        name: courseId
         required: true
         type: integer
       produces:
@@ -454,19 +733,23 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/models.ErrorResponse'
       summary: Excluir curso
       tags:
-      - cursos
+      - courses
     get:
-      description: Retorna um curso pelo seu ID
+      description: Retorna dados completos de um curso específico
       parameters:
       - description: ID do curso
         in: path
-        name: id
+        name: courseId
         required: true
         type: integer
       produces:
@@ -488,17 +771,18 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/models.ErrorResponse'
-      summary: Obter curso por ID
+      summary: Buscar curso específico
       tags:
-      - cursos
+      - courses
     put:
       consumes:
       - application/json
-      description: Atualiza os dados de um curso existente
+      description: Atualiza um curso existente. Também usado para publicar rascunhos
+        mudando status de "draft" para "opened"
       parameters:
       - description: ID do curso
         in: path
-        name: id
+        name: courseId
         required: true
         type: integer
       - description: Dados do curso
@@ -513,7 +797,54 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Curso'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Editar curso
+      tags:
+      - courses
+  /api/v1/courses/{courseId}/enrollments:
+    get:
+      description: Retorna lista paginada de inscrições de um curso específico
+      parameters:
+      - description: ID do curso
+        in: path
+        name: courseId
+        required: true
+        type: integer
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: Filtrar por status
+        in: query
+        name: status
+        type: string
+      - description: Buscar por CPF, nome ou email
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
         "400":
           description: Bad Request
           schema:
@@ -522,9 +853,263 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/models.ErrorResponse'
-      summary: Atualizar curso
+      summary: Listar inscrições de um curso
       tags:
-      - cursos
+      - inscricoes
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova inscrição em um curso
+      parameters:
+      - description: ID do curso
+        in: path
+        name: courseId
+        required: true
+        type: integer
+      - description: Dados da inscrição
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Inscricao'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Inscricao'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar inscrição
+      tags:
+      - inscricoes
+  /api/v1/courses/{courseId}/enrollments/{enrollmentId}:
+    delete:
+      description: Remove uma inscrição específica
+      parameters:
+      - description: ID do curso
+        in: path
+        name: courseId
+        required: true
+        type: integer
+      - description: UUID da inscrição
+        in: path
+        name: enrollmentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir inscrição
+      tags:
+      - inscricoes
+    get:
+      description: Retorna dados completos de uma inscrição específica
+      parameters:
+      - description: ID do curso
+        in: path
+        name: courseId
+        required: true
+        type: integer
+      - description: UUID da inscrição
+        in: path
+        name: enrollmentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Inscricao'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter inscrição por ID
+      tags:
+      - inscricoes
+  /api/v1/courses/{courseId}/enrollments/{enrollmentId}/status:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza o status de uma inscrição específica
+      parameters:
+      - description: ID do curso
+        in: path
+        name: courseId
+        required: true
+        type: integer
+      - description: UUID da inscrição
+        in: path
+        name: enrollmentId
+        required: true
+        type: string
+      - description: 'Dados para atualização: {\'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar status de inscrição individual
+      tags:
+      - inscricoes
+  /api/v1/courses/{courseId}/enrollments/status:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza o status de várias inscrições de uma vez (aprovação em
+        lote)
+      parameters:
+      - description: ID do curso
+        in: path
+        name: courseId
+        required: true
+        type: integer
+      - description: Dados para atualização
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.EnrollmentStatusUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.EnrollmentStatusUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar status de múltiplas inscrições
+      tags:
+      - inscricoes
+  /api/v1/courses/draft:
+    post:
+      consumes:
+      - application/json
+      description: 'Cria um curso e salva como rascunho (status: "draft")'
+      parameters:
+      - description: Dados do curso
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Curso'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar curso como rascunho
+      tags:
+      - courses
+  /api/v1/courses/drafts:
+    get:
+      description: 'Retorna lista paginada de cursos salvos como rascunho (status:
+        "draft")'
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Filtrar por organização
+        in: query
+        name: organization
+        type: string
+      - description: Buscar no título
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar cursos rascunho
+      tags:
+      - courses
   /api/v1/empregos:
     get:
       description: Retorna uma lista paginada de empregos com filtros opcionais
@@ -695,21 +1280,631 @@ paths:
       summary: Atualizar emprego
       tags:
       - empregos
-  /health:
+  /api/v1/empresas:
     get:
-      description: Retorna o status de saúde da API v1
+      description: Retorna uma lista paginada de empresas
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
             type: object
-      summary: Verificar saúde da API
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar empresas
       tags:
-      - health
-  /typesense/collections/{collection}/documents/search:
+      - empresas
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova empresa
+      parameters:
+      - description: Dados da empresa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Empresa'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Empresa'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar empresa
+      tags:
+      - empresas
+  /api/v1/empresas/{id}:
+    delete:
+      description: Remove uma empresa pelo ID
+      parameters:
+      - description: ID da empresa
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir empresa
+      tags:
+      - empresas
+    get:
+      description: Retorna uma empresa pelo seu ID
+      parameters:
+      - description: ID da empresa
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Empresa'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter empresa por ID
+      tags:
+      - empresas
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma empresa existente
+      parameters:
+      - description: ID da empresa
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da empresa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Empresa'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Empresa'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar empresa
+      tags:
+      - empresas
+  /api/v1/enrollments/user/{cpf}:
+    get:
+      description: Retorna lista paginada de inscrições realizadas por um usuário
+        (identificado pelo CPF)
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Filtrar por status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar inscrições de um usuário específico
+      tags:
+      - enrollments
+  /api/v1/escolaridades:
+    get:
+      description: Retorna uma lista paginada de escolaridades
+      parameters:
+      - description: 'Nu00famero da pu00e1gina (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da pu00e1gina (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar escolaridades
+      tags:
+      - escolaridades
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo nível de escolaridade
+      parameters:
+      - description: Dados da escolaridade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Escolaridade'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Escolaridade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar escolaridade
+      tags:
+      - escolaridades
+  /api/v1/escolaridades/{id}:
+    delete:
+      description: Remove uma escolaridade pelo ID
+      parameters:
+      - description: ID da escolaridade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir escolaridade
+      tags:
+      - escolaridades
+    get:
+      description: Retorna uma escolaridade pelo seu ID
+      parameters:
+      - description: ID da escolaridade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Escolaridade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter escolaridade por ID
+      tags:
+      - escolaridades
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma escolaridade existente
+      parameters:
+      - description: ID da escolaridade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da escolaridade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Escolaridade'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Escolaridade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar escolaridade
+      tags:
+      - escolaridades
+  /api/v1/instituicoes:
+    get:
+      description: Retorna uma lista paginada de instituições
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar instituições de ensino
+      tags:
+      - instituicoes
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova instituição de ensino
+      parameters:
+      - description: Dados da instituição
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InstituicaoEnsino'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.InstituicaoEnsino'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar instituição de ensino
+      tags:
+      - instituicoes
+  /api/v1/instituicoes/{id}:
+    delete:
+      description: Remove uma instituição pelo ID
+      parameters:
+      - description: ID da instituição
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir instituição de ensino
+      tags:
+      - instituicoes
+    get:
+      description: Retorna uma instituição pelo seu ID
+      parameters:
+      - description: ID da instituição
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.InstituicaoEnsino'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter instituição de ensino por ID
+      tags:
+      - instituicoes
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma instituição existente
+      parameters:
+      - description: ID da instituição
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da instituição
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InstituicaoEnsino'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.InstituicaoEnsino'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar instituição de ensino
+      tags:
+      - instituicoes
+  /api/v1/orgaos:
+    get:
+      description: Retorna uma lista paginada de órgãos
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar órgãos
+      tags:
+      - orgaos
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo órgão
+      parameters:
+      - description: Dados do órgão
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Orgao'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Orgao'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar órgão
+      tags:
+      - orgaos
+  /api/v1/orgaos/{id}:
+    delete:
+      description: Remove um órgão pelo ID
+      parameters:
+      - description: ID do órgão
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir órgão
+      tags:
+      - orgaos
+    get:
+      description: Retorna um órgão pelo seu ID
+      parameters:
+      - description: ID do órgão
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Orgao'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter órgão por ID
+      tags:
+      - orgaos
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de um órgão existente
+      parameters:
+      - description: ID do órgão
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados do órgão
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Orgao'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Orgao'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar órgão
+      tags:
+      - orgaos
+  /api/v1/typesense/collections/{collection}/documents/search:
     post:
       consumes:
       - application/json
@@ -744,7 +1939,7 @@ paths:
       summary: Buscar documentos em uma coleção
       tags:
       - search
-  /typesense/multi-search:
+  /api/v1/typesense/multi-search:
     post:
       consumes:
       - application/json
@@ -774,6 +1969,63 @@ paths:
       summary: Buscar em múltiplas coleções
       tags:
       - search
+  /api/v1/users/{userId}/courses:
+    get:
+      description: Retorna lista paginada de cursos criados por um usuário/organização
+      parameters:
+      - description: ID do usuário/orgão
+        in: path
+        name: userId
+        required: true
+        type: integer
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Filtrar por status
+        in: query
+        name: status
+        type: string
+      - description: Filtrar por modalidade
+        in: query
+        name: modalidade
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar cursos de um usuário específico
+      tags:
+      - courses
+  /health:
+    get:
+      description: Retorna o status de saúde da API v1
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Verificar saúde da API
+      tags:
+      - health
 schemes:
 - http
 - https

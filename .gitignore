@@ -25,3 +25,9 @@ go.work.sum
 .env
 
 tmp/
+
+CLAUDE.md
+TODO.md
+.claude
+LOGS.md
+bin/

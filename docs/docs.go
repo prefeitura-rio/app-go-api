@@ -24,16 +24,16 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/cursos": {
+        "/api/v1/acessibilidades": {
             "get": {
-                "description": "Retorna uma lista paginada de cursos com filtros opcionais",
+                "description": "Retorna uma lista paginada de acessibilidades",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "cursos"
+                    "acessibilidades"
                 ],
-                "summary": "Listar cursos",
+                "summary": "Listar acessibilidades",
                 "parameters": [
                     {
                         "type": "integer",
@@ -45,30 +45,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Tamanho da página (default: 10)",
                         "name": "pageSize",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Filtrar por ID do órgão",
-                        "name": "orgao_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Filtrar por ID da instituição",
-                        "name": "instituicao_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filtrar por status",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filtrar por modalidade",
-                        "name": "modalidade",
                         "in": "query"
                     }
                 ],
@@ -88,7 +64,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Cria um novo curso",
+                "description": "Cria um novo tipo de acessibilidade",
                 "consumes": [
                     "application/json"
                 ],
@@ -96,17 +72,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "cursos"
+                    "acessibilidades"
                 ],
-                "summary": "Criar curso",
+                "summary": "Criar acessibilidade",
                 "parameters": [
                     {
-                        "description": "Dados do curso",
+                        "description": "Dados da acessibilidade",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Curso"
+                            "$ref": "#/definitions/models.Acessibilidade"
                         }
                     }
                 ],
@@ -114,7 +90,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.Curso"
+                            "$ref": "#/definitions/models.Acessibilidade"
                         }
                     },
                     "400": {
@@ -132,21 +108,585 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/cursos/{id}": {
+        "/api/v1/acessibilidades/{id}": {
             "get": {
-                "description": "Retorna um curso pelo seu ID",
+                "description": "Retorna uma acessibilidade pelo seu ID",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "cursos"
+                    "acessibilidades"
                 ],
-                "summary": "Obter curso por ID",
+                "summary": "Obter acessibilidade por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da acessibilidade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Acessibilidade"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de uma acessibilidade existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "acessibilidades"
+                ],
+                "summary": "Atualizar acessibilidade",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da acessibilidade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da acessibilidade",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Acessibilidade"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Acessibilidade"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma acessibilidade pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "acessibilidades"
+                ],
+                "summary": "Excluir acessibilidade",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da acessibilidade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/categorias": {
+            "get": {
+                "description": "Retorna uma lista paginada de categorias",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categorias"
+                ],
+                "summary": "Listar categorias",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Nu00famero da pu00e1gina (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da pu00e1gina (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova categoria",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categorias"
+                ],
+                "summary": "Criar categoria",
+                "parameters": [
+                    {
+                        "description": "Dados da categoria",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Categoria"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Categoria"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/categorias/{id}": {
+            "get": {
+                "description": "Retorna uma categoria pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categorias"
+                ],
+                "summary": "Obter categoria por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da categoria",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Categoria"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de uma categoria existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categorias"
+                ],
+                "summary": "Atualizar categoria",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da categoria",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da categoria",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Categoria"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Categoria"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma categoria pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categorias"
+                ],
+                "summary": "Excluir categoria",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da categoria",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/courses": {
+            "get": {
+                "description": "Retorna lista paginada de cursos criados (status: \"opened\", \"closed\", \"canceled\")",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "Listar cursos criados",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por modalidade",
+                        "name": "modalidade",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por organização",
+                        "name": "organization",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Buscar no título",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo curso no sistema (status: \"opened\")",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "Criar curso",
+                "parameters": [
+                    {
+                        "description": "Dados do curso",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/courses/draft": {
+            "post": {
+                "description": "Cria um curso e salva como rascunho (status: \"draft\")",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "Criar curso como rascunho",
+                "parameters": [
+                    {
+                        "description": "Dados do curso",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/courses/drafts": {
+            "get": {
+                "description": "Retorna lista paginada de cursos salvos como rascunho (status: \"draft\")",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "Listar cursos rascunho",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por organização",
+                        "name": "organization",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Buscar no título",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/courses/{courseId}": {
+            "get": {
+                "description": "Retorna dados completos de um curso específico",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "Buscar curso específico",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "ID do curso",
-                        "name": "id",
+                        "name": "courseId",
                         "in": "path",
                         "required": true
                     }
@@ -179,7 +719,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza os dados de um curso existente",
+                "description": "Atualiza um curso existente. Também usado para publicar rascunhos mudando status de \"draft\" para \"opened\"",
                 "consumes": [
                     "application/json"
                 ],
@@ -187,14 +727,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "cursos"
+                    "courses"
                 ],
-                "summary": "Atualizar curso",
+                "summary": "Editar curso",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "ID do curso",
-                        "name": "id",
+                        "name": "courseId",
                         "in": "path",
                         "required": true
                     },
@@ -212,11 +752,17 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Curso"
+                            "type": "object"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -235,14 +781,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "cursos"
+                    "courses"
                 ],
                 "summary": "Excluir curso",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "ID do curso",
-                        "name": "id",
+                        "name": "courseId",
                         "in": "path",
                         "required": true
                     }
@@ -256,6 +802,359 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/courses/{courseId}/enrollments": {
+            "get": {
+                "description": "Retorna lista paginada de inscrições de um curso específico",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inscricoes"
+                ],
+                "summary": "Listar inscrições de um curso",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Buscar por CPF, nome ou email",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova inscrição em um curso",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inscricoes"
+                ],
+                "summary": "Criar inscrição",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da inscrição",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Inscricao"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Inscricao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/courses/{courseId}/enrollments/status": {
+            "put": {
+                "description": "Atualiza o status de várias inscrições de uma vez (aprovação em lote)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inscricoes"
+                ],
+                "summary": "Atualizar status de múltiplas inscrições",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.EnrollmentStatusUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.EnrollmentStatusUpdateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/courses/{courseId}/enrollments/{enrollmentId}": {
+            "get": {
+                "description": "Retorna dados completos de uma inscrição específica",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inscricoes"
+                ],
+                "summary": "Obter inscrição por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID da inscrição",
+                        "name": "enrollmentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Inscricao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma inscrição específica",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inscricoes"
+                ],
+                "summary": "Excluir inscrição",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID da inscrição",
+                        "name": "enrollmentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/courses/{courseId}/enrollments/{enrollmentId}/status": {
+            "put": {
+                "description": "Atualiza o status de uma inscrição específica",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inscricoes"
+                ],
+                "summary": "Atualizar status de inscrição individual",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID da inscrição",
+                        "name": "enrollmentId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização: {\\",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -526,28 +1425,950 @@ const docTemplate = `{
                 }
             }
         },
-        "/health": {
+        "/api/v1/empresas": {
             "get": {
-                "description": "Retorna o status de saúde da API v1",
+                "description": "Retorna uma lista paginada de empresas",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "health"
+                    "empresas"
                 ],
-                "summary": "Verificar saúde da API",
+                "summary": "Listar empresas",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova empresa",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empresas"
+                ],
+                "summary": "Criar empresa",
+                "parameters": [
+                    {
+                        "description": "Dados da empresa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/typesense/collections/{collection}/documents/search": {
+        "/api/v1/empresas/{id}": {
+            "get": {
+                "description": "Retorna uma empresa pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empresas"
+                ],
+                "summary": "Obter empresa por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da empresa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de uma empresa existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empresas"
+                ],
+                "summary": "Atualizar empresa",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da empresa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da empresa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma empresa pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empresas"
+                ],
+                "summary": "Excluir empresa",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da empresa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/enrollments/user/{cpf}": {
+            "get": {
+                "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enrollments"
+                ],
+                "summary": "Listar inscrições de um usuário específico",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/escolaridades": {
+            "get": {
+                "description": "Retorna uma lista paginada de escolaridades",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escolaridades"
+                ],
+                "summary": "Listar escolaridades",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Nu00famero da pu00e1gina (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da pu00e1gina (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo nível de escolaridade",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escolaridades"
+                ],
+                "summary": "Criar escolaridade",
+                "parameters": [
+                    {
+                        "description": "Dados da escolaridade",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Escolaridade"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Escolaridade"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/escolaridades/{id}": {
+            "get": {
+                "description": "Retorna uma escolaridade pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escolaridades"
+                ],
+                "summary": "Obter escolaridade por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da escolaridade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Escolaridade"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de uma escolaridade existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escolaridades"
+                ],
+                "summary": "Atualizar escolaridade",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da escolaridade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da escolaridade",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Escolaridade"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Escolaridade"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma escolaridade pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escolaridades"
+                ],
+                "summary": "Excluir escolaridade",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da escolaridade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/instituicoes": {
+            "get": {
+                "description": "Retorna uma lista paginada de instituições",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instituicoes"
+                ],
+                "summary": "Listar instituições de ensino",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova instituição de ensino",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instituicoes"
+                ],
+                "summary": "Criar instituição de ensino",
+                "parameters": [
+                    {
+                        "description": "Dados da instituição",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/instituicoes/{id}": {
+            "get": {
+                "description": "Retorna uma instituição pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instituicoes"
+                ],
+                "summary": "Obter instituição de ensino por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da instituição",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de uma instituição existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instituicoes"
+                ],
+                "summary": "Atualizar instituição de ensino",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da instituição",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da instituição",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma instituição pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instituicoes"
+                ],
+                "summary": "Excluir instituição de ensino",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da instituição",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orgaos": {
+            "get": {
+                "description": "Retorna uma lista paginada de órgãos",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orgaos"
+                ],
+                "summary": "Listar órgãos",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo órgão",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orgaos"
+                ],
+                "summary": "Criar órgão",
+                "parameters": [
+                    {
+                        "description": "Dados do órgão",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Orgao"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Orgao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orgaos/{id}": {
+            "get": {
+                "description": "Retorna um órgão pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orgaos"
+                ],
+                "summary": "Obter órgão por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do órgão",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Orgao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de um órgão existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orgaos"
+                ],
+                "summary": "Atualizar órgão",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do órgão",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do órgão",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Orgao"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Orgao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove um órgão pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orgaos"
+                ],
+                "summary": "Excluir órgão",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do órgão",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/typesense/collections/{collection}/documents/search": {
             "post": {
                 "description": "Busca documentos em uma coleção",
                 "consumes": [
@@ -600,7 +2421,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/typesense/multi-search": {
+        "/api/v1/typesense/multi-search": {
             "post": {
                 "description": "Realiza busca em várias coleções simultaneamente",
                 "consumes": [
@@ -645,26 +2466,97 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/users/{userId}/courses": {
+            "get": {
+                "description": "Retorna lista paginada de cursos criados por um usuário/organização",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "Listar cursos de um usuário específico",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do usuário/orgão",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por modalidade",
+                        "name": "modalidade",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Retorna o status de saúde da API v1",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Verificar saúde da API",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
         "models.Acessibilidade": {
-            "type": "object",
-            "properties": {
-                "cursos": {
-                    "description": "Relacionamentos",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Curso"
-                    }
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "nome": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "models.Categoria": {
             "type": "object",
@@ -685,95 +2577,7 @@ const docTemplate = `{
             }
         },
         "models.Curso": {
-            "type": "object",
-            "properties": {
-                "acessibilidades": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Acessibilidade"
-                    }
-                },
-                "carga_horaria": {
-                    "type": "integer"
-                },
-                "categorias": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Categoria"
-                    }
-                },
-                "certificacao_oferecida": {
-                    "type": "boolean"
-                },
-                "contato_duvidas": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "data_inicio": {
-                    "type": "string"
-                },
-                "data_limite_inscricoes": {
-                    "type": "string"
-                },
-                "data_termino": {
-                    "type": "string"
-                },
-                "descricao": {
-                    "type": "string"
-                },
-                "formato_aula": {
-                    "$ref": "#/definitions/models.FormatoAula"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "instituicao": {
-                    "$ref": "#/definitions/models.InstituicaoEnsino"
-                },
-                "instituicao_id": {
-                    "type": "integer"
-                },
-                "link_inscricao": {
-                    "type": "string"
-                },
-                "local_realizacao": {
-                    "type": "string"
-                },
-                "modalidade": {
-                    "$ref": "#/definitions/models.Modalidade"
-                },
-                "numero_vagas": {
-                    "type": "integer"
-                },
-                "orgao": {
-                    "description": "Relacionamentos",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Orgao"
-                        }
-                    ]
-                },
-                "orgao_id": {
-                    "type": "integer"
-                },
-                "pre_requisitos": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/models.StatusCurso"
-                },
-                "titulo": {
-                    "type": "string"
-                },
-                "turno": {
-                    "$ref": "#/definitions/models.Turno"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "models.Emprego": {
             "type": "object",
@@ -878,6 +2682,44 @@ const docTemplate = `{
                 }
             }
         },
+        "models.EnrollmentStatusUpdateRequest": {
+            "type": "object",
+            "required": [
+                "enrollment_ids",
+                "status"
+            ],
+            "properties": {
+                "admin_notes": {
+                    "type": "string"
+                },
+                "enrollment_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.StatusInscricao"
+                }
+            }
+        },
+        "models.EnrollmentStatusUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "$ref": "#/definitions/models.StatusInscricao"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_count": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -918,6 +2760,9 @@ const docTemplate = `{
                 "FormatoAulaAoVivo"
             ]
         },
+        "models.Inscricao": {
+            "type": "object"
+        },
         "models.InstituicaoEnsino": {
             "type": "object",
             "properties": {
@@ -956,12 +2801,18 @@ const docTemplate = `{
         "models.Modalidade": {
             "type": "string",
             "enum": [
+                "Presencial",
+                "Semipresencial",
+                "Remoto",
                 "PRESENCIAL",
                 "ONLINE",
                 "HIBRIDO"
             ],
             "x-enum-varnames": [
                 "ModalidadePresencial",
+                "ModalidadeSemipresencial",
+                "ModalidadeRemoto",
+                "ModalidadePresencialLegacy",
                 "ModalidadeOnline",
                 "ModalidadeHibrido"
             ]
@@ -1100,11 +2951,19 @@ const docTemplate = `{
         "models.StatusCurso": {
             "type": "string",
             "enum": [
+                "draft",
+                "opened",
+                "closed",
+                "canceled",
                 "CRIADO",
                 "ABERTO",
                 "ENCERRADO"
             ],
             "x-enum-varnames": [
+                "StatusCursoDraft",
+                "StatusCursoOpened",
+                "StatusCursoClosed",
+                "StatusCursoCanceled",
                 "StatusCursoCriado",
                 "StatusCursoAberto",
                 "StatusCursoEncerrado"
@@ -1123,6 +2982,21 @@ const docTemplate = `{
                 "StatusEmpregoAberto",
                 "StatusEmpregoEmAnalise",
                 "StatusEmpregoEncerrado"
+            ]
+        },
+        "models.StatusInscricao": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "cancelled"
+            ],
+            "x-enum-varnames": [
+                "StatusInscricaoPending",
+                "StatusInscricaoApproved",
+                "StatusInscricaoRejected",
+                "StatusInscricaoCancelled"
             ]
         },
         "models.TipoContratacao": {
