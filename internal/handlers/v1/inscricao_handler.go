@@ -258,6 +258,7 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 // @Param        enrollmentId path      string  true  "UUID da inscrição"
 // @Success      200          {object}  models.Inscricao
 // @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId} [get]
@@ -276,6 +277,17 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 
 	if inscricao == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Inscrição não encontrada"})
+		return
+	}
+
+	// Verificar se o usuário tem permissão para ver esta inscrição
+	userCPF := c.GetString("user_cpf")
+	userRole := c.GetString("user_role")
+	
+	// Admin pode ver todas as inscrições
+	// Usuário comum só pode ver suas próprias inscrições
+	if userRole != "ADMIN" && userCPF != "" && inscricao.CPF != userCPF {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode visualizar suas próprias inscrições"})
 		return
 	}
 
@@ -328,12 +340,24 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 // @Param        status       query     string  false  "Filtrar por status"
 // @Success      200          {object}  object
 // @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/enrollments/user/{cpf} [get]
 func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 	cpf := c.Param("cpf")
 	if cpf == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "CPF é obrigatório"})
+		return
+	}
+
+	// Verificar se o usuário tem permissão para ver estas inscrições
+	userCPF := c.GetString("user_cpf")
+	userRole := c.GetString("user_role")
+	
+	// Admin pode ver inscrições de qualquer pessoa
+	// Usuário comum só pode ver suas próprias inscrições
+	if userRole != "ADMIN" && userCPF != "" && cpf != userCPF {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode visualizar suas próprias inscrições"})
 		return
 	}
 
