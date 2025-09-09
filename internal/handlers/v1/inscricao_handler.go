@@ -297,6 +297,69 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 	})
 }
 
+// @Summary      Atualizar certificado de inscrição
+// @Description  Adiciona ou atualiza a URL do certificado de uma inscrição
+// @Tags         inscricoes
+// @Accept       json
+// @Produce      json
+// @Param        courseId     path      int                            true  "ID do curso"
+// @Param        enrollmentId path      string                         true  "UUID da inscrição"
+// @Param        request      body      models.CertificateUpdateRequest true  "URL do certificado"
+// @Success      200          {object}  models.CertificateUpdateResponse
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
+// @Failure      404          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId}/certificate [put]
+func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
+	cursoID, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
+		return
+	}
+
+	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
+		return
+	}
+
+	var request models.CertificateUpdateRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		return
+	}
+
+	// Verificar se o usuário é admin
+	userRole := c.GetString("user_role")
+	if userRole != "ADMIN" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores podem atualizar certificados"})
+		return
+	}
+
+	if err := h.service.UpdateCertificate(c.Request.Context(), cursoID, enrollmentID, request.CertificateURL); err != nil {
+		if err.Error() == "inscrição não encontrada" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if err.Error() == "inscrição não pertence ao curso especificado" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if err.Error() == "certificado só pode ser atribuído a inscrições aprovadas ou concluídas" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar certificado: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.CertificateUpdateResponse{
+		Message:        "Certificado atualizado com sucesso",
+		CertificateURL: request.CertificateURL,
+	})
+}
+
 // @Summary      Excluir inscrição
 // @Description  Remove uma inscrição específica
 // @Tags         inscricoes
