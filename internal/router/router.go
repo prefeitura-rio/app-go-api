@@ -175,6 +175,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		courses.PUT("/:courseId/enrollments/status", inscricaoHandler.UpdateStatus)
 		courses.PUT("/:courseId/enrollments/:enrollmentId/status", inscricaoHandler.UpdateIndividualStatus)
 		courses.GET("/:courseId/enrollments/:enrollmentId", inscricaoHandler.GetByID)
+		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", inscricaoHandler.UpdateCertificate)
 		courses.DELETE("/:courseId/enrollments/:enrollmentId", inscricaoHandler.Delete)
 	}
 
