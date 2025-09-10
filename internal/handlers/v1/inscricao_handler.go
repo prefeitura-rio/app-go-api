@@ -330,13 +330,6 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 		return
 	}
 
-	// Verificar se o usuário é admin
-	userRole := c.GetString("user_role")
-	if userRole != "ADMIN" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores podem atualizar certificados"})
-		return
-	}
-
 	if err := h.service.UpdateCertificate(c.Request.Context(), cursoID, enrollmentID, request.CertificateURL); err != nil {
 		if err.Error() == "inscrição não encontrada" {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
