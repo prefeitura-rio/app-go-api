@@ -1,7 +1,7 @@
 package models
 
 type CertificateUpdateRequest struct {
-	CertificateURL string `json:"certificate_url" binding:"required,url"`
+	CertificateURL string `json:"certificate_url" binding:"omitempty,url"`
 }
 
 type CertificateUpdateResponse struct {
