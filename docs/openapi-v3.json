@@ -2219,7 +2219,7 @@
     },
     "/api/v1/enrollments/user/{cpf}": {
       "get": {
-        "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF)",
+        "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF), incluindo certificate_url",
         "tags": [
           "enrollments"
         ],
