@@ -152,7 +152,7 @@ func (h *AcessibilidadeHandler) List(c *gin.Context) {
 		page = 1
 	}
 	
-	if pageSize < 1 || pageSize > 100 {
+	if pageSize < 1 || pageSize > 1000 {
 		pageSize = 10
 	}
 	
