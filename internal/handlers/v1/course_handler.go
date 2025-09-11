@@ -201,7 +201,7 @@ func (h *CourseHandler) List(c *gin.Context) {
 		page = 1
 	}
 
-	if limit < 1 || limit > 100 {
+	if limit < 1 || limit > 1000 {
 		limit = 10
 	}
 
@@ -329,7 +329,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		page = 1
 	}
 
-	if limit < 1 || limit > 100 {
+	if limit < 1 || limit > 1000 {
 		limit = 10
 	}
 
@@ -529,7 +529,7 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 		page = 1
 	}
 
-	if limit < 1 || limit > 100 {
+	if limit < 1 || limit > 1000 {
 		limit = 10
 	}
 

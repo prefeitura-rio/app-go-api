@@ -98,7 +98,7 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 		page = 1
 	}
 
-	if limit < 1 || limit > 100 {
+	if limit < 1 || limit > 1000 {
 		limit = 20
 	}
 
@@ -387,7 +387,7 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 }
 
 // @Summary      Listar inscrições de um usuário específico
-// @Description  Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF)
+// @Description  Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF), incluindo certificate_url
 // @Tags         enrollments
 // @Produce      json
 // @Param        cpf          path      string  true   "CPF do usuário"
@@ -424,7 +424,7 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 		page = 1
 	}
 
-	if limit < 1 || limit > 100 {
+	if limit < 1 || limit > 1000 {
 		limit = 10
 	}
 
@@ -462,6 +462,7 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 			"custom_fields":     inscricao.CustomFieldsData,
 			"admin_notes":       inscricao.AdminNotes,
 			"reason":            inscricao.Reason,
+			"certificate_url":   inscricao.CertificateURL,
 			"enrolled_at":       inscricao.EnrolledAt,
 			"updated_at":        inscricao.UpdatedAt,
 			"curso":             inscricao.Curso,
