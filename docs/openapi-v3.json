@@ -3530,9 +3530,6 @@
       },
       "models.CertificateUpdateRequest": {
         "type": "object",
-        "required": [
-          "certificate_url"
-        ],
         "properties": {
           "certificate_url": {
             "type": "string"
