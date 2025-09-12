@@ -14,6 +14,20 @@ definitions:
       nome:
         type: string
     type: object
+  models.CertificateUpdateRequest:
+    properties:
+      certificate_url:
+        type: string
+    required:
+    - certificate_url
+    type: object
+  models.CertificateUpdateResponse:
+    properties:
+      certificate_url:
+        type: string
+      message:
+        type: string
+    type: object
   models.Curso:
     type: object
   models.Emprego:
@@ -301,12 +315,14 @@ definitions:
     - approved
     - rejected
     - cancelled
+    - concluded
     type: string
     x-enum-varnames:
     - StatusInscricaoPending
     - StatusInscricaoApproved
     - StatusInscricaoRejected
     - StatusInscricaoCancelled
+    - StatusInscricaoConcluded
   models.TipoContratacao:
     enum:
     - CLT
@@ -954,6 +970,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -963,6 +983,54 @@ paths:
           schema:
             $ref: '#/definitions/models.ErrorResponse'
       summary: Obter inscrição por ID
+      tags:
+      - inscricoes
+  /api/v1/courses/{courseId}/enrollments/{enrollmentId}/certificate:
+    put:
+      consumes:
+      - application/json
+      description: Adiciona ou atualiza a URL do certificado de uma inscrição
+      parameters:
+      - description: ID do curso
+        in: path
+        name: courseId
+        required: true
+        type: integer
+      - description: UUID da inscrição
+        in: path
+        name: enrollmentId
+        required: true
+        type: string
+      - description: URL do certificado
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CertificateUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CertificateUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar certificado de inscrição
       tags:
       - inscricoes
   /api/v1/courses/{courseId}/enrollments/{enrollmentId}/status:
@@ -1457,6 +1525,10 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/models.ErrorResponse'
         "500":

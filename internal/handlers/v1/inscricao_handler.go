@@ -98,7 +98,7 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 		page = 1
 	}
 
-	if limit < 1 || limit > 100 {
+	if limit < 1 || limit > 1000 {
 		limit = 20
 	}
 
@@ -258,6 +258,7 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 // @Param        enrollmentId path      string  true  "UUID da inscrição"
 // @Success      200          {object}  models.Inscricao
 // @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId} [get]
@@ -279,9 +280,76 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 		return
 	}
 
+	// Verificar se o usuário tem permissão para ver esta inscrição
+	userCPF := c.GetString("user_cpf")
+	userRole := c.GetString("user_role")
+	
+	// Admin pode ver todas as inscrições
+	// Usuário comum só pode ver suas próprias inscrições
+	if userRole != "ADMIN" && userCPF != "" && inscricao.CPF != userCPF {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode visualizar suas próprias inscrições"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    inscricao,
+	})
+}
+
+// @Summary      Atualizar certificado de inscrição
+// @Description  Adiciona ou atualiza a URL do certificado de uma inscrição
+// @Tags         inscricoes
+// @Accept       json
+// @Produce      json
+// @Param        courseId     path      int                            true  "ID do curso"
+// @Param        enrollmentId path      string                         true  "UUID da inscrição"
+// @Param        request      body      models.CertificateUpdateRequest true  "URL do certificado"
+// @Success      200          {object}  models.CertificateUpdateResponse
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
+// @Failure      404          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId}/certificate [put]
+func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
+	cursoID, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
+		return
+	}
+
+	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
+		return
+	}
+
+	var request models.CertificateUpdateRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		return
+	}
+
+	if err := h.service.UpdateCertificate(c.Request.Context(), cursoID, enrollmentID, request.CertificateURL); err != nil {
+		if err.Error() == "inscrição não encontrada" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if err.Error() == "inscrição não pertence ao curso especificado" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if err.Error() == "certificado só pode ser atribuído a inscrições aprovadas ou concluídas" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar certificado: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.CertificateUpdateResponse{
+		Message:        "Certificado atualizado com sucesso",
+		CertificateURL: request.CertificateURL,
 	})
 }
 
@@ -319,7 +387,7 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 }
 
 // @Summary      Listar inscrições de um usuário específico
-// @Description  Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF)
+// @Description  Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF), incluindo certificate_url
 // @Tags         enrollments
 // @Produce      json
 // @Param        cpf          path      string  true   "CPF do usuário"
@@ -328,12 +396,24 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 // @Param        status       query     string  false  "Filtrar por status"
 // @Success      200          {object}  object
 // @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/enrollments/user/{cpf} [get]
 func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 	cpf := c.Param("cpf")
 	if cpf == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "CPF é obrigatório"})
+		return
+	}
+
+	// Verificar se o usuário tem permissão para ver estas inscrições
+	userCPF := c.GetString("user_cpf")
+	userRole := c.GetString("user_role")
+	
+	// Admin pode ver inscrições de qualquer pessoa
+	// Usuário comum só pode ver suas próprias inscrições
+	if userRole != "ADMIN" && userCPF != "" && cpf != userCPF {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode visualizar suas próprias inscrições"})
 		return
 	}
 
@@ -344,7 +424,7 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 		page = 1
 	}
 
-	if limit < 1 || limit > 100 {
+	if limit < 1 || limit > 1000 {
 		limit = 10
 	}
 
@@ -382,6 +462,7 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 			"custom_fields":     inscricao.CustomFieldsData,
 			"admin_notes":       inscricao.AdminNotes,
 			"reason":            inscricao.Reason,
+			"certificate_url":   inscricao.CertificateURL,
 			"enrolled_at":       inscricao.EnrolledAt,
 			"updated_at":        inscricao.UpdatedAt,
 			"curso":             inscricao.Curso,

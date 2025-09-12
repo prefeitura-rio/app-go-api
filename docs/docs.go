@@ -1035,6 +1035,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1083,6 +1089,78 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/courses/{courseId}/enrollments/{enrollmentId}/certificate": {
+            "put": {
+                "description": "Adiciona ou atualiza a URL do certificado de uma inscrição",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inscricoes"
+                ],
+                "summary": "Atualizar certificado de inscrição",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID da inscrição",
+                        "name": "enrollmentId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "URL do certificado",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CertificateUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.CertificateUpdateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -1692,6 +1770,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -2576,6 +2660,28 @@ const docTemplate = `{
                 }
             }
         },
+        "models.CertificateUpdateRequest": {
+            "type": "object",
+            "required": [
+                "certificate_url"
+            ],
+            "properties": {
+                "certificate_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CertificateUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "certificate_url": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Curso": {
             "type": "object"
         },
@@ -2990,13 +3096,15 @@ const docTemplate = `{
                 "pending",
                 "approved",
                 "rejected",
-                "cancelled"
+                "cancelled",
+                "concluded"
             ],
             "x-enum-varnames": [
                 "StatusInscricaoPending",
                 "StatusInscricaoApproved",
                 "StatusInscricaoRejected",
-                "StatusInscricaoCancelled"
+                "StatusInscricaoCancelled",
+                "StatusInscricaoConcluded"
             ]
         },
         "models.TipoContratacao": {

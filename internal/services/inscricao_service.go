@@ -124,3 +124,25 @@ func (s *InscricaoService) Delete(ctx context.Context, id uuid.UUID) error {
 func (s *InscricaoService) ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error) {
 	return s.repo.ListByCPF(ctx, cpf, filter, offset, limit)
 }
+
+func (s *InscricaoService) UpdateCertificate(ctx context.Context, cursoID int, inscricaoID uuid.UUID, certificateURL string) error {
+	// Verify enrollment exists and belongs to the course
+	inscricao, err := s.repo.GetByID(ctx, inscricaoID)
+	if err != nil {
+		return fmt.Errorf("erro ao verificar inscrição: %w", err)
+	}
+	if inscricao == nil {
+		return fmt.Errorf("inscrição não encontrada")
+	}
+	if inscricao.CursoID != cursoID {
+		return fmt.Errorf("inscrição não pertence ao curso especificado")
+	}
+	
+	// Only allow certificate for approved or concluded enrollments
+	if inscricao.Status != models.StatusInscricaoApproved && inscricao.Status != models.StatusInscricaoConcluded {
+		return fmt.Errorf("certificado só pode ser atribuído a inscrições aprovadas ou concluídas")
+	}
+	
+	// Update certificate URL
+	return s.repo.UpdateCertificate(ctx, inscricaoID, certificateURL)
+}
