@@ -36,6 +36,9 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	apiV1 := r.Group("/api/v1")
 	// // Aplicar middleware de autenticação para proteger todas as rotas da API
 	// apiV1.Use(middlewares.AuthMiddleware())
+	
+	// Middleware para extrair contexto do usuário dos headers injetados pelo Istio
+	apiV1.Use(middlewares.ExtractUserContext())
 
 	// Inicializando repositórios
 	cursoRepo := repository.NewCursoRepository(db)
@@ -172,6 +175,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		courses.PUT("/:courseId/enrollments/status", inscricaoHandler.UpdateStatus)
 		courses.PUT("/:courseId/enrollments/:enrollmentId/status", inscricaoHandler.UpdateIndividualStatus)
 		courses.GET("/:courseId/enrollments/:enrollmentId", inscricaoHandler.GetByID)
+		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", inscricaoHandler.UpdateCertificate)
 		courses.DELETE("/:courseId/enrollments/:enrollmentId", inscricaoHandler.Delete)
 	}
 

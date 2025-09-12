@@ -14,6 +14,7 @@ const (
 	StatusInscricaoApproved  StatusInscricao = "approved"
 	StatusInscricaoRejected  StatusInscricao = "rejected"
 	StatusInscricaoCancelled StatusInscricao = "cancelled"
+	StatusInscricaoConcluded StatusInscricao = "concluded"
 )
 
 type Inscricao struct {
@@ -27,8 +28,10 @@ type Inscricao struct {
 	CustomFieldsData datatypes.JSON            `json:"custom_fields" gorm:"type:jsonb;column:custom_fields_data"`
 	AdminNotes       string                     `json:"admin_notes,omitempty" gorm:"type:text;column:admin_notes"`
 	Reason           string                     `json:"reason,omitempty" gorm:"type:text"`
+	CertificateURL   string                     `json:"certificate_url,omitempty" gorm:"type:varchar(500);column:certificate_url"`
 	EnrolledAt       time.Time                  `json:"enrolled_at" gorm:"column:enrolled_at;autoCreateTime"`
 	UpdatedAt        time.Time                  `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	ConcludedAt      *time.Time                 `json:"concluded_at,omitempty" gorm:"column:concluded_at"`
 
 	// Relacionamentos
 	Curso *Curso `json:"curso,omitempty" gorm:"foreignKey:CursoID"`
@@ -102,6 +105,7 @@ type EnrollmentSummary struct {
 	Approved  int `json:"approved"`
 	Rejected  int `json:"rejected"`
 	Cancelled int `json:"cancelled"`
+	Concluded int `json:"concluded"`
 }
 
 type EnrollmentStatusUpdateRequest struct {

@@ -96,6 +96,11 @@ func (r *InscricaoRepository) UpdateStatus(ctx context.Context, inscricaoID uuid
 		updates["admin_notes"] = adminNotes
 	}
 	
+	if status == models.StatusInscricaoConcluded {
+		now := time.Now()
+		updates["concluded_at"] = now
+	}
+	
 	result := r.db.WithContext(ctx).
 		Model(&models.Inscricao{}).
 		Where("id = ?", inscricaoID).
@@ -124,6 +129,11 @@ func (r *InscricaoRepository) UpdateMultipleStatus(ctx context.Context, inscrica
 	
 	if adminNotes != "" {
 		updates["admin_notes"] = adminNotes
+	}
+	
+	if status == models.StatusInscricaoConcluded {
+		now := time.Now()
+		updates["concluded_at"] = now
 	}
 	
 	result := r.db.WithContext(ctx).
@@ -174,6 +184,8 @@ func (r *InscricaoRepository) GetSummaryByCursoID(ctx context.Context, cursoID i
 			summary.Rejected = int(sc.Count)
 		case models.StatusInscricaoCancelled:
 			summary.Cancelled = int(sc.Count)
+		case models.StatusInscricaoConcluded:
+			summary.Concluded = int(sc.Count)
 		}
 	}
 	
@@ -237,4 +249,26 @@ func (r *InscricaoRepository) ListByCPF(ctx context.Context, cpf string, filter 
 	}
 
 	return inscricoes, int(total), nil
+}
+
+func (r *InscricaoRepository) UpdateCertificate(ctx context.Context, inscricaoID uuid.UUID, certificateURL string) error {
+	updates := map[string]interface{}{
+		"certificate_url": certificateURL,
+		"updated_at":      time.Now(),
+	}
+	
+	result := r.db.WithContext(ctx).
+		Model(&models.Inscricao{}).
+		Where("id = ?", inscricaoID).
+		Updates(updates)
+	
+	if result.Error != nil {
+		return fmt.Errorf("erro ao atualizar certificado: %w", result.Error)
+	}
+	
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("inscrição não encontrada")
+	}
+	
+	return nil
 }
