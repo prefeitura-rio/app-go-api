@@ -280,7 +280,14 @@ func (h *CourseHandler) List(c *gin.Context) {
 			"teaching_material":      curso.TeachingMaterial,
 			"pre_requisitos":         curso.PreRequisitos,
 			"certificacao_oferecida": curso.CertificacaoOferecida,
-			
+
+			// External partner fields
+			"is_external_partner":       curso.IsExternalPartner,
+			"external_partner_name":     curso.ExternalPartnerName,
+			"external_partner_url":      curso.ExternalPartnerURL,
+			"external_partner_logo_url": curso.ExternalPartnerLogoURL,
+			"external_partner_contact":  curso.ExternalPartnerContact,
+
 			// Timestamps
 			"created_at":             curso.CreatedAt,
 			"updated_at":             curso.UpdatedAt,
@@ -399,7 +406,14 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 			"teaching_material":      curso.TeachingMaterial,
 			"pre_requisitos":         curso.PreRequisitos,
 			"certificacao_oferecida": curso.CertificacaoOferecida,
-			
+
+			// External partner fields
+			"is_external_partner":       curso.IsExternalPartner,
+			"external_partner_name":     curso.ExternalPartnerName,
+			"external_partner_url":      curso.ExternalPartnerURL,
+			"external_partner_logo_url": curso.ExternalPartnerLogoURL,
+			"external_partner_contact":  curso.ExternalPartnerContact,
+
 			// Timestamps
 			"created_at":             curso.CreatedAt,
 			"updated_at":             curso.UpdatedAt,
@@ -600,7 +614,14 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 			"teaching_material":      curso.TeachingMaterial,
 			"pre_requisitos":         curso.PreRequisitos,
 			"certificacao_oferecida": curso.CertificacaoOferecida,
-			
+
+			// External partner fields
+			"is_external_partner":       curso.IsExternalPartner,
+			"external_partner_name":     curso.ExternalPartnerName,
+			"external_partner_url":      curso.ExternalPartnerURL,
+			"external_partner_logo_url": curso.ExternalPartnerLogoURL,
+			"external_partner_contact":  curso.ExternalPartnerContact,
+
 			// Timestamps
 			"created_at":             curso.CreatedAt,
 			"updated_at":             curso.UpdatedAt,

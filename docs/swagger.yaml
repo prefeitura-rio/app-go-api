@@ -18,8 +18,6 @@ definitions:
     properties:
       certificate_url:
         type: string
-    required:
-    - certificate_url
     type: object
   models.CertificateUpdateResponse:
     properties:
@@ -1497,7 +1495,7 @@ paths:
   /api/v1/enrollments/user/{cpf}:
     get:
       description: Retorna lista paginada de inscrições realizadas por um usuário
-        (identificado pelo CPF)
+        (identificado pelo CPF), incluindo certificate_url
       parameters:
       - description: CPF do usuário
         in: path
