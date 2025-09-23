@@ -81,6 +81,13 @@ type Curso struct {
 	PreRequisitos         string         `json:"pre_requisitos" gorm:"column:pre_requisitos;type:text"`
 	CertificacaoOferecida bool          `json:"certificacao_oferecida" gorm:"column:certificacao_oferecida"`
 
+	// External partner fields
+	IsExternalPartner       *bool   `json:"is_external_partner,omitempty" gorm:"column:is_external_partner"`
+	ExternalPartnerName     string  `json:"external_partner_name,omitempty" gorm:"column:external_partner_name;type:varchar(255)"`
+	ExternalPartnerURL      string  `json:"external_partner_url,omitempty" gorm:"column:external_partner_url;type:varchar(500)"`
+	ExternalPartnerLogoURL  string  `json:"external_partner_logo_url,omitempty" gorm:"column:external_partner_logo_url;type:varchar(500)"`
+	ExternalPartnerContact  string  `json:"external_partner_contact,omitempty" gorm:"column:external_partner_contact;type:varchar(255)"`
+
 	CreatedAt            time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt            time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 	

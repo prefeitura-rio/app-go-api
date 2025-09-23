@@ -1726,7 +1726,7 @@ const docTemplate = `{
         },
         "/api/v1/enrollments/user/{cpf}": {
             "get": {
-                "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF)",
+                "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF), incluindo certificate_url",
                 "produces": [
                     "application/json"
                 ],
@@ -2662,9 +2662,6 @@ const docTemplate = `{
         },
         "models.CertificateUpdateRequest": {
             "type": "object",
-            "required": [
-                "certificate_url"
-            ],
             "properties": {
                 "certificate_url": {
                     "type": "string"
