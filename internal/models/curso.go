@@ -88,10 +88,6 @@ type Curso struct {
 	ExternalPartnerLogoURL  string  `json:"external_partner_logo_url,omitempty" gorm:"column:external_partner_logo_url;type:varchar(500)"`
 	ExternalPartnerContact  string  `json:"external_partner_contact,omitempty" gorm:"column:external_partner_contact;type:varchar(255)"`
 
-	// Additional fields
-	PublishedAt             *int64  `json:"published_at,omitempty" gorm:"column:published_at"`
-	IsFree                  *bool   `json:"is_free,omitempty" gorm:"column:is_free"`
-
 	CreatedAt            time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt            time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 	
