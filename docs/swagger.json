@@ -1724,7 +1724,7 @@
         },
         "/api/v1/enrollments/user/{cpf}": {
             "get": {
-                "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF)",
+                "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF), incluindo certificate_url",
                 "produces": [
                     "application/json"
                 ],
@@ -2638,7 +2638,22 @@
     },
     "definitions": {
         "models.Acessibilidade": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "cursos": {
+                    "description": "Relacionamentos",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Curso"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nome": {
+                    "type": "string"
+                }
+            }
         },
         "models.Categoria": {
             "type": "object",
@@ -2660,9 +2675,6 @@
         },
         "models.CertificateUpdateRequest": {
             "type": "object",
-            "required": [
-                "certificate_url"
-            ],
             "properties": {
                 "certificate_url": {
                     "type": "string"
@@ -2681,7 +2693,143 @@
             }
         },
         "models.Curso": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "carga_horaria": {
+                    "type": "integer"
+                },
+                "certificacao_oferecida": {
+                    "type": "boolean"
+                },
+                "contato_duvidas": {
+                    "type": "string"
+                },
+                "cover_image": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "data_inicio": {
+                    "type": "string"
+                },
+                "data_limite_inscricoes": {
+                    "type": "string"
+                },
+                "data_termino": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enrollment_end_date": {
+                    "type": "string"
+                },
+                "enrollment_start_date": {
+                    "type": "string"
+                },
+                "expected_results": {
+                    "type": "string"
+                },
+                "external_partner_contact": {
+                    "type": "string"
+                },
+                "external_partner_logo_url": {
+                    "type": "string"
+                },
+                "external_partner_name": {
+                    "type": "string"
+                },
+                "external_partner_url": {
+                    "type": "string"
+                },
+                "facilitator": {
+                    "type": "string"
+                },
+                "formato_aula": {
+                    "$ref": "#/definitions/models.FormatoAula"
+                },
+                "has_certificate": {
+                    "description": "Optional fields matching specification",
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "instituicao_id": {
+                    "type": "integer"
+                },
+                "institutional_logo": {
+                    "type": "string"
+                },
+                "is_external_partner": {
+                    "description": "External partner fields",
+                    "type": "boolean"
+                },
+                "link_inscricao": {
+                    "type": "string"
+                },
+                "local_realizacao": {
+                    "type": "string"
+                },
+                "material_used": {
+                    "type": "string"
+                },
+                "methodology": {
+                    "type": "string"
+                },
+                "modalidade": {
+                    "$ref": "#/definitions/models.Modalidade"
+                },
+                "numero_vagas": {
+                    "type": "integer"
+                },
+                "objectives": {
+                    "type": "string"
+                },
+                "organization": {
+                    "type": "string"
+                },
+                "orgao_id": {
+                    "description": "Legacy and additional fields",
+                    "type": "integer"
+                },
+                "pre_requisitos": {
+                    "description": "Unified field for prerequisites - using single JSON tag",
+                    "type": "string"
+                },
+                "program_content": {
+                    "type": "string"
+                },
+                "resources_used": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.StatusCurso"
+                },
+                "target_audience": {
+                    "type": "string"
+                },
+                "teaching_material": {
+                    "type": "string"
+                },
+                "theme": {
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Core fields (always required)",
+                    "type": "string"
+                },
+                "turno": {
+                    "$ref": "#/definitions/models.Turno"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workload": {
+                    "type": "string"
+                }
+            }
         },
         "models.Emprego": {
             "type": "object",

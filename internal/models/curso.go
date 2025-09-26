@@ -81,20 +81,27 @@ type Curso struct {
 	PreRequisitos         string         `json:"pre_requisitos" gorm:"column:pre_requisitos;type:text"`
 	CertificacaoOferecida bool          `json:"certificacao_oferecida" gorm:"column:certificacao_oferecida"`
 
+	// External partner fields
+	IsExternalPartner       *bool   `json:"is_external_partner,omitempty" gorm:"column:is_external_partner"`
+	ExternalPartnerName     string  `json:"external_partner_name,omitempty" gorm:"column:external_partner_name;type:varchar(255)"`
+	ExternalPartnerURL      string  `json:"external_partner_url,omitempty" gorm:"column:external_partner_url;type:varchar(500)"`
+	ExternalPartnerLogoURL  string  `json:"external_partner_logo_url,omitempty" gorm:"column:external_partner_logo_url;type:varchar(500)"`
+	ExternalPartnerContact  string  `json:"external_partner_contact,omitempty" gorm:"column:external_partner_contact;type:varchar(255)"`
+
 	CreatedAt            time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt            time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 	
 	// Relacionamentos
-	Orgao                *Orgao           `json:"orgao,omitempty" gorm:"foreignKey:OrgaoID"`
-	Instituicao          *InstituicaoEnsino `json:"instituicao,omitempty" gorm:"foreignKey:InstituicaoID"`
-	Categorias           []Categoria      `json:"categorias,omitempty" gorm:"many2many:cursos_categorias;"`
-	Acessibilidades      []Acessibilidade `json:"acessibilidades,omitempty" gorm:"many2many:cursos_acessibilidades;"`
-	
+	Orgao                *Orgao           `json:"orgao,omitempty" gorm:"foreignKey:OrgaoID" swaggerignore:"true"`
+	Instituicao          *InstituicaoEnsino `json:"instituicao,omitempty" gorm:"foreignKey:InstituicaoID" swaggerignore:"true"`
+	Categorias           []Categoria      `json:"categorias,omitempty" gorm:"many2many:cursos_categorias;" swaggerignore:"true"`
+	Acessibilidades      []Acessibilidade `json:"acessibilidades,omitempty" gorm:"many2many:cursos_acessibilidades;" swaggerignore:"true"`
+
 	// New relationships for enrollment system
-	CustomFields         []CustomField    `json:"custom_fields" gorm:"foreignKey:CursoID"`
-	Inscricoes           []Inscricao      `json:"enrollments,omitempty" gorm:"foreignKey:CursoID"`
-	LocationClasses      []LocationClass  `json:"locations,omitempty" gorm:"foreignKey:CursoID"`
-	RemoteClass          *RemoteClass     `json:"remote_class" gorm:"foreignKey:CursoID"`
+	CustomFields         []CustomField    `json:"custom_fields" gorm:"foreignKey:CursoID" swaggerignore:"true"`
+	Inscricoes           []Inscricao      `json:"enrollments,omitempty" gorm:"foreignKey:CursoID" swaggerignore:"true"`
+	LocationClasses      []LocationClass  `json:"locations,omitempty" gorm:"foreignKey:CursoID" swaggerignore:"true"`
+	RemoteClass          *RemoteClass     `json:"remote_class" gorm:"foreignKey:CursoID" swaggerignore:"true"`
 }
 
 // TableName especifica o nome da tabela para este modelo
