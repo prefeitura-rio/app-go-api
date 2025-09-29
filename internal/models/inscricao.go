@@ -29,6 +29,7 @@ type Inscricao struct {
 	AdminNotes       string                     `json:"admin_notes,omitempty" gorm:"type:text;column:admin_notes"`
 	Reason           string                     `json:"reason,omitempty" gorm:"type:text"`
 	CertificateURL   string                     `json:"certificate_url,omitempty" gorm:"type:varchar(500);column:certificate_url"`
+	EnrolledUnit     *EnrolledUnit              `json:"enrolled_unit,omitempty" gorm:"type:jsonb;column:enrolled_unit"`
 	EnrolledAt       time.Time                  `json:"enrolled_at" gorm:"column:enrolled_at;autoCreateTime"`
 	UpdatedAt        time.Time                  `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	ConcludedAt      *time.Time                 `json:"concluded_at,omitempty" gorm:"column:concluded_at"`
@@ -39,6 +40,20 @@ type Inscricao struct {
 
 func (Inscricao) TableName() string {
 	return "inscricoes"
+}
+
+type EnrolledUnit struct {
+	ID             string    `json:"id"`
+	CursoID        int       `json:"curso_id"`
+	Address        string    `json:"address"`
+	Neighborhood   string    `json:"neighborhood"`
+	Vacancies      int       `json:"vacancies"`
+	ClassStartDate string    `json:"class_start_date"`
+	ClassEndDate   string    `json:"class_end_date"`
+	ClassTime      string    `json:"class_time"`
+	ClassDays      string    `json:"class_days"`
+	CreatedAt      string    `json:"created_at"`
+	UpdatedAt      string    `json:"updated_at"`
 }
 
 type CustomField struct {

@@ -47,7 +47,7 @@ type Curso struct {
 	Modalidade           Modalidade     `json:"modalidade" gorm:"type:varchar(50)"`
 	Theme                string         `json:"theme" gorm:"type:varchar(100)"`
 	Workload             string         `json:"workload" gorm:"type:varchar(50)"`
-	TargetAudience       string         `json:"target_audience" gorm:"type:varchar(200);column:target_audience"`
+	TargetAudience       string         `json:"target_audience" gorm:"type:varchar(600);column:target_audience"`
 	InstitutionalLogo    string         `json:"institutional_logo" gorm:"type:varchar(500);column:institutional_logo"`
 	CoverImage           string         `json:"cover_image" gorm:"type:varchar(500);column:cover_image"`
 	Status               StatusCurso    `json:"status" gorm:"type:varchar(50)"`

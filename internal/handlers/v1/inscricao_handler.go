@@ -62,10 +62,11 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": gin.H{
-			"id":          inscricao.ID,
-			"course_id":   inscricao.CursoID,
-			"status":      inscricao.Status,
-			"enrolled_at": inscricao.EnrolledAt,
+			"id":            inscricao.ID,
+			"course_id":     inscricao.CursoID,
+			"status":        inscricao.Status,
+			"enrolled_unit": inscricao.EnrolledUnit,
+			"enrolled_at":   inscricao.EnrolledAt,
 		},
 		"message": "Inscrição criada com sucesso",
 	})
@@ -463,6 +464,7 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 			"admin_notes":       inscricao.AdminNotes,
 			"reason":            inscricao.Reason,
 			"certificate_url":   inscricao.CertificateURL,
+			"enrolled_unit":     inscricao.EnrolledUnit,
 			"enrolled_at":       inscricao.EnrolledAt,
 			"updated_at":        inscricao.UpdatedAt,
 			"curso":             inscricao.Curso,
