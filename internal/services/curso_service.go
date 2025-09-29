@@ -145,8 +145,8 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 		return fmt.Errorf("carga de trabalho deve ter no máximo 50 caracteres")
 	}
 	
-	if len(curso.TargetAudience) > 200 {
-		return fmt.Errorf("público-alvo deve ter no máximo 200 caracteres")
+	if len(curso.TargetAudience) > 600 {
+		return fmt.Errorf("público-alvo deve ter no máximo 600 caracteres")
 	}
 
 	return nil

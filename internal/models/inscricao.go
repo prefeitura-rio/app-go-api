@@ -1,6 +1,9 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -54,6 +57,32 @@ type EnrolledUnit struct {
 	ClassDays      string    `json:"class_days"`
 	CreatedAt      string    `json:"created_at"`
 	UpdatedAt      string    `json:"updated_at"`
+}
+
+// Value implements the driver.Valuer interface for EnrolledUnit
+func (e EnrolledUnit) Value() (driver.Value, error) {
+	if e.ID == "" {
+		return nil, nil
+	}
+	return json.Marshal(e)
+}
+
+// Scan implements the sql.Scanner interface for EnrolledUnit
+func (e *EnrolledUnit) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("failed to scan EnrolledUnit: value is not []byte")
+	}
+
+	if len(bytes) == 0 {
+		return nil
+	}
+
+	return json.Unmarshal(bytes, e)
 }
 
 type CustomField struct {
