@@ -245,6 +245,144 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/cnaes": {
+            "post": {
+                "description": "Cria um novo CNAE (admin)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cnaes-admin"
+                ],
+                "summary": "Criar CNAE",
+                "parameters": [
+                    {
+                        "description": "Dados do CNAE",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CNAE"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.CNAE"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/cnaes/{codigo}": {
+            "put": {
+                "description": "Atualiza um CNAE existente (admin)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cnaes-admin"
+                ],
+                "summary": "Atualizar CNAE",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Código do CNAE",
+                        "name": "codigo",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do CNAE",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CNAE"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.CNAE"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove um CNAE pelo código (admin)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cnaes-admin"
+                ],
+                "summary": "Excluir CNAE",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Código do CNAE",
+                        "name": "codigo",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/categorias": {
             "get": {
                 "description": "Retorna uma lista paginada de categorias",
@@ -453,6 +591,93 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cnaes": {
+            "get": {
+                "description": "Retorna uma lista paginada de CNAEs",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cnaes"
+                ],
+                "summary": "Listar CNAEs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 100, max: 1000)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por ocupação",
+                        "name": "ocupacao",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cnaes/{codigo}": {
+            "get": {
+                "description": "Retorna um CNAE pelo seu código",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cnaes"
+                ],
+                "summary": "Obter CNAE por código",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Código do CNAE",
+                        "name": "codigo",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.CNAE"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -2231,6 +2456,806 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/mei-empresas": {
+            "get": {
+                "description": "Retorna uma lista paginada de MEI empresas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mei-empresas"
+                ],
+                "summary": "Listar MEI empresas",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10, max: 1000)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo registro de MEI empresa",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mei-empresas"
+                ],
+                "summary": "Registrar MEI empresa",
+                "parameters": [
+                    {
+                        "description": "Dados da MEI empresa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.MEIEmpresa"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.MEIEmpresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/mei-empresas/cnpj/{cnpj}": {
+            "get": {
+                "description": "Retorna uma MEI empresa pelo seu CNPJ",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mei-empresas"
+                ],
+                "summary": "Buscar MEI empresa por CNPJ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CNPJ da MEI empresa",
+                        "name": "cnpj",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.MEIEmpresa"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/mei-empresas/{id}": {
+            "get": {
+                "description": "Retorna uma MEI empresa pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mei-empresas"
+                ],
+                "summary": "Obter MEI empresa por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da MEI empresa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.MEIEmpresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de uma MEI empresa existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mei-empresas"
+                ],
+                "summary": "Atualizar MEI empresa",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da MEI empresa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da MEI empresa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.MEIEmpresa"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.MEIEmpresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oportunidades-mei": {
+            "get": {
+                "description": "Retorna uma lista paginada de oportunidades MEI ativas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oportunidades-mei"
+                ],
+                "summary": "Listar oportunidades MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10, max: 1000)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por órgão",
+                        "name": "orgaoId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status (draft, active, expired)",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova oportunidade MEI publicada",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oportunidades-mei"
+                ],
+                "summary": "Criar oportunidade MEI",
+                "parameters": [
+                    {
+                        "description": "Dados da oportunidade",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OportunidadeMEI"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.OportunidadeMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oportunidades-mei/draft": {
+            "post": {
+                "description": "Cria uma nova oportunidade MEI em status de rascunho",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oportunidades-mei"
+                ],
+                "summary": "Criar oportunidade MEI como rascunho",
+                "parameters": [
+                    {
+                        "description": "Dados da oportunidade",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OportunidadeMEI"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.OportunidadeMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oportunidades-mei/drafts": {
+            "get": {
+                "description": "Retorna uma lista paginada de oportunidades MEI em rascunho",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oportunidades-mei"
+                ],
+                "summary": "Listar rascunhos de oportunidades MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10, max: 1000)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oportunidades-mei/{id}": {
+            "get": {
+                "description": "Retorna uma oportunidade MEI pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oportunidades-mei"
+                ],
+                "summary": "Obter oportunidade MEI por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.OportunidadeMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de uma oportunidade MEI existente e publica se estava em rascunho",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oportunidades-mei"
+                ],
+                "summary": "Atualizar oportunidade MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da oportunidade",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OportunidadeMEI"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.OportunidadeMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma oportunidade MEI pelo ID (soft delete)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oportunidades-mei"
+                ],
+                "summary": "Excluir oportunidade MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oportunidades-mei/{oportunidadeId}/propostas": {
+            "get": {
+                "description": "Retorna uma lista paginada de propostas MEI para uma oportunidade",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "propostas-mei"
+                ],
+                "summary": "Listar propostas MEI por oportunidade",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "oportunidadeId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10, max: 1000)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova proposta MEI para uma oportunidade",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "propostas-mei"
+                ],
+                "summary": "Criar proposta MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "oportunidadeId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da proposta",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PropostaMEI"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.PropostaMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oportunidades-mei/{oportunidadeId}/propostas/{propostaId}": {
+            "get": {
+                "description": "Retorna uma proposta MEI pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "propostas-mei"
+                ],
+                "summary": "Obter proposta MEI por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "oportunidadeId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID da proposta",
+                        "name": "propostaId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PropostaMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma proposta MEI pelo ID (soft delete)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "propostas-mei"
+                ],
+                "summary": "Excluir proposta MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "oportunidadeId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID da proposta",
+                        "name": "propostaId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oportunidades-mei/{oportunidadeId}/propostas/{propostaId}/status": {
+            "put": {
+                "description": "Atualiza o status de uma proposta MEI (aprovar ou rejeitar)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "propostas-mei"
+                ],
+                "summary": "Atualizar status da proposta MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "oportunidadeId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID da proposta",
+                        "name": "propostaId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Status: {\\",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PropostaMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/orgaos": {
             "get": {
                 "description": "Retorna uma lista paginada de órgãos",
@@ -2428,6 +3453,59 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/propostas-mei/por-empresa": {
+            "get": {
+                "description": "Retorna uma lista paginada de propostas MEI de uma empresa",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "propostas-mei"
+                ],
+                "summary": "Listar propostas MEI por MEI empresa",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da MEI empresa",
+                        "name": "meiEmpresaId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10, max: 1000)",
+                        "name": "pageSize",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2653,6 +3731,20 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "nome": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CNAE": {
+            "type": "object",
+            "properties": {
+                "codigo": {
+                    "type": "string"
+                },
+                "ocupacao": {
+                    "type": "string"
+                },
+                "servico": {
                     "type": "string"
                 }
             }
@@ -3003,6 +4095,23 @@ const docTemplate = `{
                 }
             }
         },
+        "models.FormaPagamento": {
+            "type": "string",
+            "enum": [
+                "CHEQUE",
+                "DINHEIRO",
+                "CARTAO",
+                "PIX",
+                "TRANSFERENCIA"
+            ],
+            "x-enum-varnames": [
+                "FormaPagamentoCheque",
+                "FormaPagamentoDinheiro",
+                "FormaPagamentoCartao",
+                "FormaPagamentoPix",
+                "FormaPagamentoTransferencia"
+            ]
+        },
         "models.FormatoAula": {
             "type": "string",
             "enum": [
@@ -3051,6 +4160,74 @@ const docTemplate = `{
                 "JornadaEstagio",
                 "JornadaHomeOffice"
             ]
+        },
+        "models.MEIEmpresa": {
+            "type": "object",
+            "properties": {
+                "bairro": {
+                    "type": "string"
+                },
+                "cep": {
+                    "description": "Endereço",
+                    "type": "string"
+                },
+                "cidade": {
+                    "type": "string"
+                },
+                "cnpj": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "description": "Dados de contato",
+                    "type": "string"
+                },
+                "estado": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "logradouro": {
+                    "type": "string"
+                },
+                "natureza_juridica": {
+                    "type": "string"
+                },
+                "nome_fantasia": {
+                    "type": "string"
+                },
+                "numero": {
+                    "type": "string"
+                },
+                "porte": {
+                    "type": "string"
+                },
+                "razao_social": {
+                    "type": "string"
+                },
+                "servicos": {
+                    "description": "Relacionamentos",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CNAE"
+                    }
+                },
+                "situacao_cadastral": {
+                    "$ref": "#/definitions/models.SituacaoCadastral"
+                },
+                "tipo": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "whatsapp": {
+                    "type": "string"
+                }
+            }
         },
         "models.Modalidade": {
             "type": "string",
@@ -3106,6 +4283,9 @@ const docTemplate = `{
                 }
             }
         },
+        "models.OportunidadeMEI": {
+            "type": "object"
+        },
         "models.Orgao": {
             "type": "object",
             "properties": {
@@ -3129,6 +4309,9 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "models.PropostaMEI": {
+            "type": "object"
         },
         "models.SearchDocumentsResponse": {
             "type": "object",
@@ -3202,6 +4385,23 @@ const docTemplate = `{
                 }
             }
         },
+        "models.SituacaoCadastral": {
+            "type": "string",
+            "enum": [
+                "ATIVA",
+                "SUSPENSA",
+                "INAPTA",
+                "BAIXADA",
+                "NULA"
+            ],
+            "x-enum-varnames": [
+                "SituacaoAtiva",
+                "SituacaoSuspensa",
+                "SituacaoInapta",
+                "SituacaoBaixada",
+                "SituacaoNula"
+            ]
+        },
         "models.StatusCurso": {
             "type": "string",
             "enum": [
@@ -3253,6 +4453,45 @@ const docTemplate = `{
                 "StatusInscricaoRejected",
                 "StatusInscricaoCancelled",
                 "StatusInscricaoConcluded"
+            ]
+        },
+        "models.StatusOportunidadeMEI": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "active",
+                "expired"
+            ],
+            "x-enum-varnames": [
+                "StatusOportunidadeDraft",
+                "StatusOportunidadeActive",
+                "StatusOportunidadeExpired"
+            ]
+        },
+        "models.StatusPropostaAdmin": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "active",
+                "expired"
+            ],
+            "x-enum-varnames": [
+                "StatusPropostaAdminDraft",
+                "StatusPropostaAdminActive",
+                "StatusPropostaAdminExpired"
+            ]
+        },
+        "models.StatusPropostaCidadao": {
+            "type": "string",
+            "enum": [
+                "submitted",
+                "approved",
+                "rejected"
+            ],
+            "x-enum-varnames": [
+                "StatusPropostaCidadaoSubmitted",
+                "StatusPropostaCidadaoApproved",
+                "StatusPropostaCidadaoRejected"
             ]
         },
         "models.TipoContratacao": {

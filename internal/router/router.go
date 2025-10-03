@@ -50,6 +50,10 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	instituicaoRepo := repository.NewInstituicaoRepository(db)
 	orgaoRepo := repository.NewOrgaoRepository(db)
 	inscricaoRepo := repository.NewInscricaoRepository(db)
+	cnaeRepo := repository.NewCNAERepository(db)
+	meiEmpresaRepo := repository.NewMEIEmpresaRepository(db)
+	oportunidadeMEIRepo := repository.NewOportunidadeMEIRepository(db)
+	propostaMEIRepo := repository.NewPropostaMEIRepository(db)
 
 	// Inicializando serviços
 	cursoService := services.NewCursoService(cursoRepo)
@@ -61,6 +65,10 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
 	orgaoService := services.NewOrgaoService(orgaoRepo)
 	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
+	cnaeService := services.NewCNAEService(cnaeRepo)
+	meiEmpresaService := services.NewMEIEmpresaService(meiEmpresaRepo)
+	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo, cnaeRepo, orgaoRepo)
+	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, meiEmpresaRepo)
 
 	// Inicializando handlers
 	empregoHandler := v1.NewEmpregoHandler(empregoService)
@@ -72,6 +80,10 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	orgaoHandler := v1.NewOrgaoHandler(orgaoService)
 	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService)
 	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService)
+	cnaeHandler := v1.NewCNAEHandler(cnaeService)
+	meiEmpresaHandler := v1.NewMEIEmpresaHandler(meiEmpresaService)
+	oportunidadeMEIHandler := v1.NewOportunidadeMEIHandler(oportunidadeMEIService)
+	propostaMEIHandler := v1.NewPropostaMEIHandler(propostaMEIService)
 	typesenseHandler, err := v1.NewTypesenseHandler()
 	if err != nil {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)
@@ -198,6 +210,62 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	{
 		enrollments.GET("/user/:cpf", inscricaoHandler.ListByUser)
 	}
+
+	// Rotas de CNAEs
+	cnaes := apiV1.Group("/cnaes")
+	{
+		cnaes.GET("", cnaeHandler.List)
+		cnaes.GET("/:codigo", cnaeHandler.GetByCodigo)
+	}
+
+	// Rotas admin de CNAEs
+	adminCnaes := apiV1.Group("/admin/cnaes")
+	{
+		adminCnaes.POST("", cnaeHandler.Create)
+		adminCnaes.PUT("/:codigo", cnaeHandler.Update)
+		adminCnaes.DELETE("/:codigo", cnaeHandler.Delete)
+	}
+
+	// Rotas de MEI Empresas
+	meiEmpresas := apiV1.Group("/mei-empresas")
+	{
+		meiEmpresas.POST("", meiEmpresaHandler.Create)
+		meiEmpresas.GET("", meiEmpresaHandler.List)
+		meiEmpresas.GET("/:id", meiEmpresaHandler.GetByID)
+		meiEmpresas.GET("/cnpj/:cnpj", meiEmpresaHandler.GetByCNPJ)
+		meiEmpresas.PUT("/:id", meiEmpresaHandler.Update)
+	}
+
+	// Rotas de Oportunidades MEI
+	oportunidadesMEI := apiV1.Group("/oportunidades-mei")
+	{
+		oportunidadesMEI.POST("", oportunidadeMEIHandler.Create)
+		oportunidadesMEI.POST("/draft", oportunidadeMEIHandler.CreateDraft)
+		oportunidadesMEI.GET("", oportunidadeMEIHandler.List)
+		oportunidadesMEI.GET("/drafts", oportunidadeMEIHandler.ListDrafts)
+		oportunidadesMEI.GET("/:id", oportunidadeMEIHandler.GetByID)
+		oportunidadesMEI.PUT("/:id", oportunidadeMEIHandler.Update)
+		oportunidadesMEI.DELETE("/:id", oportunidadeMEIHandler.Delete)
+
+		// Rotas de Propostas MEI (nested)
+		oportunidadesMEI.POST("/:oportunidadeId/propostas", propostaMEIHandler.Create)
+		oportunidadesMEI.GET("/:oportunidadeId/propostas", propostaMEIHandler.List)
+		oportunidadesMEI.GET("/:oportunidadeId/propostas/:propostaId", propostaMEIHandler.GetByID)
+		oportunidadesMEI.PUT("/:oportunidadeId/propostas/:propostaId/status", propostaMEIHandler.UpdateStatus)
+		oportunidadesMEI.DELETE("/:oportunidadeId/propostas/:propostaId", propostaMEIHandler.Delete)
+	}
+
+	// Rota adicional para listar propostas por MEI empresa
+	propostasMEI := apiV1.Group("/propostas-mei")
+	{
+		propostasMEI.GET("/por-empresa", propostaMEIHandler.ListByMEIEmpresa)
+	}
+
+	// Endpoints públicos para oportunidades MEI
+	apiPublic.GET("/oportunidades-mei", oportunidadeMEIHandler.List)
+	apiPublic.GET("/oportunidades-mei/:id", oportunidadeMEIHandler.GetByID)
+	apiPublic.GET("/cnaes", cnaeHandler.List)
+	apiPublic.GET("/cnaes/:codigo", cnaeHandler.GetByCodigo)
 
 	return r
 }
