@@ -26,14 +26,14 @@ func NewPropostaMEIHandler(service *services.PropostaMEIService) *PropostaMEIHan
 // @Tags         propostas-mei
 // @Accept       json
 // @Produce      json
-// @Param        oportunidadeId  path      int                 true  "ID da oportunidade"
+// @Param        id              path      int                 true  "ID da oportunidade"
 // @Param        request         body      models.PropostaMEI  true  "Dados da proposta"
 // @Success      201             {object}  models.PropostaMEI
 // @Failure      400             {object}  models.ErrorResponse
 // @Failure      500             {object}  models.ErrorResponse
-// @Router       /api/v1/oportunidades-mei/{oportunidadeId}/propostas [post]
+// @Router       /api/v1/oportunidades-mei/{id}/propostas [post]
 func (h *PropostaMEIHandler) Create(c *gin.Context) {
-	oportunidadeID, err := strconv.Atoi(c.Param("oportunidadeId"))
+	oportunidadeID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da oportunidade inválido"})
 		return
@@ -61,13 +61,13 @@ func (h *PropostaMEIHandler) Create(c *gin.Context) {
 // @Description  Retorna uma proposta MEI pelo seu ID
 // @Tags         propostas-mei
 // @Produce      json
-// @Param        oportunidadeId  path      int     true  "ID da oportunidade"
+// @Param        id              path      int     true  "ID da oportunidade"
 // @Param        propostaId      path      string  true  "UUID da proposta"
 // @Success      200             {object}  models.PropostaMEI
 // @Failure      400             {object}  models.ErrorResponse
 // @Failure      404             {object}  models.ErrorResponse
 // @Failure      500             {object}  models.ErrorResponse
-// @Router       /api/v1/oportunidades-mei/{oportunidadeId}/propostas/{propostaId} [get]
+// @Router       /api/v1/oportunidades-mei/{id}/propostas/{propostaId} [get]
 func (h *PropostaMEIHandler) GetByID(c *gin.Context) {
 	propostaID, err := uuid.Parse(c.Param("propostaId"))
 	if err != nil {
@@ -94,13 +94,13 @@ func (h *PropostaMEIHandler) GetByID(c *gin.Context) {
 // @Tags         propostas-mei
 // @Accept       json
 // @Produce      json
-// @Param        oportunidadeId  path      int     true  "ID da oportunidade"
+// @Param        id              path      int     true  "ID da oportunidade"
 // @Param        propostaId      path      string  true  "UUID da proposta"
 // @Param        request         body      object  true  "Status: {\"status\": \"approved\" | \"rejected\"}"
 // @Success      200             {object}  models.PropostaMEI
 // @Failure      400             {object}  models.ErrorResponse
 // @Failure      500             {object}  models.ErrorResponse
-// @Router       /api/v1/oportunidades-mei/{oportunidadeId}/propostas/{propostaId}/status [put]
+// @Router       /api/v1/oportunidades-mei/{id}/propostas/{propostaId}/status [put]
 func (h *PropostaMEIHandler) UpdateStatus(c *gin.Context) {
 	propostaID, err := uuid.Parse(c.Param("propostaId"))
 	if err != nil {
@@ -143,12 +143,12 @@ func (h *PropostaMEIHandler) UpdateStatus(c *gin.Context) {
 // @Description  Remove uma proposta MEI pelo ID (soft delete)
 // @Tags         propostas-mei
 // @Produce      json
-// @Param        oportunidadeId  path      int     true  "ID da oportunidade"
+// @Param        id              path      int     true  "ID da oportunidade"
 // @Param        propostaId      path      string  true  "UUID da proposta"
 // @Success      200             {object}  object
 // @Failure      400             {object}  models.ErrorResponse
 // @Failure      500             {object}  models.ErrorResponse
-// @Router       /api/v1/oportunidades-mei/{oportunidadeId}/propostas/{propostaId} [delete]
+// @Router       /api/v1/oportunidades-mei/{id}/propostas/{propostaId} [delete]
 func (h *PropostaMEIHandler) Delete(c *gin.Context) {
 	propostaID, err := uuid.Parse(c.Param("propostaId"))
 	if err != nil {
@@ -168,16 +168,16 @@ func (h *PropostaMEIHandler) Delete(c *gin.Context) {
 // @Description  Retorna uma lista paginada de propostas MEI para uma oportunidade
 // @Tags         propostas-mei
 // @Produce      json
-// @Param        oportunidadeId  path      int     true   "ID da oportunidade"
+// @Param        id              path      int     true   "ID da oportunidade"
 // @Param        page            query     int     false  "Número da página (default: 1)"
 // @Param        pageSize        query     int     false  "Tamanho da página (default: 10, max: 1000)"
 // @Param        nomeEmpresa     query     string  false  "Buscar por nome da empresa (case-insensitive)"
 // @Param        cnpj            query     string  false  "Buscar por CNPJ"
 // @Success      200             {object}  object
 // @Failure      500             {object}  models.ErrorResponse
-// @Router       /api/v1/oportunidades-mei/{oportunidadeId}/propostas [get]
+// @Router       /api/v1/oportunidades-mei/{id}/propostas [get]
 func (h *PropostaMEIHandler) List(c *gin.Context) {
-	oportunidadeID, err := strconv.Atoi(c.Param("oportunidadeId"))
+	oportunidadeID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da oportunidade inválido"})
 		return

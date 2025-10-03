@@ -2503,13 +2503,13 @@ paths:
       summary: Atualizar oportunidade MEI
       tags:
       - oportunidades-mei
-  /api/v1/oportunidades-mei/{oportunidadeId}/propostas:
+  /api/v1/oportunidades-mei/{id}/propostas:
     get:
       description: Retorna uma lista paginada de propostas MEI para uma oportunidade
       parameters:
       - description: ID da oportunidade
         in: path
-        name: oportunidadeId
+        name: id
         required: true
         type: integer
       - description: 'Número da página (default: 1)'
@@ -2549,7 +2549,7 @@ paths:
       parameters:
       - description: ID da oportunidade
         in: path
-        name: oportunidadeId
+        name: id
         required: true
         type: integer
       - description: Dados da proposta
@@ -2576,13 +2576,13 @@ paths:
       summary: Criar proposta MEI
       tags:
       - propostas-mei
-  /api/v1/oportunidades-mei/{oportunidadeId}/propostas/{propostaId}:
+  /api/v1/oportunidades-mei/{id}/propostas/{propostaId}:
     delete:
       description: Remove uma proposta MEI pelo ID (soft delete)
       parameters:
       - description: ID da oportunidade
         in: path
-        name: oportunidadeId
+        name: id
         required: true
         type: integer
       - description: UUID da proposta
@@ -2613,7 +2613,7 @@ paths:
       parameters:
       - description: ID da oportunidade
         in: path
-        name: oportunidadeId
+        name: id
         required: true
         type: integer
       - description: UUID da proposta
@@ -2643,7 +2643,7 @@ paths:
       summary: Obter proposta MEI por ID
       tags:
       - propostas-mei
-  /api/v1/oportunidades-mei/{oportunidadeId}/propostas/{propostaId}/status:
+  /api/v1/oportunidades-mei/{id}/propostas/{propostaId}/status:
     put:
       consumes:
       - application/json
@@ -2651,7 +2651,7 @@ paths:
       parameters:
       - description: ID da oportunidade
         in: path
-        name: oportunidadeId
+        name: id
         required: true
         type: integer
       - description: UUID da proposta

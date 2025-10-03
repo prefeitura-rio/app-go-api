@@ -248,11 +248,11 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		oportunidadesMEI.DELETE("/:id", oportunidadeMEIHandler.Delete)
 
 		// Rotas de Propostas MEI (nested)
-		oportunidadesMEI.POST("/:oportunidadeId/propostas", propostaMEIHandler.Create)
-		oportunidadesMEI.GET("/:oportunidadeId/propostas", propostaMEIHandler.List)
-		oportunidadesMEI.GET("/:oportunidadeId/propostas/:propostaId", propostaMEIHandler.GetByID)
-		oportunidadesMEI.PUT("/:oportunidadeId/propostas/:propostaId/status", propostaMEIHandler.UpdateStatus)
-		oportunidadesMEI.DELETE("/:oportunidadeId/propostas/:propostaId", propostaMEIHandler.Delete)
+		oportunidadesMEI.POST("/:id/propostas", propostaMEIHandler.Create)
+		oportunidadesMEI.GET("/:id/propostas", propostaMEIHandler.List)
+		oportunidadesMEI.GET("/:id/propostas/:propostaId", propostaMEIHandler.GetByID)
+		oportunidadesMEI.PUT("/:id/propostas/:propostaId/status", propostaMEIHandler.UpdateStatus)
+		oportunidadesMEI.DELETE("/:id/propostas/:propostaId", propostaMEIHandler.Delete)
 	}
 
 	// Rota adicional para listar propostas por MEI empresa
