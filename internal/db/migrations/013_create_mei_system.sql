@@ -406,7 +406,7 @@ INSERT INTO cnaes (codigo, ocupacao, servico) VALUES
 ('9512-6/00', 'TÉCNICO(A) DE MANUTENÇÃO DE TELEFONIA', 'APARELHOS DE FAX'),
 ('9512-6/00', 'TÉCNICO(A) DE MANUTENÇÃO DE TELEFONIA', 'EQUIPAMENTOS DE COMUNICAÇÃO');
 
--- Permitir duplicatas de código CNAE (ON CONFLICT DO NOTHING previne erros em re-runs)
+-- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
