@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -30,7 +31,8 @@ func NewCNAEHandler(service *services.CNAEService) *CNAEHandler {
 // @Failure      500  {object}  models.ErrorResponse
 // @Router       /api/v1/cnaes/{codigo} [get]
 func (h *CNAEHandler) GetByCodigo(c *gin.Context) {
-	codigo := c.Param("codigo")
+	// Wildcard params come with leading slash, strip it
+	codigo := strings.TrimPrefix(c.Param("codigo"), "/")
 
 	cnae, err := h.service.GetByCodigo(c.Request.Context(), codigo)
 	if err != nil {
@@ -122,7 +124,8 @@ func (h *CNAEHandler) Create(c *gin.Context) {
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/admin/cnaes/{codigo} [put]
 func (h *CNAEHandler) Update(c *gin.Context) {
-	codigo := c.Param("codigo")
+	// Wildcard params come with leading slash, strip it
+	codigo := strings.TrimPrefix(c.Param("codigo"), "/")
 
 	var cnae models.CNAE
 	if err := c.ShouldBindJSON(&cnae); err != nil {
@@ -150,7 +153,8 @@ func (h *CNAEHandler) Update(c *gin.Context) {
 // @Failure      500     {object}  models.ErrorResponse
 // @Router       /api/v1/admin/cnaes/{codigo} [delete]
 func (h *CNAEHandler) Delete(c *gin.Context) {
-	codigo := c.Param("codigo")
+	// Wildcard params come with leading slash, strip it
+	codigo := strings.TrimPrefix(c.Param("codigo"), "/")
 
 	if err := h.service.Delete(c.Request.Context(), codigo); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir CNAE: " + err.Error()})

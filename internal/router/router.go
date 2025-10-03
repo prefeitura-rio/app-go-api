@@ -66,7 +66,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	orgaoService := services.NewOrgaoService(orgaoRepo)
 	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
 	cnaeService := services.NewCNAEService(cnaeRepo)
-	meiEmpresaService := services.NewMEIEmpresaService(meiEmpresaRepo)
+	meiEmpresaService := services.NewMEIEmpresaService(meiEmpresaRepo, cnaeRepo)
 	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo, cnaeRepo, orgaoRepo)
 	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, meiEmpresaRepo)
 
@@ -215,15 +215,15 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	cnaes := apiV1.Group("/cnaes")
 	{
 		cnaes.GET("", cnaeHandler.List)
-		cnaes.GET("/:codigo", cnaeHandler.GetByCodigo)
+		cnaes.GET("/*codigo", cnaeHandler.GetByCodigo)
 	}
 
 	// Rotas admin de CNAEs
 	adminCnaes := apiV1.Group("/admin/cnaes")
 	{
 		adminCnaes.POST("", cnaeHandler.Create)
-		adminCnaes.PUT("/:codigo", cnaeHandler.Update)
-		adminCnaes.DELETE("/:codigo", cnaeHandler.Delete)
+		adminCnaes.PUT("/*codigo", cnaeHandler.Update)
+		adminCnaes.DELETE("/*codigo", cnaeHandler.Delete)
 	}
 
 	// Rotas de MEI Empresas
@@ -265,7 +265,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	apiPublic.GET("/oportunidades-mei", oportunidadeMEIHandler.List)
 	apiPublic.GET("/oportunidades-mei/:id", oportunidadeMEIHandler.GetByID)
 	apiPublic.GET("/cnaes", cnaeHandler.List)
-	apiPublic.GET("/cnaes/:codigo", cnaeHandler.GetByCodigo)
+	apiPublic.GET("/cnaes/*codigo", cnaeHandler.GetByCodigo)
 
 	return r
 }

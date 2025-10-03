@@ -27,6 +27,14 @@ func NewOportunidadeMEIService(
 }
 
 func (s *OportunidadeMEIService) Create(ctx context.Context, oportunidade *models.OportunidadeMEI, isDraft bool) (int, error) {
+	// Setar status ANTES da validação
+	if isDraft {
+		oportunidade.Status = models.StatusOportunidadeDraft
+	} else {
+		oportunidade.Status = models.StatusOportunidadeActive
+	}
+
+	// Agora validar com status já definido
 	if err := oportunidade.Validate(); err != nil {
 		return 0, err
 	}
@@ -47,12 +55,6 @@ func (s *OportunidadeMEIService) Create(ctx context.Context, oportunidade *model
 	}
 	if orgao == nil {
 		return 0, errors.New("órgão não encontrado")
-	}
-
-	if isDraft {
-		oportunidade.Status = models.StatusOportunidadeDraft
-	} else {
-		oportunidade.Status = models.StatusOportunidadeActive
 	}
 
 	return s.repo.Create(ctx, oportunidade)

@@ -1,5 +1,10 @@
 package models
 
+import (
+	"errors"
+	"strings"
+)
+
 type CNAE struct {
 	ID       int    `json:"id" gorm:"primaryKey;autoIncrement"`
 	Codigo   string `json:"codigo" gorm:"type:varchar(20);not null;uniqueIndex:idx_codigo_servico"`
@@ -13,4 +18,20 @@ type CNAE struct {
 
 func (CNAE) TableName() string {
 	return "cnaes"
+}
+
+func (c *CNAE) Validate() error {
+	if strings.TrimSpace(c.Codigo) == "" {
+		return errors.New("código é obrigatório")
+	}
+
+	if strings.TrimSpace(c.Ocupacao) == "" {
+		return errors.New("ocupação é obrigatória")
+	}
+
+	if strings.TrimSpace(c.Servico) == "" {
+		return errors.New("serviço é obrigatório")
+	}
+
+	return nil
 }
