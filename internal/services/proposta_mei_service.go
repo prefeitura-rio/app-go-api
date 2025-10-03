@@ -100,9 +100,9 @@ func (s *PropostaMEIService) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *PropostaMEIService) ListByOportunidade(ctx context.Context, oportunidadeID int, page, pageSize int) ([]*models.PropostaMEI, int, error) {
+func (s *PropostaMEIService) ListByOportunidade(ctx context.Context, oportunidadeID int, nomeEmpresa, cnpj string, page, pageSize int) ([]*models.PropostaMEI, int, error) {
 	offset := (page - 1) * pageSize
-	return s.repo.ListByOportunidade(ctx, oportunidadeID, pageSize, offset)
+	return s.repo.ListByOportunidade(ctx, oportunidadeID, nomeEmpresa, cnpj, pageSize, offset)
 }
 
 func (s *PropostaMEIService) ListByMEIEmpresa(ctx context.Context, meiEmpresaID int, page, pageSize int) ([]*models.PropostaMEI, int, error) {

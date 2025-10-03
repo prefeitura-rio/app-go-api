@@ -170,6 +170,7 @@ func (h *OportunidadeMEIHandler) Delete(c *gin.Context) {
 // @Param        pageSize  query     int     false  "Tamanho da página (default: 10, max: 1000)"
 // @Param        orgaoId   query     int     false  "Filtrar por órgão"
 // @Param        status    query     string  false  "Filtrar por status (draft, active, expired)"
+// @Param        titulo    query     string  false  "Buscar por título (case-insensitive)"
 // @Success      200       {object}  object
 // @Failure      500       {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei [get]
@@ -178,6 +179,7 @@ func (h *OportunidadeMEIHandler) List(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 	orgaoID, _ := strconv.Atoi(c.Query("orgaoId"))
 	status := c.Query("status")
+	titulo := c.Query("titulo")
 
 	if page < 1 {
 		page = 1
@@ -191,26 +193,31 @@ func (h *OportunidadeMEIHandler) List(c *gin.Context) {
 	var total int
 	var err error
 
+	// Construir filtros
+	filters := make(map[string]interface{})
+
 	if orgaoID > 0 {
-		oportunidades, total, err = h.service.ListByOrgao(c.Request.Context(), orgaoID, page, pageSize)
-	} else if status != "" {
-		var statusEnum models.StatusOportunidadeMEI
+		filters["orgao_id"] = orgaoID
+	}
+
+	if status != "" {
 		switch status {
 		case "draft":
-			statusEnum = models.StatusOportunidadeDraft
+			filters["status"] = models.StatusOportunidadeDraft
 		case "active":
-			statusEnum = models.StatusOportunidadeActive
+			filters["status"] = models.StatusOportunidadeActive
 		case "expired":
-			statusEnum = models.StatusOportunidadeExpired
+			filters["status"] = models.StatusOportunidadeExpired
 		default:
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Status inválido"})
 			return
 		}
-		oportunidades, total, err = h.service.ListByStatus(c.Request.Context(), statusEnum, page, pageSize)
 	} else {
-		// Listar apenas ativas por padrão
-		oportunidades, total, err = h.service.ListActive(c.Request.Context(), page, pageSize)
+		// Se não especificou status, listar apenas ativas por padrão
+		filters["status"] = models.StatusOportunidadeActive
 	}
+
+	oportunidades, total, err = h.service.List(c.Request.Context(), filters, titulo, page, pageSize)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar oportunidades: " + err.Error()})

@@ -2362,6 +2362,10 @@ paths:
         in: query
         name: status
         type: string
+      - description: Buscar por título (case-insensitive)
+        in: query
+        name: titulo
+        type: string
       produces:
       - application/json
       responses:
@@ -2514,6 +2518,14 @@ paths:
         in: query
         name: pageSize
         type: integer
+      - description: Buscar por nome da empresa (case-insensitive)
+        in: query
+        name: nomeEmpresa
+        type: string
+      - description: Buscar por CNPJ
+        in: query
+        name: cnpj
+        type: string
       produces:
       - application/json
       responses:

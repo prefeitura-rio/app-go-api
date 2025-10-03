@@ -2713,6 +2713,12 @@ const docTemplate = `{
                         "description": "Filtrar por status (draft, active, expired)",
                         "name": "status",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Buscar por título (case-insensitive)",
+                        "name": "titulo",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -3026,6 +3032,18 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Tamanho da página (default: 10, max: 1000)",
                         "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Buscar por nome da empresa (case-insensitive)",
+                        "name": "nomeEmpresa",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Buscar por CNPJ",
+                        "name": "cnpj",
                         "in": "query"
                     }
                 ],

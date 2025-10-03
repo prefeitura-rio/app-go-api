@@ -67,15 +67,20 @@ func (r *OportunidadeMEIRepository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func (r *OportunidadeMEIRepository) List(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+func (r *OportunidadeMEIRepository) List(ctx context.Context, filters map[string]interface{}, titulo string, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
 	var oportunidades []*models.OportunidadeMEI
 	var total int64
 
 	db := r.db.WithContext(ctx).Model(&models.OportunidadeMEI{})
 
-	// Aplicar filtros
+	// Aplicar filtros exatos
 	for key, value := range filters {
 		db = db.Where(key+" = ?", value)
+	}
+
+	// Filtro de busca por título (case-insensitive)
+	if titulo != "" {
+		db = db.Where("titulo ILIKE ?", "%"+titulo+"%")
 	}
 
 	db.Count(&total)
