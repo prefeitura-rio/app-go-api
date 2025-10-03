@@ -1,6 +1,8 @@
 package models
 
 import (
+	"errors"
+	"strings"
 	"time"
 )
 
@@ -56,4 +58,16 @@ func (s SituacaoCadastral) IsValid() bool {
 		}
 	}
 	return false
+}
+
+func (m *MEIEmpresa) Validate() error {
+	if strings.TrimSpace(m.CNPJ) == "" {
+		return errors.New("CNPJ é obrigatório")
+	}
+
+	if strings.TrimSpace(m.RazaoSocial) == "" {
+		return errors.New("razão social é obrigatória")
+	}
+
+	return nil
 }

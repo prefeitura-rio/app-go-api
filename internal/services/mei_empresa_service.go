@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -10,16 +11,23 @@ import (
 )
 
 type MEIEmpresaService struct {
-	repo *repository.MEIEmpresaRepository
+	repo     *repository.MEIEmpresaRepository
+	cnaeRepo *repository.CNAERepository
 }
 
-func NewMEIEmpresaService(repo *repository.MEIEmpresaRepository) *MEIEmpresaService {
+func NewMEIEmpresaService(repo *repository.MEIEmpresaRepository, cnaeRepo *repository.CNAERepository) *MEIEmpresaService {
 	return &MEIEmpresaService{
-		repo: repo,
+		repo:     repo,
+		cnaeRepo: cnaeRepo,
 	}
 }
 
 func (s *MEIEmpresaService) Create(ctx context.Context, meiEmpresa *models.MEIEmpresa) (int, error) {
+	// Validar campos obrigatórios
+	if err := meiEmpresa.Validate(); err != nil {
+		return 0, err
+	}
+
 	if err := s.ValidateCNPJ(meiEmpresa.CNPJ); err != nil {
 		return 0, err
 	}
@@ -31,6 +39,17 @@ func (s *MEIEmpresaService) Create(ctx context.Context, meiEmpresa *models.MEIEm
 	}
 	if existing != nil {
 		return 0, errors.New("CNPJ já cadastrado")
+	}
+
+	// Validar que todos os CNAEs existem
+	for _, cnae := range meiEmpresa.CNAEs {
+		existingCNAE, err := s.cnaeRepo.GetByID(ctx, cnae.ID)
+		if err != nil {
+			return 0, err
+		}
+		if existingCNAE == nil {
+			return 0, fmt.Errorf("CNAE ID %d não encontrado", cnae.ID)
+		}
 	}
 
 	return s.repo.Create(ctx, meiEmpresa)
@@ -45,8 +64,24 @@ func (s *MEIEmpresaService) GetByCNPJ(ctx context.Context, cnpj string) (*models
 }
 
 func (s *MEIEmpresaService) Update(ctx context.Context, meiEmpresa *models.MEIEmpresa) error {
+	// Validar campos obrigatórios
+	if err := meiEmpresa.Validate(); err != nil {
+		return err
+	}
+
 	if err := s.ValidateCNPJ(meiEmpresa.CNPJ); err != nil {
 		return err
+	}
+
+	// Validar que todos os CNAEs existem
+	for _, cnae := range meiEmpresa.CNAEs {
+		existingCNAE, err := s.cnaeRepo.GetByID(ctx, cnae.ID)
+		if err != nil {
+			return err
+		}
+		if existingCNAE == nil {
+			return fmt.Errorf("CNAE ID %d não encontrado", cnae.ID)
+		}
 	}
 
 	return s.repo.Update(ctx, meiEmpresa)

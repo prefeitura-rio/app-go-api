@@ -31,12 +31,20 @@ func (s *CNAEService) ListByOcupacao(ctx context.Context, ocupacao string) ([]*m
 }
 
 func (s *CNAEService) Create(ctx context.Context, cnae *models.CNAE) error {
-	// Validação já é feita pela constraint UNIQUE(codigo, servico) no banco
-	// Não precisa validar manualmente
+	// Validar campos obrigatórios
+	if err := cnae.Validate(); err != nil {
+		return err
+	}
+
 	return s.repo.Create(ctx, cnae)
 }
 
 func (s *CNAEService) Update(ctx context.Context, cnae *models.CNAE) error {
+	// Validar campos obrigatórios
+	if err := cnae.Validate(); err != nil {
+		return err
+	}
+
 	return s.repo.Update(ctx, cnae)
 }
 
