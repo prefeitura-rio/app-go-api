@@ -71,19 +71,30 @@ func (r *PropostaMEIRepository) Delete(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
-func (r *PropostaMEIRepository) ListByOportunidade(ctx context.Context, oportunidadeID int, limit, offset int) ([]*models.PropostaMEI, int, error) {
+func (r *PropostaMEIRepository) ListByOportunidade(ctx context.Context, oportunidadeID int, nomeEmpresa, cnpj string, limit, offset int) ([]*models.PropostaMEI, int, error) {
 	var propostas []*models.PropostaMEI
 	var total int64
 
 	db := r.db.WithContext(ctx).Model(&models.PropostaMEI{}).
-		Where("oportunidade_mei_id = ?", oportunidadeID)
+		Joins("JOIN mei_empresas ON mei_empresas.id = propostas_mei.mei_empresa_id").
+		Where("propostas_mei.oportunidade_mei_id = ?", oportunidadeID)
+
+	// Filtro de busca por nome da empresa (case-insensitive)
+	if nomeEmpresa != "" {
+		db = db.Where("mei_empresas.razao_social ILIKE ?", "%"+nomeEmpresa+"%")
+	}
+
+	// Filtro de busca por CNPJ (permite busca parcial)
+	if cnpj != "" {
+		db = db.Where("mei_empresas.cnpj ILIKE ?", "%"+cnpj+"%")
+	}
 
 	db.Count(&total)
 
 	result := db.
 		Preload("MEIEmpresa").
 		Preload("MEIEmpresa.CNAEs").
-		Order("created_at DESC").
+		Order("propostas_mei.created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&propostas)

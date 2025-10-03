@@ -113,9 +113,9 @@ func (s *OportunidadeMEIService) Delete(ctx context.Context, id int) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *OportunidadeMEIService) List(ctx context.Context, filters map[string]interface{}, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {
+func (s *OportunidadeMEIService) List(ctx context.Context, filters map[string]interface{}, titulo string, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {
 	offset := (page - 1) * pageSize
-	return s.repo.List(ctx, filters, pageSize, offset)
+	return s.repo.List(ctx, filters, titulo, pageSize, offset)
 }
 
 func (s *OportunidadeMEIService) ListByStatus(ctx context.Context, status models.StatusOportunidadeMEI, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {

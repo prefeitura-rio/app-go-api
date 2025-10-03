@@ -168,9 +168,11 @@ func (h *PropostaMEIHandler) Delete(c *gin.Context) {
 // @Description  Retorna uma lista paginada de propostas MEI para uma oportunidade
 // @Tags         propostas-mei
 // @Produce      json
-// @Param        oportunidadeId  path      int  true   "ID da oportunidade"
-// @Param        page            query     int  false  "Número da página (default: 1)"
-// @Param        pageSize        query     int  false  "Tamanho da página (default: 10, max: 1000)"
+// @Param        oportunidadeId  path      int     true   "ID da oportunidade"
+// @Param        page            query     int     false  "Número da página (default: 1)"
+// @Param        pageSize        query     int     false  "Tamanho da página (default: 10, max: 1000)"
+// @Param        nomeEmpresa     query     string  false  "Buscar por nome da empresa (case-insensitive)"
+// @Param        cnpj            query     string  false  "Buscar por CNPJ"
 // @Success      200             {object}  object
 // @Failure      500             {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{oportunidadeId}/propostas [get]
@@ -183,6 +185,8 @@ func (h *PropostaMEIHandler) List(c *gin.Context) {
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	nomeEmpresa := c.Query("nomeEmpresa")
+	cnpj := c.Query("cnpj")
 
 	if page < 1 {
 		page = 1
@@ -192,7 +196,7 @@ func (h *PropostaMEIHandler) List(c *gin.Context) {
 		pageSize = 10
 	}
 
-	propostas, total, err := h.service.ListByOportunidade(c.Request.Context(), oportunidadeID, page, pageSize)
+	propostas, total, err := h.service.ListByOportunidade(c.Request.Context(), oportunidadeID, nomeEmpresa, cnpj, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar propostas: " + err.Error()})
 		return
