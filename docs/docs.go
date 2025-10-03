@@ -3004,7 +3004,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/oportunidades-mei/{oportunidadeId}/propostas": {
+        "/api/v1/oportunidades-mei/{id}/propostas": {
             "get": {
                 "description": "Retorna uma lista paginada de propostas MEI para uma oportunidade",
                 "produces": [
@@ -3018,7 +3018,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "ID da oportunidade",
-                        "name": "oportunidadeId",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     },
@@ -3078,7 +3078,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "ID da oportunidade",
-                        "name": "oportunidadeId",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     },
@@ -3114,7 +3114,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/oportunidades-mei/{oportunidadeId}/propostas/{propostaId}": {
+        "/api/v1/oportunidades-mei/{id}/propostas/{propostaId}": {
             "get": {
                 "description": "Retorna uma proposta MEI pelo seu ID",
                 "produces": [
@@ -3128,7 +3128,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "ID da oportunidade",
-                        "name": "oportunidadeId",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     },
@@ -3180,7 +3180,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "ID da oportunidade",
-                        "name": "oportunidadeId",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     },
@@ -3214,7 +3214,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/oportunidades-mei/{oportunidadeId}/propostas/{propostaId}/status": {
+        "/api/v1/oportunidades-mei/{id}/propostas/{propostaId}/status": {
             "put": {
                 "description": "Atualiza o status de uma proposta MEI (aprovar ou rejeitar)",
                 "consumes": [
@@ -3231,7 +3231,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "ID da oportunidade",
-                        "name": "oportunidadeId",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     },
