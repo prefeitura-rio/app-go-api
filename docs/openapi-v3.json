@@ -3475,6 +3475,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Buscar por título (case-insensitive)",
+            "name": "titulo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3867,6 +3875,22 @@
             "in": "query",
             "schema": {
               "type": "integer"
+            }
+          },
+          {
+            "description": "Buscar por nome da empresa (case-insensitive)",
+            "name": "nomeEmpresa",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Buscar por CNPJ",
+            "name": "cnpj",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           }
         ],
