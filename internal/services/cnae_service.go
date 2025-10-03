@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
@@ -32,15 +31,8 @@ func (s *CNAEService) ListByOcupacao(ctx context.Context, ocupacao string) ([]*m
 }
 
 func (s *CNAEService) Create(ctx context.Context, cnae *models.CNAE) error {
-	// Validar se CNAE já existe
-	existing, err := s.repo.GetByCodigo(ctx, cnae.Codigo)
-	if err != nil {
-		return err
-	}
-	if existing != nil {
-		return errors.New("CNAE já existe")
-	}
-
+	// Validação já é feita pela constraint UNIQUE(codigo, servico) no banco
+	// Não precisa validar manualmente
 	return s.repo.Create(ctx, cnae)
 }
 

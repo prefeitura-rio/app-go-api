@@ -19,6 +19,21 @@ func NewCNAERepository(db *gorm.DB) *CNAERepository {
 	}
 }
 
+func (r *CNAERepository) GetByID(ctx context.Context, id int) (*models.CNAE, error) {
+	var cnae models.CNAE
+
+	result := r.db.WithContext(ctx).First(&cnae, id)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("erro ao buscar CNAE por ID: %w", result.Error)
+	}
+
+	return &cnae, nil
+}
+
 func (r *CNAERepository) GetByCodigo(ctx context.Context, codigo string) (*models.CNAE, error) {
 	var cnae models.CNAE
 

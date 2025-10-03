@@ -4,13 +4,16 @@
 -- Garantir que a extensão uuid-ossp esteja disponível
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Tabela de CNAEs
+-- Tabela de CNAEs (código + serviço formam a chave única)
 CREATE TABLE cnaes (
-    codigo VARCHAR(20) PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    codigo VARCHAR(20) NOT NULL,
     ocupacao VARCHAR(255) NOT NULL,
-    servico VARCHAR(500) NOT NULL
+    servico VARCHAR(500) NOT NULL,
+    UNIQUE(codigo, servico)
 );
 
+CREATE INDEX idx_cnaes_codigo ON cnaes(codigo);
 CREATE INDEX idx_cnaes_ocupacao ON cnaes(ocupacao);
 
 -- Tabela de MEI Empresas
@@ -41,12 +44,12 @@ CREATE INDEX idx_mei_empresas_situacao ON mei_empresas(situacao_cadastral);
 -- Tabela many-to-many entre MEI Empresas e CNAEs (serviços oferecidos)
 CREATE TABLE mei_empresas_cnaes (
     mei_empresa_id INTEGER NOT NULL REFERENCES mei_empresas(id) ON DELETE CASCADE,
-    cnae_codigo VARCHAR(20) NOT NULL REFERENCES cnaes(codigo) ON DELETE CASCADE,
-    PRIMARY KEY (mei_empresa_id, cnae_codigo)
+    cnae_id INTEGER NOT NULL REFERENCES cnaes(id) ON DELETE CASCADE,
+    PRIMARY KEY (mei_empresa_id, cnae_id)
 );
 
 CREATE INDEX idx_mei_empresas_cnaes_mei ON mei_empresas_cnaes(mei_empresa_id);
-CREATE INDEX idx_mei_empresas_cnaes_cnae ON mei_empresas_cnaes(cnae_codigo);
+CREATE INDEX idx_mei_empresas_cnaes_cnae ON mei_empresas_cnaes(cnae_id);
 
 -- Tabela de Oportunidades MEI
 CREATE TABLE oportunidades_mei (
@@ -55,7 +58,7 @@ CREATE TABLE oportunidades_mei (
     descricao_servico TEXT NOT NULL,
     outras_informacoes TEXT,
     orgao_id INTEGER NOT NULL REFERENCES orgaos(id),
-    cnae_codigo VARCHAR(20) NOT NULL REFERENCES cnaes(codigo),
+    cnae_id INTEGER NOT NULL REFERENCES cnaes(id),
     logradouro VARCHAR(255) NOT NULL,
     numero VARCHAR(20) NOT NULL,
     complemento VARCHAR(100),
@@ -74,7 +77,7 @@ CREATE TABLE oportunidades_mei (
 );
 
 CREATE INDEX idx_oportunidades_mei_orgao ON oportunidades_mei(orgao_id);
-CREATE INDEX idx_oportunidades_mei_cnae ON oportunidades_mei(cnae_codigo);
+CREATE INDEX idx_oportunidades_mei_cnae ON oportunidades_mei(cnae_id);
 CREATE INDEX idx_oportunidades_mei_status ON oportunidades_mei(status);
 CREATE INDEX idx_oportunidades_mei_expiracao ON oportunidades_mei(data_expiracao);
 CREATE INDEX idx_oportunidades_mei_deleted ON oportunidades_mei(deleted_at);

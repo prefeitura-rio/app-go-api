@@ -3759,6 +3759,9 @@ const docTemplate = `{
                 "codigo": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "integer"
+                },
                 "ocupacao": {
                     "type": "string"
                 },

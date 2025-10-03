@@ -32,7 +32,7 @@ func (s *OportunidadeMEIService) Create(ctx context.Context, oportunidade *model
 	}
 
 	// Validar que o CNAE existe
-	cnae, err := s.cnaeRepo.GetByCodigo(ctx, oportunidade.CNAECodigo)
+	cnae, err := s.cnaeRepo.GetByID(ctx, oportunidade.CNAEID)
 	if err != nil {
 		return 0, err
 	}

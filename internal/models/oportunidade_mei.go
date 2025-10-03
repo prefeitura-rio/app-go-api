@@ -30,8 +30,8 @@ type OportunidadeMEI struct {
 	OutrasInformacoes string                `json:"outras_informacoes" gorm:"type:text"`
 
 	// Relacionamentos
-	OrgaoID     int    `json:"orgao_id" gorm:"not null"`
-	CNAECodigo  string `json:"cnae_codigo" gorm:"type:varchar(20);not null"`
+	OrgaoID int `json:"orgao_id" gorm:"not null"`
+	CNAEID  int `json:"cnae_id" gorm:"not null"`
 
 	// Local de execução
 	Logradouro  string `json:"logradouro" gorm:"type:varchar(255);not null"`
@@ -58,9 +58,9 @@ type OportunidadeMEI struct {
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos expandidos
-	Orgao     *Orgao         `json:"orgao,omitempty" gorm:"foreignKey:OrgaoID"`
-	CNAE      *CNAE          `json:"cnae,omitempty" gorm:"foreignKey:CNAECodigo"`
-	Propostas []PropostaMEI  `json:"propostas,omitempty" gorm:"foreignKey:OportunidadeMEIID" swaggerignore:"true"`
+	Orgao     *Orgao        `json:"orgao,omitempty" gorm:"foreignKey:OrgaoID"`
+	CNAE      *CNAE         `json:"cnae,omitempty" gorm:"foreignKey:CNAEID"`
+	Propostas []PropostaMEI `json:"propostas,omitempty" gorm:"foreignKey:OportunidadeMEIID" swaggerignore:"true"`
 }
 
 func (OportunidadeMEI) TableName() string {
@@ -100,7 +100,7 @@ func (o *OportunidadeMEI) Validate() error {
 		return errors.New("órgão demandante é obrigatório")
 	}
 
-	if strings.TrimSpace(o.CNAECodigo) == "" {
+	if o.CNAEID == 0 {
 		return errors.New("CNAE é obrigatório")
 	}
 
