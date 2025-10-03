@@ -101,6 +101,7 @@ CREATE INDEX idx_propostas_mei_status_cidadao ON propostas_mei(status_cidadao);
 CREATE INDEX idx_propostas_mei_deleted ON propostas_mei(deleted_at);
 
 -- Popular tabela CNAEs com dados completos do CSV (306 registros válidos)
+-- ON CONFLICT DO NOTHING para permitir re-execução da migration
 INSERT INTO cnaes (codigo, ocupacao, servico) VALUES
 ('4322-3/01', 'BOMBEIRO(A) HIDRÁULICO(A) ENCANADOR (A)', 'INSTALAÇÃO DE TUBULAÇÕES DE ÁGUA E ESGOTO'),
 ('4322-3/01', 'BOMBEIRO(A) HIDRÁULICO(A) ENCANADOR (A)', 'MANUTENÇÃO E REPAROS EM ENCANAÇÕES'),
@@ -407,7 +408,8 @@ INSERT INTO cnaes (codigo, ocupacao, servico) VALUES
 ('9512-6/00', 'TÉCNICO(A) DE MANUTENÇÃO DE TELEFONIA', 'TELEFONES FIXOS E MÓVEIS'),
 ('9512-6/00', 'TÉCNICO(A) DE MANUTENÇÃO DE TELEFONIA', 'APARELHOS TELEFÔNICOS DE USO PÚBLICO'),
 ('9512-6/00', 'TÉCNICO(A) DE MANUTENÇÃO DE TELEFONIA', 'APARELHOS DE FAX'),
-('9512-6/00', 'TÉCNICO(A) DE MANUTENÇÃO DE TELEFONIA', 'EQUIPAMENTOS DE COMUNICAÇÃO');
+('9512-6/00', 'TÉCNICO(A) DE MANUTENÇÃO DE TELEFONIA', 'EQUIPAMENTOS DE COMUNICAÇÃO')
+ON CONFLICT (codigo, servico) DO NOTHING;
 
 -- +goose StatementEnd
 
