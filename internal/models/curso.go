@@ -52,9 +52,9 @@ type Curso struct {
 	CoverImage           string         `json:"cover_image" gorm:"type:varchar(500);column:cover_image"`
 	Status               StatusCurso    `json:"status" gorm:"type:varchar(50)"`
 
-	// Legacy and additional fields
-	OrgaoID              int            `json:"orgao_id" gorm:"column:orgao_id"`
-	InstituicaoID        int            `json:"instituicao_id" gorm:"column:instituicao_id"`
+	// Legacy and additional fields (optional)
+	OrgaoID              *int           `json:"orgao_id,omitempty" gorm:"column:orgao_id"`
+	InstituicaoID        *int           `json:"instituicao_id,omitempty" gorm:"column:instituicao_id"`
 	LocalRealizacao      string         `json:"local_realizacao" gorm:"column:local_realizacao"`
 	DataInicio           *time.Time     `json:"data_inicio" gorm:"column:data_inicio"`
 	DataTermino          *time.Time     `json:"data_termino" gorm:"column:data_termino"`
