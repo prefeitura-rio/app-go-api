@@ -18,6 +18,10 @@ func NewEmpregoService(repo *repository.EmpregoRepository) *EmpregoService {
 }
 
 func (s *EmpregoService) Create(ctx context.Context, emprego *models.Emprego) (int, error) {
+	// Validar campos obrigatórios
+	if err := emprego.Validate(); err != nil {
+		return 0, err
+	}
 	return s.repo.Create(ctx, emprego)
 }
 
@@ -26,6 +30,10 @@ func (s *EmpregoService) GetByID(ctx context.Context, id int) (*models.Emprego, 
 }
 
 func (s *EmpregoService) Update(ctx context.Context, emprego *models.Emprego) error {
+	// Validar campos obrigatórios
+	if err := emprego.Validate(); err != nil {
+		return err
+	}
 	return s.repo.Update(ctx, emprego)
 }
 
