@@ -1,6 +1,8 @@
 package models
 
 import (
+	"errors"
+	"strings"
 	"time"
 )
 
@@ -60,4 +62,66 @@ type Emprego struct {
 // TableName especifica o nome da tabela para este modelo
 func (Emprego) TableName() string {
 	return "empregos"
+}
+
+// Validate validates an emprego instance
+func (e *Emprego) Validate() error {
+	if strings.TrimSpace(e.Titulo) == "" {
+		return errors.New("título é obrigatório")
+	}
+
+	if e.TipoContratacao == "" {
+		return errors.New("tipo de contratação é obrigatório")
+	}
+
+	if !e.TipoContratacao.IsValid() {
+		return errors.New("tipo de contratação inválido")
+	}
+
+	if e.Status == "" {
+		return errors.New("status é obrigatório")
+	}
+
+	if !e.Status.IsValid() {
+		return errors.New("status inválido")
+	}
+
+	if e.JornadaTrabalho != "" && !e.JornadaTrabalho.IsValid() {
+		return errors.New("jornada de trabalho inválida")
+	}
+
+	return nil
+}
+
+// IsValid validates TipoContratacao enum
+func (t TipoContratacao) IsValid() bool {
+	validValues := []string{"CLT", "ESTAGIO", "JOVEM_APRENDIZ", "MEI", "PJ"}
+	for _, v := range validValues {
+		if string(t) == v {
+			return true
+		}
+	}
+	return false
+}
+
+// IsValid validates StatusEmprego enum
+func (s StatusEmprego) IsValid() bool {
+	validValues := []string{"CRIADO", "ABERTO", "EM_ANALISE", "ENCERRADO"}
+	for _, v := range validValues {
+		if string(s) == v {
+			return true
+		}
+	}
+	return false
+}
+
+// IsValid validates JornadaTrabalho enum
+func (j JornadaTrabalho) IsValid() bool {
+	validValues := []string{"INTEGRAL", "MEIO_PERIODO", "FLEXIVEL", "ESTAGIO", "HOME_OFFICE"}
+	for _, v := range validValues {
+		if string(j) == v {
+			return true
+		}
+	}
+	return false
 } 
