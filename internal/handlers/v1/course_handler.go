@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -45,6 +46,14 @@ func (h *CourseHandler) Create(c *gin.Context) {
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
+		// Check if it's a validation error (not a database error)
+		if strings.Contains(err.Error(), "erro de validação") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": strings.TrimPrefix(err.Error(), "erro de validação: "),
+			})
+			return
+		}
+		// Otherwise, treat as database error
 		dbErr := utils.ParseDatabaseError(err)
 		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
 			"error": dbErr.GetUserFriendlyMessage(),
@@ -89,6 +98,14 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
+		// Check if it's a validation error (not a database error)
+		if strings.Contains(err.Error(), "erro de validação") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": strings.TrimPrefix(err.Error(), "erro de validação: "),
+			})
+			return
+		}
+		// Otherwise, treat as database error
 		dbErr := utils.ParseDatabaseError(err)
 		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
 			"error": dbErr.GetUserFriendlyMessage(),
@@ -152,6 +169,14 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	curso.CreatedAt = existingCurso.CreatedAt
 	
 	if err := h.cursoService.Update(c.Request.Context(), &curso); err != nil {
+		// Check if it's a validation error (not a database error)
+		if strings.Contains(err.Error(), "erro de validação") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": strings.TrimPrefix(err.Error(), "erro de validação: "),
+			})
+			return
+		}
+		// Otherwise, treat as database error
 		dbErr := utils.ParseDatabaseError(err)
 		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
 			"error": dbErr.GetUserFriendlyMessage(),
