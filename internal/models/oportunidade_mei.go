@@ -47,8 +47,9 @@ type OportunidadeMEI struct {
 	DataLimiteExecucao  *time.Time     `json:"data_limite_execucao" gorm:"type:timestamp with time zone"`
 	DataExpiracao       *time.Time     `json:"data_expiracao" gorm:"type:timestamp with time zone;not null"`
 
-	// Anexo
-	AnexoURL string `json:"anexo_url" gorm:"type:varchar(500)"`
+	// Imagens
+	CoverImage    string   `json:"cover_image" gorm:"type:varchar(500)"`
+	GalleryImages []string `json:"gallery_images" gorm:"type:jsonb;serializer:json"`
 
 	// Status e controle
 	Status    StatusOportunidadeMEI `json:"status" gorm:"type:varchar(50);not null;default:'draft'"`

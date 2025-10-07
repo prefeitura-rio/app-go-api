@@ -3906,7 +3906,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "orgao_id": {
-                    "description": "Legacy and additional fields",
+                    "description": "Legacy and additional fields (optional)",
                     "type": "integer"
                 },
                 "pre_requisitos": {
