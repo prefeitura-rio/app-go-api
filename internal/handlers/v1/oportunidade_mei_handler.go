@@ -106,7 +106,7 @@ func (h *OportunidadeMEIHandler) GetByID(c *gin.Context) {
 }
 
 // @Summary      Atualizar oportunidade MEI
-// @Description  Atualiza os dados de uma oportunidade MEI existente e publica se estava em rascunho
+// @Description  Atualiza os dados de uma oportunidade MEI existente mantendo seu status atual
 // @Tags         oportunidades-mei
 // @Accept       json
 // @Produce      json
@@ -160,6 +160,37 @@ func (h *OportunidadeMEIHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Oportunidade excluída com sucesso"})
+}
+
+// @Summary      Publicar oportunidade MEI
+// @Description  Publica uma oportunidade MEI que estava em rascunho
+// @Tags         oportunidades-mei
+// @Produce      json
+// @Param        id   path      int  true  "ID da oportunidade"
+// @Success      200  {object}  models.OportunidadeMEI
+// @Failure      400  {object}  models.ErrorResponse
+// @Failure      404  {object}  models.ErrorResponse
+// @Failure      500  {object}  models.ErrorResponse
+// @Router       /api/v1/oportunidades-mei/{id}/publish [put]
+func (h *OportunidadeMEIHandler) Publish(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.Publish(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	oportunidade, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar oportunidade: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, oportunidade)
 }
 
 // @Summary      Listar oportunidades MEI
