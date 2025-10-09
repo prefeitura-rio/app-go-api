@@ -252,20 +252,6 @@ definitions:
       nivel:
         type: string
     type: object
-  models.FormaPagamento:
-    enum:
-    - CHEQUE
-    - DINHEIRO
-    - CARTAO
-    - PIX
-    - TRANSFERENCIA
-    type: string
-    x-enum-varnames:
-    - FormaPagamentoCheque
-    - FormaPagamentoDinheiro
-    - FormaPagamentoCartao
-    - FormaPagamentoPix
-    - FormaPagamentoTransferencia
   models.FormatoAula:
     enum:
     - GRAVADO

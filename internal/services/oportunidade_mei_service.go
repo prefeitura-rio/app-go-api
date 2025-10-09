@@ -39,22 +39,29 @@ func (s *OportunidadeMEIService) Create(ctx context.Context, oportunidade *model
 		return 0, err
 	}
 
-	// Validar que o CNAE existe
-	cnae, err := s.cnaeRepo.GetByID(ctx, oportunidade.CNAEID)
-	if err != nil {
-		return 0, err
-	}
-	if cnae == nil {
-		return 0, errors.New("CNAE não encontrado")
-	}
+	// Para publicação (não rascunho), validar que CNAE e órgão existem
+	if !isDraft {
+		// Validar que o CNAE existe
+		if oportunidade.CNAEID > 0 {
+			cnae, err := s.cnaeRepo.GetByID(ctx, oportunidade.CNAEID)
+			if err != nil {
+				return 0, err
+			}
+			if cnae == nil {
+				return 0, errors.New("CNAE não encontrado")
+			}
+		}
 
-	// Validar que o órgão existe
-	orgao, err := s.orgaoRepo.GetByID(ctx, oportunidade.OrgaoID)
-	if err != nil {
-		return 0, err
-	}
-	if orgao == nil {
-		return 0, errors.New("órgão não encontrado")
+		// Validar que o órgão existe
+		if oportunidade.OrgaoID > 0 {
+			orgao, err := s.orgaoRepo.GetByID(ctx, oportunidade.OrgaoID)
+			if err != nil {
+				return 0, err
+			}
+			if orgao == nil {
+				return 0, errors.New("órgão não encontrado")
+			}
+		}
 	}
 
 	return s.repo.Create(ctx, oportunidade)
@@ -74,11 +81,7 @@ func (s *OportunidadeMEIService) GetByID(ctx context.Context, id int) (*models.O
 }
 
 func (s *OportunidadeMEIService) Update(ctx context.Context, oportunidade *models.OportunidadeMEI) error {
-	if err := oportunidade.Validate(); err != nil {
-		return err
-	}
-
-	// Se estava em draft e está sendo atualizado, publicar
+	// Buscar a oportunidade existente
 	existing, err := s.repo.GetByID(ctx, oportunidade.ID)
 	if err != nil {
 		return err
@@ -87,8 +90,42 @@ func (s *OportunidadeMEIService) Update(ctx context.Context, oportunidade *model
 		return errors.New("oportunidade não encontrada")
 	}
 
+	// Se estava em draft e está sendo atualizado, tentar publicar
 	if existing.Status == models.StatusOportunidadeDraft {
 		oportunidade.Status = models.StatusOportunidadeActive
+		// Ao mudar de draft para active, validar completamente
+		if err := oportunidade.ValidateForPublish(); err != nil {
+			return errors.New("não é possível publicar: " + err.Error())
+		}
+	} else {
+		// Manter o status atual se não era draft
+		oportunidade.Status = existing.Status
+		// Validação normal
+		if err := oportunidade.Validate(); err != nil {
+			return err
+		}
+	}
+
+	// Validar que o CNAE existe (se mudou)
+	if oportunidade.CNAEID != existing.CNAEID {
+		cnae, err := s.cnaeRepo.GetByID(ctx, oportunidade.CNAEID)
+		if err != nil {
+			return err
+		}
+		if cnae == nil {
+			return errors.New("CNAE não encontrado")
+		}
+	}
+
+	// Validar que o órgão existe (se mudou)
+	if oportunidade.OrgaoID != existing.OrgaoID {
+		orgao, err := s.orgaoRepo.GetByID(ctx, oportunidade.OrgaoID)
+		if err != nil {
+			return err
+		}
+		if orgao == nil {
+			return errors.New("órgão não encontrado")
+		}
 	}
 
 	oportunidade.UpdateStatusBasedOnExpiration()
@@ -103,6 +140,11 @@ func (s *OportunidadeMEIService) Publish(ctx context.Context, id int) error {
 	}
 	if oportunidade == nil {
 		return errors.New("oportunidade não encontrada")
+	}
+
+	// Validar completamente antes de publicar
+	if err := oportunidade.ValidateForPublish(); err != nil {
+		return errors.New("não é possível publicar: " + err.Error())
 	}
 
 	oportunidade.Status = models.StatusOportunidadeActive
