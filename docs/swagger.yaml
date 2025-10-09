@@ -2457,8 +2457,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: Atualiza os dados de uma oportunidade MEI existente e publica se
-        estava em rascunho
+      description: Atualiza os dados de uma oportunidade MEI existente mantendo seu
+        status atual
       parameters:
       - description: ID da oportunidade
         in: path
@@ -2669,6 +2669,37 @@ paths:
       summary: Atualizar status da proposta MEI
       tags:
       - propostas-mei
+  /api/v1/oportunidades-mei/{id}/publish:
+    put:
+      description: Publica uma oportunidade MEI que estava em rascunho
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OportunidadeMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Publicar oportunidade MEI
+      tags:
+      - oportunidades-mei
   /api/v1/oportunidades-mei/draft:
     post:
       consumes:

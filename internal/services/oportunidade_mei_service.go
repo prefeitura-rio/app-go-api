@@ -90,18 +90,18 @@ func (s *OportunidadeMEIService) Update(ctx context.Context, oportunidade *model
 		return errors.New("oportunidade não encontrada")
 	}
 
-	// Se estava em draft e está sendo atualizado, tentar publicar
-	if existing.Status == models.StatusOportunidadeDraft {
-		oportunidade.Status = models.StatusOportunidadeActive
-		// Ao mudar de draft para active, validar completamente
-		if err := oportunidade.ValidateForPublish(); err != nil {
-			return errors.New("não é possível publicar: " + err.Error())
+	// Preservar o status existente ao atualizar (não publica automaticamente)
+	oportunidade.Status = existing.Status
+	
+	// Validar de acordo com o status
+	if oportunidade.Status == models.StatusOportunidadeDraft {
+		// Para drafts, validação mínima
+		if err := oportunidade.Validate(); err != nil {
+			return err
 		}
 	} else {
-		// Manter o status atual se não era draft
-		oportunidade.Status = existing.Status
-		// Validação normal
-		if err := oportunidade.Validate(); err != nil {
+		// Para status publicado, validação completa
+		if err := oportunidade.ValidateForPublish(); err != nil {
 			return err
 		}
 	}

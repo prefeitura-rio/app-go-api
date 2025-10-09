@@ -2914,7 +2914,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza os dados de uma oportunidade MEI existente e publica se estava em rascunho",
+                "description": "Atualiza os dados de uma oportunidade MEI existente mantendo seu status atual",
                 "consumes": [
                     "application/json"
                 ],
@@ -3261,6 +3261,53 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oportunidades-mei/{id}/publish": {
+            "put": {
+                "description": "Publica uma oportunidade MEI que estava em rascunho",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oportunidades-mei"
+                ],
+                "summary": "Publicar oportunidade MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.OportunidadeMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
