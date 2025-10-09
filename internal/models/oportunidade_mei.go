@@ -42,7 +42,7 @@ type OportunidadeMEI struct {
 	Estado      string `json:"estado" gorm:"type:varchar(2);not null"`
 
 	// Pagamento e prazos
-	FormaPagamento      FormaPagamento `json:"forma_pagamento" gorm:"type:varchar(50);not null"`
+	FormaPagamento      *string        `json:"forma_pagamento,omitempty" gorm:"type:varchar(50)" swaggertype:"string" enums:"CHEQUE,DINHEIRO,CARTAO,PIX,TRANSFERENCIA," example:"PIX"` // Valores aceitos: CHEQUE, DINHEIRO, CARTAO, PIX, TRANSFERENCIA ou vazio
 	PrazoPagamento      string         `json:"prazo_pagamento" gorm:"type:varchar(100)"`
 	DataLimiteExecucao  *time.Time     `json:"data_limite_execucao" gorm:"type:timestamp with time zone"`
 	DataExpiracao       *time.Time     `json:"data_expiracao" gorm:"type:timestamp with time zone;not null"`
@@ -79,6 +79,11 @@ func (s StatusOportunidadeMEI) IsValid() bool {
 }
 
 func (f FormaPagamento) IsValid() bool {
+	// String vazia é válida (campo opcional)
+	if string(f) == "" {
+		return true
+	}
+
 	validValues := []string{"CHEQUE", "DINHEIRO", "CARTAO", "PIX", "TRANSFERENCIA"}
 	for _, v := range validValues {
 		if string(f) == v {
@@ -88,7 +93,31 @@ func (f FormaPagamento) IsValid() bool {
 	return false
 }
 
+// Validate realiza validação básica, permitindo campos vazios para rascunhos
 func (o *OportunidadeMEI) Validate() error {
+	// Validação de status sempre é obrigatória
+	if !o.Status.IsValid() {
+		return errors.New("status inválido")
+	}
+
+	// Se for rascunho, permite campos vazios (validação mínima)
+	if o.Status == StatusOportunidadeDraft {
+		// Apenas valida FormaPagamento se tiver valor
+		if o.FormaPagamento != nil && *o.FormaPagamento != "" {
+			if !FormaPagamento(*o.FormaPagamento).IsValid() {
+				return errors.New("forma de pagamento inválida")
+			}
+		}
+		// Para rascunhos, não exige campos obrigatórios
+		return nil
+	}
+
+	// Para status diferente de draft, faz validação completa
+	return o.ValidateForPublish()
+}
+
+// ValidateForPublish realiza validação completa necessária para publicação
+func (o *OportunidadeMEI) ValidateForPublish() error {
 	if strings.TrimSpace(o.Titulo) == "" {
 		return errors.New("título é obrigatório")
 	}
@@ -109,16 +138,27 @@ func (o *OportunidadeMEI) Validate() error {
 		return errors.New("logradouro é obrigatório")
 	}
 
+	if strings.TrimSpace(o.Numero) == "" {
+		return errors.New("número é obrigatório")
+	}
+
+	if strings.TrimSpace(o.Bairro) == "" {
+		return errors.New("bairro é obrigatório")
+	}
+
 	if strings.TrimSpace(o.Cidade) == "" {
 		return errors.New("cidade é obrigatória")
 	}
 
-	if !o.Status.IsValid() {
-		return errors.New("status inválido")
+	if strings.TrimSpace(o.Estado) == "" {
+		return errors.New("estado é obrigatório")
 	}
 
-	if !o.FormaPagamento.IsValid() {
-		return errors.New("forma de pagamento inválida")
+	// FormaPagamento é opcional, só valida se tiver valor
+	if o.FormaPagamento != nil && *o.FormaPagamento != "" {
+		if !FormaPagamento(*o.FormaPagamento).IsValid() {
+			return errors.New("forma de pagamento inválida")
+		}
 	}
 
 	if o.DataExpiracao == nil {

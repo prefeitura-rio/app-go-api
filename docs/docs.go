@@ -4116,23 +4116,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.FormaPagamento": {
-            "type": "string",
-            "enum": [
-                "CHEQUE",
-                "DINHEIRO",
-                "CARTAO",
-                "PIX",
-                "TRANSFERENCIA"
-            ],
-            "x-enum-varnames": [
-                "FormaPagamentoCheque",
-                "FormaPagamentoDinheiro",
-                "FormaPagamentoCartao",
-                "FormaPagamentoPix",
-                "FormaPagamentoTransferencia"
-            ]
-        },
         "models.FormatoAula": {
             "type": "string",
             "enum": [
