@@ -177,4 +177,11 @@ func (s *CursoService) normalizeCurso(curso *models.Curso) {
 	if curso.Status == "" {
 		curso.Status = models.StatusCursoDraft
 	}
+
+	// Convert single acessibilidade_id to Acessibilidades array
+	if curso.AcessibilidadeID != nil && *curso.AcessibilidadeID > 0 {
+		curso.Acessibilidades = []models.Acessibilidade{
+			{ID: *curso.AcessibilidadeID},
+		}
+	}
 } 

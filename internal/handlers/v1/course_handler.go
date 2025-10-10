@@ -263,6 +263,12 @@ func (h *CourseHandler) List(c *gin.Context) {
 	// Transform courses to include all fields
 	coursesData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
+		// Populate acessibilidade_id from first element of Acessibilidades array
+		var acessibilidadeID *int
+		if len(curso.Acessibilidades) > 0 {
+			acessibilidadeID = &curso.Acessibilidades[0].ID
+		}
+
 		coursesData[i] = gin.H{
 			// Core fields
 			"id":                    curso.ID,
@@ -322,6 +328,7 @@ func (h *CourseHandler) List(c *gin.Context) {
 			"instituicao":            curso.Instituicao,
 			"categorias":             curso.Categorias,
 			"acessibilidades":        curso.Acessibilidades,
+			"acessibilidade_id":      acessibilidadeID,
 			"custom_fields":          curso.CustomFields,
 			"locations":              curso.LocationClasses,
 			"remote_class":           curso.RemoteClass,
@@ -389,6 +396,12 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 	// Transform drafts to include all fields like the main course list
 	draftsData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
+		// Populate acessibilidade_id from first element of Acessibilidades array
+		var acessibilidadeID *int
+		if len(curso.Acessibilidades) > 0 {
+			acessibilidadeID = &curso.Acessibilidades[0].ID
+		}
+
 		draftsData[i] = gin.H{
 			// Core fields
 			"id":                    curso.ID,
@@ -448,6 +461,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 			"instituicao":            curso.Instituicao,
 			"categorias":             curso.Categorias,
 			"acessibilidades":        curso.Acessibilidades,
+			"acessibilidade_id":      acessibilidadeID,
 			"custom_fields":          curso.CustomFields,
 			"locations":              curso.LocationClasses,
 			"remote_class":           curso.RemoteClass,
@@ -494,6 +508,11 @@ func (h *CourseHandler) GetByID(c *gin.Context) {
 	if curso == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
 		return
+	}
+
+	// Populate acessibilidade_id from first element of Acessibilidades array
+	if len(curso.Acessibilidades) > 0 {
+		curso.AcessibilidadeID = &curso.Acessibilidades[0].ID
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -597,6 +616,12 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 	// Transform courses to include all fields
 	coursesData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
+		// Populate acessibilidade_id from first element of Acessibilidades array
+		var acessibilidadeID *int
+		if len(curso.Acessibilidades) > 0 {
+			acessibilidadeID = &curso.Acessibilidades[0].ID
+		}
+
 		coursesData[i] = gin.H{
 			// Core fields
 			"id":                    curso.ID,
@@ -656,6 +681,7 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 			"instituicao":            curso.Instituicao,
 			"categorias":             curso.Categorias,
 			"acessibilidades":        curso.Acessibilidades,
+			"acessibilidade_id":      acessibilidadeID,
 			"custom_fields":          curso.CustomFields,
 			"locations":              curso.LocationClasses,
 			"remote_class":           curso.RemoteClass,
