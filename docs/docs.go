@@ -3857,6 +3857,10 @@ const docTemplate = `{
         "models.Curso": {
             "type": "object",
             "properties": {
+                "acessibilidade_id": {
+                    "description": "Convenience field for single accessibility selection (not persisted directly)",
+                    "type": "integer"
+                },
                 "carga_horaria": {
                     "type": "integer"
                 },
