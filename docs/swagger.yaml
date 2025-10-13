@@ -396,6 +396,27 @@ definitions:
     type: object
   models.PropostaMEI:
     type: object
+  models.PropostaStatusUpdateRequest:
+    properties:
+      proposta_ids:
+        items:
+          type: string
+        type: array
+      status:
+        $ref: '#/definitions/models.StatusPropostaCidadao'
+    required:
+    - proposta_ids
+    - status
+    type: object
+  models.PropostaStatusUpdateResponse:
+    properties:
+      status:
+        $ref: '#/definitions/models.StatusPropostaCidadao'
+      updated_at:
+        type: string
+      updated_count:
+        type: integer
+    type: object
   models.SearchDocumentsResponse:
     properties:
       found:
@@ -2518,6 +2539,10 @@ paths:
         in: query
         name: cnpj
         type: string
+      - description: Filtrar por status (submitted, approved, rejected)
+        in: query
+        name: status
+        type: string
       produces:
       - application/json
       responses:
@@ -2671,6 +2696,42 @@ paths:
           schema:
             $ref: '#/definitions/models.ErrorResponse'
       summary: Atualizar status da proposta MEI
+      tags:
+      - propostas-mei
+  /api/v1/oportunidades-mei/{id}/propostas/status:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza o status de várias propostas MEI de uma vez (aprovação
+        em lote)
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados para atualização
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.PropostaStatusUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PropostaStatusUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar status de múltiplas propostas MEI
       tags:
       - propostas-mei
   /api/v1/oportunidades-mei/{id}/publish:

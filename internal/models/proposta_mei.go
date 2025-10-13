@@ -26,6 +26,7 @@ type PropostaMEI struct {
 	ID                 uuid.UUID              `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
 	OportunidadeMEIID  int                    `json:"oportunidade_mei_id" gorm:"not null;index"`
 	MEIEmpresaID       int                    `json:"mei_empresa_id" gorm:"not null;index"`
+	ValorProposta      *float64               `json:"valor_proposta,omitempty" gorm:"type:decimal(10,2)"`
 
 	StatusAdmin        StatusPropostaAdmin    `json:"status_admin" gorm:"type:varchar(50);not null;default:'active'"`
 	StatusCidadao      StatusPropostaCidadao  `json:"status_cidadao" gorm:"type:varchar(50);not null;default:'submitted'"`
@@ -69,4 +70,15 @@ func (p *PropostaMEI) BeforeCreate(tx *gorm.DB) error {
 		p.ID = uuid.New()
 	}
 	return nil
+}
+
+type PropostaStatusUpdateRequest struct {
+	PropostaIDs []uuid.UUID           `json:"proposta_ids" binding:"required"`
+	Status      StatusPropostaCidadao `json:"status" binding:"required"`
+}
+
+type PropostaStatusUpdateResponse struct {
+	UpdatedCount int                   `json:"updated_count"`
+	Status       StatusPropostaCidadao `json:"status"`
+	UpdatedAt    time.Time             `json:"updated_at"`
 }

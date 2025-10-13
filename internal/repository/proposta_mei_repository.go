@@ -71,7 +71,7 @@ func (r *PropostaMEIRepository) Delete(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
-func (r *PropostaMEIRepository) ListByOportunidade(ctx context.Context, oportunidadeID int, nomeEmpresa, cnpj string, limit, offset int) ([]*models.PropostaMEI, int, error) {
+func (r *PropostaMEIRepository) ListByOportunidade(ctx context.Context, oportunidadeID int, nomeEmpresa, cnpj, status string, limit, offset int) ([]*models.PropostaMEI, int, error) {
 	var propostas []*models.PropostaMEI
 	var total int64
 
@@ -87,6 +87,11 @@ func (r *PropostaMEIRepository) ListByOportunidade(ctx context.Context, oportuni
 	// Filtro de busca por CNPJ (permite busca parcial)
 	if cnpj != "" {
 		db = db.Where("mei_empresas.cnpj ILIKE ?", "%"+cnpj+"%")
+	}
+
+	// Filtro por status
+	if status != "" {
+		db = db.Where("propostas_mei.status_cidadao = ?", status)
 	}
 
 	db.Count(&total)
@@ -170,4 +175,21 @@ func (r *PropostaMEIRepository) CheckExistingProposta(ctx context.Context, oport
 	}
 
 	return count > 0, nil
+}
+
+func (r *PropostaMEIRepository) UpdateMultipleStatus(ctx context.Context, propostaIDs []uuid.UUID, status models.StatusPropostaCidadao) (int, error) {
+	updates := map[string]interface{}{
+		"status_cidadao": status,
+	}
+
+	result := r.db.WithContext(ctx).
+		Model(&models.PropostaMEI{}).
+		Where("id IN ?", propostaIDs).
+		Updates(updates)
+
+	if result.Error != nil {
+		return 0, fmt.Errorf("erro ao atualizar status das propostas: %w", result.Error)
+	}
+
+	return int(result.RowsAffected), nil
 }
