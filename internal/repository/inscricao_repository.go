@@ -256,19 +256,36 @@ func (r *InscricaoRepository) UpdateCertificate(ctx context.Context, inscricaoID
 		"certificate_url": certificateURL,
 		"updated_at":      time.Now(),
 	}
-	
+
 	result := r.db.WithContext(ctx).
 		Model(&models.Inscricao{}).
 		Where("id = ?", inscricaoID).
 		Updates(updates)
-	
+
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar certificado: %w", result.Error)
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("inscrição não encontrada")
 	}
-	
+
+	return nil
+}
+
+func (r *InscricaoRepository) Update(ctx context.Context, inscricao *models.Inscricao) error {
+	result := r.db.WithContext(ctx).
+		Model(inscricao).
+		Where("id = ?", inscricao.ID).
+		Updates(inscricao)
+
+	if result.Error != nil {
+		return fmt.Errorf("erro ao atualizar inscrição: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("inscrição não encontrada")
+	}
+
 	return nil
 }

@@ -90,6 +90,54 @@ func (h *PropostaMEIHandler) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, proposta)
 }
 
+// @Summary      Atualizar proposta MEI
+// @Description  Atualiza os dados de uma proposta MEI existente
+// @Tags         propostas-mei
+// @Accept       json
+// @Produce      json
+// @Param        id              path      int     true  "ID da oportunidade"
+// @Param        propostaId      path      string  true  "UUID da proposta"
+// @Param        request         body      object  true  "Dados para atualização: {\"valor_proposta\": 1500.00}"
+// @Success      200             {object}  models.PropostaMEI
+// @Failure      400             {object}  models.ErrorResponse
+// @Failure      404             {object}  models.ErrorResponse
+// @Failure      500             {object}  models.ErrorResponse
+// @Router       /api/v1/oportunidades-mei/{id}/propostas/{propostaId} [put]
+func (h *PropostaMEIHandler) Update(c *gin.Context) {
+	oportunidadeID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da oportunidade inválido"})
+		return
+	}
+
+	propostaID, err := uuid.Parse(c.Param("propostaId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "UUID da proposta inválido"})
+		return
+	}
+
+	var req struct {
+		ValorProposta *float64 `json:"valor_proposta"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		return
+	}
+
+	if err := h.service.UpdateProposta(c.Request.Context(), propostaID, oportunidadeID, req.ValorProposta); err != nil {
+		if err.Error() == "proposta não encontrada" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	proposta, _ := h.service.GetByID(c.Request.Context(), propostaID)
+	c.JSON(http.StatusOK, proposta)
+}
+
 // @Summary      Atualizar status de múltiplas propostas MEI
 // @Description  Atualiza o status de várias propostas MEI de uma vez (aprovação em lote)
 // @Tags         propostas-mei

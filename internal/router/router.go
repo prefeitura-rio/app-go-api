@@ -185,6 +185,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		courses.POST("/:courseId/enrollments", inscricaoHandler.Create)
 		courses.GET("/:courseId/enrollments", inscricaoHandler.List)
 		courses.PUT("/:courseId/enrollments/status", inscricaoHandler.UpdateStatus)
+		courses.PUT("/:courseId/enrollments/:enrollmentId", inscricaoHandler.Update)
 		courses.PUT("/:courseId/enrollments/:enrollmentId/status", inscricaoHandler.UpdateIndividualStatus)
 		courses.GET("/:courseId/enrollments/:enrollmentId", inscricaoHandler.GetByID)
 		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", inscricaoHandler.UpdateCertificate)
@@ -253,6 +254,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		oportunidadesMEI.GET("/:id/propostas", propostaMEIHandler.List)
 		oportunidadesMEI.PUT("/:id/propostas/status", propostaMEIHandler.UpdateStatusBulk)
 		oportunidadesMEI.GET("/:id/propostas/:propostaId", propostaMEIHandler.GetByID)
+		oportunidadesMEI.PUT("/:id/propostas/:propostaId", propostaMEIHandler.Update)
 		oportunidadesMEI.PUT("/:id/propostas/:propostaId/status", propostaMEIHandler.UpdateStatus)
 		oportunidadesMEI.DELETE("/:id/propostas/:propostaId", propostaMEIHandler.Delete)
 	}
