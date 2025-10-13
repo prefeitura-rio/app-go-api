@@ -100,9 +100,9 @@ func (s *PropostaMEIService) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *PropostaMEIService) ListByOportunidade(ctx context.Context, oportunidadeID int, nomeEmpresa, cnpj string, page, pageSize int) ([]*models.PropostaMEI, int, error) {
+func (s *PropostaMEIService) ListByOportunidade(ctx context.Context, oportunidadeID int, nomeEmpresa, cnpj, status string, page, pageSize int) ([]*models.PropostaMEI, int, error) {
 	offset := (page - 1) * pageSize
-	return s.repo.ListByOportunidade(ctx, oportunidadeID, nomeEmpresa, cnpj, pageSize, offset)
+	return s.repo.ListByOportunidade(ctx, oportunidadeID, nomeEmpresa, cnpj, status, pageSize, offset)
 }
 
 func (s *PropostaMEIService) ListByMEIEmpresa(ctx context.Context, meiEmpresaID int, page, pageSize int) ([]*models.PropostaMEI, int, error) {
@@ -113,4 +113,16 @@ func (s *PropostaMEIService) ListByMEIEmpresa(ctx context.Context, meiEmpresaID 
 func (s *PropostaMEIService) ListByStatus(ctx context.Context, status models.StatusPropostaCidadao, page, pageSize int) ([]*models.PropostaMEI, int, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.ListByStatus(ctx, status, pageSize, offset)
+}
+
+func (s *PropostaMEIService) UpdateMultipleStatus(ctx context.Context, propostaIDs []uuid.UUID, status models.StatusPropostaCidadao) (int, error) {
+	if len(propostaIDs) == 0 {
+		return 0, errors.New("nenhuma proposta selecionada")
+	}
+
+	if !status.IsValid() {
+		return 0, errors.New("status inválido")
+	}
+
+	return s.repo.UpdateMultipleStatus(ctx, propostaIDs, status)
 }

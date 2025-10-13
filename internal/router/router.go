@@ -251,6 +251,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		// Rotas de Propostas MEI (nested)
 		oportunidadesMEI.POST("/:id/propostas", propostaMEIHandler.Create)
 		oportunidadesMEI.GET("/:id/propostas", propostaMEIHandler.List)
+		oportunidadesMEI.PUT("/:id/propostas/status", propostaMEIHandler.UpdateStatusBulk)
 		oportunidadesMEI.GET("/:id/propostas/:propostaId", propostaMEIHandler.GetByID)
 		oportunidadesMEI.PUT("/:id/propostas/:propostaId/status", propostaMEIHandler.UpdateStatus)
 		oportunidadesMEI.DELETE("/:id/propostas/:propostaId", propostaMEIHandler.Delete)

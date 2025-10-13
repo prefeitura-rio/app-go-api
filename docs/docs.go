@@ -3045,6 +3045,12 @@ const docTemplate = `{
                         "description": "Buscar por CNPJ",
                         "name": "cnpj",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status (submitted, approved, rejected)",
+                        "name": "status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -3097,6 +3103,59 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/models.PropostaMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oportunidades-mei/{id}/propostas/status": {
+            "put": {
+                "description": "Atualiza o status de várias propostas MEI de uma vez (aprovação em lote)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "propostas-mei"
+                ],
+                "summary": "Atualizar status de múltiplas propostas MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PropostaStatusUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PropostaStatusUpdateResponse"
                         }
                     },
                     "400": {
@@ -4367,6 +4426,38 @@ const docTemplate = `{
         },
         "models.PropostaMEI": {
             "type": "object"
+        },
+        "models.PropostaStatusUpdateRequest": {
+            "type": "object",
+            "required": [
+                "proposta_ids",
+                "status"
+            ],
+            "properties": {
+                "proposta_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "$ref": "#/definitions/models.StatusPropostaCidadao"
+                }
+            }
+        },
+        "models.PropostaStatusUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "$ref": "#/definitions/models.StatusPropostaCidadao"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_count": {
+                    "type": "integer"
+                }
+            }
         },
         "models.SearchDocumentsResponse": {
             "type": "object",
