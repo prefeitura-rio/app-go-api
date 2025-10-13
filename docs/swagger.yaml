@@ -266,6 +266,8 @@ definitions:
     - FormatoAulaAoVivo
   models.Inscricao:
     type: object
+  models.InscricaoUpdateRequest:
+    type: object
   models.InstituicaoEnsino:
     properties:
       cursos:
@@ -1361,6 +1363,50 @@ paths:
           schema:
             $ref: '#/definitions/models.ErrorResponse'
       summary: Obter inscrição por ID
+      tags:
+      - inscricoes
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma inscrição existente (exceto CPF, curso
+        e status)
+      parameters:
+      - description: ID do curso
+        in: path
+        name: courseId
+        required: true
+        type: integer
+      - description: UUID da inscrição
+        in: path
+        name: enrollmentId
+        required: true
+        type: string
+      - description: Dados para atualização
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InscricaoUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Inscricao'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar inscrição
       tags:
       - inscricoes
   /api/v1/courses/{courseId}/enrollments/{enrollmentId}/certificate:
@@ -2656,6 +2702,49 @@ paths:
           schema:
             $ref: '#/definitions/models.ErrorResponse'
       summary: Obter proposta MEI por ID
+      tags:
+      - propostas-mei
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma proposta MEI existente
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: UUID da proposta
+        in: path
+        name: propostaId
+        required: true
+        type: string
+      - description: 'Dados para atualização: {\'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PropostaMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar proposta MEI
       tags:
       - propostas-mei
   /api/v1/oportunidades-mei/{id}/propostas/{propostaId}/status:

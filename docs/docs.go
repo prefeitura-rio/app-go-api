@@ -1280,6 +1280,70 @@ const docTemplate = `{
                     }
                 }
             },
+            "put": {
+                "description": "Atualiza os dados de uma inscrição existente (exceto CPF, curso e status)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inscricoes"
+                ],
+                "summary": "Atualizar inscrição",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID da inscrição",
+                        "name": "enrollmentId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.InscricaoUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Inscricao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "description": "Remove uma inscrição específica",
                 "produces": [
@@ -3226,6 +3290,70 @@ const docTemplate = `{
                     }
                 }
             },
+            "put": {
+                "description": "Atualiza os dados de uma proposta MEI existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "propostas-mei"
+                ],
+                "summary": "Atualizar proposta MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID da proposta",
+                        "name": "propostaId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização: {\\",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PropostaMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "description": "Remove uma proposta MEI pelo ID (soft delete)",
                 "produces": [
@@ -4238,6 +4366,9 @@ const docTemplate = `{
             ]
         },
         "models.Inscricao": {
+            "type": "object"
+        },
+        "models.InscricaoUpdateRequest": {
             "type": "object"
         },
         "models.InstituicaoEnsino": {

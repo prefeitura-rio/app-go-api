@@ -137,12 +137,52 @@ func (s *InscricaoService) UpdateCertificate(ctx context.Context, cursoID int, i
 	if inscricao.CursoID != cursoID {
 		return fmt.Errorf("inscrição não pertence ao curso especificado")
 	}
-	
+
 	// Only allow certificate for approved or concluded enrollments
 	if inscricao.Status != models.StatusInscricaoApproved && inscricao.Status != models.StatusInscricaoConcluded {
 		return fmt.Errorf("certificado só pode ser atribuído a inscrições aprovadas ou concluídas")
 	}
-	
+
 	// Update certificate URL
 	return s.repo.UpdateCertificate(ctx, inscricaoID, certificateURL)
+}
+
+func (s *InscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cursoID int, updateData *models.InscricaoUpdateRequest) error {
+	// Buscar inscrição existente
+	inscricao, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("erro ao verificar inscrição: %w", err)
+	}
+	if inscricao == nil {
+		return fmt.Errorf("inscrição não encontrada")
+	}
+
+	// Validar que a inscrição pertence ao curso especificado
+	if inscricao.CursoID != cursoID {
+		return fmt.Errorf("inscrição não pertence ao curso especificado")
+	}
+
+	// Atualizar apenas os campos permitidos
+	if updateData.Name != nil {
+		inscricao.Name = *updateData.Name
+	}
+	if updateData.Email != nil {
+		inscricao.Email = *updateData.Email
+	}
+	if updateData.Phone != nil {
+		inscricao.Phone = *updateData.Phone
+	}
+	if updateData.CustomFieldsData != nil {
+		inscricao.CustomFieldsData = updateData.CustomFieldsData
+	}
+	if updateData.AdminNotes != nil {
+		inscricao.AdminNotes = *updateData.AdminNotes
+	}
+	if updateData.EnrolledUnit != nil {
+		inscricao.EnrolledUnit = updateData.EnrolledUnit
+	}
+
+	inscricao.UpdatedAt = time.Now()
+
+	return s.repo.Update(ctx, inscricao)
 }
