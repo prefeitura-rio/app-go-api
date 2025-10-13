@@ -1631,6 +1631,91 @@
           }
         ]
       },
+      "put": {
+        "description": "Atualiza os dados de uma inscrição existente (exceto CPF, curso e status)",
+        "tags": [
+          "inscricoes"
+        ],
+        "summary": "Atualizar inscrição",
+        "parameters": [
+          {
+            "description": "ID do curso",
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "UUID da inscrição",
+            "name": "enrollmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/models.InscricaoUpdateRequest"
+              }
+            }
+          },
+          "description": "Dados para atualização",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.Inscricao"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
       "delete": {
         "description": "Remove uma inscrição específica",
         "tags": [
@@ -1831,15 +1916,7 @@
           }
         ],
         "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          },
-          "description": "Dados para atualização: {\\",
-          "required": true
+          "$ref": "#/components/requestBodies/Request"
         },
         "responses": {
           "200": {
@@ -4140,6 +4217,83 @@
           }
         ]
       },
+      "put": {
+        "description": "Atualiza os dados de uma proposta MEI existente",
+        "tags": [
+          "propostas-mei"
+        ],
+        "summary": "Atualizar proposta MEI",
+        "parameters": [
+          {
+            "description": "ID da oportunidade",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "UUID da proposta",
+            "name": "propostaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Request"
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.PropostaMEI"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
       "delete": {
         "description": "Remove uma proposta MEI pelo ID (soft delete)",
         "tags": [
@@ -4962,6 +5116,17 @@
   ],
   "components": {
     "requestBodies": {
+      "Request": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "description": "Dados para atualização: {\\",
+        "required": true
+      },
       "models.Acessibilidade": {
         "content": {
           "application/json": {
@@ -5489,6 +5654,9 @@
         ]
       },
       "models.Inscricao": {
+        "type": "object"
+      },
+      "models.InscricaoUpdateRequest": {
         "type": "object"
       },
       "models.InstituicaoEnsino": {
