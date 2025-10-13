@@ -3892,6 +3892,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Filtrar por status (submitted, approved, rejected)",
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3957,6 +3965,74 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/models.PropostaMEI"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/oportunidades-mei/{id}/propostas/status": {
+      "put": {
+        "description": "Atualiza o status de várias propostas MEI de uma vez (aprovação em lote)",
+        "tags": [
+          "propostas-mei"
+        ],
+        "summary": "Atualizar status de múltiplas propostas MEI",
+        "parameters": [
+          {
+            "description": "ID da oportunidade",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/models.PropostaStatusUpdateRequest"
+              }
+            }
+          },
+          "description": "Dados para atualização",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.PropostaStatusUpdateResponse"
                 }
               }
             }
@@ -5601,6 +5677,38 @@
       },
       "models.PropostaMEI": {
         "type": "object"
+      },
+      "models.PropostaStatusUpdateRequest": {
+        "type": "object",
+        "required": [
+          "proposta_ids",
+          "status"
+        ],
+        "properties": {
+          "proposta_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/models.StatusPropostaCidadao"
+          }
+        }
+      },
+      "models.PropostaStatusUpdateResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/models.StatusPropostaCidadao"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_count": {
+            "type": "integer"
+          }
+        }
       },
       "models.SearchDocumentsResponse": {
         "type": "object",
