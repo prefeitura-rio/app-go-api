@@ -88,8 +88,8 @@ type Curso struct {
 	ExternalPartnerLogoURL  string  `json:"external_partner_logo_url,omitempty" gorm:"column:external_partner_logo_url;type:varchar(500)"`
 	ExternalPartnerContact  string  `json:"external_partner_contact,omitempty" gorm:"column:external_partner_contact;type:varchar(255)"`
 
-	// Convenience field for single accessibility selection (not persisted directly)
-	AcessibilidadeID     *int       `json:"acessibilidade_id,omitempty" gorm:"-"`
+	// Accessibility field - free text field for frontend
+	Accessibility        string  `json:"accessibility,omitempty" gorm:"column:accessibility;type:varchar(255)"`
 
 	CreatedAt            time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt            time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
