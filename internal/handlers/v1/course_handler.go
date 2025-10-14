@@ -263,11 +263,6 @@ func (h *CourseHandler) List(c *gin.Context) {
 	// Transform courses to include all fields
 	coursesData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
-		// Populate acessibilidade_id from first element of Acessibilidades array
-		var acessibilidadeID *int
-		if len(curso.Acessibilidades) > 0 {
-			acessibilidadeID = &curso.Acessibilidades[0].ID
-		}
 
 		coursesData[i] = gin.H{
 			// Core fields
@@ -284,7 +279,7 @@ func (h *CourseHandler) List(c *gin.Context) {
 			"cover_image":           curso.CoverImage,
 			"enrollment_start_date": curso.EnrollmentStartDate,
 			"enrollment_end_date":   curso.EnrollmentEndDate,
-			
+
 			// Legacy and additional fields
 			"orgao_id":               curso.OrgaoID,
 			"instituicao_id":         curso.InstituicaoID,
@@ -298,7 +293,7 @@ func (h *CourseHandler) List(c *gin.Context) {
 			"formato_aula":           curso.FormatoAula,
 			"link_inscricao":         curso.LinkInscricao,
 			"contato_duvidas":        curso.ContatoDuvidas,
-			
+
 			// Optional fields
 			"has_certificate":        curso.HasCertificate,
 			"facilitator":            curso.Facilitator,
@@ -322,13 +317,13 @@ func (h *CourseHandler) List(c *gin.Context) {
 			// Timestamps
 			"created_at":             curso.CreatedAt,
 			"updated_at":             curso.UpdatedAt,
-			
+
 			// Related objects
 			"orgao":                  curso.Orgao,
 			"instituicao":            curso.Instituicao,
 			"categorias":             curso.Categorias,
 			"acessibilidades":        curso.Acessibilidades,
-			"acessibilidade_id":      acessibilidadeID,
+			"accessibility":          curso.Accessibility,
 			"custom_fields":          curso.CustomFields,
 			"locations":              curso.LocationClasses,
 			"remote_class":           curso.RemoteClass,
@@ -396,11 +391,6 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 	// Transform drafts to include all fields like the main course list
 	draftsData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
-		// Populate acessibilidade_id from first element of Acessibilidades array
-		var acessibilidadeID *int
-		if len(curso.Acessibilidades) > 0 {
-			acessibilidadeID = &curso.Acessibilidades[0].ID
-		}
 
 		draftsData[i] = gin.H{
 			// Core fields
@@ -417,7 +407,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 			"cover_image":           curso.CoverImage,
 			"enrollment_start_date": curso.EnrollmentStartDate,
 			"enrollment_end_date":   curso.EnrollmentEndDate,
-			
+
 			// Legacy and additional fields
 			"orgao_id":               curso.OrgaoID,
 			"instituicao_id":         curso.InstituicaoID,
@@ -431,7 +421,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 			"formato_aula":           curso.FormatoAula,
 			"link_inscricao":         curso.LinkInscricao,
 			"contato_duvidas":        curso.ContatoDuvidas,
-			
+
 			// Optional fields
 			"has_certificate":        curso.HasCertificate,
 			"facilitator":            curso.Facilitator,
@@ -455,13 +445,13 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 			// Timestamps
 			"created_at":             curso.CreatedAt,
 			"updated_at":             curso.UpdatedAt,
-			
+
 			// Related objects
 			"orgao":                  curso.Orgao,
 			"instituicao":            curso.Instituicao,
 			"categorias":             curso.Categorias,
 			"acessibilidades":        curso.Acessibilidades,
-			"acessibilidade_id":      acessibilidadeID,
+			"accessibility":          curso.Accessibility,
 			"custom_fields":          curso.CustomFields,
 			"locations":              curso.LocationClasses,
 			"remote_class":           curso.RemoteClass,
@@ -508,11 +498,6 @@ func (h *CourseHandler) GetByID(c *gin.Context) {
 	if curso == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
 		return
-	}
-
-	// Populate acessibilidade_id from first element of Acessibilidades array
-	if len(curso.Acessibilidades) > 0 {
-		curso.AcessibilidadeID = &curso.Acessibilidades[0].ID
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -616,11 +601,6 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 	// Transform courses to include all fields
 	coursesData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
-		// Populate acessibilidade_id from first element of Acessibilidades array
-		var acessibilidadeID *int
-		if len(curso.Acessibilidades) > 0 {
-			acessibilidadeID = &curso.Acessibilidades[0].ID
-		}
 
 		coursesData[i] = gin.H{
 			// Core fields
@@ -637,7 +617,7 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 			"cover_image":           curso.CoverImage,
 			"enrollment_start_date": curso.EnrollmentStartDate,
 			"enrollment_end_date":   curso.EnrollmentEndDate,
-			
+
 			// Legacy and additional fields
 			"orgao_id":               curso.OrgaoID,
 			"instituicao_id":         curso.InstituicaoID,
@@ -651,7 +631,7 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 			"formato_aula":           curso.FormatoAula,
 			"link_inscricao":         curso.LinkInscricao,
 			"contato_duvidas":        curso.ContatoDuvidas,
-			
+
 			// Optional fields
 			"has_certificate":        curso.HasCertificate,
 			"facilitator":            curso.Facilitator,
@@ -675,13 +655,13 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 			// Timestamps
 			"created_at":             curso.CreatedAt,
 			"updated_at":             curso.UpdatedAt,
-			
+
 			// Related objects
 			"orgao":                  curso.Orgao,
 			"instituicao":            curso.Instituicao,
 			"categorias":             curso.Categorias,
 			"acessibilidades":        curso.Acessibilidades,
-			"acessibilidade_id":      acessibilidadeID,
+			"accessibility":          curso.Accessibility,
 			"custom_fields":          curso.CustomFields,
 			"locations":              curso.LocationClasses,
 			"remote_class":           curso.RemoteClass,

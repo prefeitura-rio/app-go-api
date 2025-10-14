@@ -173,15 +173,9 @@ func (s *CursoService) normalizeCurso(curso *models.Curso) {
 	curso.ResourcesUsed = strings.TrimSpace(curso.ResourcesUsed)
 	curso.MaterialUsed = strings.TrimSpace(curso.MaterialUsed)
 	curso.TeachingMaterial = strings.TrimSpace(curso.TeachingMaterial)
+	curso.Accessibility = strings.TrimSpace(curso.Accessibility)
 
 	if curso.Status == "" {
 		curso.Status = models.StatusCursoDraft
-	}
-
-	// Convert single acessibilidade_id to Acessibilidades array
-	if curso.AcessibilidadeID != nil && *curso.AcessibilidadeID > 0 {
-		curso.Acessibilidades = []models.Acessibilidade{
-			{ID: *curso.AcessibilidadeID},
-		}
 	}
 } 

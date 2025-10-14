@@ -4042,9 +4042,9 @@
         "models.Curso": {
             "type": "object",
             "properties": {
-                "acessibilidade_id": {
-                    "description": "Convenience field for single accessibility selection (not persisted directly)",
-                    "type": "integer"
+                "accessibility": {
+                    "description": "Accessibility field - free text field for frontend",
+                    "type": "string"
                 },
                 "carga_horaria": {
                     "type": "integer"
