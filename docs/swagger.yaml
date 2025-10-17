@@ -12,6 +12,17 @@ definitions:
       nome:
         type: string
     type: object
+  models.CNAE:
+    properties:
+      codigo:
+        type: string
+      id:
+        type: integer
+      ocupacao:
+        type: string
+      servico:
+        type: string
+    type: object
   models.Categoria:
     properties:
       cursos:
@@ -38,6 +49,9 @@ definitions:
     type: object
   models.Curso:
     properties:
+      accessibility:
+        description: Accessibility field - free text field for frontend
+        type: string
       carga_horaria:
         type: integer
       certificacao_oferecida:
@@ -103,7 +117,7 @@ definitions:
       organization:
         type: string
       orgao_id:
-        description: Legacy and additional fields
+        description: Legacy and additional fields (optional)
         type: integer
       pre_requisitos:
         description: Unified field for prerequisites - using single JSON tag
@@ -251,6 +265,8 @@ definitions:
     - FormatoAulaAoVivo
   models.Inscricao:
     type: object
+  models.InscricaoUpdateRequest:
+    type: object
   models.InstituicaoEnsino:
     properties:
       cursos:
@@ -277,6 +293,52 @@ definitions:
     - JornadaFlexivel
     - JornadaEstagio
     - JornadaHomeOffice
+  models.MEIEmpresa:
+    properties:
+      bairro:
+        type: string
+      cep:
+        description: Endereço
+        type: string
+      cidade:
+        type: string
+      cnpj:
+        type: string
+      created_at:
+        type: string
+      email:
+        description: Dados de contato
+        type: string
+      estado:
+        type: string
+      id:
+        type: integer
+      logradouro:
+        type: string
+      natureza_juridica:
+        type: string
+      nome_fantasia:
+        type: string
+      numero:
+        type: string
+      porte:
+        type: string
+      razao_social:
+        type: string
+      servicos:
+        description: Relacionamentos
+        items:
+          $ref: '#/definitions/models.CNAE'
+        type: array
+      situacao_cadastral:
+        $ref: '#/definitions/models.SituacaoCadastral'
+      tipo:
+        type: string
+      updated_at:
+        type: string
+      whatsapp:
+        type: string
+    type: object
   models.Modalidade:
     enum:
     - Presencial
@@ -315,6 +377,8 @@ definitions:
       total_found:
         type: integer
     type: object
+  models.OportunidadeMEI:
+    type: object
   models.Orgao:
     properties:
       cursos:
@@ -330,6 +394,29 @@ definitions:
         type: integer
       nome:
         type: string
+    type: object
+  models.PropostaMEI:
+    type: object
+  models.PropostaStatusUpdateRequest:
+    properties:
+      proposta_ids:
+        items:
+          type: string
+        type: array
+      status:
+        $ref: '#/definitions/models.StatusPropostaCidadao'
+    required:
+    - proposta_ids
+    - status
+    type: object
+  models.PropostaStatusUpdateResponse:
+    properties:
+      status:
+        $ref: '#/definitions/models.StatusPropostaCidadao'
+      updated_at:
+        type: string
+      updated_count:
+        type: integer
     type: object
   models.SearchDocumentsResponse:
     properties:
@@ -379,6 +466,20 @@ definitions:
       sort_by:
         type: string
     type: object
+  models.SituacaoCadastral:
+    enum:
+    - ATIVA
+    - SUSPENSA
+    - INAPTA
+    - BAIXADA
+    - NULA
+    type: string
+    x-enum-varnames:
+    - SituacaoAtiva
+    - SituacaoSuspensa
+    - SituacaoInapta
+    - SituacaoBaixada
+    - SituacaoNula
   models.StatusCurso:
     enum:
     - draft
@@ -423,6 +524,36 @@ definitions:
     - StatusInscricaoRejected
     - StatusInscricaoCancelled
     - StatusInscricaoConcluded
+  models.StatusOportunidadeMEI:
+    enum:
+    - draft
+    - active
+    - expired
+    type: string
+    x-enum-varnames:
+    - StatusOportunidadeDraft
+    - StatusOportunidadeActive
+    - StatusOportunidadeExpired
+  models.StatusPropostaAdmin:
+    enum:
+    - draft
+    - active
+    - expired
+    type: string
+    x-enum-varnames:
+    - StatusPropostaAdminDraft
+    - StatusPropostaAdminActive
+    - StatusPropostaAdminExpired
+  models.StatusPropostaCidadao:
+    enum:
+    - submitted
+    - approved
+    - rejected
+    type: string
+    x-enum-varnames:
+    - StatusPropostaCidadaoSubmitted
+    - StatusPropostaCidadaoApproved
+    - StatusPropostaCidadaoRejected
   models.TipoContratacao:
     enum:
     - CLT
@@ -611,6 +742,97 @@ paths:
       summary: Atualizar acessibilidade
       tags:
       - acessibilidades
+  /api/v1/admin/cnaes:
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo CNAE (admin)
+      parameters:
+      - description: Dados do CNAE
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CNAE'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CNAE'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar CNAE
+      tags:
+      - cnaes-admin
+  /api/v1/admin/cnaes/{codigo}:
+    delete:
+      description: Remove um CNAE pelo código (admin)
+      parameters:
+      - description: Código do CNAE
+        in: path
+        name: codigo
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir CNAE
+      tags:
+      - cnaes-admin
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um CNAE existente (admin)
+      parameters:
+      - description: Código do CNAE
+        in: path
+        name: codigo
+        required: true
+        type: string
+      - description: Dados do CNAE
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CNAE'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CNAE'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar CNAE
+      tags:
+      - cnaes-admin
   /api/v1/categorias:
     get:
       description: Retorna uma lista paginada de categorias
@@ -757,6 +979,63 @@ paths:
       summary: Atualizar categoria
       tags:
       - categorias
+  /api/v1/cnaes:
+    get:
+      description: Retorna uma lista paginada de CNAEs
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 100, max: 1000)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filtrar por ocupação
+        in: query
+        name: ocupacao
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar CNAEs
+      tags:
+      - cnaes
+  /api/v1/cnaes/{codigo}:
+    get:
+      description: Retorna um CNAE pelo seu código
+      parameters:
+      - description: Código do CNAE
+        in: path
+        name: codigo
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CNAE'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter CNAE por código
+      tags:
+      - cnaes
   /api/v1/courses:
     get:
       description: 'Retorna lista paginada de cursos criados (status: "opened", "closed",
@@ -1083,6 +1362,50 @@ paths:
           schema:
             $ref: '#/definitions/models.ErrorResponse'
       summary: Obter inscrição por ID
+      tags:
+      - inscricoes
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma inscrição existente (exceto CPF, curso
+        e status)
+      parameters:
+      - description: ID do curso
+        in: path
+        name: courseId
+        required: true
+        type: integer
+      - description: UUID da inscrição
+        in: path
+        name: enrollmentId
+        required: true
+        type: string
+      - description: Dados para atualização
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InscricaoUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Inscricao'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar inscrição
       tags:
       - inscricoes
   /api/v1/courses/{courseId}/enrollments/{enrollmentId}/certificate:
@@ -1930,6 +2253,662 @@ paths:
       summary: Atualizar instituição de ensino
       tags:
       - instituicoes
+  /api/v1/mei-empresas:
+    get:
+      description: Retorna uma lista paginada de MEI empresas
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10, max: 1000)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar MEI empresas
+      tags:
+      - mei-empresas
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo registro de MEI empresa
+      parameters:
+      - description: Dados da MEI empresa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.MEIEmpresa'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.MEIEmpresa'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Registrar MEI empresa
+      tags:
+      - mei-empresas
+  /api/v1/mei-empresas/{id}:
+    get:
+      description: Retorna uma MEI empresa pelo seu ID
+      parameters:
+      - description: ID da MEI empresa
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MEIEmpresa'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter MEI empresa por ID
+      tags:
+      - mei-empresas
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma MEI empresa existente
+      parameters:
+      - description: ID da MEI empresa
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da MEI empresa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.MEIEmpresa'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MEIEmpresa'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar MEI empresa
+      tags:
+      - mei-empresas
+  /api/v1/mei-empresas/cnpj/{cnpj}:
+    get:
+      description: Retorna uma MEI empresa pelo seu CNPJ
+      parameters:
+      - description: CNPJ da MEI empresa
+        in: path
+        name: cnpj
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MEIEmpresa'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Buscar MEI empresa por CNPJ
+      tags:
+      - mei-empresas
+  /api/v1/oportunidades-mei:
+    get:
+      description: Retorna uma lista paginada de oportunidades MEI ativas
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10, max: 1000)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filtrar por órgão
+        in: query
+        name: orgaoId
+        type: integer
+      - description: Filtrar por status (draft, active, expired)
+        in: query
+        name: status
+        type: string
+      - description: Buscar por título (case-insensitive)
+        in: query
+        name: titulo
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar oportunidades MEI
+      tags:
+      - oportunidades-mei
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova oportunidade MEI publicada
+      parameters:
+      - description: Dados da oportunidade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OportunidadeMEI'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.OportunidadeMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar oportunidade MEI
+      tags:
+      - oportunidades-mei
+  /api/v1/oportunidades-mei/{id}:
+    delete:
+      description: Remove uma oportunidade MEI pelo ID (soft delete)
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir oportunidade MEI
+      tags:
+      - oportunidades-mei
+    get:
+      description: Retorna uma oportunidade MEI pelo seu ID
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OportunidadeMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter oportunidade MEI por ID
+      tags:
+      - oportunidades-mei
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma oportunidade MEI existente mantendo seu
+        status atual
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da oportunidade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OportunidadeMEI'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OportunidadeMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar oportunidade MEI
+      tags:
+      - oportunidades-mei
+  /api/v1/oportunidades-mei/{id}/propostas:
+    get:
+      description: Retorna uma lista paginada de propostas MEI para uma oportunidade
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10, max: 1000)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Buscar por nome da empresa (case-insensitive)
+        in: query
+        name: nomeEmpresa
+        type: string
+      - description: Buscar por CNPJ
+        in: query
+        name: cnpj
+        type: string
+      - description: Filtrar por status (submitted, approved, rejected)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar propostas MEI por oportunidade
+      tags:
+      - propostas-mei
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova proposta MEI para uma oportunidade
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da proposta
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.PropostaMEI'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.PropostaMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar proposta MEI
+      tags:
+      - propostas-mei
+  /api/v1/oportunidades-mei/{id}/propostas/{propostaId}:
+    delete:
+      description: Remove uma proposta MEI pelo ID (soft delete)
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: UUID da proposta
+        in: path
+        name: propostaId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir proposta MEI
+      tags:
+      - propostas-mei
+    get:
+      description: Retorna uma proposta MEI pelo seu ID
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: UUID da proposta
+        in: path
+        name: propostaId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PropostaMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter proposta MEI por ID
+      tags:
+      - propostas-mei
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma proposta MEI existente
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: UUID da proposta
+        in: path
+        name: propostaId
+        required: true
+        type: string
+      - description: 'Dados para atualização: {\'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PropostaMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar proposta MEI
+      tags:
+      - propostas-mei
+  /api/v1/oportunidades-mei/{id}/propostas/{propostaId}/status:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza o status de uma proposta MEI (aprovar ou rejeitar)
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: UUID da proposta
+        in: path
+        name: propostaId
+        required: true
+        type: string
+      - description: 'Status: {\'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PropostaMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar status da proposta MEI
+      tags:
+      - propostas-mei
+  /api/v1/oportunidades-mei/{id}/propostas/status:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza o status de várias propostas MEI de uma vez (aprovação
+        em lote)
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados para atualização
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.PropostaStatusUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PropostaStatusUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar status de múltiplas propostas MEI
+      tags:
+      - propostas-mei
+  /api/v1/oportunidades-mei/{id}/publish:
+    put:
+      description: Publica uma oportunidade MEI que estava em rascunho
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OportunidadeMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Publicar oportunidade MEI
+      tags:
+      - oportunidades-mei
+  /api/v1/oportunidades-mei/draft:
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova oportunidade MEI em status de rascunho
+      parameters:
+      - description: Dados da oportunidade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OportunidadeMEI'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.OportunidadeMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar oportunidade MEI como rascunho
+      tags:
+      - oportunidades-mei
+  /api/v1/oportunidades-mei/drafts:
+    get:
+      description: Retorna uma lista paginada de oportunidades MEI em rascunho
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10, max: 1000)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar rascunhos de oportunidades MEI
+      tags:
+      - oportunidades-mei
   /api/v1/orgaos:
     get:
       description: Retorna uma lista paginada de órgãos
@@ -2076,6 +3055,41 @@ paths:
       summary: Atualizar órgão
       tags:
       - orgaos
+  /api/v1/propostas-mei/por-empresa:
+    get:
+      description: Retorna uma lista paginada de propostas MEI de uma empresa
+      parameters:
+      - description: ID da MEI empresa
+        in: query
+        name: meiEmpresaId
+        required: true
+        type: integer
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10, max: 1000)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar propostas MEI por MEI empresa
+      tags:
+      - propostas-mei
   /api/v1/typesense/collections/{collection}/documents/search:
     post:
       consumes:

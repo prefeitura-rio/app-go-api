@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -45,6 +46,14 @@ func (h *CourseHandler) Create(c *gin.Context) {
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
+		// Check if it's a validation error (not a database error)
+		if strings.Contains(err.Error(), "erro de validação") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": strings.TrimPrefix(err.Error(), "erro de validação: "),
+			})
+			return
+		}
+		// Otherwise, treat as database error
 		dbErr := utils.ParseDatabaseError(err)
 		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
 			"error": dbErr.GetUserFriendlyMessage(),
@@ -89,6 +98,14 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
+		// Check if it's a validation error (not a database error)
+		if strings.Contains(err.Error(), "erro de validação") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": strings.TrimPrefix(err.Error(), "erro de validação: "),
+			})
+			return
+		}
+		// Otherwise, treat as database error
 		dbErr := utils.ParseDatabaseError(err)
 		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
 			"error": dbErr.GetUserFriendlyMessage(),
@@ -152,6 +169,14 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	curso.CreatedAt = existingCurso.CreatedAt
 	
 	if err := h.cursoService.Update(c.Request.Context(), &curso); err != nil {
+		// Check if it's a validation error (not a database error)
+		if strings.Contains(err.Error(), "erro de validação") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": strings.TrimPrefix(err.Error(), "erro de validação: "),
+			})
+			return
+		}
+		// Otherwise, treat as database error
 		dbErr := utils.ParseDatabaseError(err)
 		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
 			"error": dbErr.GetUserFriendlyMessage(),
@@ -238,6 +263,7 @@ func (h *CourseHandler) List(c *gin.Context) {
 	// Transform courses to include all fields
 	coursesData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
+
 		coursesData[i] = gin.H{
 			// Core fields
 			"id":                    curso.ID,
@@ -253,7 +279,7 @@ func (h *CourseHandler) List(c *gin.Context) {
 			"cover_image":           curso.CoverImage,
 			"enrollment_start_date": curso.EnrollmentStartDate,
 			"enrollment_end_date":   curso.EnrollmentEndDate,
-			
+
 			// Legacy and additional fields
 			"orgao_id":               curso.OrgaoID,
 			"instituicao_id":         curso.InstituicaoID,
@@ -267,7 +293,7 @@ func (h *CourseHandler) List(c *gin.Context) {
 			"formato_aula":           curso.FormatoAula,
 			"link_inscricao":         curso.LinkInscricao,
 			"contato_duvidas":        curso.ContatoDuvidas,
-			
+
 			// Optional fields
 			"has_certificate":        curso.HasCertificate,
 			"facilitator":            curso.Facilitator,
@@ -291,12 +317,13 @@ func (h *CourseHandler) List(c *gin.Context) {
 			// Timestamps
 			"created_at":             curso.CreatedAt,
 			"updated_at":             curso.UpdatedAt,
-			
+
 			// Related objects
 			"orgao":                  curso.Orgao,
 			"instituicao":            curso.Instituicao,
 			"categorias":             curso.Categorias,
 			"acessibilidades":        curso.Acessibilidades,
+			"accessibility":          curso.Accessibility,
 			"custom_fields":          curso.CustomFields,
 			"locations":              curso.LocationClasses,
 			"remote_class":           curso.RemoteClass,
@@ -364,6 +391,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 	// Transform drafts to include all fields like the main course list
 	draftsData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
+
 		draftsData[i] = gin.H{
 			// Core fields
 			"id":                    curso.ID,
@@ -379,7 +407,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 			"cover_image":           curso.CoverImage,
 			"enrollment_start_date": curso.EnrollmentStartDate,
 			"enrollment_end_date":   curso.EnrollmentEndDate,
-			
+
 			// Legacy and additional fields
 			"orgao_id":               curso.OrgaoID,
 			"instituicao_id":         curso.InstituicaoID,
@@ -393,7 +421,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 			"formato_aula":           curso.FormatoAula,
 			"link_inscricao":         curso.LinkInscricao,
 			"contato_duvidas":        curso.ContatoDuvidas,
-			
+
 			// Optional fields
 			"has_certificate":        curso.HasCertificate,
 			"facilitator":            curso.Facilitator,
@@ -417,12 +445,13 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 			// Timestamps
 			"created_at":             curso.CreatedAt,
 			"updated_at":             curso.UpdatedAt,
-			
+
 			// Related objects
 			"orgao":                  curso.Orgao,
 			"instituicao":            curso.Instituicao,
 			"categorias":             curso.Categorias,
 			"acessibilidades":        curso.Acessibilidades,
+			"accessibility":          curso.Accessibility,
 			"custom_fields":          curso.CustomFields,
 			"locations":              curso.LocationClasses,
 			"remote_class":           curso.RemoteClass,
@@ -572,6 +601,7 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 	// Transform courses to include all fields
 	coursesData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
+
 		coursesData[i] = gin.H{
 			// Core fields
 			"id":                    curso.ID,
@@ -587,7 +617,7 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 			"cover_image":           curso.CoverImage,
 			"enrollment_start_date": curso.EnrollmentStartDate,
 			"enrollment_end_date":   curso.EnrollmentEndDate,
-			
+
 			// Legacy and additional fields
 			"orgao_id":               curso.OrgaoID,
 			"instituicao_id":         curso.InstituicaoID,
@@ -601,7 +631,7 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 			"formato_aula":           curso.FormatoAula,
 			"link_inscricao":         curso.LinkInscricao,
 			"contato_duvidas":        curso.ContatoDuvidas,
-			
+
 			// Optional fields
 			"has_certificate":        curso.HasCertificate,
 			"facilitator":            curso.Facilitator,
@@ -625,12 +655,13 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 			// Timestamps
 			"created_at":             curso.CreatedAt,
 			"updated_at":             curso.UpdatedAt,
-			
+
 			// Related objects
 			"orgao":                  curso.Orgao,
 			"instituicao":            curso.Instituicao,
 			"categorias":             curso.Categorias,
 			"acessibilidades":        curso.Acessibilidades,
+			"accessibility":          curso.Accessibility,
 			"custom_fields":          curso.CustomFields,
 			"locations":              curso.LocationClasses,
 			"remote_class":           curso.RemoteClass,

@@ -164,3 +164,12 @@ type EnrollmentStatusUpdateResponse struct {
 	Status       StatusInscricao `json:"status"`
 	UpdatedAt    time.Time       `json:"updated_at"`
 }
+
+type InscricaoUpdateRequest struct {
+	Name             *string         `json:"name"`
+	Email            *string         `json:"email"`
+	Phone            *string         `json:"phone"`
+	CustomFieldsData datatypes.JSON  `json:"custom_fields"`
+	AdminNotes       *string         `json:"admin_notes"`
+	EnrolledUnit     *EnrolledUnit   `json:"enrolled_unit"`
+}

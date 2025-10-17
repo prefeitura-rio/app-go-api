@@ -52,9 +52,9 @@ type Curso struct {
 	CoverImage           string         `json:"cover_image" gorm:"type:varchar(500);column:cover_image"`
 	Status               StatusCurso    `json:"status" gorm:"type:varchar(50)"`
 
-	// Legacy and additional fields
-	OrgaoID              int            `json:"orgao_id" gorm:"column:orgao_id"`
-	InstituicaoID        int            `json:"instituicao_id" gorm:"column:instituicao_id"`
+	// Legacy and additional fields (optional)
+	OrgaoID              *int           `json:"orgao_id,omitempty" gorm:"column:orgao_id"`
+	InstituicaoID        *int           `json:"instituicao_id,omitempty" gorm:"column:instituicao_id"`
 	LocalRealizacao      string         `json:"local_realizacao" gorm:"column:local_realizacao"`
 	DataInicio           *time.Time     `json:"data_inicio" gorm:"column:data_inicio"`
 	DataTermino          *time.Time     `json:"data_termino" gorm:"column:data_termino"`
@@ -88,9 +88,12 @@ type Curso struct {
 	ExternalPartnerLogoURL  string  `json:"external_partner_logo_url,omitempty" gorm:"column:external_partner_logo_url;type:varchar(500)"`
 	ExternalPartnerContact  string  `json:"external_partner_contact,omitempty" gorm:"column:external_partner_contact;type:varchar(255)"`
 
+	// Accessibility field - free text field for frontend
+	Accessibility        string  `json:"accessibility,omitempty" gorm:"column:accessibility;type:varchar(255)"`
+
 	CreatedAt            time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt            time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
-	
+
 	// Relacionamentos
 	Orgao                *Orgao           `json:"orgao,omitempty" gorm:"foreignKey:OrgaoID" swaggerignore:"true"`
 	Instituicao          *InstituicaoEnsino `json:"instituicao,omitempty" gorm:"foreignKey:InstituicaoID" swaggerignore:"true"`
