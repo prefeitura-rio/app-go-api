@@ -3,11 +3,13 @@ package v1
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type EmpregoHandler struct {
@@ -39,7 +41,18 @@ func (h *EmpregoHandler) Create(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &emprego)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar emprego: " + err.Error()})
+		// Check if it's a validation error (simple check for common validation terms)
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "obrigatório") || strings.Contains(errMsg, "inválid") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+			return
+		}
+		// Otherwise, treat as database error
+		dbErr := utils.ParseDatabaseError(err)
+		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
+			"error": dbErr.GetUserFriendlyMessage(),
+			"field": dbErr.Field,
+		})
 		return
 	}
 
@@ -104,7 +117,18 @@ func (h *EmpregoHandler) Update(c *gin.Context) {
 
 	emprego.ID = id
 	if err := h.service.Update(c.Request.Context(), &emprego); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar emprego: " + err.Error()})
+		// Check if it's a validation error
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "obrigatório") || strings.Contains(errMsg, "inválid") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+			return
+		}
+		// Otherwise, treat as database error
+		dbErr := utils.ParseDatabaseError(err)
+		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
+			"error": dbErr.GetUserFriendlyMessage(),
+			"field": dbErr.Field,
+		})
 		return
 	}
 
@@ -124,6 +148,17 @@ func (h *EmpregoHandler) Delete(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	// Check if emprego exists first
+	emprego, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar emprego: " + err.Error()})
+		return
+	}
+	if emprego == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Emprego não encontrado"})
 		return
 	}
 

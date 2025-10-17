@@ -144,6 +144,51 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 	})
 }
 
+// @Summary      Atualizar inscrição
+// @Description  Atualiza os dados de uma inscrição existente (exceto CPF, curso e status)
+// @Tags         inscricoes
+// @Accept       json
+// @Produce      json
+// @Param        courseId     path      int                           true  "ID do curso"
+// @Param        enrollmentId path      string                        true  "UUID da inscrição"
+// @Param        request      body      models.InscricaoUpdateRequest true  "Dados para atualização"
+// @Success      200          {object}  models.Inscricao
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      404          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId} [put]
+func (h *InscricaoHandler) Update(c *gin.Context) {
+	cursoID, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
+		return
+	}
+
+	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
+		return
+	}
+
+	var updateData models.InscricaoUpdateRequest
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		return
+	}
+
+	if err := h.service.UpdateInscricao(c.Request.Context(), enrollmentID, cursoID, &updateData); err != nil {
+		if err.Error() == "inscrição não encontrada" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	inscricao, _ := h.service.GetByID(c.Request.Context(), enrollmentID)
+	c.JSON(http.StatusOK, inscricao)
+}
+
 // @Summary      Atualizar status de múltiplas inscrições
 // @Description  Atualiza o status de várias inscrições de uma vez (aprovação em lote)
 // @Tags         inscricoes
