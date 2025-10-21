@@ -106,7 +106,13 @@ func main() {
 		if err != nil {
 			log.Printf("Aviso: Erro ao migrar tabela remote_classes: %v", err)
 		}
-		
+
+		log.Println("Migrando tabela de jobs...")
+		err = db.AutoMigrate(&models.Job{})
+		if err != nil {
+			log.Printf("Aviso: Erro ao migrar tabela jobs: %v", err)
+		}
+
 		log.Println("Auto-migração concluída!")
 	}
 
