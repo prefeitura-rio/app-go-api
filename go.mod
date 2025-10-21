@@ -12,6 +12,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
 	github.com/typesense/typesense-go/v3 v3.2.0
+	github.com/xuri/excelize/v2 v2.10.0
 	gorm.io/datatypes v1.2.6
 	gorm.io/driver/postgres v1.5.7
 	gorm.io/gorm v1.30.0
@@ -68,7 +69,6 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/xuri/efp v0.0.1 // indirect
-	github.com/xuri/excelize/v2 v2.10.0 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
