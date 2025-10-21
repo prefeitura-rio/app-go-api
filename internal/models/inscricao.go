@@ -27,8 +27,11 @@ type Inscricao struct {
 	Name             string                     `json:"name" gorm:"type:varchar(255);not null"`
 	Email            string                     `json:"email" gorm:"type:varchar(255);not null"`
 	Phone            string                     `json:"phone" gorm:"type:varchar(20)"`
+	Age              int                        `json:"age,omitempty" gorm:"column:age"`
+	Address          string                     `json:"address,omitempty" gorm:"type:varchar(500);column:address"`
+	Neighborhood     string                     `json:"neighborhood,omitempty" gorm:"type:varchar(100);column:neighborhood"`
 	Status           StatusInscricao            `json:"status" gorm:"type:status_inscricao_enum;default:'pending'"`
-	CustomFieldsData datatypes.JSON            `json:"custom_fields" gorm:"type:jsonb;column:custom_fields_data"`
+	CustomFieldsData datatypes.JSON            `json:"custom_fields" gorm:"type:jsonb;column:custom_fields_data" swaggertype:"object"`
 	AdminNotes       string                     `json:"admin_notes,omitempty" gorm:"type:text;column:admin_notes"`
 	Reason           string                     `json:"reason,omitempty" gorm:"type:text"`
 	CertificateURL   string                     `json:"certificate_url,omitempty" gorm:"type:varchar(500);column:certificate_url"`
@@ -169,7 +172,10 @@ type InscricaoUpdateRequest struct {
 	Name             *string         `json:"name"`
 	Email            *string         `json:"email"`
 	Phone            *string         `json:"phone"`
-	CustomFieldsData datatypes.JSON  `json:"custom_fields"`
+	Age              *int            `json:"age"`
+	Address          *string         `json:"address"`
+	Neighborhood     *string         `json:"neighborhood"`
+	CustomFieldsData datatypes.JSON  `json:"custom_fields" swaggertype:"object"`
 	AdminNotes       *string         `json:"admin_notes"`
 	EnrolledUnit     *EnrolledUnit   `json:"enrolled_unit"`
 }
