@@ -91,6 +91,9 @@ type Curso struct {
 	// Accessibility field - free text field for frontend
 	Accessibility        string  `json:"accessibility,omitempty" gorm:"column:accessibility;type:varchar(255)"`
 
+	// Visibility field - controls if course appears in public listings
+	IsVisible            bool    `json:"is_visible" gorm:"column:is_visible;default:true;not null"`
+
 	CreatedAt            time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt            time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 

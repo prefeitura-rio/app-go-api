@@ -1,24 +1,34 @@
 package v1
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 
+	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
 type InscricaoHandler struct {
-	service *services.InscricaoService
+	service    *services.InscricaoService
+	jobService *services.JobService
 }
 
-func NewInscricaoHandler(service *services.InscricaoService) *InscricaoHandler {
+func NewInscricaoHandler(service *services.InscricaoService, jobService *services.JobService) *InscricaoHandler {
 	return &InscricaoHandler{
-		service: service,
+		service:    service,
+		jobService: jobService,
 	}
 }
 
@@ -429,6 +439,166 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Inscrição excluída com sucesso",
+	})
+}
+
+// @Summary      Criar inscrição manual
+// @Description  Cria uma inscrição manual no curso (para uso do admin). Aplica mesmas validações do endpoint regular.
+// @Tags         inscricoes
+// @Accept       json
+// @Produce      json
+// @Param        courseId path      int               true  "ID do curso"
+// @Param        request  body      models.Inscricao  true  "Dados da inscrição (nome, cpf, idade, telefone, email, endereço, bairro)"
+// @Success      201      {object}  models.Inscricao
+// @Failure      400      {object}  models.ErrorResponse
+// @Failure      409      {object}  models.ErrorResponse
+// @Failure      500      {object}  models.ErrorResponse
+// @Router       /api/v1/courses/{courseId}/enrollments/manual [post]
+func (h *InscricaoHandler) CreateManual(c *gin.Context) {
+	cursoID, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
+		return
+	}
+
+	var inscricao models.Inscricao
+	if err := c.ShouldBindJSON(&inscricao); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		return
+	}
+
+	// Set the course ID from URL
+	inscricao.CursoID = cursoID
+
+	// Apply the same validations as the regular endpoint
+	if err := h.service.Create(c.Request.Context(), &inscricao); err != nil {
+		if err.Error() == "CPF já inscrito neste curso" {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data": gin.H{
+			"id":            inscricao.ID,
+			"course_id":     inscricao.CursoID,
+			"cpf":           inscricao.CPF,
+			"name":          inscricao.Name,
+			"email":         inscricao.Email,
+			"phone":         inscricao.Phone,
+			"age":           inscricao.Age,
+			"address":       inscricao.Address,
+			"neighborhood":  inscricao.Neighborhood,
+			"status":        inscricao.Status,
+			"enrolled_unit": inscricao.EnrolledUnit,
+			"enrolled_at":   inscricao.EnrolledAt,
+		},
+		"message": "Inscrição manual criada com sucesso",
+	})
+}
+
+// @Summary      Importar inscrições via CSV/XLSX
+// @Description  Faz upload de arquivo CSV ou XLSX para importar inscrições em lote. Processamento assíncrono.
+// @Tags         inscricoes
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        courseId path      int    true  "ID do curso"
+// @Param        file     formData  file   true  "Arquivo CSV ou XLSX com as inscrições"
+// @Success      202      {object}  object "Job ID para acompanhar o progresso"
+// @Failure      400      {object}  models.ErrorResponse
+// @Failure      500      {object}  models.ErrorResponse
+// @Router       /api/v1/courses/{courseId}/enrollments/import [post]
+func (h *InscricaoHandler) Import(c *gin.Context) {
+	cursoID, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
+		return
+	}
+
+	// Get uploaded file
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo não fornecido ou inválido: " + err.Error()})
+		return
+	}
+	defer file.Close()
+
+	// Validate file size (max 10MB)
+	maxSize := int64(10 << 20) // 10MB
+	if header.Size > maxSize {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo muito grande. Tamanho máximo: 10MB"})
+		return
+	}
+
+	// Validate file extension
+	fileName := header.Filename
+	ext := strings.ToLower(filepath.Ext(fileName))
+	if ext != ".csv" && ext != ".xlsx" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Formato de arquivo inválido. Aceito: CSV ou XLSX"})
+		return
+	}
+
+	// Create temporary file
+	tempFile, err := os.CreateTemp("", "enrollment-import-*"+ext)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar arquivo temporário: " + err.Error()})
+		return
+	}
+	defer tempFile.Close()
+
+	// Copy uploaded file to temp file
+	if _, err := io.Copy(tempFile, file); err != nil {
+		os.Remove(tempFile.Name())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar arquivo: " + err.Error()})
+		return
+	}
+
+	// Create job metadata
+	metadata := models.EnrollmentImportMetadata{
+		CursoID:  cursoID,
+		FileName: tempFile.Name(),
+	}
+
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		os.Remove(tempFile.Name())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar metadata do job: " + err.Error()})
+		return
+	}
+
+	// Create job
+	job := &models.Job{
+		Type:     models.JobTypeEnrollmentImport,
+		Metadata: datatypes.JSON(metadataJSON),
+	}
+
+	if err := h.jobService.Create(c.Request.Context(), job); err != nil {
+		os.Remove(tempFile.Name())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar job: " + err.Error()})
+		return
+	}
+
+	// Start processing in background
+	if jobs.GlobalJobProcessor != nil {
+		jobs.GlobalJobProcessor.StartJob(job.ID)
+	} else {
+		os.Remove(tempFile.Name())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Processador de jobs não inicializado"})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"success": true,
+		"data": gin.H{
+			"job_id":   job.ID,
+			"status":   job.Status,
+			"type":     job.Type,
+			"filename": fileName,
+		},
+		"message": fmt.Sprintf("Importação iniciada. Use GET /api/v1/jobs/%s/status para acompanhar o progresso", job.ID),
 	})
 }
 

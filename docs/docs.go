@@ -1168,6 +1168,116 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/courses/{courseId}/enrollments/import": {
+            "post": {
+                "description": "Faz upload de arquivo CSV ou XLSX para importar inscrições em lote. Processamento assíncrono.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inscricoes"
+                ],
+                "summary": "Importar inscrições via CSV/XLSX",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Arquivo CSV ou XLSX com as inscrições",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Job ID para acompanhar o progresso",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/courses/{courseId}/enrollments/manual": {
+            "post": {
+                "description": "Cria uma inscrição manual no curso (para uso do admin). Aplica mesmas validações do endpoint regular.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inscricoes"
+                ],
+                "summary": "Criar inscrição manual",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da inscrição (nome, cpf, idade, telefone, email, endereço, bairro)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Inscricao"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Inscricao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/courses/{courseId}/enrollments/status": {
             "put": {
                 "description": "Atualiza o status de várias inscrições de uma vez (aprovação em lote)",
@@ -2507,6 +2617,53 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/jobs/{jobId}/status": {
+            "get": {
+                "description": "Retorna o status e progresso de um job em execução ou concluído",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Obter status de job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do job (UUID)",
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -4119,6 +4276,10 @@ const docTemplate = `{
                     "description": "External partner fields",
                     "type": "boolean"
                 },
+                "is_visible": {
+                    "description": "Visibility field - controls if course appears in public listings",
+                    "type": "boolean"
+                },
                 "link_inscricao": {
                     "type": "string"
                 },
@@ -4287,6 +4448,44 @@ const docTemplate = `{
                 }
             }
         },
+        "models.EnrolledUnit": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "class_days": {
+                    "type": "string"
+                },
+                "class_end_date": {
+                    "type": "string"
+                },
+                "class_start_date": {
+                    "type": "string"
+                },
+                "class_time": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "curso_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "neighborhood": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vacancies": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.EnrollmentStatusUpdateRequest": {
             "type": "object",
             "required": [
@@ -4366,10 +4565,103 @@ const docTemplate = `{
             ]
         },
         "models.Inscricao": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "admin_notes": {
+                    "type": "string"
+                },
+                "age": {
+                    "type": "integer"
+                },
+                "certificate_url": {
+                    "type": "string"
+                },
+                "concluded_at": {
+                    "type": "string"
+                },
+                "course_id": {
+                    "type": "integer"
+                },
+                "cpf": {
+                    "type": "string"
+                },
+                "curso": {
+                    "description": "Relacionamentos",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    ]
+                },
+                "custom_fields": {
+                    "type": "object"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "enrolled_at": {
+                    "type": "string"
+                },
+                "enrolled_unit": {
+                    "$ref": "#/definitions/models.EnrolledUnit"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "neighborhood": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.StatusInscricao"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
         },
         "models.InscricaoUpdateRequest": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "admin_notes": {
+                    "type": "string"
+                },
+                "age": {
+                    "type": "integer"
+                },
+                "custom_fields": {
+                    "type": "object"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "enrolled_unit": {
+                    "$ref": "#/definitions/models.EnrolledUnit"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "neighborhood": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
         },
         "models.InstituicaoEnsino": {
             "type": "object",
@@ -4388,6 +4680,77 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "models.Job": {
+            "type": "object",
+            "properties": {
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "result": {
+                    "type": "object"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.JobStatus"
+                },
+                "success_count": {
+                    "type": "integer"
+                },
+                "total_records": {
+                    "type": "integer"
+                },
+                "type": {
+                    "$ref": "#/definitions/models.JobType"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.JobStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "processing",
+                "completed",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "JobStatusPending",
+                "JobStatusProcessing",
+                "JobStatusCompleted",
+                "JobStatusFailed"
+            ]
+        },
+        "models.JobType": {
+            "type": "string",
+            "enum": [
+                "enrollment_import"
+            ],
+            "x-enum-varnames": [
+                "JobTypeEnrollmentImport"
+            ]
         },
         "models.JornadaTrabalho": {
             "type": "string",
