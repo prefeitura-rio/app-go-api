@@ -167,6 +167,11 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	curso.ID = id
 	// Preserve original created_at
 	curso.CreatedAt = existingCurso.CreatedAt
+
+	// Preserve is_visible if not provided in request
+	if curso.IsVisible == nil {
+		curso.IsVisible = existingCurso.IsVisible
+	}
 	
 	if err := h.cursoService.Update(c.Request.Context(), &curso); err != nil {
 		// Check if it's a validation error (not a database error)
