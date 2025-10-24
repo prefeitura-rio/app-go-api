@@ -4277,8 +4277,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "is_visible": {
-                    "description": "Visibility field - controls if course appears in public listings",
-                    "type": "boolean"
+                    "description": "Visibility field - controls if course appears in public listings (default: true)\nUsed for in-person courses that require manual enrollment and should not appear in public course lists",
+                    "type": "boolean",
+                    "example": true
                 },
                 "link_inscricao": {
                     "type": "string"
@@ -4568,13 +4569,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "address": {
-                    "type": "string"
+                    "description": "Endereço completo",
+                    "type": "string",
+                    "example": "Rua das Flores, 123"
                 },
                 "admin_notes": {
                     "type": "string"
                 },
                 "age": {
-                    "type": "integer"
+                    "description": "Additional enrollment fields for manual/bulk import",
+                    "type": "integer",
+                    "example": 25
                 },
                 "certificate_url": {
                     "type": "string"
@@ -4615,7 +4620,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "neighborhood": {
-                    "type": "string"
+                    "description": "Bairro",
+                    "type": "string",
+                    "example": "Centro"
                 },
                 "phone": {
                     "type": "string"
@@ -4685,45 +4692,72 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "completed_at": {
+                    "description": "Data/hora de conclusão",
                     "type": "string"
                 },
                 "created_at": {
+                    "description": "Data/hora de criação",
                     "type": "string"
                 },
                 "error_count": {
-                    "type": "integer"
+                    "description": "Quantidade de registros com erro",
+                    "type": "integer",
+                    "example": 2
                 },
                 "errors": {
+                    "description": "Lista de erros detalhados por linha",
                     "type": "array",
                     "items": {
                         "type": "object"
                     }
                 },
                 "id": {
+                    "description": "ID único do job",
                     "type": "string"
                 },
                 "metadata": {
+                    "description": "Metadata adicional (curso_id, file_name, etc)",
                     "type": "object"
                 },
                 "progress": {
-                    "type": "integer"
+                    "description": "Progresso em porcentagem (0-100)",
+                    "type": "integer",
+                    "example": 100
                 },
                 "result": {
+                    "description": "Resultado final do processamento",
                     "type": "object"
                 },
                 "status": {
-                    "$ref": "#/definitions/models.JobStatus"
+                    "description": "Status: pending, processing, completed, failed",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.JobStatus"
+                        }
+                    ],
+                    "example": "completed"
                 },
                 "success_count": {
-                    "type": "integer"
+                    "description": "Quantidade de registros processados com sucesso",
+                    "type": "integer",
+                    "example": 8
                 },
                 "total_records": {
-                    "type": "integer"
+                    "description": "Total de registros a processar",
+                    "type": "integer",
+                    "example": 10
                 },
                 "type": {
-                    "$ref": "#/definitions/models.JobType"
+                    "description": "Tipo de job (enrollment_import, etc)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.JobType"
+                        }
+                    ],
+                    "example": "enrollment_import"
                 },
                 "updated_at": {
+                    "description": "Data/hora da última atualização",
                     "type": "string"
                 }
             }

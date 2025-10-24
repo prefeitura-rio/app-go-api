@@ -27,9 +27,12 @@ type Inscricao struct {
 	Name             string                     `json:"name" gorm:"type:varchar(255);not null"`
 	Email            string                     `json:"email" gorm:"type:varchar(255);not null"`
 	Phone            string                     `json:"phone" gorm:"type:varchar(20)"`
-	Age              int                        `json:"age,omitempty" gorm:"column:age"`
-	Address          string                     `json:"address,omitempty" gorm:"type:varchar(500);column:address"`
-	Neighborhood     string                     `json:"neighborhood,omitempty" gorm:"type:varchar(100);column:neighborhood"`
+
+	// Additional enrollment fields for manual/bulk import
+	Age              int                        `json:"age,omitempty" gorm:"column:age" example:"25"`                                         // Idade do inscrito
+	Address          string                     `json:"address,omitempty" gorm:"type:varchar(500);column:address" example:"Rua das Flores, 123"` // Endereço completo
+	Neighborhood     string                     `json:"neighborhood,omitempty" gorm:"type:varchar(100);column:neighborhood" example:"Centro"`     // Bairro
+
 	Status           StatusInscricao            `json:"status" gorm:"type:status_inscricao_enum;default:'pending'"`
 	CustomFieldsData datatypes.JSON            `json:"custom_fields" gorm:"type:jsonb;column:custom_fields_data" swaggertype:"object"`
 	AdminNotes       string                     `json:"admin_notes,omitempty" gorm:"type:text;column:admin_notes"`
