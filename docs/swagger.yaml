@@ -101,7 +101,10 @@ definitions:
         description: External partner fields
         type: boolean
       is_visible:
-        description: Visibility field - controls if course appears in public listings
+        description: |-
+          Visibility field - controls if course appears in public listings (default: true)
+          Used for in-person courses that require manual enrollment and should not appear in public course lists
+        example: true
         type: boolean
       link_inscricao:
         type: string
@@ -294,10 +297,14 @@ definitions:
   models.Inscricao:
     properties:
       address:
+        description: Endereço completo
+        example: Rua das Flores, 123
         type: string
       admin_notes:
         type: string
       age:
+        description: Additional enrollment fields for manual/bulk import
+        example: 25
         type: integer
       certificate_url:
         type: string
@@ -324,6 +331,8 @@ definitions:
       name:
         type: string
       neighborhood:
+        description: Bairro
+        example: Centro
         type: string
       phone:
         type: string
@@ -370,32 +379,53 @@ definitions:
   models.Job:
     properties:
       completed_at:
+        description: Data/hora de conclusão
         type: string
       created_at:
+        description: Data/hora de criação
         type: string
       error_count:
+        description: Quantidade de registros com erro
+        example: 2
         type: integer
       errors:
+        description: Lista de erros detalhados por linha
         items:
           type: object
         type: array
       id:
+        description: ID único do job
         type: string
       metadata:
+        description: Metadata adicional (curso_id, file_name, etc)
         type: object
       progress:
+        description: Progresso em porcentagem (0-100)
+        example: 100
         type: integer
       result:
+        description: Resultado final do processamento
         type: object
       status:
-        $ref: '#/definitions/models.JobStatus'
+        allOf:
+        - $ref: '#/definitions/models.JobStatus'
+        description: 'Status: pending, processing, completed, failed'
+        example: completed
       success_count:
+        description: Quantidade de registros processados com sucesso
+        example: 8
         type: integer
       total_records:
+        description: Total de registros a processar
+        example: 10
         type: integer
       type:
-        $ref: '#/definitions/models.JobType'
+        allOf:
+        - $ref: '#/definitions/models.JobType'
+        description: Tipo de job (enrollment_import, etc)
+        example: enrollment_import
       updated_at:
+        description: Data/hora da última atualização
         type: string
     type: object
   models.JobStatus:
