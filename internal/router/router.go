@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
+	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -50,6 +51,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	instituicaoRepo := repository.NewInstituicaoRepository(db)
 	orgaoRepo := repository.NewOrgaoRepository(db)
 	inscricaoRepo := repository.NewInscricaoRepository(db)
+	jobRepo := repository.NewJobRepository(db)
 	cnaeRepo := repository.NewCNAERepository(db)
 	meiEmpresaRepo := repository.NewMEIEmpresaRepository(db)
 	oportunidadeMEIRepo := repository.NewOportunidadeMEIRepository(db)
@@ -65,10 +67,14 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
 	orgaoService := services.NewOrgaoService(orgaoRepo)
 	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
+	jobService := services.NewJobService(jobRepo)
 	cnaeService := services.NewCNAEService(cnaeRepo)
 	meiEmpresaService := services.NewMEIEmpresaService(meiEmpresaRepo, cnaeRepo)
 	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo, cnaeRepo, orgaoRepo)
 	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, meiEmpresaRepo)
+
+	// Initialize job processor
+	jobs.InitializeJobProcessor(db, jobRepo, inscricaoRepo, cursoRepo)
 
 	// Inicializando handlers
 	empregoHandler := v1.NewEmpregoHandler(empregoService)
@@ -78,8 +84,9 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService)
 	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
 	orgaoHandler := v1.NewOrgaoHandler(orgaoService)
-	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService)
+	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService, jobService)
 	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService)
+	jobHandler := v1.NewJobHandler(jobService)
 	cnaeHandler := v1.NewCNAEHandler(cnaeService)
 	meiEmpresaHandler := v1.NewMEIEmpresaHandler(meiEmpresaService)
 	oportunidadeMEIHandler := v1.NewOportunidadeMEIHandler(oportunidadeMEIService)
@@ -183,6 +190,8 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 
 		// Enrollment endpoints
 		courses.POST("/:courseId/enrollments", inscricaoHandler.Create)
+		courses.POST("/:courseId/enrollments/manual", inscricaoHandler.CreateManual)
+		courses.POST("/:courseId/enrollments/import", inscricaoHandler.Import)
 		courses.GET("/:courseId/enrollments", inscricaoHandler.List)
 		courses.PUT("/:courseId/enrollments/status", inscricaoHandler.UpdateStatus)
 		courses.PUT("/:courseId/enrollments/:enrollmentId", inscricaoHandler.Update)
@@ -190,6 +199,12 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		courses.GET("/:courseId/enrollments/:enrollmentId", inscricaoHandler.GetByID)
 		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", inscricaoHandler.UpdateCertificate)
 		courses.DELETE("/:courseId/enrollments/:enrollmentId", inscricaoHandler.Delete)
+	}
+
+	// Job status endpoints
+	jobsGroup := apiV1.Group("/jobs")
+	{
+		jobsGroup.GET("/:jobId/status", jobHandler.GetStatus)
 	}
 
 	// Endpoints públicos (sem autenticação) para busca e listagem de cursos
