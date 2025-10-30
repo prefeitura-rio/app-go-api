@@ -8,7 +8,10 @@ type Acessibilidade struct {
 	Cursos []Curso `json:"cursos,omitempty" gorm:"many2many:cursos_acessibilidades;"`
 }
 
-// TableName especifica o nome da tabela para este modelo
+func (a *Acessibilidade) SetID(id int) {
+	a.ID = id
+}
+
 func (Acessibilidade) TableName() string {
 	return "acessibilidades"
 } 

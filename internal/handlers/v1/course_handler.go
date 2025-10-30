@@ -24,6 +24,63 @@ func NewCourseHandler(cursoService *services.CursoService, inscricaoService *ser
 	}
 }
 
+func transformCursoToResponse(curso *models.Curso) gin.H {
+	return gin.H{
+		"id":                    curso.ID,
+		"title":                 curso.Titulo,
+		"description":           curso.Descricao,
+		"modalidade":            curso.Modalidade,
+		"status":                curso.Status,
+		"organization":          curso.Organization,
+		"theme":                 curso.Theme,
+		"workload":              curso.Workload,
+		"target_audience":       curso.TargetAudience,
+		"institutional_logo":    curso.InstitutionalLogo,
+		"cover_image":           curso.CoverImage,
+		"enrollment_start_date": curso.EnrollmentStartDate,
+		"enrollment_end_date":   curso.EnrollmentEndDate,
+		"orgao_id":               curso.OrgaoID,
+		"instituicao_id":         curso.InstituicaoID,
+		"local_realizacao":       curso.LocalRealizacao,
+		"data_inicio":            curso.DataInicio,
+		"data_termino":           curso.DataTermino,
+		"data_limite_inscricoes": curso.DataLimiteInscricoes,
+		"numero_vagas":           curso.NumeroVagas,
+		"carga_horaria":          curso.CargaHoraria,
+		"turno":                  curso.Turno,
+		"formato_aula":           curso.FormatoAula,
+		"link_inscricao":         curso.LinkInscricao,
+		"contato_duvidas":        curso.ContatoDuvidas,
+		"has_certificate":        curso.HasCertificate,
+		"facilitator":            curso.Facilitator,
+		"objectives":             curso.Objectives,
+		"expected_results":       curso.ExpectedResults,
+		"program_content":        curso.ProgramContent,
+		"methodology":            curso.Methodology,
+		"resources_used":         curso.ResourcesUsed,
+		"material_used":          curso.MaterialUsed,
+		"teaching_material":      curso.TeachingMaterial,
+		"pre_requisitos":         curso.PreRequisitos,
+		"certificacao_oferecida": curso.CertificacaoOferecida,
+		"is_external_partner":       curso.IsExternalPartner,
+		"external_partner_name":     curso.ExternalPartnerName,
+		"external_partner_url":      curso.ExternalPartnerURL,
+		"external_partner_logo_url": curso.ExternalPartnerLogoURL,
+		"external_partner_contact":  curso.ExternalPartnerContact,
+		"created_at":             curso.CreatedAt,
+		"updated_at":             curso.UpdatedAt,
+		"orgao":                  curso.Orgao,
+		"instituicao":            curso.Instituicao,
+		"categorias":             curso.Categorias,
+		"acessibilidades":        curso.Acessibilidades,
+		"accessibility":          curso.Accessibility,
+		"is_visible":             curso.IsVisible,
+		"custom_fields":          curso.CustomFields,
+		"locations":              curso.LocationClasses,
+		"remote_class":           curso.RemoteClass,
+	}
+}
+
 // @Summary      Criar curso
 // @Description  Cria um novo curso no sistema (status: "opened")
 // @Tags         courses
@@ -265,75 +322,9 @@ func (h *CourseHandler) List(c *gin.Context) {
 
 	totalPages := (total + limit - 1) / limit
 
-	// Transform courses to include all fields
 	coursesData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
-
-		coursesData[i] = gin.H{
-			// Core fields
-			"id":                    curso.ID,
-			"title":                 curso.Titulo,
-			"description":           curso.Descricao,
-			"modalidade":            curso.Modalidade,
-			"status":                curso.Status,
-			"organization":          curso.Organization,
-			"theme":                 curso.Theme,
-			"workload":              curso.Workload,
-			"target_audience":       curso.TargetAudience,
-			"institutional_logo":    curso.InstitutionalLogo,
-			"cover_image":           curso.CoverImage,
-			"enrollment_start_date": curso.EnrollmentStartDate,
-			"enrollment_end_date":   curso.EnrollmentEndDate,
-
-			// Legacy and additional fields
-			"orgao_id":               curso.OrgaoID,
-			"instituicao_id":         curso.InstituicaoID,
-			"local_realizacao":       curso.LocalRealizacao,
-			"data_inicio":            curso.DataInicio,
-			"data_termino":           curso.DataTermino,
-			"data_limite_inscricoes": curso.DataLimiteInscricoes,
-			"numero_vagas":           curso.NumeroVagas,
-			"carga_horaria":          curso.CargaHoraria,
-			"turno":                  curso.Turno,
-			"formato_aula":           curso.FormatoAula,
-			"link_inscricao":         curso.LinkInscricao,
-			"contato_duvidas":        curso.ContatoDuvidas,
-
-			// Optional fields
-			"has_certificate":        curso.HasCertificate,
-			"facilitator":            curso.Facilitator,
-			"objectives":             curso.Objectives,
-			"expected_results":       curso.ExpectedResults,
-			"program_content":        curso.ProgramContent,
-			"methodology":            curso.Methodology,
-			"resources_used":         curso.ResourcesUsed,
-			"material_used":          curso.MaterialUsed,
-			"teaching_material":      curso.TeachingMaterial,
-			"pre_requisitos":         curso.PreRequisitos,
-			"certificacao_oferecida": curso.CertificacaoOferecida,
-
-			// External partner fields
-			"is_external_partner":       curso.IsExternalPartner,
-			"external_partner_name":     curso.ExternalPartnerName,
-			"external_partner_url":      curso.ExternalPartnerURL,
-			"external_partner_logo_url": curso.ExternalPartnerLogoURL,
-			"external_partner_contact":  curso.ExternalPartnerContact,
-
-			// Timestamps
-			"created_at":             curso.CreatedAt,
-			"updated_at":             curso.UpdatedAt,
-
-			// Related objects
-			"orgao":                  curso.Orgao,
-			"instituicao":            curso.Instituicao,
-			"categorias":             curso.Categorias,
-			"acessibilidades":        curso.Acessibilidades,
-			"accessibility":          curso.Accessibility,
-			"is_visible":             curso.IsVisible,
-			"custom_fields":          curso.CustomFields,
-			"locations":              curso.LocationClasses,
-			"remote_class":           curso.RemoteClass,
-		}
+		coursesData[i] = transformCursoToResponse(curso)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -394,75 +385,9 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 
 	totalPages := (total + limit - 1) / limit
 
-	// Transform drafts to include all fields like the main course list
 	draftsData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
-
-		draftsData[i] = gin.H{
-			// Core fields
-			"id":                    curso.ID,
-			"title":                 curso.Titulo,
-			"description":           curso.Descricao,
-			"modalidade":            curso.Modalidade,
-			"status":                curso.Status,
-			"organization":          curso.Organization,
-			"theme":                 curso.Theme,
-			"workload":              curso.Workload,
-			"target_audience":       curso.TargetAudience,
-			"institutional_logo":    curso.InstitutionalLogo,
-			"cover_image":           curso.CoverImage,
-			"enrollment_start_date": curso.EnrollmentStartDate,
-			"enrollment_end_date":   curso.EnrollmentEndDate,
-
-			// Legacy and additional fields
-			"orgao_id":               curso.OrgaoID,
-			"instituicao_id":         curso.InstituicaoID,
-			"local_realizacao":       curso.LocalRealizacao,
-			"data_inicio":            curso.DataInicio,
-			"data_termino":           curso.DataTermino,
-			"data_limite_inscricoes": curso.DataLimiteInscricoes,
-			"numero_vagas":           curso.NumeroVagas,
-			"carga_horaria":          curso.CargaHoraria,
-			"turno":                  curso.Turno,
-			"formato_aula":           curso.FormatoAula,
-			"link_inscricao":         curso.LinkInscricao,
-			"contato_duvidas":        curso.ContatoDuvidas,
-
-			// Optional fields
-			"has_certificate":        curso.HasCertificate,
-			"facilitator":            curso.Facilitator,
-			"objectives":             curso.Objectives,
-			"expected_results":       curso.ExpectedResults,
-			"program_content":        curso.ProgramContent,
-			"methodology":            curso.Methodology,
-			"resources_used":         curso.ResourcesUsed,
-			"material_used":          curso.MaterialUsed,
-			"teaching_material":      curso.TeachingMaterial,
-			"pre_requisitos":         curso.PreRequisitos,
-			"certificacao_oferecida": curso.CertificacaoOferecida,
-
-			// External partner fields
-			"is_external_partner":       curso.IsExternalPartner,
-			"external_partner_name":     curso.ExternalPartnerName,
-			"external_partner_url":      curso.ExternalPartnerURL,
-			"external_partner_logo_url": curso.ExternalPartnerLogoURL,
-			"external_partner_contact":  curso.ExternalPartnerContact,
-
-			// Timestamps
-			"created_at":             curso.CreatedAt,
-			"updated_at":             curso.UpdatedAt,
-
-			// Related objects
-			"orgao":                  curso.Orgao,
-			"instituicao":            curso.Instituicao,
-			"categorias":             curso.Categorias,
-			"acessibilidades":        curso.Acessibilidades,
-			"accessibility":          curso.Accessibility,
-			"is_visible":             curso.IsVisible,
-			"custom_fields":          curso.CustomFields,
-			"locations":              curso.LocationClasses,
-			"remote_class":           curso.RemoteClass,
-		}
+		draftsData[i] = transformCursoToResponse(curso)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -605,75 +530,9 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 
 	totalPages := (total + limit - 1) / limit
 
-	// Transform courses to include all fields
 	coursesData := make([]gin.H, len(cursos))
 	for i, curso := range cursos {
-
-		coursesData[i] = gin.H{
-			// Core fields
-			"id":                    curso.ID,
-			"title":                 curso.Titulo,
-			"description":           curso.Descricao,
-			"modalidade":            curso.Modalidade,
-			"status":                curso.Status,
-			"organization":          curso.Organization,
-			"theme":                 curso.Theme,
-			"workload":              curso.Workload,
-			"target_audience":       curso.TargetAudience,
-			"institutional_logo":    curso.InstitutionalLogo,
-			"cover_image":           curso.CoverImage,
-			"enrollment_start_date": curso.EnrollmentStartDate,
-			"enrollment_end_date":   curso.EnrollmentEndDate,
-
-			// Legacy and additional fields
-			"orgao_id":               curso.OrgaoID,
-			"instituicao_id":         curso.InstituicaoID,
-			"local_realizacao":       curso.LocalRealizacao,
-			"data_inicio":            curso.DataInicio,
-			"data_termino":           curso.DataTermino,
-			"data_limite_inscricoes": curso.DataLimiteInscricoes,
-			"numero_vagas":           curso.NumeroVagas,
-			"carga_horaria":          curso.CargaHoraria,
-			"turno":                  curso.Turno,
-			"formato_aula":           curso.FormatoAula,
-			"link_inscricao":         curso.LinkInscricao,
-			"contato_duvidas":        curso.ContatoDuvidas,
-
-			// Optional fields
-			"has_certificate":        curso.HasCertificate,
-			"facilitator":            curso.Facilitator,
-			"objectives":             curso.Objectives,
-			"expected_results":       curso.ExpectedResults,
-			"program_content":        curso.ProgramContent,
-			"methodology":            curso.Methodology,
-			"resources_used":         curso.ResourcesUsed,
-			"material_used":          curso.MaterialUsed,
-			"teaching_material":      curso.TeachingMaterial,
-			"pre_requisitos":         curso.PreRequisitos,
-			"certificacao_oferecida": curso.CertificacaoOferecida,
-
-			// External partner fields
-			"is_external_partner":       curso.IsExternalPartner,
-			"external_partner_name":     curso.ExternalPartnerName,
-			"external_partner_url":      curso.ExternalPartnerURL,
-			"external_partner_logo_url": curso.ExternalPartnerLogoURL,
-			"external_partner_contact":  curso.ExternalPartnerContact,
-
-			// Timestamps
-			"created_at":             curso.CreatedAt,
-			"updated_at":             curso.UpdatedAt,
-
-			// Related objects
-			"orgao":                  curso.Orgao,
-			"instituicao":            curso.Instituicao,
-			"categorias":             curso.Categorias,
-			"acessibilidades":        curso.Acessibilidades,
-			"accessibility":          curso.Accessibility,
-			"is_visible":             curso.IsVisible,
-			"custom_fields":          curso.CustomFields,
-			"locations":              curso.LocationClasses,
-			"remote_class":           curso.RemoteClass,
-		}
+		coursesData[i] = transformCursoToResponse(curso)
 	}
 
 	c.JSON(http.StatusOK, gin.H{

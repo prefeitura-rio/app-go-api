@@ -8,7 +8,10 @@ type Categoria struct {
 	Cursos []Curso `json:"cursos,omitempty" gorm:"many2many:cursos_categorias;"`
 }
 
-// TableName especifica o nome da tabela para este modelo
+func (c *Categoria) SetID(id int) {
+	c.ID = id
+}
+
 func (Categoria) TableName() string {
 	return "categorias"
 } 

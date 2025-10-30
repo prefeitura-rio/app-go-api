@@ -8,7 +8,10 @@ type Empresa struct {
 	Empregos []Emprego `json:"empregos,omitempty" gorm:"foreignKey:EmpresaID"`
 }
 
-// TableName especifica o nome da tabela para este modelo
+func (e *Empresa) SetID(id int) {
+	e.ID = id
+}
+
 func (Empresa) TableName() string {
 	return "empresas"
 } 
