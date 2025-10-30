@@ -8,7 +8,10 @@ type InstituicaoEnsino struct {
 	Cursos []Curso `json:"cursos,omitempty" gorm:"foreignKey:InstituicaoID"`
 }
 
-// TableName especifica o nome da tabela para este modelo
+func (i *InstituicaoEnsino) SetID(id int) {
+	i.ID = id
+}
+
 func (InstituicaoEnsino) TableName() string {
 	return "instituicoes_ensino"
 } 
