@@ -86,13 +86,56 @@ func buildFieldMappings(customFields []models.CustomField) map[string]string {
 	return mappings
 }
 
-func buildLocationMap(locations []models.LocationClass) map[string]uuid.UUID {
-	locationMap := make(map[string]uuid.UUID)
+// buildScheduleMap creates a map to find schedules by address, time, or days
+// Key format: "address|time|days" (all normalized and lowercased)
+func buildScheduleMap(locations []models.LocationClass) map[string]struct {
+	LocationID uuid.UUID
+	ScheduleID uuid.UUID
+} {
+	scheduleMap := make(map[string]struct {
+		LocationID uuid.UUID
+		ScheduleID uuid.UUID
+	})
+
 	for _, loc := range locations {
 		normalizedAddr := strings.ToLower(strings.TrimSpace(loc.Address))
-		locationMap[normalizedAddr] = loc.ID
+
+		for _, schedule := range loc.Schedules {
+			// Create multiple keys for better matching
+			normalizedTime := strings.ToLower(strings.TrimSpace(schedule.ClassTime))
+			normalizedDays := strings.ToLower(strings.TrimSpace(schedule.ClassDays))
+
+			// Key by address only
+			addressKey := normalizedAddr
+			scheduleMap[addressKey] = struct {
+				LocationID uuid.UUID
+				ScheduleID uuid.UUID
+			}{loc.ID, schedule.ID}
+
+			// Key by address + time
+			addressTimeKey := normalizedAddr + "|" + normalizedTime
+			scheduleMap[addressTimeKey] = struct {
+				LocationID uuid.UUID
+				ScheduleID uuid.UUID
+			}{loc.ID, schedule.ID}
+
+			// Key by address + days
+			addressDaysKey := normalizedAddr + "|" + normalizedDays
+			scheduleMap[addressDaysKey] = struct {
+				LocationID uuid.UUID
+				ScheduleID uuid.UUID
+			}{loc.ID, schedule.ID}
+
+			// Key by address + time + days
+			fullKey := normalizedAddr + "|" + normalizedTime + "|" + normalizedDays
+			scheduleMap[fullKey] = struct {
+				LocationID uuid.UUID
+				ScheduleID uuid.UUID
+			}{loc.ID, schedule.ID}
+		}
 	}
-	return locationMap
+
+	return scheduleMap
 }
 
 func (p *EnrollmentImportProcessor) Process(ctx context.Context, job *models.Job) error {
@@ -115,12 +158,12 @@ func (p *EnrollmentImportProcessor) Process(ctx context.Context, job *models.Job
 	}
 
 	var locationClasses []models.LocationClass
-	if err := p.db.Where("curso_id = ?", metadata.CursoID).Find(&locationClasses).Error; err != nil {
+	if err := p.db.Where("curso_id = ?", metadata.CursoID).Preload("Schedules").Find(&locationClasses).Error; err != nil {
 		log.Printf("Aviso: erro ao carregar location_classes: %v", err)
 	}
 
 	fieldMappings := buildFieldMappings(customFields)
-	locationMap := buildLocationMap(locationClasses)
+	scheduleMap := buildScheduleMap(locationClasses)
 
 	var rows []EnrollmentRow
 	var parseErr error
@@ -160,7 +203,7 @@ func (p *EnrollmentImportProcessor) Process(ctx context.Context, job *models.Job
 
 		lineNumber := i + 2 // +2 because of header row and 1-indexed
 
-		enrollmentID, err := p.processRow(ctx, metadata.CursoID, row, customFields, locationMap, locationClasses)
+		enrollmentID, err := p.processRow(ctx, metadata.CursoID, row, customFields, scheduleMap, locationClasses)
 		if err != nil {
 			errorCount++
 			errorMsg := err.Error()
@@ -304,28 +347,62 @@ func validateFieldType(value string, field models.CustomField) error {
 	return nil
 }
 
-func findLocationByAddress(address string, locationMap map[string]uuid.UUID, locations []models.LocationClass) (*uuid.UUID, error) {
-	if address == "" {
-		return nil, nil
+// findScheduleByTurma tries to match the "Turma" field from CSV to a schedule
+// It tries multiple strategies: exact match, partial match by address, address+time, address+days
+func findScheduleByTurma(turma string, scheduleMap map[string]struct {
+	LocationID uuid.UUID
+	ScheduleID uuid.UUID
+}, locations []models.LocationClass) (*uuid.UUID, *uuid.UUID, error) {
+	if turma == "" {
+		return nil, nil, nil
 	}
 
-	addressNorm := strings.ToLower(strings.TrimSpace(address))
+	turmaNorm := strings.ToLower(strings.TrimSpace(turma))
 
-	if locationID, exists := locationMap[addressNorm]; exists {
-		return &locationID, nil
+	// Try exact match first
+	if match, exists := scheduleMap[turmaNorm]; exists {
+		return &match.LocationID, &match.ScheduleID, nil
 	}
 
-	for _, loc := range locations {
-		locAddrNorm := strings.ToLower(strings.TrimSpace(loc.Address))
-		if strings.Contains(locAddrNorm, addressNorm) || strings.Contains(addressNorm, locAddrNorm) {
-			return &loc.ID, nil
+	// Try partial matching - split by | or - or common separators
+	parts := strings.FieldsFunc(turmaNorm, func(r rune) bool {
+		return r == '|' || r == '-' || r == ',' || r == ';'
+	})
+
+	if len(parts) >= 2 {
+		// Try address|time
+		key := strings.TrimSpace(parts[0]) + "|" + strings.TrimSpace(parts[1])
+		if match, exists := scheduleMap[key]; exists {
+			return &match.LocationID, &match.ScheduleID, nil
 		}
 	}
 
-	return nil, fmt.Errorf("turma/localização '%s' não encontrada para este curso", address)
+	if len(parts) >= 3 {
+		// Try address|time|days
+		key := strings.TrimSpace(parts[0]) + "|" + strings.TrimSpace(parts[1]) + "|" + strings.TrimSpace(parts[2])
+		if match, exists := scheduleMap[key]; exists {
+			return &match.LocationID, &match.ScheduleID, nil
+		}
+	}
+
+	// Fallback: fuzzy match by address only
+	for _, loc := range locations {
+		locAddrNorm := strings.ToLower(strings.TrimSpace(loc.Address))
+		if strings.Contains(locAddrNorm, turmaNorm) || strings.Contains(turmaNorm, locAddrNorm) {
+			// Return first schedule of this location
+			if len(loc.Schedules) > 0 {
+				return &loc.ID, &loc.Schedules[0].ID, nil
+			}
+		}
+	}
+
+	return nil, nil, fmt.Errorf("turma '%s' não encontrada para este curso", turma)
 }
 
-func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int, row EnrollmentRow, customFields []models.CustomField, locationMap map[string]uuid.UUID, locationClasses []models.LocationClass) (*uuid.UUID, error) {
+func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int, row EnrollmentRow, customFields []models.CustomField, scheduleMap map[string]struct {
+	LocationID uuid.UUID
+	ScheduleID uuid.UUID
+}, locationClasses []models.LocationClass) (*uuid.UUID, error) {
 	if row.NomeCompleto == "" {
 		return nil, fmt.Errorf("nome completo é obrigatório")
 	}
@@ -349,47 +426,87 @@ func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int,
 		return nil, err
 	}
 
-	if len(locationClasses) > 1 && row.Turma == "" {
-		return nil, fmt.Errorf("coluna 'Turma' é obrigatória quando o curso tem múltiplas turmas/localizações")
+	// Count total schedules across all locations
+	totalSchedules := 0
+	for _, loc := range locationClasses {
+		totalSchedules += len(loc.Schedules)
+	}
+
+	if totalSchedules > 1 && row.Turma == "" {
+		return nil, fmt.Errorf("coluna 'Turma' é obrigatória quando o curso tem múltiplas turmas")
 	}
 
 	var enrolledUnit *models.EnrolledUnit
+	var scheduleID *uuid.UUID
+
 	if row.Turma != "" {
-		locationID, err := findLocationByAddress(row.Turma, locationMap, locationClasses)
+		locationID, foundScheduleID, err := findScheduleByTurma(row.Turma, scheduleMap, locationClasses)
 		if err != nil {
 			return nil, err
 		}
 
-		if locationID != nil {
+		if locationID != nil && foundScheduleID != nil {
+			scheduleID = foundScheduleID
+
 			for _, loc := range locationClasses {
 				if loc.ID == *locationID {
+					// Convert schedules to EnrolledUnitSchedule format
+					enrolledSchedules := make([]models.EnrolledUnitSchedule, 0, len(loc.Schedules))
+					for _, schedule := range loc.Schedules {
+						enrolledSchedules = append(enrolledSchedules, models.EnrolledUnitSchedule{
+							ID:             schedule.ID.String(),
+							LocationID:     loc.ID.String(),
+							Vacancies:      schedule.Vacancies,
+							ClassStartDate: schedule.ClassStartDate.Format("2006-01-02"),
+							ClassEndDate:   schedule.ClassEndDate.Format("2006-01-02"),
+							ClassTime:      schedule.ClassTime,
+							ClassDays:      schedule.ClassDays,
+							CreatedAt:      schedule.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+							UpdatedAt:      schedule.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+						})
+					}
+
 					enrolledUnit = &models.EnrolledUnit{
-						ID:             locationID.String(),
-						CursoID:        cursoID,
-						Address:        loc.Address,
-						Neighborhood:   loc.Neighborhood,
-						Vacancies:      loc.Vacancies,
-						ClassStartDate: loc.ClassStartDate.Format("2006-01-02"),
-						ClassEndDate:   loc.ClassEndDate.Format("2006-01-02"),
-						ClassTime:      loc.ClassTime,
-						ClassDays:      loc.ClassDays,
+						ID:           loc.ID.String(),
+						CursoID:      cursoID,
+						Address:      loc.Address,
+						Neighborhood: loc.Neighborhood,
+						Schedules:    enrolledSchedules,
+						CreatedAt:    loc.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+						UpdatedAt:    loc.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 					}
 					break
 				}
 			}
 		}
-	} else if len(locationClasses) == 1 {
+	} else if len(locationClasses) == 1 && len(locationClasses[0].Schedules) == 1 {
+		// Auto-select if only one location with one schedule
 		loc := locationClasses[0]
+		schedule := loc.Schedules[0]
+		scheduleID = &schedule.ID
+
+		enrolledSchedules := []models.EnrolledUnitSchedule{
+			{
+				ID:             schedule.ID.String(),
+				LocationID:     loc.ID.String(),
+				Vacancies:      schedule.Vacancies,
+				ClassStartDate: schedule.ClassStartDate.Format("2006-01-02"),
+				ClassEndDate:   schedule.ClassEndDate.Format("2006-01-02"),
+				ClassTime:      schedule.ClassTime,
+				ClassDays:      schedule.ClassDays,
+				CreatedAt:      schedule.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				UpdatedAt:      schedule.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			},
+		}
+
 		enrolledUnit = &models.EnrolledUnit{
-			ID:             loc.ID.String(),
-			CursoID:        cursoID,
-			Address:        loc.Address,
-			Neighborhood:   loc.Neighborhood,
-			Vacancies:      loc.Vacancies,
-			ClassStartDate: loc.ClassStartDate.Format("2006-01-02"),
-			ClassEndDate:   loc.ClassEndDate.Format("2006-01-02"),
-			ClassTime:      loc.ClassTime,
-			ClassDays:      loc.ClassDays,
+			ID:           loc.ID.String(),
+			CursoID:      cursoID,
+			Address:      loc.Address,
+			Neighborhood: loc.Neighborhood,
+			Schedules:    enrolledSchedules,
+			CreatedAt:    loc.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt:    loc.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
 	}
 
@@ -420,6 +537,7 @@ func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int,
 		Address:          strings.TrimSpace(row.Endereco),
 		Neighborhood:     strings.TrimSpace(row.Bairro),
 		CustomFieldsData: customFieldsData,
+		ScheduleID:       scheduleID,
 		EnrolledUnit:     enrolledUnit,
 	}
 
