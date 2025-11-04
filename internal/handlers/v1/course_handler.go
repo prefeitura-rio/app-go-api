@@ -355,6 +355,13 @@ func (h *CourseHandler) List(c *gin.Context) {
 		filter["title ILIKE"] = "%" + search + "%"
 	}
 
+	if categoriaID := c.Query("categoria_id"); categoriaID != "" {
+		// Convert to int and add to filter
+		if catID, err := strconv.Atoi(categoriaID); err == nil {
+			filter["categoria_id"] = catID
+		}
+	}
+
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos: " + err.Error()})
@@ -424,6 +431,13 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 
 	if search := c.Query("search"); search != "" {
 		filter["title ILIKE"] = "%" + search + "%"
+	}
+
+	if categoriaID := c.Query("categoria_id"); categoriaID != "" {
+		// Convert to int and add to filter
+		if catID, err := strconv.Atoi(categoriaID); err == nil {
+			filter["categoria_id"] = catID
+		}
 	}
 
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
@@ -583,6 +597,13 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 
 	if modalidade := c.Query("modalidade"); modalidade != "" {
 		filter["modalidade"] = modalidade
+	}
+
+	if categoriaID := c.Query("categoria_id"); categoriaID != "" {
+		// Convert to int and add to filter
+		if catID, err := strconv.Atoi(categoriaID); err == nil {
+			filter["categoria_id"] = catID
+		}
 	}
 
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)

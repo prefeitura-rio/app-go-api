@@ -142,6 +142,9 @@ func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{
 			db = db.Where("status != ?", value)
 		case "title ILIKE":
 			db = db.Where("titulo ILIKE ?", value)
+		case "categoria_id":
+			// Filter by category - use subquery to avoid duplicates
+			db = db.Where("cursos.id IN (SELECT curso_id FROM cursos_categorias WHERE categoria_id = ?)", value)
 		default:
 			db = db.Where(key+" = ?", value)
 		}
