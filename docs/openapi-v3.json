@@ -3993,6 +3993,32 @@
           "address": {
             "type": "string"
           },
+          "created_at": {
+            "type": "string"
+          },
+          "curso_id": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "neighborhood": {
+            "type": "string"
+          },
+          "schedules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.EnrolledUnitSchedule"
+            }
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "models.EnrolledUnitSchedule": {
+        "type": "object",
+        "properties": {
           "class_days": {
             "type": "string"
           },
@@ -4008,13 +4034,10 @@
           "created_at": {
             "type": "string"
           },
-          "curso_id": {
-            "type": "integer"
-          },
           "id": {
             "type": "string"
           },
-          "neighborhood": {
+          "location_id": {
             "type": "string"
           },
           "updated_at": {
@@ -4166,6 +4189,9 @@
             "type": "string"
           },
           "reason": {
+            "type": "string"
+          },
+          "schedule_id": {
             "type": "string"
           },
           "status": {
