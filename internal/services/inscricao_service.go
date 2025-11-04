@@ -55,12 +55,19 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	if exists {
 		return fmt.Errorf("CPF já inscrito neste curso")
 	}
-	
+
+	// Validate schedule_id if provided
+	if inscricao.ScheduleID != nil {
+		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
+			return err
+		}
+	}
+
 	// Set default values
 	inscricao.Status = models.StatusInscricaoPending
 	inscricao.EnrolledAt = time.Now()
 	inscricao.UpdatedAt = time.Now()
-	
+
 	return s.repo.Create(ctx, inscricao)
 }
 
@@ -185,4 +192,19 @@ func (s *InscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cu
 	inscricao.UpdatedAt = time.Now()
 
 	return s.repo.Update(ctx, inscricao)
+}
+
+// validateScheduleID validates that the schedule exists and belongs to the course
+func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uuid.UUID, curso *models.Curso) error {
+	// Check all locations and schedules in the course
+	for _, location := range curso.LocationClasses {
+		for _, schedule := range location.Schedules {
+			if schedule.ID == scheduleID {
+				// Schedule found and belongs to this course
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("schedule_id fornecido não pertence a este curso")
 }

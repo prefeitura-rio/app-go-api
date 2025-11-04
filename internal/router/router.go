@@ -83,7 +83,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
 	orgaoHandler := v1.NewOrgaoHandler(orgaoService)
 	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService, jobService)
-	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService)
+	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo)
 	jobHandler := v1.NewJobHandler(jobService)
 	cnaeHandler := v1.NewCNAEHandler(cnaeService)
 	meiEmpresaHandler := v1.NewMEIEmpresaHandler(meiEmpresaService)

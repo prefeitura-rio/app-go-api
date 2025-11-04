@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
@@ -15,12 +17,14 @@ import (
 type CourseHandler struct {
 	cursoService     *services.CursoService
 	inscricaoService *services.InscricaoService
+	cursoRepo        *repository.CursoRepository
 }
 
-func NewCourseHandler(cursoService *services.CursoService, inscricaoService *services.InscricaoService) *CourseHandler {
+func NewCourseHandler(cursoService *services.CursoService, inscricaoService *services.InscricaoService, cursoRepo *repository.CursoRepository) *CourseHandler {
 	return &CourseHandler{
 		cursoService:     cursoService,
 		inscricaoService: inscricaoService,
+		cursoRepo:        cursoRepo,
 	}
 }
 
@@ -79,6 +83,43 @@ func transformCursoToResponse(curso *models.Curso) gin.H {
 		"locations":              curso.LocationClasses,
 		"remote_class":           curso.RemoteClass,
 	}
+}
+
+// calculateRemainingVacancies calculates remaining vacancies for all schedules in a course
+func (h *CourseHandler) calculateRemainingVacancies(c *gin.Context, curso *models.Curso) error {
+	// Collect all schedule IDs
+	var scheduleIDs []uuid.UUID
+	for _, location := range curso.LocationClasses {
+		for _, schedule := range location.Schedules {
+			scheduleIDs = append(scheduleIDs, schedule.ID)
+		}
+	}
+
+	if len(scheduleIDs) == 0 {
+		return nil
+	}
+
+	// Get enrollment counts for all schedules
+	enrollmentCounts, err := h.cursoRepo.CountEnrollmentsByScheduleIDs(c.Request.Context(), scheduleIDs)
+	if err != nil {
+		return err
+	}
+
+	// Update each schedule with remaining vacancies
+	for i := range curso.LocationClasses {
+		for j := range curso.LocationClasses[i].Schedules {
+			schedule := &curso.LocationClasses[i].Schedules[j]
+			enrolledCount := enrollmentCounts[schedule.ID]
+			schedule.RemainingVacancies = schedule.Vacancies - int(enrolledCount)
+
+			// Ensure it doesn't go negative
+			if schedule.RemainingVacancies < 0 {
+				schedule.RemainingVacancies = 0
+			}
+		}
+	}
+
+	return nil
 }
 
 // @Summary      Criar curso
@@ -320,6 +361,14 @@ func (h *CourseHandler) List(c *gin.Context) {
 		return
 	}
 
+	// Calculate remaining vacancies for all courses
+	for _, curso := range cursos {
+		if err := h.calculateRemainingVacancies(c, curso); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+			return
+		}
+	}
+
 	totalPages := (total + limit - 1) / limit
 
 	coursesData := make([]gin.H, len(cursos))
@@ -383,6 +432,14 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		return
 	}
 
+	// Calculate remaining vacancies for all courses
+	for _, curso := range cursos {
+		if err := h.calculateRemainingVacancies(c, curso); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+			return
+		}
+	}
+
 	totalPages := (total + limit - 1) / limit
 
 	draftsData := make([]gin.H, len(cursos))
@@ -429,6 +486,12 @@ func (h *CourseHandler) GetByID(c *gin.Context) {
 
 	if curso == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
+		return
+	}
+
+	// Calculate remaining vacancies for all schedules
+	if err := h.calculateRemainingVacancies(c, curso); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
 		return
 	}
 
@@ -526,6 +589,14 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos do usuário: " + err.Error()})
 		return
+	}
+
+	// Calculate remaining vacancies for all courses
+	for _, curso := range cursos {
+		if err := h.calculateRemainingVacancies(c, curso); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+			return
+		}
 	}
 
 	totalPages := (total + limit - 1) / limit
