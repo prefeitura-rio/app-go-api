@@ -38,7 +38,7 @@ type Inscricao struct {
 	AdminNotes       string                     `json:"admin_notes,omitempty" gorm:"type:text;column:admin_notes"`
 	Reason           string                     `json:"reason,omitempty" gorm:"type:text"`
 	CertificateURL   string                     `json:"certificate_url,omitempty" gorm:"type:varchar(20000);column:certificate_url"`
-	ScheduleID       *uuid.UUID                 `json:"schedule_id,omitempty" gorm:"type:uuid;column:schedule_id"`
+	ScheduleID       *uuid.UUID                 `json:"schedule_id" gorm:"type:uuid;column:schedule_id"`
 	EnrolledUnit     *EnrolledUnit              `json:"enrolled_unit,omitempty" gorm:"type:jsonb;column:enrolled_unit"`
 	EnrolledAt       time.Time                  `json:"enrolled_at" gorm:"column:enrolled_at;autoCreateTime"`
 	UpdatedAt        time.Time                  `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
