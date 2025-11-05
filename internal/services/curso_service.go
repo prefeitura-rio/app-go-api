@@ -94,8 +94,8 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 		return fmt.Errorf("título é obrigatório")
 	}
 
-	if len(curso.Titulo) > 255 {
-		return fmt.Errorf("título deve ter no máximo 255 caracteres")
+	if len(curso.Titulo) > 20000 {
+		return fmt.Errorf("título deve ter no máximo 20000 caracteres")
 	}
 
 	if !curso.Modalidade.IsValid() {
@@ -115,8 +115,8 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 	}
 
 	// Organization can be empty for some cases, just normalize it
-	if curso.Organization != "" && len(curso.Organization) > 255 {
-		return fmt.Errorf("organização deve ter no máximo 255 caracteres")
+	if curso.Organization != "" && len(curso.Organization) > 20000 {
+		return fmt.Errorf("organização deve ter no máximo 20000 caracteres")
 	}
 
 	if curso.NumeroVagas < 0 {
@@ -128,25 +128,25 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 	}
 
 	// Validate URL fields if not empty
-	if curso.InstitutionalLogo != "" && len(curso.InstitutionalLogo) > 500 {
-		return fmt.Errorf("URL do logo institucional deve ter no máximo 500 caracteres")
+	if curso.InstitutionalLogo != "" && len(curso.InstitutionalLogo) > 20000 {
+		return fmt.Errorf("URL do logo institucional deve ter no máximo 20000 caracteres")
 	}
-	
-	if curso.CoverImage != "" && len(curso.CoverImage) > 500 {
-		return fmt.Errorf("URL da imagem de capa deve ter no máximo 500 caracteres")
+
+	if curso.CoverImage != "" && len(curso.CoverImage) > 20000 {
+		return fmt.Errorf("URL da imagem de capa deve ter no máximo 20000 caracteres")
 	}
 
 	// Validate text fields length
-	if len(curso.Theme) > 100 {
-		return fmt.Errorf("tema deve ter no máximo 100 caracteres")
+	if len(curso.Theme) > 20000 {
+		return fmt.Errorf("tema deve ter no máximo 20000 caracteres")
 	}
-	
-	if len(curso.Workload) > 50 {
-		return fmt.Errorf("carga de trabalho deve ter no máximo 50 caracteres")
+
+	if len(curso.Workload) > 20000 {
+		return fmt.Errorf("carga de trabalho deve ter no máximo 20000 caracteres")
 	}
-	
-	if len(curso.TargetAudience) > 600 {
-		return fmt.Errorf("público-alvo deve ter no máximo 600 caracteres")
+
+	if len(curso.TargetAudience) > 20000 {
+		return fmt.Errorf("público-alvo deve ter no máximo 20000 caracteres")
 	}
 
 	// Validate locations and schedules
@@ -192,16 +192,16 @@ func (s *CursoService) validateLocationClasses(locations []models.LocationClass)
 		if len(strings.TrimSpace(location.Address)) < 10 {
 			return fmt.Errorf("location[%d]: endereço deve ter pelo menos 10 caracteres", i)
 		}
-		if len(location.Address) > 500 {
-			return fmt.Errorf("location[%d]: endereço deve ter no máximo 500 caracteres", i)
+		if len(location.Address) > 20000 {
+			return fmt.Errorf("location[%d]: endereço deve ter no máximo 20000 caracteres", i)
 		}
 
 		// Validate neighborhood
 		if len(strings.TrimSpace(location.Neighborhood)) < 3 {
 			return fmt.Errorf("location[%d]: bairro deve ter pelo menos 3 caracteres", i)
 		}
-		if len(location.Neighborhood) > 100 {
-			return fmt.Errorf("location[%d]: bairro deve ter no máximo 100 caracteres", i)
+		if len(location.Neighborhood) > 20000 {
+			return fmt.Errorf("location[%d]: bairro deve ter no máximo 20000 caracteres", i)
 		}
 
 		// Validate schedules - at least 1 required
@@ -243,16 +243,16 @@ func (s *CursoService) validateSchedules(schedules []models.CourseSchedule, loca
 		if strings.TrimSpace(schedule.ClassTime) == "" {
 			return fmt.Errorf("location[%d].schedule[%d]: horário da aula é obrigatório", locationIndex, j)
 		}
-		if len(schedule.ClassTime) > 50 {
-			return fmt.Errorf("location[%d].schedule[%d]: horário da aula deve ter no máximo 50 caracteres", locationIndex, j)
+		if len(schedule.ClassTime) > 20000 {
+			return fmt.Errorf("location[%d].schedule[%d]: horário da aula deve ter no máximo 20000 caracteres", locationIndex, j)
 		}
 
 		// Validate class days
 		if strings.TrimSpace(schedule.ClassDays) == "" {
 			return fmt.Errorf("location[%d].schedule[%d]: dias da semana são obrigatórios", locationIndex, j)
 		}
-		if len(schedule.ClassDays) > 200 {
-			return fmt.Errorf("location[%d].schedule[%d]: dias da semana deve ter no máximo 200 caracteres", locationIndex, j)
+		if len(schedule.ClassDays) > 20000 {
+			return fmt.Errorf("location[%d].schedule[%d]: dias da semana deve ter no máximo 20000 caracteres", locationIndex, j)
 		}
 	}
 
