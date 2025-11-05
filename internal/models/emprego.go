@@ -31,7 +31,7 @@ const (
 
 type Emprego struct {
 	ID                   int             `json:"id" gorm:"primaryKey"`
-	Titulo               string          `json:"titulo" gorm:"not null"`
+	Titulo               string          `json:"titulo" gorm:"type:varchar(20000);not null"`
 	Descricao            string          `json:"descricao" gorm:"type:text"`
 	OrgaoID              *int            `json:"orgao_id,omitempty" gorm:"column:orgao_id"`
 	EmpresaID            *int            `json:"empresa_id,omitempty" gorm:"column:empresa_id"`
@@ -49,7 +49,7 @@ type Emprego struct {
 	EscolaridadeID       *int            `json:"escolaridade_id,omitempty" gorm:"column:escolaridade_id"`
 	JornadaTrabalho      JornadaTrabalho `json:"jornada_trabalho" gorm:"column:jornada_trabalho;type:jornada_trabalho_enum"`
 	Turno                Turno           `json:"turno" gorm:"type:turno_enum"`
-	ContatoDuvidas       string          `json:"contato_duvidas" gorm:"column:contato_duvidas"`
+	ContatoDuvidas       string          `json:"contato_duvidas" gorm:"type:varchar(20000);column:contato_duvidas"`
 	CreatedAt            time.Time       `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt            time.Time       `json:"updated_at" gorm:"autoUpdateTime"`
 	
