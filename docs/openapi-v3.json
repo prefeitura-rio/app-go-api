@@ -1585,11 +1585,11 @@
             }
           },
           {
-            "description": "Filtrar por ID do órgão",
+            "description": "Filtrar por ID do órgão (external reference)",
             "name": "orgao_id",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "string"
             }
           },
           {
@@ -3527,12 +3527,12 @@
         "summary": "Listar cursos de um usuário específico",
         "parameters": [
           {
-            "description": "ID do usuário/orgão",
+            "description": "ID do usuário/orgão (external reference)",
             "name": "userId",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
+              "type": "string"
             }
           },
           {
@@ -3845,7 +3845,7 @@
           },
           "orgao_id": {
             "description": "Legacy and additional fields (optional)",
-            "type": "integer"
+            "type": "string"
           },
           "pre_requisitos": {
             "description": "Unified field for prerequisites - using single JSON tag",
@@ -3906,7 +3906,12 @@
             "type": "string"
           },
           "empresa": {
-            "$ref": "#/components/schemas/models.Empresa"
+            "description": "Relacionamentos",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.Empresa"
+              }
+            ]
           },
           "empresa_id": {
             "type": "integer"
@@ -3932,16 +3937,8 @@
           "numero_vagas": {
             "type": "integer"
           },
-          "orgao": {
-            "description": "Relacionamentos",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/models.Orgao"
-              }
-            ]
-          },
           "orgao_id": {
-            "type": "integer"
+            "type": "string"
           },
           "pre_requisitos": {
             "type": "string"
@@ -4473,30 +4470,6 @@
       },
       "models.OportunidadeMEI": {
         "type": "object"
-      },
-      "models.Orgao": {
-        "type": "object",
-        "properties": {
-          "cursos": {
-            "description": "Relacionamentos",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/models.Curso"
-            }
-          },
-          "empregos": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/models.Emprego"
-            }
-          },
-          "id": {
-            "type": "integer"
-          },
-          "nome": {
-            "type": "string"
-          }
-        }
       },
       "models.PropostaMEI": {
         "type": "object"
