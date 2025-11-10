@@ -14,4 +14,4 @@ func (e *Escolaridade) SetID(id int) {
 
 func (Escolaridade) TableName() string {
 	return "escolaridades"
-} 
+}
