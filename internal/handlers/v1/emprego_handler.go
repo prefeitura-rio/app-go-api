@@ -176,7 +176,7 @@ func (h *EmpregoHandler) Delete(c *gin.Context) {
 // @Produce      json
 // @Param        page               query     int     false  "Número da página (default: 1)"
 // @Param        pageSize           query     int     false  "Tamanho da página (default: 10)"
-// @Param        orgao_id           query     int     false  "Filtrar por ID do órgão"
+// @Param        orgao_id           query     string  false  "Filtrar por ID do órgão (external reference)"
 // @Param        empresa_id         query     int     false  "Filtrar por ID da empresa"
 // @Param        escolaridade_id    query     int     false  "Filtrar por ID da escolaridade"
 // @Param        status             query     string  false  "Filtrar por status"
@@ -202,9 +202,7 @@ func (h *EmpregoHandler) List(c *gin.Context) {
 	
 	// Adicionar filtros conforme query parameters
 	if orgaoID := c.Query("orgao_id"); orgaoID != "" {
-		if id, err := strconv.Atoi(orgaoID); err == nil {
-			filter["orgao_id"] = id
-		}
+		filter["orgao_id"] = orgaoID
 	}
 	
 	if empresaID := c.Query("empresa_id"); empresaID != "" {
