@@ -53,7 +53,7 @@ type Curso struct {
 	Status               StatusCurso    `json:"status" gorm:"type:varchar(50)"`
 
 	// Legacy and additional fields (optional)
-	OrgaoID              *int           `json:"orgao_id,omitempty" gorm:"column:orgao_id"`
+	OrgaoID              string         `json:"orgao_id,omitempty" gorm:"type:varchar(100);column:orgao_id"`
 	InstituicaoID        *int           `json:"instituicao_id,omitempty" gorm:"column:instituicao_id"`
 	LocalRealizacao      string         `json:"local_realizacao" gorm:"type:varchar(20000);column:local_realizacao"`
 	DataInicio           *time.Time     `json:"data_inicio" gorm:"column:data_inicio"`
@@ -99,7 +99,6 @@ type Curso struct {
 	UpdatedAt            time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos
-	Orgao                *Orgao           `json:"orgao,omitempty" gorm:"foreignKey:OrgaoID" swaggerignore:"true"`
 	Instituicao          *InstituicaoEnsino `json:"instituicao,omitempty" gorm:"foreignKey:InstituicaoID" swaggerignore:"true"`
 	Categorias           []Categoria      `json:"categorias,omitempty" gorm:"many2many:cursos_categorias;" swaggerignore:"true"`
 	Acessibilidades      []Acessibilidade `json:"acessibilidades,omitempty" gorm:"many2many:cursos_acessibilidades;" swaggerignore:"true"`
