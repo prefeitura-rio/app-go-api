@@ -63,12 +63,6 @@ func parseForeignKeyError(pqErr *pq.Error) *DatabaseError {
 	
 	// Mapear constraints para mensagens amigáveis
 	switch {
-	case strings.Contains(constraint, "orgao_id"):
-		return &DatabaseError{
-			Type:    ForeignKeyViolation,
-			Message: "O órgão especificado não existe. Verifique se o ID do órgão está correto.",
-			Field:   "orgao_id",
-		}
 	case strings.Contains(constraint, "instituicao_id"):
 		return &DatabaseError{
 			Type:    ForeignKeyViolation,

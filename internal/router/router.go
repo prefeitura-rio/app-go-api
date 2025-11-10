@@ -47,7 +47,6 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	empresaRepo := repository.NewEmpresaRepository(db)
 	escolaridadeRepo := repository.NewEscolaridadeRepository(db)
 	instituicaoRepo := repository.NewInstituicaoRepository(db)
-	orgaoRepo := repository.NewOrgaoRepository(db)
 	inscricaoRepo := repository.NewInscricaoRepository(db)
 	jobRepo := repository.NewJobRepository(db)
 	cnaeRepo := repository.NewCNAERepository(db)
@@ -63,12 +62,11 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	empresaService := services.NewEmpresaService(empresaRepo)
 	escolaridadeService := services.NewEscolaridadeService(escolaridadeRepo)
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
-	orgaoService := services.NewOrgaoService(orgaoRepo)
 	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
 	jobService := services.NewJobService(jobRepo)
 	cnaeService := services.NewCNAEService(cnaeRepo)
 	meiEmpresaService := services.NewMEIEmpresaService(meiEmpresaRepo, cnaeRepo)
-	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo, cnaeRepo, orgaoRepo)
+	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo, cnaeRepo)
 	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, meiEmpresaRepo)
 
 	// Initialize job processor
@@ -81,7 +79,6 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	empresaHandler := v1.NewEmpresaHandler(empresaService)
 	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService)
 	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
-	orgaoHandler := v1.NewOrgaoHandler(orgaoService)
 	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService, jobService)
 	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo)
 	jobHandler := v1.NewJobHandler(jobService)
@@ -152,16 +149,6 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		instituicoes.GET("/:id", instituicaoHandler.GetByID)
 		instituicoes.PUT("/:id", instituicaoHandler.Update)
 		instituicoes.DELETE("/:id", instituicaoHandler.Delete)
-	}
-
-	// Rotas de órgãos
-	orgaos := apiV1.Group("/orgaos")
-	{
-		orgaos.POST("", orgaoHandler.Create)
-		orgaos.GET("", orgaoHandler.List)
-		orgaos.GET("/:id", orgaoHandler.GetByID)
-		orgaos.PUT("/:id", orgaoHandler.Update)
-		orgaos.DELETE("/:id", orgaoHandler.Delete)
 	}
 
 	// Rotas de Typesense

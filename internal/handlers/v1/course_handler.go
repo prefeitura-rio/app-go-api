@@ -43,8 +43,8 @@ func transformCursoToResponse(curso *models.Curso) gin.H {
 		"cover_image":           curso.CoverImage,
 		"enrollment_start_date": curso.EnrollmentStartDate,
 		"enrollment_end_date":   curso.EnrollmentEndDate,
-		"orgao_id":               curso.OrgaoID,
-		"instituicao_id":         curso.InstituicaoID,
+		"orgao_id":              curso.OrgaoID,
+		"instituicao_id":        curso.InstituicaoID,
 		"local_realizacao":       curso.LocalRealizacao,
 		"data_inicio":            curso.DataInicio,
 		"data_termino":           curso.DataTermino,
@@ -73,7 +73,6 @@ func transformCursoToResponse(curso *models.Curso) gin.H {
 		"external_partner_contact":  curso.ExternalPartnerContact,
 		"created_at":             curso.CreatedAt,
 		"updated_at":             curso.UpdatedAt,
-		"orgao":                  curso.Orgao,
 		"instituicao":            curso.Instituicao,
 		"categorias":             curso.Categorias,
 		"acessibilidades":        curso.Acessibilidades,
@@ -558,7 +557,7 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 // @Description  Retorna lista paginada de cursos criados por um usuário/organização
 // @Tags         courses
 // @Produce      json
-// @Param        userId       path      int     true   "ID do usuário/orgão"
+// @Param        userId       path      string  true   "ID do usuário/orgão (external reference)"
 // @Param        page         query     int     false  "Número da página (default: 1)"
 // @Param        limit        query     int     false  "Tamanho da página (default: 10)"
 // @Param        status       query     string  false  "Filtrar por status"
@@ -568,11 +567,7 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/users/{userId}/courses [get]
 func (h *CourseHandler) ListByUser(c *gin.Context) {
-	userID, err := strconv.Atoi(c.Param("userId"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do usuário inválido"})
-		return
-	}
+	userID := c.Param("userId")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))

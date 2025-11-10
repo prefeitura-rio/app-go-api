@@ -22,227 +22,6 @@
     "host": "localhost:8081",
     "basePath": "/",
     "paths": {
-        "/api/v1/acessibilidades": {
-            "get": {
-                "description": "Retorna uma lista paginada de acessibilidades",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "acessibilidades"
-                ],
-                "summary": "Listar acessibilidades",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Número da página (default: 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Tamanho da página (default: 10)",
-                        "name": "pageSize",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Cria um novo tipo de acessibilidade",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "acessibilidades"
-                ],
-                "summary": "Criar acessibilidade",
-                "parameters": [
-                    {
-                        "description": "Dados da acessibilidade",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Acessibilidade"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.Acessibilidade"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/acessibilidades/{id}": {
-            "get": {
-                "description": "Retorna uma acessibilidade pelo seu ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "acessibilidades"
-                ],
-                "summary": "Obter acessibilidade por ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da acessibilidade",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Acessibilidade"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Atualiza os dados de uma acessibilidade existente",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "acessibilidades"
-                ],
-                "summary": "Atualizar acessibilidade",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da acessibilidade",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Dados da acessibilidade",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Acessibilidade"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Acessibilidade"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Remove uma acessibilidade pelo ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "acessibilidades"
-                ],
-                "summary": "Excluir acessibilidade",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da acessibilidade",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/admin/cnaes": {
             "post": {
                 "description": "Cria um novo CNAE (admin)",
@@ -355,227 +134,6 @@
                         "type": "string",
                         "description": "Código do CNAE",
                         "name": "codigo",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/categorias": {
-            "get": {
-                "description": "Retorna uma lista paginada de categorias",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "categorias"
-                ],
-                "summary": "Listar categorias",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Nu00famero da pu00e1gina (default: 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Tamanho da pu00e1gina (default: 10)",
-                        "name": "pageSize",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Cria uma nova categoria",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "categorias"
-                ],
-                "summary": "Criar categoria",
-                "parameters": [
-                    {
-                        "description": "Dados da categoria",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Categoria"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.Categoria"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/categorias/{id}": {
-            "get": {
-                "description": "Retorna uma categoria pelo seu ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "categorias"
-                ],
-                "summary": "Obter categoria por ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da categoria",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Categoria"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Atualiza os dados de uma categoria existente",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "categorias"
-                ],
-                "summary": "Atualizar categoria",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da categoria",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Dados da categoria",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Categoria"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Categoria"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Remove uma categoria pelo ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "categorias"
-                ],
-                "summary": "Excluir categoria",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da categoria",
-                        "name": "id",
                         "in": "path",
                         "required": true
                     }
@@ -1667,8 +1225,8 @@
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filtrar por ID do órgão",
+                        "type": "string",
+                        "description": "Filtrar por ID do órgão (external reference)",
                         "name": "orgao_id",
                         "in": "query"
                     },
@@ -1900,227 +1458,6 @@
                 }
             }
         },
-        "/api/v1/empresas": {
-            "get": {
-                "description": "Retorna uma lista paginada de empresas",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "empresas"
-                ],
-                "summary": "Listar empresas",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Número da página (default: 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Tamanho da página (default: 10)",
-                        "name": "pageSize",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Cria uma nova empresa",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "empresas"
-                ],
-                "summary": "Criar empresa",
-                "parameters": [
-                    {
-                        "description": "Dados da empresa",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Empresa"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.Empresa"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/empresas/{id}": {
-            "get": {
-                "description": "Retorna uma empresa pelo seu ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "empresas"
-                ],
-                "summary": "Obter empresa por ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da empresa",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Empresa"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Atualiza os dados de uma empresa existente",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "empresas"
-                ],
-                "summary": "Atualizar empresa",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da empresa",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Dados da empresa",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Empresa"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Empresa"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Remove uma empresa pelo ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "empresas"
-                ],
-                "summary": "Excluir empresa",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da empresa",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/enrollments/user/{cpf}": {
             "get": {
                 "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF), incluindo certificate_url",
@@ -2173,448 +1510,6 @@
                     },
                     "403": {
                         "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/escolaridades": {
-            "get": {
-                "description": "Retorna uma lista paginada de escolaridades",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "escolaridades"
-                ],
-                "summary": "Listar escolaridades",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Nu00famero da pu00e1gina (default: 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Tamanho da pu00e1gina (default: 10)",
-                        "name": "pageSize",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Cria um novo nível de escolaridade",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "escolaridades"
-                ],
-                "summary": "Criar escolaridade",
-                "parameters": [
-                    {
-                        "description": "Dados da escolaridade",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Escolaridade"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.Escolaridade"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/escolaridades/{id}": {
-            "get": {
-                "description": "Retorna uma escolaridade pelo seu ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "escolaridades"
-                ],
-                "summary": "Obter escolaridade por ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da escolaridade",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Escolaridade"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Atualiza os dados de uma escolaridade existente",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "escolaridades"
-                ],
-                "summary": "Atualizar escolaridade",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da escolaridade",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Dados da escolaridade",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Escolaridade"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Escolaridade"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Remove uma escolaridade pelo ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "escolaridades"
-                ],
-                "summary": "Excluir escolaridade",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da escolaridade",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/instituicoes": {
-            "get": {
-                "description": "Retorna uma lista paginada de instituições",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "instituicoes"
-                ],
-                "summary": "Listar instituições de ensino",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Número da página (default: 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Tamanho da página (default: 10)",
-                        "name": "pageSize",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Cria uma nova instituição de ensino",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "instituicoes"
-                ],
-                "summary": "Criar instituição de ensino",
-                "parameters": [
-                    {
-                        "description": "Dados da instituição",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.InstituicaoEnsino"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.InstituicaoEnsino"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/instituicoes/{id}": {
-            "get": {
-                "description": "Retorna uma instituição pelo seu ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "instituicoes"
-                ],
-                "summary": "Obter instituição de ensino por ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da instituição",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.InstituicaoEnsino"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Atualiza os dados de uma instituição existente",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "instituicoes"
-                ],
-                "summary": "Atualizar instituição de ensino",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da instituição",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Dados da instituição",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.InstituicaoEnsino"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.InstituicaoEnsino"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Remove uma instituição pelo ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "instituicoes"
-                ],
-                "summary": "Excluir instituição de ensino",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID da instituição",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -3663,227 +2558,6 @@
                 }
             }
         },
-        "/api/v1/orgaos": {
-            "get": {
-                "description": "Retorna uma lista paginada de órgãos",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "orgaos"
-                ],
-                "summary": "Listar órgãos",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Número da página (default: 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Tamanho da página (default: 10)",
-                        "name": "pageSize",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Cria um novo órgão",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "orgaos"
-                ],
-                "summary": "Criar órgão",
-                "parameters": [
-                    {
-                        "description": "Dados do órgão",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Orgao"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.Orgao"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/orgaos/{id}": {
-            "get": {
-                "description": "Retorna um órgão pelo seu ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "orgaos"
-                ],
-                "summary": "Obter órgão por ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID do órgão",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Orgao"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Atualiza os dados de um órgão existente",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "orgaos"
-                ],
-                "summary": "Atualizar órgão",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID do órgão",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Dados do órgão",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Orgao"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Orgao"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Remove um órgão pelo ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "orgaos"
-                ],
-                "summary": "Excluir órgão",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID do órgão",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/propostas-mei/por-empresa": {
             "get": {
                 "description": "Retorna uma lista paginada de propostas MEI de uma empresa",
@@ -4048,8 +2722,8 @@
                 "summary": "Listar cursos de um usuário específico",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "ID do usuário/orgão",
+                        "type": "string",
+                        "description": "ID do usuário/orgão (external reference)",
                         "name": "userId",
                         "in": "path",
                         "required": true
@@ -4100,48 +2774,9 @@
                     }
                 }
             }
-        },
-        "/health": {
-            "get": {
-                "description": "Retorna o status de saúde da API v1",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "health"
-                ],
-                "summary": "Verificar saúde da API",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
-        "models.Acessibilidade": {
-            "type": "object",
-            "properties": {
-                "cursos": {
-                    "description": "Relacionamentos",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Curso"
-                    }
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "nome": {
-                    "type": "string"
-                }
-            }
-        },
         "models.CNAE": {
             "type": "object",
             "properties": {
@@ -4155,24 +2790,6 @@
                     "type": "string"
                 },
                 "servico": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.Categoria": {
-            "type": "object",
-            "properties": {
-                "cursos": {
-                    "description": "Relacionamentos",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Curso"
-                    }
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "nome": {
                     "type": "string"
                 }
             }
@@ -4305,7 +2922,7 @@
                 },
                 "orgao_id": {
                     "description": "Legacy and additional fields (optional)",
-                    "type": "integer"
+                    "type": "string"
                 },
                 "pre_requisitos": {
                     "description": "Unified field for prerequisites - using single JSON tag",
@@ -4366,7 +2983,12 @@
                     "type": "string"
                 },
                 "empresa": {
-                    "$ref": "#/definitions/models.Empresa"
+                    "description": "Relacionamentos",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    ]
                 },
                 "empresa_id": {
                     "type": "integer"
@@ -4392,16 +3014,8 @@
                 "numero_vagas": {
                     "type": "integer"
                 },
-                "orgao": {
-                    "description": "Relacionamentos",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Orgao"
-                        }
-                    ]
-                },
                 "orgao_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "pre_requisitos": {
                     "type": "string"
@@ -4453,6 +3067,32 @@
                 "address": {
                     "type": "string"
                 },
+                "created_at": {
+                    "type": "string"
+                },
+                "curso_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "neighborhood": {
+                    "type": "string"
+                },
+                "schedules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnrolledUnitSchedule"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.EnrolledUnitSchedule": {
+            "type": "object",
+            "properties": {
                 "class_days": {
                     "type": "string"
                 },
@@ -4468,13 +3108,10 @@
                 "created_at": {
                     "type": "string"
                 },
-                "curso_id": {
-                    "type": "integer"
-                },
                 "id": {
                     "type": "string"
                 },
-                "neighborhood": {
+                "location_id": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -4628,6 +3265,9 @@
                 "reason": {
                     "type": "string"
                 },
+                "schedule_id": {
+                    "type": "string"
+                },
                 "status": {
                     "$ref": "#/definitions/models.StatusInscricao"
                 },
@@ -4664,24 +3304,6 @@
                     "type": "string"
                 },
                 "phone": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.InstituicaoEnsino": {
-            "type": "object",
-            "properties": {
-                "cursos": {
-                    "description": "Relacionamentos",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Curso"
-                    }
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "nome": {
                     "type": "string"
                 }
             }
@@ -4925,30 +3547,6 @@
         },
         "models.OportunidadeMEI": {
             "type": "object"
-        },
-        "models.Orgao": {
-            "type": "object",
-            "properties": {
-                "cursos": {
-                    "description": "Relacionamentos",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Curso"
-                    }
-                },
-                "empregos": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Emprego"
-                    }
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "nome": {
-                    "type": "string"
-                }
-            }
         },
         "models.PropostaMEI": {
             "type": "object"

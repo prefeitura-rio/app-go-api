@@ -208,7 +208,7 @@ func (h *OportunidadeMEIHandler) Publish(c *gin.Context) {
 func (h *OportunidadeMEIHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	orgaoID, _ := strconv.Atoi(c.Query("orgaoId"))
+	orgaoID := c.Query("orgaoId")
 	status := c.Query("status")
 	titulo := c.Query("titulo")
 
@@ -227,7 +227,7 @@ func (h *OportunidadeMEIHandler) List(c *gin.Context) {
 	// Construir filtros
 	filters := make(map[string]interface{})
 
-	if orgaoID > 0 {
+	if orgaoID != "" {
 		filters["orgao_id"] = orgaoID
 	}
 

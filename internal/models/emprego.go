@@ -33,7 +33,7 @@ type Emprego struct {
 	ID                   int             `json:"id" gorm:"primaryKey"`
 	Titulo               string          `json:"titulo" gorm:"type:varchar(20000);not null"`
 	Descricao            string          `json:"descricao" gorm:"type:text"`
-	OrgaoID              *int            `json:"orgao_id,omitempty" gorm:"column:orgao_id"`
+	OrgaoID              string          `json:"orgao_id,omitempty" gorm:"type:varchar(100);column:orgao_id"`
 	EmpresaID            *int            `json:"empresa_id,omitempty" gorm:"column:empresa_id"`
 	TipoContratacao      TipoContratacao `json:"tipo_contratacao" gorm:"type:tipo_contratacao_enum"`
 	NumeroVagas          int             `json:"numero_vagas" gorm:"column:numero_vagas"`
@@ -52,9 +52,8 @@ type Emprego struct {
 	ContatoDuvidas       string          `json:"contato_duvidas" gorm:"type:varchar(20000);column:contato_duvidas"`
 	CreatedAt            time.Time       `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt            time.Time       `json:"updated_at" gorm:"autoUpdateTime"`
-	
+
 	// Relacionamentos
-	Orgao                *Orgao          `json:"orgao,omitempty" gorm:"foreignKey:OrgaoID"`
 	Empresa              *Empresa        `json:"empresa,omitempty" gorm:"foreignKey:EmpresaID"`
 	Escolaridade         *Escolaridade   `json:"escolaridade,omitempty" gorm:"foreignKey:EscolaridadeID"`
 }

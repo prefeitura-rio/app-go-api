@@ -30,8 +30,8 @@ type OportunidadeMEI struct {
 	OutrasInformacoes string                `json:"outras_informacoes" gorm:"type:text"`
 
 	// Relacionamentos
-	OrgaoID int `json:"orgao_id" gorm:"not null"`
-	CNAEID  int `json:"cnae_id" gorm:"not null"`
+	OrgaoID string `json:"orgao_id" gorm:"type:varchar(100);not null"`
+	CNAEID  int    `json:"cnae_id" gorm:"not null"`
 
 	// Local de execução
 	Logradouro  string `json:"logradouro" gorm:"type:varchar(255);not null"`
@@ -59,7 +59,6 @@ type OportunidadeMEI struct {
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos expandidos
-	Orgao     *Orgao        `json:"orgao,omitempty" gorm:"foreignKey:OrgaoID"`
 	CNAE      *CNAE         `json:"cnae,omitempty" gorm:"foreignKey:CNAEID"`
 	Propostas []PropostaMEI `json:"propostas,omitempty" gorm:"foreignKey:OportunidadeMEIID" swaggerignore:"true"`
 }
@@ -126,7 +125,7 @@ func (o *OportunidadeMEI) ValidateForPublish() error {
 		return errors.New("descrição do serviço é obrigatória")
 	}
 
-	if o.OrgaoID == 0 {
+	if strings.TrimSpace(o.OrgaoID) == "" {
 		return errors.New("órgão demandante é obrigatório")
 	}
 
@@ -152,6 +151,10 @@ func (o *OportunidadeMEI) ValidateForPublish() error {
 
 	if strings.TrimSpace(o.Estado) == "" {
 		return errors.New("estado é obrigatório")
+	}
+
+	if strings.TrimSpace(o.OrgaoID) == "" {
+		return errors.New("órgão demandante é obrigatório")
 	}
 
 	// FormaPagamento é opcional, só valida se tiver valor
