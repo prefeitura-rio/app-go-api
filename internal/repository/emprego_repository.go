@@ -32,7 +32,6 @@ func (r *EmpregoRepository) GetByID(ctx context.Context, id int) (*models.Empreg
 	var emprego models.Emprego
 	
 	result := r.db.WithContext(ctx).
-		Preload("Orgao").
 		Preload("Empresa").
 		Preload("Escolaridade").
 		First(&emprego, id)
@@ -50,7 +49,7 @@ func (r *EmpregoRepository) GetByID(ctx context.Context, id int) (*models.Empreg
 func (r *EmpregoRepository) Update(ctx context.Context, emprego *models.Emprego) error {
 	result := r.db.WithContext(ctx).Model(emprego).
 		Where("id = ?", emprego.ID).
-		Omit("Orgao", "Empresa", "Escolaridade"). // Ignorar relações
+		Omit("Empresa", "Escolaridade"). // Ignorar relações
 		Updates(emprego)
 	
 	if result.Error != nil {
@@ -81,7 +80,6 @@ func (r *EmpregoRepository) List(ctx context.Context, filter map[string]interfac
 	
 	// Buscar registros com paginação
 	result := db.
-		Preload("Orgao").
 		Preload("Empresa").
 		Preload("Escolaridade").
 		Order("id DESC").

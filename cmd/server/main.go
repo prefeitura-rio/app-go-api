@@ -74,7 +74,6 @@ func main() {
 			&models.Emprego{},
 			&models.Categoria{},
 			&models.Acessibilidade{},
-			&models.Orgao{},
 			&models.InstituicaoEnsino{},
 			&models.Empresa{},
 			&models.Escolaridade{},

@@ -38,7 +38,7 @@ type SearchParameters struct {
 // CursoSearchParameters contém parâmetros específicos para busca de cursos
 type CursoSearchParameters struct {
 	Q               string `json:"q"`                                // Termo de busca
-	OrgaoID         int    `json:"orgao_id,omitempty"`              // ID do órgão
+	OrgaoID         string `json:"orgao_id,omitempty"`              // ID do órgão (external reference)
 	InstituicaoID   int    `json:"instituicao_id,omitempty"`        // ID da instituição
 	Status          string `json:"status,omitempty"`                // Status do curso
 	Modalidade      string `json:"modalidade,omitempty"`            // Modalidade
@@ -61,9 +61,9 @@ func (c *CursoSearchParameters) ToSearchParameters() SearchParameters {
 	
 	// Filtrar apenas registros com action = 'read'
 	filters = append(filters, "action:=read")
-	
-	if c.OrgaoID > 0 {
-		filters = append(filters, fmt.Sprintf("record.orgao_id:=%d", c.OrgaoID))
+
+	if c.OrgaoID != "" {
+		filters = append(filters, fmt.Sprintf("record.orgao_id:=%s", c.OrgaoID))
 	}
 	
 	if c.InstituicaoID > 0 {
@@ -114,7 +114,7 @@ func (c *CursoSearchParameters) ToSearchParameters() SearchParameters {
 // EmpregoSearchParameters contém parâmetros específicos para busca de empregos
 type EmpregoSearchParameters struct {
 	Q                  string `json:"q"`                                   // Termo de busca
-	OrgaoID            int    `json:"orgao_id,omitempty"`                 // ID do órgão
+	OrgaoID            string `json:"orgao_id,omitempty"`                 // ID do órgão (external reference)
 	EmpresaID          int    `json:"empresa_id,omitempty"`               // ID da empresa
 	EscolaridadeID     int    `json:"escolaridade_id,omitempty"`          // ID da escolaridade
 	Status             string `json:"status,omitempty"`                   // Status do emprego
@@ -140,9 +140,9 @@ func (e *EmpregoSearchParameters) ToSearchParameters() SearchParameters {
 	
 	// Filtrar apenas registros com action = 'read'
 	filters = append(filters, "action:=read")
-	
-	if e.OrgaoID > 0 {
-		filters = append(filters, fmt.Sprintf("record.orgao_id:=%d", e.OrgaoID))
+
+	if e.OrgaoID != "" {
+		filters = append(filters, fmt.Sprintf("record.orgao_id:=%s", e.OrgaoID))
 	}
 	
 	if e.EmpresaID > 0 {

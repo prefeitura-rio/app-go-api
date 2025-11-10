@@ -35,7 +35,6 @@ func (r *CursoRepository) GetByID(ctx context.Context, id int) (*models.Curso, e
 	result := r.db.WithContext(ctx).
 		Preload("Categorias").
 		Preload("Acessibilidades").
-		Preload("Orgao").
 		Preload("Instituicao").
 		Preload("CustomFields").
 		Preload("LocationClasses.Schedules").
@@ -83,7 +82,7 @@ func (r *CursoRepository) Update(ctx context.Context, curso *models.Curso) error
 		// Omitir created_at para preservar a data original de criação
 		result := tx.Model(curso).
 			Where("id = ?", curso.ID).
-			Omit("Categorias", "Acessibilidades", "Orgao", "Instituicao", "CustomFields", "RemoteClass", "LocationClasses", "created_at").
+			Omit("Categorias", "Acessibilidades", "Instituicao", "CustomFields", "RemoteClass", "LocationClasses", "created_at").
 			Select("*").
 			Updates(curso)
 		
@@ -118,7 +117,6 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 	result := db.
 		Preload("Categorias").
 		Preload("Acessibilidades").
-		Preload("Orgao").
 		Preload("Instituicao").
 		Preload("CustomFields").
 		Preload("LocationClasses.Schedules").

@@ -11,18 +11,15 @@ import (
 type OportunidadeMEIService struct {
 	repo     *repository.OportunidadeMEIRepository
 	cnaeRepo *repository.CNAERepository
-	orgaoRepo *repository.OrgaoRepository
 }
 
 func NewOportunidadeMEIService(
 	repo *repository.OportunidadeMEIRepository,
 	cnaeRepo *repository.CNAERepository,
-	orgaoRepo *repository.OrgaoRepository,
 ) *OportunidadeMEIService {
 	return &OportunidadeMEIService{
 		repo:     repo,
 		cnaeRepo: cnaeRepo,
-		orgaoRepo: orgaoRepo,
 	}
 }
 
@@ -39,7 +36,7 @@ func (s *OportunidadeMEIService) Create(ctx context.Context, oportunidade *model
 		return 0, err
 	}
 
-	// Para publicação (não rascunho), validar que CNAE e órgão existem
+	// Para publicação (não rascunho), validar que CNAE existe
 	if !isDraft {
 		// Validar que o CNAE existe
 		if oportunidade.CNAEID > 0 {
@@ -49,17 +46,6 @@ func (s *OportunidadeMEIService) Create(ctx context.Context, oportunidade *model
 			}
 			if cnae == nil {
 				return 0, errors.New("CNAE não encontrado")
-			}
-		}
-
-		// Validar que o órgão existe
-		if oportunidade.OrgaoID > 0 {
-			orgao, err := s.orgaoRepo.GetByID(ctx, oportunidade.OrgaoID)
-			if err != nil {
-				return 0, err
-			}
-			if orgao == nil {
-				return 0, errors.New("órgão não encontrado")
 			}
 		}
 	}
@@ -117,17 +103,6 @@ func (s *OportunidadeMEIService) Update(ctx context.Context, oportunidade *model
 		}
 	}
 
-	// Validar que o órgão existe (se mudou)
-	if oportunidade.OrgaoID != existing.OrgaoID {
-		orgao, err := s.orgaoRepo.GetByID(ctx, oportunidade.OrgaoID)
-		if err != nil {
-			return err
-		}
-		if orgao == nil {
-			return errors.New("órgão não encontrado")
-		}
-	}
-
 	oportunidade.UpdateStatusBasedOnExpiration()
 
 	return s.repo.Update(ctx, oportunidade)
@@ -181,7 +156,7 @@ func (s *OportunidadeMEIService) ListActive(ctx context.Context, page, pageSize 
 	return s.ListByStatus(ctx, models.StatusOportunidadeActive, page, pageSize)
 }
 
-func (s *OportunidadeMEIService) ListByOrgao(ctx context.Context, orgaoID int, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {
+func (s *OportunidadeMEIService) ListByOrgao(ctx context.Context, orgaoID string, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.ListByOrgao(ctx, orgaoID, pageSize, offset)
 }
