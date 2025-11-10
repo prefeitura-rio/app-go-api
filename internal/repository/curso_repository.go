@@ -31,24 +31,24 @@ func (r *CursoRepository) Create(ctx context.Context, curso *models.Curso) (int,
 
 func (r *CursoRepository) GetByID(ctx context.Context, id int) (*models.Curso, error) {
 	var curso models.Curso
-	
+
 	result := r.db.WithContext(ctx).
 		Preload("Categorias").
 		Preload("Acessibilidades").
 		Preload("Orgao").
 		Preload("Instituicao").
 		Preload("CustomFields").
-		Preload("LocationClasses").
+		Preload("LocationClasses.Schedules").
 		Preload("RemoteClass").
 		First(&curso, id)
-	
+
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("erro ao buscar curso por ID: %w", result.Error)
 	}
-	
+
 	return &curso, nil
 }
 
@@ -121,7 +121,7 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 		Preload("Orgao").
 		Preload("Instituicao").
 		Preload("CustomFields").
-		Preload("LocationClasses").
+		Preload("LocationClasses.Schedules").
 		Preload("RemoteClass").
 		Order("id DESC").
 		Limit(limit).
@@ -142,6 +142,9 @@ func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{
 			db = db.Where("status != ?", value)
 		case "title ILIKE":
 			db = db.Where("titulo ILIKE ?", value)
+		case "categoria_id":
+			// Filter by category - use subquery to avoid duplicates
+			db = db.Where("cursos.id IN (SELECT curso_id FROM cursos_categorias WHERE categoria_id = ?)", value)
 		default:
 			db = db.Where(key+" = ?", value)
 		}
@@ -316,7 +319,7 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 	// Get existing location classes
 	var existingLocations []models.LocationClass
 	tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingLocations)
-	
+
 	// Build map of IDs to keep
 	idsToKeep := make(map[string]bool)
 	for _, location := range curso.LocationClasses {
@@ -324,25 +327,102 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 			idsToKeep[location.ID.String()] = true
 		}
 	}
-	
-	// Delete locations that are not in the update list
+
+	// Delete locations that are not in the update list (CASCADE will delete schedules)
 	for _, existing := range existingLocations {
 		if !idsToKeep[existing.ID.String()] {
 			tx.WithContext(ctx).Delete(&existing)
 		}
 	}
-	
-	// Update or create locations
+
+	// Update or create locations and their schedules
 	for i := range curso.LocationClasses {
 		curso.LocationClasses[i].CursoID = curso.ID
+
 		if curso.LocationClasses[i].ID.String() != "00000000-0000-0000-0000-000000000000" {
-			// Update existing location
-			tx.WithContext(ctx).Model(&curso.LocationClasses[i]).Updates(&curso.LocationClasses[i])
+			// Update existing location (only address and neighborhood)
+			tx.WithContext(ctx).Model(&curso.LocationClasses[i]).
+				Select("address", "neighborhood", "updated_at").
+				Updates(&curso.LocationClasses[i])
+
+			// Delete all existing schedules for this location
+			tx.WithContext(ctx).Where("location_id = ?", curso.LocationClasses[i].ID).Delete(&models.CourseSchedule{})
 		} else {
 			// Create new location
-			tx.WithContext(ctx).Create(&curso.LocationClasses[i])
+			tx.WithContext(ctx).Omit("Schedules").Create(&curso.LocationClasses[i])
+		}
+
+		// Create schedules for this location
+		if len(curso.LocationClasses[i].Schedules) > 0 {
+			for j := range curso.LocationClasses[i].Schedules {
+				curso.LocationClasses[i].Schedules[j].LocationID = curso.LocationClasses[i].ID
+				// Reset ID to ensure new schedule is created
+				curso.LocationClasses[i].Schedules[j].ID = uuid.UUID{}
+			}
+
+			if err := tx.WithContext(ctx).Create(&curso.LocationClasses[i].Schedules).Error; err != nil {
+				return fmt.Errorf("erro ao criar schedules: %w", err)
+			}
 		}
 	}
-	
+
 	return nil
-} 
+}
+
+// CountEnrollmentsByScheduleID counts approved and concluded enrollments for a schedule
+func (r *CursoRepository) CountEnrollmentsByScheduleID(ctx context.Context, scheduleID uuid.UUID) (int64, error) {
+	var count int64
+
+	result := r.db.WithContext(ctx).
+		Model(&models.Inscricao{}).
+		Where("schedule_id = ?", scheduleID).
+		Where("status IN ?", []models.StatusInscricao{
+			models.StatusInscricaoApproved,
+			models.StatusInscricaoConcluded,
+		}).
+		Count(&count)
+
+	if result.Error != nil {
+		return 0, fmt.Errorf("erro ao contar inscrições por schedule: %w", result.Error)
+	}
+
+	return count, nil
+}
+
+// CountEnrollmentsByScheduleIDs counts approved and concluded enrollments for multiple schedules
+// Returns a map of schedule_id -> enrollment count
+func (r *CursoRepository) CountEnrollmentsByScheduleIDs(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+	if len(scheduleIDs) == 0 {
+		return make(map[uuid.UUID]int64), nil
+	}
+
+	type Result struct {
+		ScheduleID uuid.UUID
+		Count      int64
+	}
+
+	var results []Result
+
+	err := r.db.WithContext(ctx).
+		Model(&models.Inscricao{}).
+		Select("schedule_id, COUNT(*) as count").
+		Where("schedule_id IN ?", scheduleIDs).
+		Where("status IN ?", []models.StatusInscricao{
+			models.StatusInscricaoApproved,
+			models.StatusInscricaoConcluded,
+		}).
+		Group("schedule_id").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("erro ao contar inscrições por schedules: %w", err)
+	}
+
+	// Build map
+	countMap := make(map[uuid.UUID]int64)
+	for _, result := range results {
+		countMap[result.ScheduleID] = result.Count
+	}
+
+	return countMap, nil
+}
