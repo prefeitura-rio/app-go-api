@@ -94,8 +94,8 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 		return fmt.Errorf("título é obrigatório")
 	}
 
-	if len(curso.Titulo) > 255 {
-		return fmt.Errorf("título deve ter no máximo 255 caracteres")
+	if len(curso.Titulo) > 20000 {
+		return fmt.Errorf("título deve ter no máximo 20000 caracteres")
 	}
 
 	if !curso.Modalidade.IsValid() {
@@ -115,8 +115,8 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 	}
 
 	// Organization can be empty for some cases, just normalize it
-	if curso.Organization != "" && len(curso.Organization) > 255 {
-		return fmt.Errorf("organização deve ter no máximo 255 caracteres")
+	if curso.Organization != "" && len(curso.Organization) > 20000 {
+		return fmt.Errorf("organização deve ter no máximo 20000 caracteres")
 	}
 
 	if curso.NumeroVagas < 0 {
@@ -128,25 +128,30 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 	}
 
 	// Validate URL fields if not empty
-	if curso.InstitutionalLogo != "" && len(curso.InstitutionalLogo) > 500 {
-		return fmt.Errorf("URL do logo institucional deve ter no máximo 500 caracteres")
+	if curso.InstitutionalLogo != "" && len(curso.InstitutionalLogo) > 20000 {
+		return fmt.Errorf("URL do logo institucional deve ter no máximo 20000 caracteres")
 	}
-	
-	if curso.CoverImage != "" && len(curso.CoverImage) > 500 {
-		return fmt.Errorf("URL da imagem de capa deve ter no máximo 500 caracteres")
+
+	if curso.CoverImage != "" && len(curso.CoverImage) > 20000 {
+		return fmt.Errorf("URL da imagem de capa deve ter no máximo 20000 caracteres")
 	}
 
 	// Validate text fields length
-	if len(curso.Theme) > 100 {
-		return fmt.Errorf("tema deve ter no máximo 100 caracteres")
+	if len(curso.Theme) > 20000 {
+		return fmt.Errorf("tema deve ter no máximo 20000 caracteres")
 	}
-	
-	if len(curso.Workload) > 50 {
-		return fmt.Errorf("carga de trabalho deve ter no máximo 50 caracteres")
+
+	if len(curso.Workload) > 20000 {
+		return fmt.Errorf("carga de trabalho deve ter no máximo 20000 caracteres")
 	}
-	
-	if len(curso.TargetAudience) > 600 {
-		return fmt.Errorf("público-alvo deve ter no máximo 600 caracteres")
+
+	if len(curso.TargetAudience) > 20000 {
+		return fmt.Errorf("público-alvo deve ter no máximo 20000 caracteres")
+	}
+
+	// Validate locations and schedules
+	if err := s.validateLocationClasses(curso.LocationClasses); err != nil {
+		return fmt.Errorf("erro de validação em locations: %w", err)
 	}
 
 	return nil
@@ -178,4 +183,78 @@ func (s *CursoService) normalizeCurso(curso *models.Curso) {
 	if curso.Status == "" {
 		curso.Status = models.StatusCursoDraft
 	}
-} 
+}
+
+// validateLocationClasses validates location classes and their schedules
+func (s *CursoService) validateLocationClasses(locations []models.LocationClass) error {
+	for i, location := range locations {
+		// Validate address
+		if len(strings.TrimSpace(location.Address)) < 10 {
+			return fmt.Errorf("location[%d]: endereço deve ter pelo menos 10 caracteres", i)
+		}
+		if len(location.Address) > 20000 {
+			return fmt.Errorf("location[%d]: endereço deve ter no máximo 20000 caracteres", i)
+		}
+
+		// Validate neighborhood
+		if len(strings.TrimSpace(location.Neighborhood)) < 3 {
+			return fmt.Errorf("location[%d]: bairro deve ter pelo menos 3 caracteres", i)
+		}
+		if len(location.Neighborhood) > 20000 {
+			return fmt.Errorf("location[%d]: bairro deve ter no máximo 20000 caracteres", i)
+		}
+
+		// Validate schedules - at least 1 required
+		if len(location.Schedules) < 1 {
+			return fmt.Errorf("location[%d]: deve ter pelo menos 1 turma (schedule)", i)
+		}
+
+		// Validate each schedule
+		if err := s.validateSchedules(location.Schedules, i); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateSchedules validates course schedules
+func (s *CursoService) validateSchedules(schedules []models.CourseSchedule, locationIndex int) error {
+	for j, schedule := range schedules {
+		// Validate vacancies
+		if schedule.Vacancies < 1 || schedule.Vacancies > 1000 {
+			return fmt.Errorf("location[%d].schedule[%d]: número de vagas deve estar entre 1 e 1000", locationIndex, j)
+		}
+
+		// Validate dates
+		if schedule.ClassStartDate.IsZero() {
+			return fmt.Errorf("location[%d].schedule[%d]: data de início é obrigatória", locationIndex, j)
+		}
+
+		if schedule.ClassEndDate.IsZero() {
+			return fmt.Errorf("location[%d].schedule[%d]: data de término é obrigatória", locationIndex, j)
+		}
+
+		if schedule.ClassEndDate.Before(schedule.ClassStartDate) {
+			return fmt.Errorf("location[%d].schedule[%d]: data de término deve ser maior ou igual à data de início", locationIndex, j)
+		}
+
+		// Validate class time
+		if strings.TrimSpace(schedule.ClassTime) == "" {
+			return fmt.Errorf("location[%d].schedule[%d]: horário da aula é obrigatório", locationIndex, j)
+		}
+		if len(schedule.ClassTime) > 20000 {
+			return fmt.Errorf("location[%d].schedule[%d]: horário da aula deve ter no máximo 20000 caracteres", locationIndex, j)
+		}
+
+		// Validate class days
+		if strings.TrimSpace(schedule.ClassDays) == "" {
+			return fmt.Errorf("location[%d].schedule[%d]: dias da semana são obrigatórios", locationIndex, j)
+		}
+		if len(schedule.ClassDays) > 20000 {
+			return fmt.Errorf("location[%d].schedule[%d]: dias da semana deve ter no máximo 20000 caracteres", locationIndex, j)
+		}
+	}
+
+	return nil
+}

@@ -35,9 +35,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 
 	// API v1
 	apiV1 := r.Group("/api/v1")
-	// // Aplicar middleware de autenticação para proteger todas as rotas da API
-	// apiV1.Use(middlewares.AuthMiddleware())
-	
+
 	// Middleware para extrair contexto do usuário dos headers injetados pelo Istio
 	apiV1.Use(middlewares.ExtractUserContext())
 
@@ -85,7 +83,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
 	orgaoHandler := v1.NewOrgaoHandler(orgaoService)
 	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService, jobService)
-	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService)
+	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo)
 	jobHandler := v1.NewJobHandler(jobService)
 	cnaeHandler := v1.NewCNAEHandler(cnaeService)
 	meiEmpresaHandler := v1.NewMEIEmpresaHandler(meiEmpresaService)
@@ -95,8 +93,6 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	if err != nil {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)
 	}
-
-	// Rotas legacy removidas - usar apenas /api/v1/courses
 
 	// Rotas de empregos
 	empregos := apiV1.Group("/empregos")
