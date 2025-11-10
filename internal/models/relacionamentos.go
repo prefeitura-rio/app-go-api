@@ -20,4 +20,4 @@ type CursoAcessibilidade struct {
 // TableName especifica o nome da tabela para este modelo
 func (CursoAcessibilidade) TableName() string {
 	return "cursos_acessibilidades"
-} 
+}

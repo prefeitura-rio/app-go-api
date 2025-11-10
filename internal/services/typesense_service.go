@@ -23,7 +23,7 @@ func NewTypesenseService() (*TypesenseService, error) {
 	if err != nil {
 		return nil, fmt.Errorf("erro ao obter configurações: %w", err)
 	}
-	
+
 	if cfg.TypeSense.Host == "" || cfg.TypeSense.APIKey == "" {
 		return nil, errors.New("configuração do Typesense incompleta")
 	}
@@ -42,13 +42,13 @@ func NewTypesenseService() (*TypesenseService, error) {
 func (s *TypesenseService) SearchCursos(ctx context.Context, params models.CursoSearchParameters) (*models.SearchDocumentsResponse, error) {
 	// Converter para parâmetros padrão
 	searchParams := params.ToSearchParameters()
-	
+
 	// Executar busca na collection de cursos
 	response, err := s.SearchDocuments(ctx, "cursos", searchParams)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao buscar cursos: %w", err)
 	}
-	
+
 	// Processar hits para extrair apenas dados do record
 	if response.Hits != nil {
 		for i, hit := range response.Hits {
@@ -58,19 +58,19 @@ func (s *TypesenseService) SearchCursos(ctx context.Context, params models.Curso
 					// Preservar campos importantes do documento original
 					recordMap["document_id"] = hit["id"]
 					recordMap["action"] = hit["action"]
-					
+
 					// Preservar highlights se existirem
 					if highlights, exists := hit["highlights"]; exists {
 						recordMap["highlights"] = highlights
 					}
-					
+
 					// Substituir o hit pelos dados do record
 					response.Hits[i] = recordMap
 				}
 			}
 		}
 	}
-	
+
 	return response, nil
 }
 
@@ -78,13 +78,13 @@ func (s *TypesenseService) SearchCursos(ctx context.Context, params models.Curso
 func (s *TypesenseService) SearchEmpregos(ctx context.Context, params models.EmpregoSearchParameters) (*models.SearchDocumentsResponse, error) {
 	// Converter para parâmetros padrão
 	searchParams := params.ToSearchParameters()
-	
+
 	// Executar busca na collection de empregos
 	response, err := s.SearchDocuments(ctx, "empregos", searchParams)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao buscar empregos: %w", err)
 	}
-	
+
 	// Processar hits para extrair apenas dados do record
 	if response.Hits != nil {
 		for i, hit := range response.Hits {
@@ -94,19 +94,19 @@ func (s *TypesenseService) SearchEmpregos(ctx context.Context, params models.Emp
 					// Preservar campos importantes do documento original
 					recordMap["document_id"] = hit["id"]
 					recordMap["action"] = hit["action"]
-					
+
 					// Preservar highlights se existirem
 					if highlights, exists := hit["highlights"]; exists {
 						recordMap["highlights"] = highlights
 					}
-					
+
 					// Substituir o hit pelos dados do record
 					response.Hits[i] = recordMap
 				}
 			}
 		}
 	}
-	
+
 	return response, nil
 }
 
@@ -124,7 +124,7 @@ func (s *TypesenseService) SearchDocuments(ctx context.Context, collectionName s
 	excludeFields := params.ExcludeFields
 	highlightFields := params.HighlightFields
 	highlightFullFields := params.HighlightFullFields
-	prefix := fmt.Sprintf("%v", params.Prefix) // Convertendo bool para string
+	prefix := fmt.Sprintf("%v", params.Prefix)     // Convertendo bool para string
 	numTypos := fmt.Sprintf("%d", params.NumTypos) // Convertendo int para string
 
 	searchParams := &api.SearchCollectionParams{
@@ -161,7 +161,7 @@ func (s *TypesenseService) SearchDocuments(ctx context.Context, collectionName s
 	if result.Found != nil {
 		found = *result.Found
 	}
-	
+
 	response := &models.SearchDocumentsResponse{
 		Found: found,
 		Page:  *result.Page,
@@ -176,7 +176,7 @@ func (s *TypesenseService) SearchDocuments(ctx context.Context, collectionName s
 			if err != nil {
 				return nil, err
 			}
-			
+
 			if err := json.Unmarshal(docBytes, &hitData); err != nil {
 				return nil, err
 			}
@@ -192,7 +192,7 @@ func (s *TypesenseService) SearchDocuments(ctx context.Context, collectionName s
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if err := json.Unmarshal(paramsBytes, &response.RequestParams); err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func (s *TypesenseService) SearchMultiCollection(ctx context.Context, params mod
 			// mas registra o erro nos resultados
 			response.Results[collectionName] = models.SearchDocumentsResponse{
 				Found: 0,
-				Hits: []map[string]interface{}{},
+				Hits:  []map[string]interface{}{},
 				RequestParams: map[string]interface{}{
 					"error": err.Error(),
 				},

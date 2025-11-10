@@ -49,8 +49,6 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	instituicaoRepo := repository.NewInstituicaoRepository(db)
 	inscricaoRepo := repository.NewInscricaoRepository(db)
 	jobRepo := repository.NewJobRepository(db)
-	cnaeRepo := repository.NewCNAERepository(db)
-	meiEmpresaRepo := repository.NewMEIEmpresaRepository(db)
 	oportunidadeMEIRepo := repository.NewOportunidadeMEIRepository(db)
 	propostaMEIRepo := repository.NewPropostaMEIRepository(db)
 
@@ -64,10 +62,8 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
 	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
 	jobService := services.NewJobService(jobRepo)
-	cnaeService := services.NewCNAEService(cnaeRepo)
-	meiEmpresaService := services.NewMEIEmpresaService(meiEmpresaRepo, cnaeRepo)
-	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo, cnaeRepo)
-	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, meiEmpresaRepo)
+	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo)
+	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo)
 
 	// Initialize job processor
 	jobs.InitializeJobProcessor(db, jobRepo, inscricaoRepo, cursoRepo)
@@ -82,8 +78,6 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService, jobService)
 	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo)
 	jobHandler := v1.NewJobHandler(jobService)
-	cnaeHandler := v1.NewCNAEHandler(cnaeService)
-	meiEmpresaHandler := v1.NewMEIEmpresaHandler(meiEmpresaService)
 	oportunidadeMEIHandler := v1.NewOportunidadeMEIHandler(oportunidadeMEIService)
 	propostaMEIHandler := v1.NewPropostaMEIHandler(propostaMEIService)
 	typesenseHandler, err := v1.NewTypesenseHandler()
@@ -210,31 +204,6 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		enrollments.GET("/user/:cpf", inscricaoHandler.ListByUser)
 	}
 
-	// Rotas de CNAEs
-	cnaes := apiV1.Group("/cnaes")
-	{
-		cnaes.GET("", cnaeHandler.List)
-		cnaes.GET("/*codigo", cnaeHandler.GetByCodigo)
-	}
-
-	// Rotas admin de CNAEs
-	adminCnaes := apiV1.Group("/admin/cnaes")
-	{
-		adminCnaes.POST("", cnaeHandler.Create)
-		adminCnaes.PUT("/*codigo", cnaeHandler.Update)
-		adminCnaes.DELETE("/*codigo", cnaeHandler.Delete)
-	}
-
-	// Rotas de MEI Empresas
-	meiEmpresas := apiV1.Group("/mei-empresas")
-	{
-		meiEmpresas.POST("", meiEmpresaHandler.Create)
-		meiEmpresas.GET("", meiEmpresaHandler.List)
-		meiEmpresas.GET("/:id", meiEmpresaHandler.GetByID)
-		meiEmpresas.GET("/cnpj/:cnpj", meiEmpresaHandler.GetByCNPJ)
-		meiEmpresas.PUT("/:id", meiEmpresaHandler.Update)
-	}
-
 	// Rotas de Oportunidades MEI
 	oportunidadesMEI := apiV1.Group("/oportunidades-mei")
 	{
@@ -266,8 +235,6 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	// Endpoints públicos para oportunidades MEI
 	apiPublic.GET("/oportunidades-mei", oportunidadeMEIHandler.List)
 	apiPublic.GET("/oportunidades-mei/:id", oportunidadeMEIHandler.GetByID)
-	apiPublic.GET("/cnaes", cnaeHandler.List)
-	apiPublic.GET("/cnaes/*codigo", cnaeHandler.GetByCodigo)
 
 	return r
 }

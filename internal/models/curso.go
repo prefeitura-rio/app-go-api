@@ -17,14 +17,14 @@ const (
 
 	// Legacy values for backwards compatibility
 	ModalidadePresencialLegacy Modalidade = "PRESENCIAL"
-	ModalidadeOnline          Modalidade = "ONLINE"
-	ModalidadeHibrido         Modalidade = "HIBRIDO"
+	ModalidadeOnline           Modalidade = "ONLINE"
+	ModalidadeHibrido          Modalidade = "HIBRIDO"
 
 	// New status values matching specification
-	StatusCursoDraft     StatusCurso = "draft"
-	StatusCursoOpened    StatusCurso = "opened"
-	StatusCursoClosed    StatusCurso = "closed"
-	StatusCursoCanceled  StatusCurso = "canceled"
+	StatusCursoDraft    StatusCurso = "draft"
+	StatusCursoOpened   StatusCurso = "opened"
+	StatusCursoClosed   StatusCurso = "closed"
+	StatusCursoCanceled StatusCurso = "canceled"
 
 	// Legacy values for backwards compatibility
 	StatusCursoCriado    StatusCurso = "CRIADO"
@@ -36,78 +36,78 @@ const (
 )
 
 type Curso struct {
-	ID                   int            `json:"id" gorm:"primaryKey"`
-	
+	ID int `json:"id" gorm:"primaryKey"`
+
 	// Core fields (always required)
-	Titulo               string         `json:"title" gorm:"type:varchar(20000);not null"`
-	Descricao            string         `json:"description" gorm:"type:text"`
-	EnrollmentStartDate  *time.Time     `json:"enrollment_start_date" gorm:"type:timestamp with time zone;column:enrollment_start_date"`
-	EnrollmentEndDate    *time.Time     `json:"enrollment_end_date" gorm:"type:timestamp with time zone;column:enrollment_end_date"`
-	Organization         string         `json:"organization" gorm:"type:varchar(20000)"`
-	Modalidade           Modalidade     `json:"modalidade" gorm:"type:varchar(50)"`
-	Theme                string         `json:"theme" gorm:"type:varchar(20000)"`
-	Workload             string         `json:"workload" gorm:"type:varchar(20000)"`
-	TargetAudience       string         `json:"target_audience" gorm:"type:varchar(20000);column:target_audience"`
-	InstitutionalLogo    string         `json:"institutional_logo" gorm:"type:varchar(20000);column:institutional_logo"`
-	CoverImage           string         `json:"cover_image" gorm:"type:varchar(20000);column:cover_image"`
-	Status               StatusCurso    `json:"status" gorm:"type:varchar(50)"`
+	Titulo              string      `json:"title" gorm:"type:varchar(20000);not null"`
+	Descricao           string      `json:"description" gorm:"type:text"`
+	EnrollmentStartDate *time.Time  `json:"enrollment_start_date" gorm:"type:timestamp with time zone;column:enrollment_start_date"`
+	EnrollmentEndDate   *time.Time  `json:"enrollment_end_date" gorm:"type:timestamp with time zone;column:enrollment_end_date"`
+	Organization        string      `json:"organization" gorm:"type:varchar(20000)"`
+	Modalidade          Modalidade  `json:"modalidade" gorm:"type:varchar(50)"`
+	Theme               string      `json:"theme" gorm:"type:varchar(20000)"`
+	Workload            string      `json:"workload" gorm:"type:varchar(20000)"`
+	TargetAudience      string      `json:"target_audience" gorm:"type:varchar(20000);column:target_audience"`
+	InstitutionalLogo   string      `json:"institutional_logo" gorm:"type:varchar(20000);column:institutional_logo"`
+	CoverImage          string      `json:"cover_image" gorm:"type:varchar(20000);column:cover_image"`
+	Status              StatusCurso `json:"status" gorm:"type:varchar(50)"`
 
 	// Legacy and additional fields (optional)
-	OrgaoID              string         `json:"orgao_id,omitempty" gorm:"type:varchar(100);column:orgao_id"`
-	InstituicaoID        *int           `json:"instituicao_id,omitempty" gorm:"column:instituicao_id"`
-	LocalRealizacao      string         `json:"local_realizacao" gorm:"type:varchar(20000);column:local_realizacao"`
-	DataInicio           *time.Time     `json:"data_inicio" gorm:"column:data_inicio"`
-	DataTermino          *time.Time     `json:"data_termino" gorm:"column:data_termino"`
-	DataLimiteInscricoes *time.Time     `json:"data_limite_inscricoes" gorm:"column:data_limite_inscricoes"`
-	NumeroVagas          int            `json:"numero_vagas" gorm:"column:numero_vagas"`
-	CargaHoraria         int            `json:"carga_horaria" gorm:"column:carga_horaria"`
-	Turno                Turno          `json:"turno" gorm:"type:varchar(50)"`
-	FormatoAula          FormatoAula    `json:"formato_aula" gorm:"column:formato_aula;type:varchar(50)"`
-	LinkInscricao        string         `json:"link_inscricao" gorm:"type:varchar(20000);column:link_inscricao"`
-	ContatoDuvidas       string         `json:"contato_duvidas" gorm:"type:varchar(20000);column:contato_duvidas"`
+	OrgaoID              string      `json:"orgao_id,omitempty" gorm:"type:varchar(100);column:orgao_id"`
+	InstituicaoID        *int        `json:"instituicao_id,omitempty" gorm:"column:instituicao_id"`
+	LocalRealizacao      string      `json:"local_realizacao" gorm:"type:varchar(20000);column:local_realizacao"`
+	DataInicio           *time.Time  `json:"data_inicio" gorm:"column:data_inicio"`
+	DataTermino          *time.Time  `json:"data_termino" gorm:"column:data_termino"`
+	DataLimiteInscricoes *time.Time  `json:"data_limite_inscricoes" gorm:"column:data_limite_inscricoes"`
+	NumeroVagas          int         `json:"numero_vagas" gorm:"column:numero_vagas"`
+	CargaHoraria         int         `json:"carga_horaria" gorm:"column:carga_horaria"`
+	Turno                Turno       `json:"turno" gorm:"type:varchar(50)"`
+	FormatoAula          FormatoAula `json:"formato_aula" gorm:"column:formato_aula;type:varchar(50)"`
+	LinkInscricao        string      `json:"link_inscricao" gorm:"type:varchar(20000);column:link_inscricao"`
+	ContatoDuvidas       string      `json:"contato_duvidas" gorm:"type:varchar(20000);column:contato_duvidas"`
 
 	// Optional fields matching specification
-	HasCertificate       bool           `json:"has_certificate" gorm:"column:has_certificate;default:false"`
-	Facilitator          string         `json:"facilitator,omitempty" gorm:"type:varchar(20000)"`
-	Objectives           string         `json:"objectives,omitempty" gorm:"type:text"`
-	ExpectedResults      string         `json:"expected_results,omitempty" gorm:"type:text;column:expected_results"`
-	ProgramContent       string         `json:"program_content,omitempty" gorm:"type:text;column:program_content"`
-	Methodology          string         `json:"methodology,omitempty" gorm:"type:text"`
-	ResourcesUsed        string         `json:"resources_used,omitempty" gorm:"type:text;column:resources_used"`
-	MaterialUsed         string         `json:"material_used,omitempty" gorm:"type:text;column:material_used"`
-	TeachingMaterial     string         `json:"teaching_material,omitempty" gorm:"type:text;column:teaching_material"`
+	HasCertificate   bool   `json:"has_certificate" gorm:"column:has_certificate;default:false"`
+	Facilitator      string `json:"facilitator,omitempty" gorm:"type:varchar(20000)"`
+	Objectives       string `json:"objectives,omitempty" gorm:"type:text"`
+	ExpectedResults  string `json:"expected_results,omitempty" gorm:"type:text;column:expected_results"`
+	ProgramContent   string `json:"program_content,omitempty" gorm:"type:text;column:program_content"`
+	Methodology      string `json:"methodology,omitempty" gorm:"type:text"`
+	ResourcesUsed    string `json:"resources_used,omitempty" gorm:"type:text;column:resources_used"`
+	MaterialUsed     string `json:"material_used,omitempty" gorm:"type:text;column:material_used"`
+	TeachingMaterial string `json:"teaching_material,omitempty" gorm:"type:text;column:teaching_material"`
 
 	// Unified field for prerequisites - using single JSON tag
-	PreRequisitos         string         `json:"pre_requisitos" gorm:"column:pre_requisitos;type:text"`
-	CertificacaoOferecida bool          `json:"certificacao_oferecida" gorm:"column:certificacao_oferecida"`
+	PreRequisitos         string `json:"pre_requisitos" gorm:"column:pre_requisitos;type:text"`
+	CertificacaoOferecida bool   `json:"certificacao_oferecida" gorm:"column:certificacao_oferecida"`
 
 	// External partner fields
-	IsExternalPartner       *bool   `json:"is_external_partner,omitempty" gorm:"column:is_external_partner"`
-	ExternalPartnerName     string  `json:"external_partner_name,omitempty" gorm:"column:external_partner_name;type:varchar(20000)"`
-	ExternalPartnerURL      string  `json:"external_partner_url,omitempty" gorm:"column:external_partner_url;type:varchar(20000)"`
-	ExternalPartnerLogoURL  string  `json:"external_partner_logo_url,omitempty" gorm:"column:external_partner_logo_url;type:varchar(20000)"`
-	ExternalPartnerContact  string  `json:"external_partner_contact,omitempty" gorm:"column:external_partner_contact;type:varchar(20000)"`
+	IsExternalPartner      *bool  `json:"is_external_partner,omitempty" gorm:"column:is_external_partner"`
+	ExternalPartnerName    string `json:"external_partner_name,omitempty" gorm:"column:external_partner_name;type:varchar(20000)"`
+	ExternalPartnerURL     string `json:"external_partner_url,omitempty" gorm:"column:external_partner_url;type:varchar(20000)"`
+	ExternalPartnerLogoURL string `json:"external_partner_logo_url,omitempty" gorm:"column:external_partner_logo_url;type:varchar(20000)"`
+	ExternalPartnerContact string `json:"external_partner_contact,omitempty" gorm:"column:external_partner_contact;type:varchar(20000)"`
 
 	// Accessibility field - free text field for frontend
-	Accessibility        string  `json:"accessibility,omitempty" gorm:"column:accessibility;type:varchar(20000)"`
+	Accessibility string `json:"accessibility,omitempty" gorm:"column:accessibility;type:varchar(20000)"`
 
 	// Visibility field - controls if course appears in public listings (default: true)
 	// Used for in-person courses that require manual enrollment and should not appear in public course lists
-	IsVisible            *bool   `json:"is_visible,omitempty" gorm:"column:is_visible;default:true" example:"true"`
+	IsVisible *bool `json:"is_visible,omitempty" gorm:"column:is_visible;default:true" example:"true"`
 
-	CreatedAt            time.Time      `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt            time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos
-	Instituicao          *InstituicaoEnsino `json:"instituicao,omitempty" gorm:"foreignKey:InstituicaoID" swaggerignore:"true"`
-	Categorias           []Categoria      `json:"categorias,omitempty" gorm:"many2many:cursos_categorias;" swaggerignore:"true"`
-	Acessibilidades      []Acessibilidade `json:"acessibilidades,omitempty" gorm:"many2many:cursos_acessibilidades;" swaggerignore:"true"`
+	Instituicao     *InstituicaoEnsino `json:"instituicao,omitempty" gorm:"foreignKey:InstituicaoID" swaggerignore:"true"`
+	Categorias      []Categoria        `json:"categorias,omitempty" gorm:"many2many:cursos_categorias;" swaggerignore:"true"`
+	Acessibilidades []Acessibilidade   `json:"acessibilidades,omitempty" gorm:"many2many:cursos_acessibilidades;" swaggerignore:"true"`
 
 	// New relationships for enrollment system
-	CustomFields         []CustomField    `json:"custom_fields" gorm:"foreignKey:CursoID" swaggerignore:"true"`
-	Inscricoes           []Inscricao      `json:"enrollments,omitempty" gorm:"foreignKey:CursoID" swaggerignore:"true"`
-	LocationClasses      []LocationClass  `json:"locations,omitempty" gorm:"foreignKey:CursoID" swaggerignore:"true"`
-	RemoteClass          *RemoteClass     `json:"remote_class" gorm:"foreignKey:CursoID" swaggerignore:"true"`
+	CustomFields    []CustomField   `json:"custom_fields" gorm:"foreignKey:CursoID" swaggerignore:"true"`
+	Inscricoes      []Inscricao     `json:"enrollments,omitempty" gorm:"foreignKey:CursoID" swaggerignore:"true"`
+	LocationClasses []LocationClass `json:"locations,omitempty" gorm:"foreignKey:CursoID" swaggerignore:"true"`
+	RemoteClass     *RemoteClass    `json:"remote_class" gorm:"foreignKey:CursoID" swaggerignore:"true"`
 }
 
 // TableName especifica o nome da tabela para este modelo
@@ -206,4 +206,4 @@ func (c *Curso) Validate() error {
 	}
 
 	return nil
-} 
+}

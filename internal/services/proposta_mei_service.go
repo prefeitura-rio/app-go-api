@@ -11,20 +11,17 @@ import (
 )
 
 type PropostaMEIService struct {
-	repo              *repository.PropostaMEIRepository
-	oportunidadeRepo  *repository.OportunidadeMEIRepository
-	meiEmpresaRepo    *repository.MEIEmpresaRepository
+	repo             *repository.PropostaMEIRepository
+	oportunidadeRepo *repository.OportunidadeMEIRepository
 }
 
 func NewPropostaMEIService(
 	repo *repository.PropostaMEIRepository,
 	oportunidadeRepo *repository.OportunidadeMEIRepository,
-	meiEmpresaRepo *repository.MEIEmpresaRepository,
 ) *PropostaMEIService {
 	return &PropostaMEIService{
 		repo:             repo,
 		oportunidadeRepo: oportunidadeRepo,
-		meiEmpresaRepo:   meiEmpresaRepo,
 	}
 }
 
@@ -39,15 +36,6 @@ func (s *PropostaMEIService) Create(ctx context.Context, proposta *models.Propos
 	}
 	if oportunidade.Status != models.StatusOportunidadeActive {
 		return uuid.Nil, errors.New("oportunidade não está ativa")
-	}
-
-	// Validar que a MEI empresa existe
-	meiEmpresa, err := s.meiEmpresaRepo.GetByID(ctx, proposta.MEIEmpresaID)
-	if err != nil {
-		return uuid.Nil, err
-	}
-	if meiEmpresa == nil {
-		return uuid.Nil, errors.New("MEI empresa não encontrada")
 	}
 
 	// Verificar se já existe proposta desta empresa para esta oportunidade

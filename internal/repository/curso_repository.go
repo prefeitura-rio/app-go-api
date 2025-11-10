@@ -25,7 +25,7 @@ func (r *CursoRepository) Create(ctx context.Context, curso *models.Curso) (int,
 	if result.Error != nil {
 		return 0, fmt.Errorf("erro ao criar curso: %w", result.Error)
 	}
-	
+
 	return curso.ID, nil
 }
 
@@ -62,22 +62,22 @@ func (r *CursoRepository) Update(ctx context.Context, curso *models.Curso) error
 		if err := r.atualizarAcessibilidadesWithTx(ctx, tx, curso); err != nil {
 			return fmt.Errorf("erro ao atualizar acessibilidades: %w", err)
 		}
-		
+
 		// Atualizar custom fields
 		if err := r.updateCustomFieldsWithTx(ctx, tx, curso); err != nil {
 			return fmt.Errorf("erro ao atualizar custom fields: %w", err)
 		}
-		
+
 		// Atualizar remote class
 		if err := r.updateRemoteClassWithTx(ctx, tx, curso); err != nil {
 			return fmt.Errorf("erro ao atualizar remote class: %w", err)
 		}
-		
+
 		// Atualizar location classes
 		if err := r.updateLocationClassesWithTx(ctx, tx, curso); err != nil {
 			return fmt.Errorf("erro ao atualizar location classes: %w", err)
 		}
-		
+
 		// Atualizar o curso - usar Select para incluir valores zero (como false para booleanos)
 		// Omitir created_at para preservar a data original de criação
 		result := tx.Model(curso).
@@ -85,11 +85,11 @@ func (r *CursoRepository) Update(ctx context.Context, curso *models.Curso) error
 			Omit("Categorias", "Acessibilidades", "Instituicao", "CustomFields", "RemoteClass", "LocationClasses", "created_at").
 			Select("*").
 			Updates(curso)
-		
+
 		if result.Error != nil {
 			return fmt.Errorf("erro ao atualizar curso: %w", result.Error)
 		}
-		
+
 		return nil
 	})
 }
@@ -105,12 +105,12 @@ func (r *CursoRepository) Delete(ctx context.Context, id int) error {
 func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
 	var cursos []*models.Curso
 	var total int64
-	
+
 	// Contar total de registros
 	db := r.db.WithContext(ctx).Model(&models.Curso{})
 	db = r.applyFilters(db, filter)
 	db.Count(&total)
-	
+
 	// Buscar registros com paginação
 	db = r.db.WithContext(ctx).Model(&models.Curso{})
 	db = r.applyFilters(db, filter)
@@ -125,11 +125,11 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 		Limit(limit).
 		Offset(offset).
 		Find(&cursos)
-		
+
 	if result.Error != nil {
 		return nil, 0, fmt.Errorf("erro ao listar cursos: %w", result.Error)
 	}
-	
+
 	return cursos, int(total), nil
 }
 
@@ -165,19 +165,19 @@ func (r *CursoRepository) atualizarCategoriasWithTx(ctx context.Context, tx *gor
 		}
 		return err
 	}
-	
+
 	// Limpar associações existentes
 	if err := tx.WithContext(ctx).Model(&cursoAtual).Association("Categorias").Clear(); err != nil {
 		return err
 	}
-	
+
 	// Adicionar novas associações
 	if len(curso.Categorias) > 0 {
 		if err := tx.WithContext(ctx).Model(curso).Association("Categorias").Replace(curso.Categorias); err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -194,19 +194,19 @@ func (r *CursoRepository) atualizarAcessibilidadesWithTx(ctx context.Context, tx
 		}
 		return err
 	}
-	
+
 	// Limpar associações existentes
 	if err := tx.WithContext(ctx).Model(&cursoAtual).Association("Acessibilidades").Clear(); err != nil {
 		return err
 	}
-	
+
 	// Adicionar novas associações
 	if len(curso.Acessibilidades) > 0 {
 		if err := tx.WithContext(ctx).Model(curso).Association("Acessibilidades").Replace(curso.Acessibilidades); err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -215,12 +215,12 @@ func (r *CursoRepository) CreateCustomFields(ctx context.Context, customFields [
 	if len(customFields) == 0 {
 		return nil
 	}
-	
+
 	result := r.db.WithContext(ctx).Create(&customFields)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao criar custom fields: %w", result.Error)
 	}
-	
+
 	return nil
 }
 
@@ -229,12 +229,12 @@ func (r *CursoRepository) CreateRemoteClass(ctx context.Context, remoteClass *mo
 	if remoteClass == nil {
 		return nil
 	}
-	
+
 	result := r.db.WithContext(ctx).Create(remoteClass)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao criar remote class: %w", result.Error)
 	}
-	
+
 	return nil
 }
 
@@ -243,12 +243,12 @@ func (r *CursoRepository) CreateLocationClasses(ctx context.Context, locationCla
 	if len(locationClasses) == 0 {
 		return nil
 	}
-	
+
 	result := r.db.WithContext(ctx).Create(&locationClasses)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao criar location classes: %w", result.Error)
 	}
-	
+
 	return nil
 }
 
@@ -262,7 +262,7 @@ func (r *CursoRepository) updateCustomFieldsWithTx(ctx context.Context, tx *gorm
 	if err := tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.CustomField{}).Error; err != nil {
 		return fmt.Errorf("erro ao deletar custom fields existentes: %w", err)
 	}
-	
+
 	// Create new custom fields
 	if len(curso.CustomFields) > 0 {
 		for i := range curso.CustomFields {
@@ -270,12 +270,12 @@ func (r *CursoRepository) updateCustomFieldsWithTx(ctx context.Context, tx *gorm
 			curso.CustomFields[i].ID = uuid.UUID{}
 			curso.CustomFields[i].CursoID = curso.ID
 		}
-		
+
 		if err := tx.WithContext(ctx).Create(&curso.CustomFields).Error; err != nil {
 			return fmt.Errorf("erro ao criar custom fields: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -289,9 +289,9 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 		// Check if a remote class already exists
 		var existingRemote models.RemoteClass
 		err := tx.WithContext(ctx).Where("curso_id = ?", curso.ID).First(&existingRemote).Error
-		
+
 		curso.RemoteClass.CursoID = curso.ID
-		
+
 		if err == nil {
 			// Update existing remote class
 			curso.RemoteClass.ID = existingRemote.ID
@@ -304,7 +304,7 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 		// If no remote class provided, delete existing one if any
 		tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.RemoteClass{})
 	}
-	
+
 	return nil
 }
 

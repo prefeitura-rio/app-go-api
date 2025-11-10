@@ -14,4 +14,4 @@ func (a *Acessibilidade) SetID(id int) {
 
 func (Acessibilidade) TableName() string {
 	return "acessibilidades"
-} 
+}
