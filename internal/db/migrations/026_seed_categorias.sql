@@ -1,7 +1,13 @@
 -- +goose Up
 -- +goose StatementBegin
 
--- Add UNIQUE constraint to categorias.nome if it doesn't exist
+-- Step 1: Remove duplicate categories, keeping only the first occurrence (lowest id)
+DELETE FROM categorias a
+USING categorias b
+WHERE a.id > b.id
+  AND a.nome = b.nome;
+
+-- Step 2: Add UNIQUE constraint to categorias.nome if it doesn't exist
 -- This prevents duplicate categories and enables ON CONFLICT
 DO $$
 BEGIN
@@ -13,7 +19,7 @@ BEGIN
     END IF;
 END $$;
 
--- Seed categorias
+-- Step 3: Seed categorias
 -- Using ON CONFLICT DO NOTHING for idempotency
 INSERT INTO categorias (nome) VALUES
 ('Tecnologia'),
