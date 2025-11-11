@@ -69,10 +69,10 @@ func main() {
 	if cfg.Migrations.Run {
 		log.Println("Iniciando auto-migração...")
 		// Migrar apenas as tabelas básicas que já existem
+		// Nota: Categoria foi removida do AutoMigrate pois é gerenciada via migrations SQL
 		err = db.AutoMigrate(
 			&models.Curso{},
 			&models.Emprego{},
-			&models.Categoria{},
 			&models.Acessibilidade{},
 			&models.InstituicaoEnsino{},
 			&models.Empresa{},
