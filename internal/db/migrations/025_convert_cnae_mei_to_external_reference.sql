@@ -34,17 +34,27 @@ DROP TABLE IF EXISTS mei_empresas_cnaes CASCADE;
 
 -- Step 3: Convert oportunidades_mei.cnae_id from INTEGER to VARCHAR(20)
 -- This will store the CNAE code (e.g., "4322-3/01") instead of the database ID
-ALTER TABLE oportunidades_mei ALTER COLUMN cnae_id TYPE VARCHAR(20) USING CASE
-    WHEN cnae_id IS NULL THEN NULL
-    ELSE (SELECT codigo FROM cnaes WHERE id = cnae_id LIMIT 1)
-END;
+-- Using temp column approach to avoid subquery limitation in USING clause
+ALTER TABLE oportunidades_mei ADD COLUMN cnae_id_temp VARCHAR(20);
+
+UPDATE oportunidades_mei
+SET cnae_id_temp = (SELECT codigo FROM cnaes WHERE id = oportunidades_mei.cnae_id LIMIT 1)
+WHERE cnae_id IS NOT NULL;
+
+ALTER TABLE oportunidades_mei DROP COLUMN cnae_id;
+ALTER TABLE oportunidades_mei RENAME COLUMN cnae_id_temp TO cnae_id;
 
 -- Step 4: Convert propostas_mei.mei_empresa_id from INTEGER to VARCHAR(18)
 -- This will store the CNPJ (e.g., "12.345.678/0001-90") instead of the database ID
-ALTER TABLE propostas_mei ALTER COLUMN mei_empresa_id TYPE VARCHAR(18) USING CASE
-    WHEN mei_empresa_id IS NULL THEN NULL
-    ELSE (SELECT cnpj FROM mei_empresas WHERE id = mei_empresa_id LIMIT 1)
-END;
+-- Using temp column approach to avoid subquery limitation in USING clause
+ALTER TABLE propostas_mei ADD COLUMN mei_empresa_id_temp VARCHAR(18);
+
+UPDATE propostas_mei
+SET mei_empresa_id_temp = (SELECT cnpj FROM mei_empresas WHERE id = propostas_mei.mei_empresa_id LIMIT 1)
+WHERE mei_empresa_id IS NOT NULL;
+
+ALTER TABLE propostas_mei DROP COLUMN mei_empresa_id;
+ALTER TABLE propostas_mei RENAME COLUMN mei_empresa_id_temp TO mei_empresa_id;
 
 -- Step 5: Drop the CNAE and MEI Empresa tables
 DROP TABLE IF EXISTS cnaes CASCADE;
