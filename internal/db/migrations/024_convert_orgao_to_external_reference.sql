@@ -1,10 +1,21 @@
 -- +goose Up
 -- +goose StatementBegin
 
--- Step 1: Drop foreign key constraints from all tables
-ALTER TABLE cursos DROP CONSTRAINT IF EXISTS cursos_orgao_id_fkey;
-ALTER TABLE empregos DROP CONSTRAINT IF EXISTS empregos_orgao_id_fkey;
-ALTER TABLE oportunidades_mei DROP CONSTRAINT IF EXISTS oportunidades_mei_orgao_id_fkey;
+-- Step 1: Drop ALL foreign key constraints that reference orgaos table
+DO $$
+DECLARE
+    constraint_record RECORD;
+BEGIN
+    FOR constraint_record IN
+        SELECT conname, conrelid::regclass AS table_name
+        FROM pg_constraint
+        WHERE confrelid = 'orgaos'::regclass
+    LOOP
+        EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I',
+                      constraint_record.table_name,
+                      constraint_record.conname);
+    END LOOP;
+END $$;
 
 -- Step 2: Drop indexes on orgao_id columns
 DROP INDEX IF EXISTS idx_cursos_orgao;

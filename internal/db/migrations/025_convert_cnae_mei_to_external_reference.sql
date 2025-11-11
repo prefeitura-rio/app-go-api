@@ -1,9 +1,33 @@
 -- +goose Up
 -- +goose StatementBegin
 
--- Step 1: Drop foreign key constraints
-ALTER TABLE oportunidades_mei DROP CONSTRAINT IF EXISTS oportunidades_mei_cnae_id_fkey;
-ALTER TABLE propostas_mei DROP CONSTRAINT IF EXISTS propostas_mei_mei_empresa_id_fkey;
+-- Step 1: Drop ALL foreign key constraints that reference cnaes or mei_empresas tables
+DO $$
+DECLARE
+    constraint_record RECORD;
+BEGIN
+    -- Drop constraints referencing cnaes
+    FOR constraint_record IN
+        SELECT conname, conrelid::regclass AS table_name
+        FROM pg_constraint
+        WHERE confrelid = 'cnaes'::regclass
+    LOOP
+        EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I',
+                      constraint_record.table_name,
+                      constraint_record.conname);
+    END LOOP;
+
+    -- Drop constraints referencing mei_empresas
+    FOR constraint_record IN
+        SELECT conname, conrelid::regclass AS table_name
+        FROM pg_constraint
+        WHERE confrelid = 'mei_empresas'::regclass
+    LOOP
+        EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I',
+                      constraint_record.table_name,
+                      constraint_record.conname);
+    END LOOP;
+END $$;
 
 -- Step 2: Drop many-to-many join table
 DROP TABLE IF EXISTS mei_empresas_cnaes CASCADE;
