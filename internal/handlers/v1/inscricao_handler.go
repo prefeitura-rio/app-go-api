@@ -339,7 +339,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 	// Verificar se o usuário tem permissão para ver esta inscrição
 	userCPF := c.GetString("user_cpf")
 	userRole := c.GetString("user_role")
-	
+
 	// Admin pode ver todas as inscrições
 	// Usuário comum só pode ver suas próprias inscrições
 	if userRole != "ADMIN" && userCPF != "" && inscricao.CPF != userCPF {
@@ -625,7 +625,7 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 	// Verificar se o usuário tem permissão para ver estas inscrições
 	userCPF := c.GetString("user_cpf")
 	userRole := c.GetString("user_role")
-	
+
 	// Admin pode ver inscrições de qualquer pessoa
 	// Usuário comum só pode ver suas próprias inscrições
 	if userRole != "ADMIN" && userCPF != "" && cpf != userCPF {
@@ -668,21 +668,21 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 	enrollmentsData := make([]gin.H, len(inscricoes))
 	for i, inscricao := range inscricoes {
 		enrollmentsData[i] = gin.H{
-			"id":                inscricao.ID,
-			"course_id":         inscricao.CursoID,
-			"cpf":               inscricao.CPF,
-			"name":              inscricao.Name,
-			"email":             inscricao.Email,
-			"phone":             inscricao.Phone,
-			"status":            inscricao.Status,
-			"custom_fields":     inscricao.CustomFieldsData,
-			"admin_notes":       inscricao.AdminNotes,
-			"reason":            inscricao.Reason,
-			"certificate_url":   inscricao.CertificateURL,
-			"enrolled_unit":     inscricao.EnrolledUnit,
-			"enrolled_at":       inscricao.EnrolledAt,
-			"updated_at":        inscricao.UpdatedAt,
-			"curso":             inscricao.Curso,
+			"id":              inscricao.ID,
+			"course_id":       inscricao.CursoID,
+			"cpf":             inscricao.CPF,
+			"name":            inscricao.Name,
+			"email":           inscricao.Email,
+			"phone":           inscricao.Phone,
+			"status":          inscricao.Status,
+			"custom_fields":   inscricao.CustomFieldsData,
+			"admin_notes":     inscricao.AdminNotes,
+			"reason":          inscricao.Reason,
+			"certificate_url": inscricao.CertificateURL,
+			"enrolled_unit":   inscricao.EnrolledUnit,
+			"enrolled_at":     inscricao.EnrolledAt,
+			"updated_at":      inscricao.UpdatedAt,
+			"curso":           inscricao.Curso,
 		}
 	}
 

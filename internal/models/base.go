@@ -20,4 +20,4 @@ func (t Turno) IsValid() bool {
 		}
 	}
 	return false
-} 
+}

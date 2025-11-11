@@ -23,21 +23,20 @@ const (
 )
 
 type PropostaMEI struct {
-	ID                 uuid.UUID              `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OportunidadeMEIID  int                    `json:"oportunidade_mei_id" gorm:"not null;index"`
-	MEIEmpresaID       int                    `json:"mei_empresa_id" gorm:"not null;index"`
-	ValorProposta      *float64               `json:"valor_proposta,omitempty" gorm:"type:decimal(10,2)"`
+	ID                uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OportunidadeMEIID int       `json:"oportunidade_mei_id" gorm:"not null;index"`
+	MEIEmpresaID      string    `json:"mei_empresa_id" gorm:"type:varchar(18);not null;index"`
+	ValorProposta     *float64  `json:"valor_proposta,omitempty" gorm:"type:decimal(10,2)"`
 
-	StatusAdmin        StatusPropostaAdmin    `json:"status_admin" gorm:"type:varchar(50);not null;default:'active'"`
-	StatusCidadao      StatusPropostaCidadao  `json:"status_cidadao" gorm:"type:varchar(50);not null;default:'submitted'"`
+	StatusAdmin   StatusPropostaAdmin   `json:"status_admin" gorm:"type:varchar(50);not null;default:'active'"`
+	StatusCidadao StatusPropostaCidadao `json:"status_cidadao" gorm:"type:varchar(50);not null;default:'submitted'"`
 
-	DeletedAt          gorm.DeletedAt         `json:"deleted_at,omitempty" gorm:"index"`
-	CreatedAt          time.Time              `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt          time.Time              `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
+	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos
 	Oportunidade *OportunidadeMEI `json:"oportunidade,omitempty" gorm:"foreignKey:OportunidadeMEIID"`
-	MEIEmpresa   *MEIEmpresa      `json:"mei_empresa,omitempty" gorm:"foreignKey:MEIEmpresaID"`
 }
 
 func (PropostaMEI) TableName() string {

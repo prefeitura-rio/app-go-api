@@ -188,59 +188,59 @@ func (h *EmpregoHandler) Delete(c *gin.Context) {
 func (h *EmpregoHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	
+
 	if page < 1 {
 		page = 1
 	}
-	
+
 	if pageSize < 1 || pageSize > 1000 {
 		pageSize = 10
 	}
-	
+
 	// Filtros
 	filter := make(map[string]interface{})
-	
+
 	// Adicionar filtros conforme query parameters
 	if orgaoID := c.Query("orgao_id"); orgaoID != "" {
 		filter["orgao_id"] = orgaoID
 	}
-	
+
 	if empresaID := c.Query("empresa_id"); empresaID != "" {
 		if id, err := strconv.Atoi(empresaID); err == nil {
 			filter["empresa_id"] = id
 		}
 	}
-	
+
 	if escolaridadeID := c.Query("escolaridade_id"); escolaridadeID != "" {
 		if id, err := strconv.Atoi(escolaridadeID); err == nil {
 			filter["escolaridade_id"] = id
 		}
 	}
-	
+
 	if status := c.Query("status"); status != "" {
 		filter["status"] = status
 	}
-	
+
 	if tipoContratacao := c.Query("tipo_contratacao"); tipoContratacao != "" {
 		filter["tipo_contratacao"] = tipoContratacao
 	}
-	
+
 	if jornadaTrabalho := c.Query("jornada_trabalho"); jornadaTrabalho != "" {
 		filter["jornada_trabalho"] = jornadaTrabalho
 	}
-	
+
 	empregos, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar empregos: " + err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"data": empregos,
 		"meta": gin.H{
-			"page": page,
+			"page":      page,
 			"page_size": pageSize,
-			"total": total,
+			"total":     total,
 		},
 	})
-} 
+}

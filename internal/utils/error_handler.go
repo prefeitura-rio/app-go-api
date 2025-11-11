@@ -60,7 +60,7 @@ func ParseDatabaseError(err error) *DatabaseError {
 
 func parseForeignKeyError(pqErr *pq.Error) *DatabaseError {
 	constraint := pqErr.Constraint
-	
+
 	// Mapear constraints para mensagens amigáveis
 	switch {
 	case strings.Contains(constraint, "instituicao_id"):
@@ -103,7 +103,7 @@ func parseForeignKeyError(pqErr *pq.Error) *DatabaseError {
 
 func parseUniqueViolationError(pqErr *pq.Error) *DatabaseError {
 	constraint := pqErr.Constraint
-	
+
 	switch {
 	case strings.Contains(constraint, "email"):
 		return &DatabaseError{
@@ -133,7 +133,7 @@ func parseUniqueViolationError(pqErr *pq.Error) *DatabaseError {
 
 func parseNotNullError(pqErr *pq.Error) *DatabaseError {
 	column := pqErr.Column
-	
+
 	// Mapear colunas para nomes amigáveis
 	fieldNames := map[string]string{
 		"titulo":       "título",
@@ -145,12 +145,12 @@ func parseNotNullError(pqErr *pq.Error) *DatabaseError {
 		"organization": "organização",
 		"descricao":    "descrição",
 	}
-	
+
 	fieldName := fieldNames[column]
 	if fieldName == "" {
 		fieldName = column
 	}
-	
+
 	return &DatabaseError{
 		Type:    NotNullViolation,
 		Message: "O campo '" + fieldName + "' é obrigatório e não pode estar vazio.",
@@ -160,7 +160,7 @@ func parseNotNullError(pqErr *pq.Error) *DatabaseError {
 
 func parseCheckViolationError(pqErr *pq.Error) *DatabaseError {
 	constraint := pqErr.Constraint
-	
+
 	switch {
 	case strings.Contains(constraint, "modalidade"):
 		return &DatabaseError{
@@ -195,7 +195,7 @@ func (de *DatabaseError) GetHTTPStatusCode() int {
 	if de == nil {
 		return 500
 	}
-	
+
 	switch de.Type {
 	case ForeignKeyViolation, NotNullViolation, CheckViolation:
 		return 400 // Bad Request

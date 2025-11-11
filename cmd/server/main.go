@@ -83,24 +83,24 @@ func main() {
 		if err != nil {
 			log.Fatalf("Erro ao executar auto-migração básica: %v", err)
 		}
-		
+
 		// Tentar migrar as novas tabelas individualmente para melhor controle de erros
 		log.Println("Migrando tabelas de inscrições...")
 		err = db.AutoMigrate(&models.Inscricao{})
 		if err != nil {
 			log.Printf("Aviso: Erro ao migrar tabela inscricoes: %v", err)
 		}
-		
+
 		err = db.AutoMigrate(&models.CustomField{})
 		if err != nil {
 			log.Printf("Aviso: Erro ao migrar tabela custom_fields: %v", err)
 		}
-		
+
 		err = db.AutoMigrate(&models.LocationClass{})
 		if err != nil {
 			log.Printf("Aviso: Erro ao migrar tabela location_classes: %v", err)
 		}
-		
+
 		err = db.AutoMigrate(&models.RemoteClass{})
 		if err != nil {
 			log.Printf("Aviso: Erro ao migrar tabela remote_classes: %v", err)

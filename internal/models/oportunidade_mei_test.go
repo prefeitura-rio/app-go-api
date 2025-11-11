@@ -9,8 +9,8 @@ import (
 
 func TestFormaPagamentoValidation(t *testing.T) {
 	tests := []struct {
-		name        string
-		value       string
+		name          string
+		value         string
 		shouldBeValid bool
 	}{
 		{"Valid CHEQUE", "CHEQUE", true},
@@ -41,15 +41,15 @@ func TestOportunidadeMEIFormaPagamentoField(t *testing.T) {
 		oportunidade := &models.OportunidadeMEI{
 			Titulo:           "Teste",
 			DescricaoServico: "Descrição teste",
-			OrgaoID:         1,
-			CNAEID:          1,
-			Logradouro:      "Rua Teste",
-			Numero:          "123",
-			Bairro:          "Centro",
-			Cidade:          "Rio de Janeiro",
-			Estado:          "RJ",
-			Status:          models.StatusOportunidadeActive,
-			FormaPagamento:  nil, // Campo opcional
+			OrgaoID:          "1",
+			CNAEID:           "1",
+			Logradouro:       "Rua Teste",
+			Numero:           "123",
+			Bairro:           "Centro",
+			Cidade:           "Rio de Janeiro",
+			Estado:           "RJ",
+			Status:           models.StatusOportunidadeActive,
+			FormaPagamento:   nil, // Campo opcional
 		}
 
 		// Com DataExpiracao para passar a validação
@@ -68,15 +68,15 @@ func TestOportunidadeMEIFormaPagamentoField(t *testing.T) {
 		oportunidade := &models.OportunidadeMEI{
 			Titulo:           "Teste",
 			DescricaoServico: "Descrição teste",
-			OrgaoID:         1,
-			CNAEID:          1,
-			Logradouro:      "Rua Teste",
-			Numero:          "123",
-			Bairro:          "Centro",
-			Cidade:          "Rio de Janeiro",
-			Estado:          "RJ",
-			Status:          models.StatusOportunidadeActive,
-			FormaPagamento:  &emptyStr, // String vazia
+			OrgaoID:          "1",
+			CNAEID:           "1",
+			Logradouro:       "Rua Teste",
+			Numero:           "123",
+			Bairro:           "Centro",
+			Cidade:           "Rio de Janeiro",
+			Estado:           "RJ",
+			Status:           models.StatusOportunidadeActive,
+			FormaPagamento:   &emptyStr, // String vazia
 		}
 
 		// Com DataExpiracao para passar a validação
@@ -95,15 +95,15 @@ func TestOportunidadeMEIFormaPagamentoField(t *testing.T) {
 		oportunidade := &models.OportunidadeMEI{
 			Titulo:           "Teste",
 			DescricaoServico: "Descrição teste",
-			OrgaoID:         1,
-			CNAEID:          1,
-			Logradouro:      "Rua Teste",
-			Numero:          "123",
-			Bairro:          "Centro",
-			Cidade:          "Rio de Janeiro",
-			Estado:          "RJ",
-			Status:          models.StatusOportunidadeActive,
-			FormaPagamento:  &pixStr, // PIX válido
+			OrgaoID:          "1",
+			CNAEID:           "1",
+			Logradouro:       "Rua Teste",
+			Numero:           "123",
+			Bairro:           "Centro",
+			Cidade:           "Rio de Janeiro",
+			Estado:           "RJ",
+			Status:           models.StatusOportunidadeActive,
+			FormaPagamento:   &pixStr, // PIX válido
 		}
 
 		// Com DataExpiracao para passar a validação
@@ -122,15 +122,15 @@ func TestOportunidadeMEIFormaPagamentoField(t *testing.T) {
 		oportunidade := &models.OportunidadeMEI{
 			Titulo:           "Teste",
 			DescricaoServico: "Descrição teste",
-			OrgaoID:         1,
-			CNAEID:          1,
-			Logradouro:      "Rua Teste",
-			Numero:          "123",
-			Bairro:          "Centro",
-			Cidade:          "Rio de Janeiro",
-			Estado:          "RJ",
-			Status:          models.StatusOportunidadeActive,
-			FormaPagamento:  &invalidStr, // Valor inválido
+			OrgaoID:          "1",
+			CNAEID:           "1",
+			Logradouro:       "Rua Teste",
+			Numero:           "123",
+			Bairro:           "Centro",
+			Cidade:           "Rio de Janeiro",
+			Estado:           "RJ",
+			Status:           models.StatusOportunidadeActive,
+			FormaPagamento:   &invalidStr, // Valor inválido
 		}
 
 		// Com DataExpiracao para passar a validação
@@ -225,8 +225,8 @@ func TestOportunidadeMEIDraftValidation(t *testing.T) {
 			Status:           models.StatusOportunidadeDraft,
 			Titulo:           "Teste Completo",
 			DescricaoServico: "Descrição completa do serviço",
-			OrgaoID:          1,
-			CNAEID:           1,
+			OrgaoID:          "1",
+			CNAEID:           "1",
 			Logradouro:       "Rua Teste",
 			Numero:           "123",
 			Bairro:           "Centro",

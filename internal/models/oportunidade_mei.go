@@ -16,22 +16,22 @@ const (
 	StatusOportunidadeActive  StatusOportunidadeMEI = "active"
 	StatusOportunidadeExpired StatusOportunidadeMEI = "expired"
 
-	FormaPagamentoCheque  FormaPagamento = "CHEQUE"
-	FormaPagamentoDinheiro FormaPagamento = "DINHEIRO"
-	FormaPagamentoCartao  FormaPagamento = "CARTAO"
-	FormaPagamentoPix     FormaPagamento = "PIX"
+	FormaPagamentoCheque        FormaPagamento = "CHEQUE"
+	FormaPagamentoDinheiro      FormaPagamento = "DINHEIRO"
+	FormaPagamentoCartao        FormaPagamento = "CARTAO"
+	FormaPagamentoPix           FormaPagamento = "PIX"
 	FormaPagamentoTransferencia FormaPagamento = "TRANSFERENCIA"
 )
 
 type OportunidadeMEI struct {
-	ID               int                    `json:"id" gorm:"primaryKey"`
-	Titulo           string                 `json:"titulo" gorm:"type:varchar(255);not null"`
-	DescricaoServico string                 `json:"descricao_servico" gorm:"type:text;not null"`
-	OutrasInformacoes string                `json:"outras_informacoes" gorm:"type:text"`
+	ID                int    `json:"id" gorm:"primaryKey"`
+	Titulo            string `json:"titulo" gorm:"type:varchar(255);not null"`
+	DescricaoServico  string `json:"descricao_servico" gorm:"type:text;not null"`
+	OutrasInformacoes string `json:"outras_informacoes" gorm:"type:text"`
 
 	// Relacionamentos
 	OrgaoID string `json:"orgao_id" gorm:"type:varchar(100);not null"`
-	CNAEID  int    `json:"cnae_id" gorm:"not null"`
+	CNAEID  string `json:"cnae_id" gorm:"type:varchar(20);not null"`
 
 	// Local de execução
 	Logradouro  string `json:"logradouro" gorm:"type:varchar(255);not null"`
@@ -42,10 +42,10 @@ type OportunidadeMEI struct {
 	Estado      string `json:"estado" gorm:"type:varchar(2);not null"`
 
 	// Pagamento e prazos
-	FormaPagamento      *string        `json:"forma_pagamento,omitempty" gorm:"type:varchar(50)" swaggertype:"string" enums:"CHEQUE,DINHEIRO,CARTAO,PIX,TRANSFERENCIA," example:"PIX"` // Valores aceitos: CHEQUE, DINHEIRO, CARTAO, PIX, TRANSFERENCIA ou vazio
-	PrazoPagamento      string         `json:"prazo_pagamento" gorm:"type:varchar(100)"`
-	DataLimiteExecucao  *time.Time     `json:"data_limite_execucao" gorm:"type:timestamp with time zone"`
-	DataExpiracao       *time.Time     `json:"data_expiracao" gorm:"type:timestamp with time zone;not null"`
+	FormaPagamento     *string    `json:"forma_pagamento,omitempty" gorm:"type:varchar(50)" swaggertype:"string" enums:"CHEQUE,DINHEIRO,CARTAO,PIX,TRANSFERENCIA," example:"PIX"` // Valores aceitos: CHEQUE, DINHEIRO, CARTAO, PIX, TRANSFERENCIA ou vazio
+	PrazoPagamento     string     `json:"prazo_pagamento" gorm:"type:varchar(100)"`
+	DataLimiteExecucao *time.Time `json:"data_limite_execucao" gorm:"type:timestamp with time zone"`
+	DataExpiracao      *time.Time `json:"data_expiracao" gorm:"type:timestamp with time zone;not null"`
 
 	// Imagens
 	CoverImage    string   `json:"cover_image" gorm:"type:varchar(500)"`
@@ -59,7 +59,6 @@ type OportunidadeMEI struct {
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos expandidos
-	CNAE      *CNAE         `json:"cnae,omitempty" gorm:"foreignKey:CNAEID"`
 	Propostas []PropostaMEI `json:"propostas,omitempty" gorm:"foreignKey:OportunidadeMEIID" swaggerignore:"true"`
 }
 
@@ -129,7 +128,7 @@ func (o *OportunidadeMEI) ValidateForPublish() error {
 		return errors.New("órgão demandante é obrigatório")
 	}
 
-	if o.CNAEID == 0 {
+	if strings.TrimSpace(o.CNAEID) == "" {
 		return errors.New("CNAE é obrigatório")
 	}
 

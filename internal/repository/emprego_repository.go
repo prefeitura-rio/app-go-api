@@ -24,25 +24,25 @@ func (r *EmpregoRepository) Create(ctx context.Context, emprego *models.Emprego)
 	if result.Error != nil {
 		return 0, fmt.Errorf("erro ao criar emprego: %w", result.Error)
 	}
-	
+
 	return emprego.ID, nil
 }
 
 func (r *EmpregoRepository) GetByID(ctx context.Context, id int) (*models.Emprego, error) {
 	var emprego models.Emprego
-	
+
 	result := r.db.WithContext(ctx).
 		Preload("Empresa").
 		Preload("Escolaridade").
 		First(&emprego, id)
-	
+
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("erro ao buscar emprego por ID: %w", result.Error)
 	}
-	
+
 	return &emprego, nil
 }
 
@@ -51,11 +51,11 @@ func (r *EmpregoRepository) Update(ctx context.Context, emprego *models.Emprego)
 		Where("id = ?", emprego.ID).
 		Omit("Empresa", "Escolaridade"). // Ignorar relações
 		Updates(emprego)
-	
+
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar emprego: %w", result.Error)
 	}
-	
+
 	return nil
 }
 
@@ -70,14 +70,14 @@ func (r *EmpregoRepository) Delete(ctx context.Context, id int) error {
 func (r *EmpregoRepository) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Emprego, int, error) {
 	var empregos []*models.Emprego
 	var total int64
-	
+
 	// Contar total de registros
 	db := r.db.WithContext(ctx).Model(&models.Emprego{})
 	for key, value := range filter {
 		db = db.Where(key+" = ?", value)
 	}
 	db.Count(&total)
-	
+
 	// Buscar registros com paginação
 	result := db.
 		Preload("Empresa").
@@ -86,10 +86,10 @@ func (r *EmpregoRepository) List(ctx context.Context, filter map[string]interfac
 		Limit(limit).
 		Offset(offset).
 		Find(&empregos)
-		
+
 	if result.Error != nil {
 		return nil, 0, fmt.Errorf("erro ao listar empregos: %w", result.Error)
 	}
-	
+
 	return empregos, int(total), nil
-} 
+}

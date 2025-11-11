@@ -34,10 +34,6 @@ func (r *PropostaMEIRepository) GetByID(ctx context.Context, id uuid.UUID) (*mod
 
 	result := r.db.WithContext(ctx).
 		Preload("Oportunidade").
-		Preload("Oportunidade.Orgao").
-		Preload("Oportunidade.CNAE").
-		Preload("MEIEmpresa").
-		Preload("MEIEmpresa.CNAEs").
 		Where("id = ?", id).
 		First(&proposta)
 
@@ -97,8 +93,6 @@ func (r *PropostaMEIRepository) ListByOportunidade(ctx context.Context, oportuni
 	db.Count(&total)
 
 	result := db.
-		Preload("MEIEmpresa").
-		Preload("MEIEmpresa.CNAEs").
 		Order("propostas_mei.created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -122,8 +116,6 @@ func (r *PropostaMEIRepository) ListByMEIEmpresa(ctx context.Context, meiEmpresa
 
 	result := db.
 		Preload("Oportunidade").
-		Preload("Oportunidade.Orgao").
-		Preload("Oportunidade.CNAE").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -147,9 +139,6 @@ func (r *PropostaMEIRepository) ListByStatus(ctx context.Context, statusCidadao 
 
 	result := db.
 		Preload("Oportunidade").
-		Preload("Oportunidade.Orgao").
-		Preload("Oportunidade.CNAE").
-		Preload("MEIEmpresa").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -162,7 +151,7 @@ func (r *PropostaMEIRepository) ListByStatus(ctx context.Context, statusCidadao 
 	return propostas, int(total), nil
 }
 
-func (r *PropostaMEIRepository) CheckExistingProposta(ctx context.Context, oportunidadeID int, meiEmpresaID int) (bool, error) {
+func (r *PropostaMEIRepository) CheckExistingProposta(ctx context.Context, oportunidadeID int, meiEmpresaID string) (bool, error) {
 	var count int64
 
 	result := r.db.WithContext(ctx).
