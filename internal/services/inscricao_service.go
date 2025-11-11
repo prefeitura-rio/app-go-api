@@ -12,13 +12,13 @@ import (
 )
 
 type InscricaoService struct {
-	repo     *repository.InscricaoRepository
+	repo      *repository.InscricaoRepository
 	cursoRepo *repository.CursoRepository
 }
 
 func NewInscricaoService(repo *repository.InscricaoRepository, cursoRepo *repository.CursoRepository) *InscricaoService {
 	return &InscricaoService{
-		repo:     repo,
+		repo:      repo,
 		cursoRepo: cursoRepo,
 	}
 }
@@ -32,12 +32,12 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	if curso == nil {
 		return fmt.Errorf("curso não encontrado")
 	}
-	
+
 	// Check if enrollment is open
 	if curso.Status != models.StatusCursoOpened {
 		return fmt.Errorf("curso não está aberto para inscrições")
 	}
-	
+
 	// Check enrollment dates
 	now := time.Now()
 	if curso.EnrollmentStartDate != nil && now.Before(*curso.EnrollmentStartDate) {
@@ -46,7 +46,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	if curso.EnrollmentEndDate != nil && now.After(*curso.EnrollmentEndDate) {
 		return fmt.Errorf("período de inscrições já encerrou")
 	}
-	
+
 	// Check if CPF is already enrolled
 	exists, err := s.repo.ExistsByCPFAndCurso(ctx, inscricao.CPF, inscricao.CursoID)
 	if err != nil {
@@ -89,7 +89,7 @@ func (s *InscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UU
 	if inscricao == nil {
 		return fmt.Errorf("inscrição não encontrada")
 	}
-	
+
 	return s.repo.UpdateStatus(ctx, inscricaoID, status, reason, adminNotes)
 }
 
@@ -98,7 +98,7 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 	if len(inscricaoIDs) == 0 {
 		return 0, fmt.Errorf("nenhuma inscrição selecionada")
 	}
-	
+
 	return s.repo.UpdateMultipleStatus(ctx, inscricaoIDs, status, reason, adminNotes)
 }
 
@@ -111,7 +111,7 @@ func (s *InscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int)
 	if curso == nil {
 		return nil, fmt.Errorf("curso não encontrado")
 	}
-	
+
 	return s.repo.GetSummaryByCursoID(ctx, cursoID)
 }
 
@@ -124,7 +124,7 @@ func (s *InscricaoService) Delete(ctx context.Context, id uuid.UUID) error {
 	if inscricao == nil {
 		return fmt.Errorf("inscrição não encontrada")
 	}
-	
+
 	return s.repo.Delete(ctx, id)
 }
 

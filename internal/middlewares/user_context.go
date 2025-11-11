@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	UserCPFKey = "user_cpf"
-	UserRoleKey = "user_role"
-	UserIDKey = "user_id"
-	UserNameKey = "user_name"
+	UserCPFKey   = "user_cpf"
+	UserRoleKey  = "user_role"
+	UserIDKey    = "user_id"
+	UserNameKey  = "user_name"
 	UserEmailKey = "user_email"
 )
 

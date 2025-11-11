@@ -33,7 +33,6 @@ func (r *OportunidadeMEIRepository) GetByID(ctx context.Context, id int) (*model
 	var oportunidade models.OportunidadeMEI
 
 	result := r.db.WithContext(ctx).
-		Preload("CNAE").
 		First(&oportunidade, id)
 
 	if result.Error != nil {
@@ -85,7 +84,6 @@ func (r *OportunidadeMEIRepository) List(ctx context.Context, filters map[string
 	db.Count(&total)
 
 	result := db.
-		Preload("CNAE").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -108,7 +106,6 @@ func (r *OportunidadeMEIRepository) ListByStatus(ctx context.Context, status mod
 	db.Count(&total)
 
 	result := db.
-		Preload("CNAE").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -131,7 +128,6 @@ func (r *OportunidadeMEIRepository) ListByOrgao(ctx context.Context, orgaoID str
 	db.Count(&total)
 
 	result := db.
-		Preload("CNAE").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).

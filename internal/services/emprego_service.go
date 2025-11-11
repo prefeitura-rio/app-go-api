@@ -44,4 +44,4 @@ func (s *EmpregoService) Delete(ctx context.Context, id int) error {
 func (s *EmpregoService) List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Emprego, int, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.List(ctx, filter, pageSize, offset)
-} 
+}
