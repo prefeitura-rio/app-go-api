@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -61,6 +62,24 @@ func (s StatusPropostaCidadao) IsValid() bool {
 		}
 	}
 	return false
+}
+
+// Validate validates the PropostaMEI fields
+func (p *PropostaMEI) Validate() error {
+	if p.OportunidadeMEIID == 0 {
+		return errors.New("oportunidade_mei_id é obrigatório")
+	}
+
+	if p.MEIEmpresaID == "" {
+		return errors.New("mei_empresa_id (CNPJ) é obrigatório")
+	}
+
+	// Validate ValorProposta if provided (must be positive)
+	if p.ValorProposta != nil && *p.ValorProposta < 0 {
+		return errors.New("valor_proposta deve ser positivo")
+	}
+
+	return nil
 }
 
 // BeforeCreate hook para gerar UUID se não existir

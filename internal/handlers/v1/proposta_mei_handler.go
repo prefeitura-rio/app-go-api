@@ -314,17 +314,17 @@ func (h *PropostaMEIHandler) List(c *gin.Context) {
 // @Description  Retorna uma lista paginada de propostas MEI de uma empresa
 // @Tags         propostas-mei
 // @Produce      json
-// @Param        meiEmpresaId  query     int  true   "ID da MEI empresa"
-// @Param        page          query     int  false  "Número da página (default: 1)"
-// @Param        pageSize      query     int  false  "Tamanho da página (default: 10, max: 1000)"
+// @Param        meiEmpresaId  query     string  true   "CNPJ da MEI empresa"
+// @Param        page          query     int     false  "Número da página (default: 1)"
+// @Param        pageSize      query     int     false  "Tamanho da página (default: 10, max: 1000)"
 // @Success      200           {object}  object
 // @Failure      400           {object}  models.ErrorResponse
 // @Failure      500           {object}  models.ErrorResponse
 // @Router       /api/v1/propostas-mei/por-empresa [get]
 func (h *PropostaMEIHandler) ListByMEIEmpresa(c *gin.Context) {
-	meiEmpresaID, err := strconv.Atoi(c.Query("meiEmpresaId"))
-	if err != nil || meiEmpresaID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da MEI empresa inválido ou não fornecido"})
+	meiEmpresaID := c.Query("meiEmpresaId")
+	if meiEmpresaID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "CNPJ da MEI empresa não fornecido"})
 		return
 	}
 

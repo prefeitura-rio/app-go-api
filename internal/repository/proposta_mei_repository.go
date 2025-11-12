@@ -72,28 +72,26 @@ func (r *PropostaMEIRepository) ListByOportunidade(ctx context.Context, oportuni
 	var total int64
 
 	db := r.db.WithContext(ctx).Model(&models.PropostaMEI{}).
-		Joins("JOIN mei_empresas ON mei_empresas.id = propostas_mei.mei_empresa_id").
-		Where("propostas_mei.oportunidade_mei_id = ?", oportunidadeID)
+		Where("oportunidade_mei_id = ?", oportunidadeID)
 
-	// Filtro de busca por nome da empresa (case-insensitive)
-	if nomeEmpresa != "" {
-		db = db.Where("mei_empresas.razao_social ILIKE ?", "%"+nomeEmpresa+"%")
-	}
+	// Note: nomeEmpresa filter is not supported since MEI data is external
+	// We can only filter by CNPJ which is stored in mei_empresa_id field
 
 	// Filtro de busca por CNPJ (permite busca parcial)
 	if cnpj != "" {
-		db = db.Where("mei_empresas.cnpj ILIKE ?", "%"+cnpj+"%")
+		db = db.Where("mei_empresa_id ILIKE ?", "%"+cnpj+"%")
 	}
 
 	// Filtro por status
 	if status != "" {
-		db = db.Where("propostas_mei.status_cidadao = ?", status)
+		db = db.Where("status_cidadao = ?", status)
 	}
 
 	db.Count(&total)
 
 	result := db.
-		Order("propostas_mei.created_at DESC").
+		Preload("Oportunidade").
+		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&propostas)
@@ -105,7 +103,7 @@ func (r *PropostaMEIRepository) ListByOportunidade(ctx context.Context, oportuni
 	return propostas, int(total), nil
 }
 
-func (r *PropostaMEIRepository) ListByMEIEmpresa(ctx context.Context, meiEmpresaID int, limit, offset int) ([]*models.PropostaMEI, int, error) {
+func (r *PropostaMEIRepository) ListByMEIEmpresa(ctx context.Context, meiEmpresaID string, limit, offset int) ([]*models.PropostaMEI, int, error) {
 	var propostas []*models.PropostaMEI
 	var total int64
 

@@ -26,6 +26,11 @@ func NewPropostaMEIService(
 }
 
 func (s *PropostaMEIService) Create(ctx context.Context, proposta *models.PropostaMEI) (uuid.UUID, error) {
+	// Validar campos da proposta
+	if err := proposta.Validate(); err != nil {
+		return uuid.Nil, err
+	}
+
 	// Validar que a oportunidade existe e está ativa
 	oportunidade, err := s.oportunidadeRepo.GetByID(ctx, proposta.OportunidadeMEIID)
 	if err != nil {
@@ -79,6 +84,10 @@ func (s *PropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, o
 
 	// Atualizar apenas o valor da proposta
 	if valorProposta != nil {
+		// Validate that the value is positive
+		if *valorProposta < 0 {
+			return errors.New("valor_proposta deve ser positivo")
+		}
 		proposta.ValorProposta = valorProposta
 	}
 
@@ -116,7 +125,7 @@ func (s *PropostaMEIService) ListByOportunidade(ctx context.Context, oportunidad
 	return s.repo.ListByOportunidade(ctx, oportunidadeID, nomeEmpresa, cnpj, status, pageSize, offset)
 }
 
-func (s *PropostaMEIService) ListByMEIEmpresa(ctx context.Context, meiEmpresaID int, page, pageSize int) ([]*models.PropostaMEI, int, error) {
+func (s *PropostaMEIService) ListByMEIEmpresa(ctx context.Context, meiEmpresaID string, page, pageSize int) ([]*models.PropostaMEI, int, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.ListByMEIEmpresa(ctx, meiEmpresaID, pageSize, offset)
 }
