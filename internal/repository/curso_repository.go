@@ -38,7 +38,7 @@ func (r *CursoRepository) GetByID(ctx context.Context, id int) (*models.Curso, e
 		Preload("Instituicao").
 		Preload("CustomFields").
 		Preload("LocationClasses.Schedules").
-		Preload("RemoteClass").
+		Preload("RemoteClass.Schedules").
 		First(&curso, id)
 
 	if result.Error != nil {
@@ -120,7 +120,7 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 		Preload("Instituicao").
 		Preload("CustomFields").
 		Preload("LocationClasses.Schedules").
-		Preload("RemoteClass").
+		Preload("RemoteClass.Schedules").
 		Order("id DESC").
 		Limit(limit).
 		Offset(offset).
@@ -296,12 +296,28 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 			// Update existing remote class
 			curso.RemoteClass.ID = existingRemote.ID
 			tx.WithContext(ctx).Model(&existingRemote).Updates(curso.RemoteClass)
+
+			// Delete all existing schedules for this remote class
+			tx.WithContext(ctx).Where("remote_class_id = ?", curso.RemoteClass.ID).Delete(&models.RemoteSchedule{})
 		} else {
 			// Create new remote class
-			tx.WithContext(ctx).Create(curso.RemoteClass)
+			tx.WithContext(ctx).Omit("Schedules").Create(curso.RemoteClass)
+		}
+
+		// Create schedules for this remote class
+		if len(curso.RemoteClass.Schedules) > 0 {
+			for j := range curso.RemoteClass.Schedules {
+				curso.RemoteClass.Schedules[j].RemoteClassID = curso.RemoteClass.ID
+				// Reset ID to ensure new schedule is created
+				curso.RemoteClass.Schedules[j].ID = uuid.UUID{}
+			}
+
+			if err := tx.WithContext(ctx).Create(&curso.RemoteClass.Schedules).Error; err != nil {
+				return fmt.Errorf("erro ao criar remote schedules: %w", err)
+			}
 		}
 	} else {
-		// If no remote class provided, delete existing one if any
+		// If no remote class provided, delete existing one if any (CASCADE will delete schedules)
 		tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.RemoteClass{})
 	}
 

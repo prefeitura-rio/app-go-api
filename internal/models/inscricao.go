@@ -140,6 +140,28 @@ func (CourseSchedule) TableName() string {
 	return "course_schedules"
 }
 
+type RemoteSchedule struct {
+	ID             uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	RemoteClassID  uuid.UUID `json:"remote_class_id" gorm:"type:uuid;column:remote_class_id;not null"`
+	Vacancies      int       `json:"vacancies" gorm:"not null;check:vacancies >= 1 AND vacancies <= 1000"`
+	ClassStartDate time.Time `json:"class_start_date" gorm:"type:timestamp with time zone;column:class_start_date;not null"`
+	ClassEndDate   time.Time `json:"class_end_date" gorm:"type:timestamp with time zone;column:class_end_date;not null"`
+	ClassTime      string    `json:"class_time" gorm:"type:varchar(20000);column:class_time;not null"`
+	ClassDays      string    `json:"class_days" gorm:"type:varchar(20000);column:class_days;not null"`
+	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+
+	// Computed field (not stored in DB)
+	RemainingVacancies int `json:"remaining_vacancies,omitempty" gorm:"-"`
+
+	// Relacionamentos
+	RemoteClass *RemoteClass `json:"-" gorm:"foreignKey:RemoteClassID"`
+}
+
+func (RemoteSchedule) TableName() string {
+	return "remote_schedules"
+}
+
 type LocationClass struct {
 	ID           uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	CursoID      int       `json:"curso_id" gorm:"column:curso_id;not null"`
@@ -158,18 +180,14 @@ func (LocationClass) TableName() string {
 }
 
 type RemoteClass struct {
-	ID             uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	CursoID        int       `json:"curso_id" gorm:"column:curso_id;not null"`
-	Vacancies      int       `json:"vacancies" gorm:"not null"`
-	ClassStartDate time.Time `json:"class_start_date" gorm:"type:timestamp with time zone;column:class_start_date;not null"`
-	ClassEndDate   time.Time `json:"class_end_date" gorm:"type:timestamp with time zone;column:class_end_date;not null"`
-	ClassTime      string    `json:"class_time" gorm:"type:varchar(20000);column:class_time;not null"`
-	ClassDays      string    `json:"class_days" gorm:"type:varchar(20000);column:class_days;not null"`
-	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	CursoID   int       `json:"curso_id" gorm:"column:curso_id;not null"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos
-	Curso *Curso `json:"curso,omitempty" gorm:"foreignKey:CursoID"`
+	Curso     *Curso           `json:"curso,omitempty" gorm:"foreignKey:CursoID"`
+	Schedules []RemoteSchedule `json:"schedules" gorm:"foreignKey:RemoteClassID;constraint:OnDelete:CASCADE"`
 }
 
 func (RemoteClass) TableName() string {

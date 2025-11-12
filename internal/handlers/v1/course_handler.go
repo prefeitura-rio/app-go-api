@@ -86,10 +86,19 @@ func transformCursoToResponse(curso *models.Curso) gin.H {
 
 // calculateRemainingVacancies calculates remaining vacancies for all schedules in a course
 func (h *CourseHandler) calculateRemainingVacancies(c *gin.Context, curso *models.Curso) error {
-	// Collect all schedule IDs
+	// Collect all schedule IDs (both location and remote)
 	var scheduleIDs []uuid.UUID
+
+	// Collect location schedule IDs
 	for _, location := range curso.LocationClasses {
 		for _, schedule := range location.Schedules {
+			scheduleIDs = append(scheduleIDs, schedule.ID)
+		}
+	}
+
+	// Collect remote schedule IDs
+	if curso.RemoteClass != nil {
+		for _, schedule := range curso.RemoteClass.Schedules {
 			scheduleIDs = append(scheduleIDs, schedule.ID)
 		}
 	}
@@ -104,10 +113,24 @@ func (h *CourseHandler) calculateRemainingVacancies(c *gin.Context, curso *model
 		return err
 	}
 
-	// Update each schedule with remaining vacancies
+	// Update location schedules with remaining vacancies
 	for i := range curso.LocationClasses {
 		for j := range curso.LocationClasses[i].Schedules {
 			schedule := &curso.LocationClasses[i].Schedules[j]
+			enrolledCount := enrollmentCounts[schedule.ID]
+			schedule.RemainingVacancies = schedule.Vacancies - int(enrolledCount)
+
+			// Ensure it doesn't go negative
+			if schedule.RemainingVacancies < 0 {
+				schedule.RemainingVacancies = 0
+			}
+		}
+	}
+
+	// Update remote schedules with remaining vacancies
+	if curso.RemoteClass != nil {
+		for j := range curso.RemoteClass.Schedules {
+			schedule := &curso.RemoteClass.Schedules[j]
 			enrolledCount := enrollmentCounts[schedule.ID]
 			schedule.RemainingVacancies = schedule.Vacancies - int(enrolledCount)
 
