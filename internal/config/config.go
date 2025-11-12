@@ -22,6 +22,7 @@ type AppConfig struct {
 	Swagger    SwaggerSettings
 	TypeSense  TypeSenseSettings
 	Migrations MigrationSettings
+	RMI        RMISettings
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -77,6 +78,11 @@ type TypeSenseSettings struct {
 // MigrationSettings define configurações para migrações
 type MigrationSettings struct {
 	Run bool
+}
+
+// RMISettings define configurações da API RMI (para validação de CNPJs/CNAEs)
+type RMISettings struct {
+	BaseURL string
 }
 
 // Erros comuns de validação
@@ -264,6 +270,9 @@ func Load() (*AppConfig, error) {
 		},
 		Migrations: MigrationSettings{
 			Run: getBool(v, "RUN_MIGRATIONS", false),
+		},
+		RMI: RMISettings{
+			BaseURL: getEnv(v, "RMI_BASE_URL", ""),
 		},
 	}
 
