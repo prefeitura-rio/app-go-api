@@ -2124,8 +2124,8 @@ const docTemplate = `{
                 "summary": "Listar propostas MEI por MEI empresa",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "ID da MEI empresa",
+                        "type": "string",
+                        "description": "CNPJ da MEI empresa",
                         "name": "meiEmpresaId",
                         "in": "query",
                         "required": true

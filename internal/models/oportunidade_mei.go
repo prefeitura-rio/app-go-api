@@ -30,8 +30,8 @@ type OportunidadeMEI struct {
 	OutrasInformacoes string `json:"outras_informacoes" gorm:"type:text"`
 
 	// Relacionamentos
-	OrgaoID string `json:"orgao_id" gorm:"type:varchar(100);not null"`
-	CNAEID  string `json:"cnae_id" gorm:"type:varchar(20);not null"`
+	OrgaoID string   `json:"orgao_id" gorm:"type:varchar(100);not null"`
+	CNAEIDs []string `json:"cnae_ids" gorm:"type:varchar(20)[];not null;default:'{}'"`
 
 	// Local de execução
 	Logradouro  string `json:"logradouro" gorm:"type:varchar(255);not null"`
@@ -128,8 +128,15 @@ func (o *OportunidadeMEI) ValidateForPublish() error {
 		return errors.New("órgão demandante é obrigatório")
 	}
 
-	if strings.TrimSpace(o.CNAEID) == "" {
-		return errors.New("CNAE é obrigatório")
+	if len(o.CNAEIDs) == 0 {
+		return errors.New("pelo menos um CNAE é obrigatório")
+	}
+
+	// Validate that all CNAEs are non-empty
+	for i, cnae := range o.CNAEIDs {
+		if strings.TrimSpace(cnae) == "" {
+			return errors.New("CNAE na posição " + string(rune(i)) + " está vazio")
+		}
 	}
 
 	if strings.TrimSpace(o.Logradouro) == "" {

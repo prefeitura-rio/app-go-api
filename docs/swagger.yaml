@@ -2054,11 +2054,11 @@ paths:
     get:
       description: Retorna uma lista paginada de propostas MEI de uma empresa
       parameters:
-      - description: ID da MEI empresa
+      - description: CNPJ da MEI empresa
         in: query
         name: meiEmpresaId
         required: true
-        type: integer
+        type: string
       - description: 'Número da página (default: 1)'
         in: query
         name: page
