@@ -142,7 +142,9 @@ func TestPropostaMEIHandler_Create_Success(t *testing.T) {
 	}
 
 	var response models.PropostaMEI
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	if response.ID == uuid.Nil {
 		t.Error("Expected non-nil UUID in response")
@@ -170,7 +172,9 @@ func TestPropostaMEIHandler_Create_MissingAuth(t *testing.T) {
 	}
 
 	var response map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	if response["error"] != "Token de autorização não fornecido" {
 		t.Errorf("Unexpected error message: %v", response["error"])
@@ -294,7 +298,9 @@ func TestPropostaMEIHandler_Create_InvalidOportunidadeID(t *testing.T) {
 	}
 
 	var response map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	if response["error"] != "ID da oportunidade inválido" {
 		t.Errorf("Unexpected error message: %v", response["error"])
@@ -321,7 +327,9 @@ func TestPropostaMEIHandler_GetByID_Success(t *testing.T) {
 	}
 
 	var response models.PropostaMEI
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	if response.ID != propostaID {
 		t.Errorf("Expected proposta ID %s, got %s", propostaID, response.ID)
@@ -406,7 +414,9 @@ func TestPropostaMEIHandler_UpdateStatus_InvalidStatus(t *testing.T) {
 	}
 
 	var response map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	expectedError := "Status inválido. Use: approved, rejected ou submitted"
 	if response["error"] != expectedError {
@@ -428,7 +438,9 @@ func TestPropostaMEIHandler_Delete_Success(t *testing.T) {
 	}
 
 	var response map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	if response["message"] != "Proposta excluída com sucesso" {
 		t.Errorf("Unexpected message: %v", response["message"])
@@ -455,7 +467,9 @@ func TestPropostaMEIHandler_List_Success(t *testing.T) {
 	}
 
 	var response map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	data := response["data"].([]interface{})
 	if len(data) != 2 {
@@ -500,7 +514,9 @@ func TestPropostaMEIHandler_ListByMEIEmpresa_MissingParam(t *testing.T) {
 	}
 
 	var response map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	if response["error"] != "CNPJ da MEI empresa não fornecido" {
 		t.Errorf("Unexpected error message: %v", response["error"])
