@@ -1371,7 +1371,7 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Filtrar por órgão",
                         "name": "orgaoId",
                         "in": "query"
