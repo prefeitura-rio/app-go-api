@@ -6,20 +6,18 @@ import (
 	"log"
 	"strings"
 
-	"github.com/prefeitura-rio/app-go-api/internal/cache"
-	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 // CNAEValidationService handles CNAE validation for MEI proposals
 type CNAEValidationService struct {
-	rmiClient *clients.RMIClient
-	cache     *cache.LegalEntitiesCache
+	rmiClient RMIClientInterface
+	cache     LegalEntitiesCacheInterface
 }
 
 // NewCNAEValidationService creates a new CNAE validation service
-func NewCNAEValidationService(rmiClient *clients.RMIClient, cache *cache.LegalEntitiesCache) *CNAEValidationService {
+func NewCNAEValidationService(rmiClient RMIClientInterface, cache LegalEntitiesCacheInterface) *CNAEValidationService {
 	return &CNAEValidationService{
 		rmiClient: rmiClient,
 		cache:     cache,
