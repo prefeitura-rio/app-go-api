@@ -7,19 +7,18 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
-	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
 type PropostaMEIService struct {
-	repo                  *repository.PropostaMEIRepository
-	oportunidadeRepo      *repository.OportunidadeMEIRepository
-	cnaeValidationService *CNAEValidationService
+	repo                  PropostaMEIRepositoryInterface
+	oportunidadeRepo      OportunidadeMEIRepositoryInterface
+	cnaeValidationService CNAEValidationServiceInterface
 }
 
 func NewPropostaMEIService(
-	repo *repository.PropostaMEIRepository,
-	oportunidadeRepo *repository.OportunidadeMEIRepository,
-	cnaeValidationService *CNAEValidationService,
+	repo PropostaMEIRepositoryInterface,
+	oportunidadeRepo OportunidadeMEIRepositoryInterface,
+	cnaeValidationService CNAEValidationServiceInterface,
 ) *PropostaMEIService {
 	return &PropostaMEIService{
 		repo:                  repo,
