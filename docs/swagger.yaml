@@ -1556,7 +1556,7 @@ paths:
       - description: Filtrar por órgão
         in: query
         name: orgaoId
-        type: integer
+        type: string
       - description: Filtrar por status (draft, active, expired)
         in: query
         name: status

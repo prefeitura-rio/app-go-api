@@ -199,7 +199,7 @@ func (h *OportunidadeMEIHandler) Publish(c *gin.Context) {
 // @Produce      json
 // @Param        page      query     int     false  "Número da página (default: 1)"
 // @Param        pageSize  query     int     false  "Tamanho da página (default: 10, max: 1000)"
-// @Param        orgaoId   query     int     false  "Filtrar por órgão"
+// @Param        orgaoId   query     string  false  "Filtrar por órgão"
 // @Param        status    query     string  false  "Filtrar por status (draft, active, expired)"
 // @Param        titulo    query     string  false  "Buscar por título (case-insensitive)"
 // @Success      200       {object}  object
