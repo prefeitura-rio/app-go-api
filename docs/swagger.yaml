@@ -1746,8 +1746,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: Cria uma nova proposta MEI para uma oportunidade
+      description: Cria uma nova proposta MEI para uma oportunidade. Valida que o
+        CNPJ pertence ao usuário e possui CNAE compatível.
       parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       - description: ID da oportunidade
         in: path
         name: id
@@ -1770,8 +1776,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
-        "500":
-          description: Internal Server Error
+        "401":
+          description: Token não fornecido
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: CNPJ não pertence ao usuário ou CNAE incompatível
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Oportunidade não encontrada
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "503":
+          description: Erro ao validar CNPJs
           schema:
             $ref: '#/definitions/models.ErrorResponse'
       summary: Criar proposta MEI

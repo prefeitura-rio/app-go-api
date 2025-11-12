@@ -1737,7 +1737,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Cria uma nova proposta MEI para uma oportunidade",
+                "description": "Cria uma nova proposta MEI para uma oportunidade. Valida que o CNPJ pertence ao usuário e possui CNAE compatível.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1749,6 +1749,13 @@ const docTemplate = `{
                 ],
                 "summary": "Criar proposta MEI",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "type": "integer",
                         "description": "ID da oportunidade",
@@ -1779,8 +1786,26 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "401": {
+                        "description": "Token não fornecido",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "CNPJ não pertence ao usuário ou CNAE incompatível",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Oportunidade não encontrada",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Erro ao validar CNPJs",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
