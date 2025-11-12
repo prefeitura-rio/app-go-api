@@ -1793,7 +1793,7 @@
             "name": "orgaoId",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "string"
             }
           },
           {
