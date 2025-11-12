@@ -553,7 +553,11 @@ func (p *EnrollmentImportProcessor) parseCSV(filePath string, fieldMappings map[
 	if err != nil {
 		return nil, fmt.Errorf("erro ao abrir arquivo CSV: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Printf("Error closing CSV file: %v\n", err)
+		}
+	}()
 
 	reader := csv.NewReader(file)
 	reader.Comma = ','
@@ -651,7 +655,11 @@ func (p *EnrollmentImportProcessor) parseXLSX(filePath string, fieldMappings map
 	if err != nil {
 		return nil, fmt.Errorf("erro ao abrir arquivo XLSX: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Printf("Error closing XLSX file: %v\n", err)
+		}
+	}()
 
 	sheetName := f.GetSheetName(0)
 	if sheetName == "" {

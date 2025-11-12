@@ -152,10 +152,6 @@ func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{
 
 // Métodos auxiliares para manipulação dos relacionamentos
 
-func (r *CursoRepository) atualizarCategorias(ctx context.Context, curso *models.Curso) error {
-	return r.atualizarCategoriasWithTx(ctx, r.db, curso)
-}
-
 func (r *CursoRepository) atualizarCategoriasWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
 	// Obter o curso atual com suas categorias
 	var cursoAtual models.Curso
@@ -179,10 +175,6 @@ func (r *CursoRepository) atualizarCategoriasWithTx(ctx context.Context, tx *gor
 	}
 
 	return nil
-}
-
-func (r *CursoRepository) atualizarAcessibilidades(ctx context.Context, curso *models.Curso) error {
-	return r.atualizarAcessibilidadesWithTx(ctx, r.db, curso)
 }
 
 func (r *CursoRepository) atualizarAcessibilidadesWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
@@ -252,11 +244,7 @@ func (r *CursoRepository) CreateLocationClasses(ctx context.Context, locationCla
 	return nil
 }
 
-// updateCustomFields updates custom fields for a course
-func (r *CursoRepository) updateCustomFields(ctx context.Context, curso *models.Curso) error {
-	return r.updateCustomFieldsWithTx(ctx, r.db, curso)
-}
-
+// updateCustomFieldsWithTx updates custom fields for a course
 func (r *CursoRepository) updateCustomFieldsWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
 	// Delete all existing custom fields for this course
 	if err := tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.CustomField{}).Error; err != nil {
@@ -279,11 +267,7 @@ func (r *CursoRepository) updateCustomFieldsWithTx(ctx context.Context, tx *gorm
 	return nil
 }
 
-// updateRemoteClass updates remote class for a course
-func (r *CursoRepository) updateRemoteClass(ctx context.Context, curso *models.Curso) error {
-	return r.updateRemoteClassWithTx(ctx, r.db, curso)
-}
-
+// updateRemoteClassWithTx updates remote class for a course
 func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
 	if curso.RemoteClass != nil {
 		// Check if a remote class already exists
@@ -324,11 +308,7 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 	return nil
 }
 
-// updateLocationClasses updates location classes for a course
-func (r *CursoRepository) updateLocationClasses(ctx context.Context, curso *models.Curso) error {
-	return r.updateLocationClassesWithTx(ctx, r.db, curso)
-}
-
+// updateLocationClassesWithTx updates location classes for a course
 func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
 	// Get existing location classes
 	var existingLocations []models.LocationClass

@@ -524,7 +524,12 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo não fornecido ou inválido: " + err.Error()})
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			// Log error but don't fail the request
+			fmt.Printf("Error closing uploaded file: %v\n", err)
+		}
+	}()
 
 	// Validate file size (max 10MB)
 	maxSize := int64(10 << 20) // 10MB
@@ -547,11 +552,17 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar arquivo temporário: " + err.Error()})
 		return
 	}
-	defer tempFile.Close()
+	defer func() {
+		if err := tempFile.Close(); err != nil {
+			fmt.Printf("Error closing temp file: %v\n", err)
+		}
+	}()
 
 	// Copy uploaded file to temp file
 	if _, err := io.Copy(tempFile, file); err != nil {
-		os.Remove(tempFile.Name())
+		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
+			fmt.Printf("Error removing temp file: %v\n", removeErr)
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar arquivo: " + err.Error()})
 		return
 	}
@@ -564,7 +575,9 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 
 	metadataJSON, err := json.Marshal(metadata)
 	if err != nil {
-		os.Remove(tempFile.Name())
+		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
+			fmt.Printf("Error removing temp file: %v\n", removeErr)
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar metadata do job: " + err.Error()})
 		return
 	}
@@ -576,7 +589,9 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 	}
 
 	if err := h.jobService.Create(c.Request.Context(), job); err != nil {
-		os.Remove(tempFile.Name())
+		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
+			fmt.Printf("Error removing temp file: %v\n", removeErr)
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar job: " + err.Error()})
 		return
 	}
@@ -585,7 +600,9 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 	if jobs.GlobalJobProcessor != nil {
 		jobs.GlobalJobProcessor.StartJob(job.ID)
 	} else {
-		os.Remove(tempFile.Name())
+		if err := os.Remove(tempFile.Name()); err != nil {
+			fmt.Printf("Error removing temp file: %v\n", err)
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Processador de jobs não inicializado"})
 		return
 	}
