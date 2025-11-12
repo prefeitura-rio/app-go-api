@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
@@ -115,6 +116,7 @@ func (s *OportunidadeMEIService) ListByStatus(ctx context.Context, status models
 	// Atualizar oportunidades expiradas antes de listar
 	if err := s.repo.UpdateExpiredOpportunities(ctx); err != nil {
 		// Log error mas não falha a operação
+		fmt.Printf("Error updating expired opportunities: %v\n", err)
 	}
 
 	return s.repo.ListByStatus(ctx, status, pageSize, offset)
