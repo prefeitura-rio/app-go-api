@@ -2259,12 +2259,21 @@
         ]
       },
       "post": {
-        "description": "Cria uma nova proposta MEI para uma oportunidade",
+        "description": "Cria uma nova proposta MEI para uma oportunidade. Valida que o CNPJ pertence ao usuário e possui CNAE compatível.",
         "tags": [
           "propostas-mei"
         ],
         "summary": "Criar proposta MEI",
         "parameters": [
+          {
+            "description": "Bearer token",
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "description": "ID da oportunidade",
             "name": "id",
@@ -2307,8 +2316,38 @@
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "401": {
+            "description": "Token não fornecido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CNPJ não pertence ao usuário ou CNAE incompatível",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oportunidade não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro ao validar CNPJs",
             "content": {
               "application/json": {
                 "schema": {
@@ -2763,12 +2802,12 @@
         "summary": "Listar propostas MEI por MEI empresa",
         "parameters": [
           {
-            "description": "ID da MEI empresa",
+            "description": "CNPJ da MEI empresa",
             "name": "meiEmpresaId",
             "in": "query",
             "required": true,
             "schema": {
-              "type": "integer"
+              "type": "string"
             }
           },
           {
