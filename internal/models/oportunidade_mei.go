@@ -152,10 +152,6 @@ func (o *OportunidadeMEI) ValidateForPublish() error {
 		return errors.New("estado é obrigatório")
 	}
 
-	if strings.TrimSpace(o.OrgaoID) == "" {
-		return errors.New("órgão demandante é obrigatório")
-	}
-
 	// FormaPagamento é opcional, só valida se tiver valor
 	if o.FormaPagamento != nil && *o.FormaPagamento != "" {
 		if !FormaPagamento(*o.FormaPagamento).IsValid() {
