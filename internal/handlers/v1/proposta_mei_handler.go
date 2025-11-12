@@ -14,10 +14,10 @@ import (
 )
 
 type PropostaMEIHandler struct {
-	service *services.PropostaMEIService
+	service services.PropostaMEIServiceInterface
 }
 
-func NewPropostaMEIHandler(service *services.PropostaMEIService) *PropostaMEIHandler {
+func NewPropostaMEIHandler(service services.PropostaMEIServiceInterface) *PropostaMEIHandler {
 	return &PropostaMEIHandler{
 		service: service,
 	}

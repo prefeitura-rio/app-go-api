@@ -40,3 +40,19 @@ type OportunidadeMEIRepositoryInterface interface {
 type CNAEValidationServiceInterface interface {
 	ValidatePropostaForCNAE(ctx context.Context, authToken string, cnpj string, opportunityCNAEIDs []string) error
 }
+
+// PropostaMEIServiceInterface defines the interface for PropostaMEI service
+type PropostaMEIServiceInterface interface {
+	Create(ctx context.Context, proposta *models.PropostaMEI, authToken string) (uuid.UUID, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*models.PropostaMEI, error)
+	Update(ctx context.Context, proposta *models.PropostaMEI) error
+	UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64) error
+	UpdateStatusCidadao(ctx context.Context, id uuid.UUID, status models.StatusPropostaCidadao) error
+	Approve(ctx context.Context, id uuid.UUID) error
+	Reject(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	ListByOportunidade(ctx context.Context, oportunidadeID int, nomeEmpresa, cnpj, status string, page, pageSize int) ([]*models.PropostaMEI, int, error)
+	ListByMEIEmpresa(ctx context.Context, meiEmpresaID string, page, pageSize int) ([]*models.PropostaMEI, int, error)
+	ListByStatus(ctx context.Context, status models.StatusPropostaCidadao, page, pageSize int) ([]*models.PropostaMEI, int, error)
+	UpdateMultipleStatus(ctx context.Context, propostaIDs []uuid.UUID, status models.StatusPropostaCidadao) (int, error)
+}
