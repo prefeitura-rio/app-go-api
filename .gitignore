@@ -33,3 +33,5 @@ LOGS.md
 bin/
 
 external_configs
+
+.direnv/
