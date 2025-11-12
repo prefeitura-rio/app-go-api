@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,15 +24,19 @@ func NewPropostaMEIHandler(service *services.PropostaMEIService) *PropostaMEIHan
 }
 
 // @Summary      Criar proposta MEI
-// @Description  Cria uma nova proposta MEI para uma oportunidade
+// @Description  Cria uma nova proposta MEI para uma oportunidade. Valida que o CNPJ pertence ao usuário e possui CNAE compatível.
 // @Tags         propostas-mei
 // @Accept       json
 // @Produce      json
+// @Param        Authorization   header    string              true  "Bearer token"
 // @Param        id              path      int                 true  "ID da oportunidade"
 // @Param        request         body      models.PropostaMEI  true  "Dados da proposta"
 // @Success      201             {object}  models.PropostaMEI
 // @Failure      400             {object}  models.ErrorResponse
-// @Failure      500             {object}  models.ErrorResponse
+// @Failure      401             {object}  models.ErrorResponse "Token não fornecido"
+// @Failure      403             {object}  models.ErrorResponse "CNPJ não pertence ao usuário ou CNAE incompatível"
+// @Failure      404             {object}  models.ErrorResponse "Oportunidade não encontrada"
+// @Failure      503             {object}  models.ErrorResponse "Erro ao validar CNPJs"
 // @Router       /api/v1/oportunidades-mei/{id}/propostas [post]
 func (h *PropostaMEIHandler) Create(c *gin.Context) {
 	oportunidadeID, err := strconv.Atoi(c.Param("id"))
@@ -48,8 +53,31 @@ func (h *PropostaMEIHandler) Create(c *gin.Context) {
 
 	proposta.OportunidadeMEIID = oportunidadeID
 
-	id, err := h.service.Create(c.Request.Context(), &proposta)
+	// Extract Authorization header
+	authToken := c.GetHeader("Authorization")
+	if authToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token de autorização não fornecido"})
+		return
+	}
+
+	// Pass authToken to service
+	id, err := h.service.Create(c.Request.Context(), &proposta, authToken)
 	if err != nil {
+		// UX: Different status codes for different errors
+		if strings.Contains(err.Error(), "não pertence ao seu CPF") ||
+			strings.Contains(err.Error(), "não possui CNAE compatível") ||
+			strings.Contains(err.Error(), "Nenhum CNPJ encontrado") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		if strings.Contains(err.Error(), "não encontrada") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if strings.Contains(err.Error(), "validar seus CNPJs") {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

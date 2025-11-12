@@ -116,7 +116,7 @@ func main() {
 	}
 
 	// Configura o router
-	r := router.SetupRouter(db)
+	r := router.SetupRouter(db, cfg)
 
 	// Inicia o servidor
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

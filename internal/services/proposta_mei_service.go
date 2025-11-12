@@ -11,21 +11,24 @@ import (
 )
 
 type PropostaMEIService struct {
-	repo             *repository.PropostaMEIRepository
-	oportunidadeRepo *repository.OportunidadeMEIRepository
+	repo                  *repository.PropostaMEIRepository
+	oportunidadeRepo      *repository.OportunidadeMEIRepository
+	cnaeValidationService *CNAEValidationService
 }
 
 func NewPropostaMEIService(
 	repo *repository.PropostaMEIRepository,
 	oportunidadeRepo *repository.OportunidadeMEIRepository,
+	cnaeValidationService *CNAEValidationService,
 ) *PropostaMEIService {
 	return &PropostaMEIService{
-		repo:             repo,
-		oportunidadeRepo: oportunidadeRepo,
+		repo:                  repo,
+		oportunidadeRepo:      oportunidadeRepo,
+		cnaeValidationService: cnaeValidationService,
 	}
 }
 
-func (s *PropostaMEIService) Create(ctx context.Context, proposta *models.PropostaMEI) (uuid.UUID, error) {
+func (s *PropostaMEIService) Create(ctx context.Context, proposta *models.PropostaMEI, authToken string) (uuid.UUID, error) {
 	// Validar campos da proposta
 	if err := proposta.Validate(); err != nil {
 		return uuid.Nil, err
@@ -41,6 +44,17 @@ func (s *PropostaMEIService) Create(ctx context.Context, proposta *models.Propos
 	}
 	if oportunidade.Status != models.StatusOportunidadeActive {
 		return uuid.Nil, errors.New("oportunidade não está ativa")
+	}
+
+	// NEW: Validate CNAE compatibility
+	err = s.cnaeValidationService.ValidatePropostaForCNAE(
+		ctx,
+		authToken,
+		proposta.MEIEmpresaID, // This is the CNPJ
+		oportunidade.CNAEIDs,
+	)
+	if err != nil {
+		return uuid.Nil, err // Return validation error to user
 	}
 
 	// Verificar se já existe proposta desta empresa para esta oportunidade

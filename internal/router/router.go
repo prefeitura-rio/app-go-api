@@ -2,11 +2,16 @@ package router
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
+	"github.com/prefeitura-rio/app-go-api/internal/cache"
+	"github.com/prefeitura-rio/app-go-api/internal/clients"
+	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
@@ -15,7 +20,7 @@ import (
 	_ "github.com/prefeitura-rio/app-go-api/docs"
 )
 
-func SetupRouter(db *gorm.DB) *gin.Engine {
+func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	r := gin.Default()
 
 	// Middleware global
@@ -52,6 +57,22 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	oportunidadeMEIRepo := repository.NewOportunidadeMEIRepository(db)
 	propostaMEIRepo := repository.NewPropostaMEIRepository(db)
 
+	// Initialize Redis client
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+
+	// Initialize RMI client (15s timeout per request)
+	rmiClient := clients.NewRMIClient(cfg.RMI.BaseURL, 15*time.Second)
+
+	// Initialize Redis cache for legal entities (30 min TTL)
+	legalEntitiesCache := cache.NewLegalEntitiesCache(redisClient, 30*time.Minute)
+
+	// Initialize CNAE validation service
+	cnaeValidationService := services.NewCNAEValidationService(rmiClient, legalEntitiesCache)
+
 	// Inicializando serviços
 	cursoService := services.NewCursoService(cursoRepo)
 	empregoService := services.NewEmpregoService(empregoRepo)
@@ -63,7 +84,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
 	jobService := services.NewJobService(jobRepo)
 	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo)
-	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo)
+	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, cnaeValidationService)
 
 	// Initialize job processor
 	jobs.InitializeJobProcessor(db, jobRepo, inscricaoRepo, cursoRepo)
