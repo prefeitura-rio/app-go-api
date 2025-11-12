@@ -23,6 +23,7 @@ type AppConfig struct {
 	TypeSense  TypeSenseSettings
 	Migrations MigrationSettings
 	RMI        RMISettings
+	Redis      RedisSettings
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -83,6 +84,14 @@ type MigrationSettings struct {
 // RMISettings define configurações da API RMI (para validação de CNPJs/CNAEs)
 type RMISettings struct {
 	BaseURL string
+}
+
+// RedisSettings define configurações do Redis
+type RedisSettings struct {
+	Host     string
+	Port     int
+	Password string
+	DB       int
 }
 
 // Erros comuns de validação
@@ -273,6 +282,12 @@ func Load() (*AppConfig, error) {
 		},
 		RMI: RMISettings{
 			BaseURL: getEnv(v, "RMI_BASE_URL", ""),
+		},
+		Redis: RedisSettings{
+			Host:     getEnv(v, "REDIS_HOST", "localhost"),
+			Port:     getInt(v, "REDIS_PORT", 6379),
+			Password: getEnv(v, "REDIS_PASSWORD", ""),
+			DB:       getInt(v, "REDIS_DB", 0),
 		},
 	}
 
