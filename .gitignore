@@ -35,3 +35,4 @@ bin/
 external_configs
 
 .direnv/
+.DS_Store
