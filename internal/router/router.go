@@ -10,10 +10,10 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"gorm.io/gorm"
 
-	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
+	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
@@ -88,6 +88,12 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	// Initialize Redis cache for legal entities (30 min TTL)
 	legalEntitiesCache := cache.NewLegalEntitiesCache(redisClient, 30*time.Minute)
 
+	// Initialize Redis caches for static reference data (1 hour TTL)
+	// These are rarely-changing lookup tables accessed frequently
+	categoriasCache := cache.NewReferenceDataCache(redisClient, 1*time.Hour, "categorias")
+	acessibilidadesCache := cache.NewReferenceDataCache(redisClient, 1*time.Hour, "acessibilidades")
+	escolaridadesCache := cache.NewReferenceDataCache(redisClient, 1*time.Hour, "escolaridades")
+
 	// Initialize CNAE validation service
 	cnaeValidationService := services.NewCNAEValidationService(rmiClient, legalEntitiesCache)
 
@@ -109,10 +115,10 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 
 	// Inicializando handlers
 	empregoHandler := v1.NewEmpregoHandler(empregoService)
-	acessibilidadeHandler := v1.NewAcessibilidadeHandler(acessibilidadeService)
-	categoriaHandler := v1.NewCategoriaHandler(categoriaService)
+	acessibilidadeHandler := v1.NewAcessibilidadeHandler(acessibilidadeService).WithCache(acessibilidadesCache)
+	categoriaHandler := v1.NewCategoriaHandler(categoriaService).WithCache(categoriasCache)
 	empresaHandler := v1.NewEmpresaHandler(empresaService)
-	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService)
+	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService).WithCache(escolaridadesCache)
 	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
 	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService, jobService)
 	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo)
