@@ -34,6 +34,9 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		r.Use(otelgin.Middleware(cfg.Tracing.ServiceName))
 	}
 
+	// Request timeout middleware (prevents long-running requests from accumulating)
+	r.Use(middlewares.TimeoutMiddleware(30 * time.Second))
+
 	r.Use(middlewares.CorsMiddleware())
 
 	// Configuração do Swagger com host dinâmico
