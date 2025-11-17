@@ -107,19 +107,21 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 	var cursos []*models.Curso
 	var total int64
 
-	// Contar total de registros
-	db := r.db.WithContext(ctx).Model(&models.Curso{})
-	db = r.applyFilters(db, filter)
-	db.Count(&total)
+	// Build base query
+	baseQuery := r.db.WithContext(ctx).Model(&models.Curso{})
+	baseQuery = r.applyFilters(baseQuery, filter)
 
-	// Buscar registros com paginação
-	db = r.db.WithContext(ctx).Model(&models.Curso{})
-	db = r.applyFilters(db, filter)
-	result := db.
+	// Count total records (reuse filtered query)
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar cursos: %w", err)
+	}
+
+	// Fetch records with selective preloading
+	// List view only needs basic info + schedules for vacancy calculation
+	// Skip CustomFields, Instituicao details to reduce data transfer
+	result := baseQuery.
 		Preload("Categorias").
 		Preload("Acessibilidades").
-		Preload("Instituicao").
-		Preload("CustomFields").
 		Preload("LocationClasses.Schedules").
 		Preload("RemoteClass.Schedules").
 		Order("id DESC").
