@@ -209,5 +209,15 @@ func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uu
 		}
 	}
 
+	// Check remote class schedules
+	if curso.RemoteClass != nil {
+		for _, schedule := range curso.RemoteClass.Schedules {
+			if schedule.ID == scheduleID {
+				// Schedule found and belongs to this course
+				return nil
+			}
+		}
+	}
+
 	return fmt.Errorf("schedule_id fornecido não pertence a este curso")
 }

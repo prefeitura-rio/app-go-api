@@ -88,7 +88,8 @@ func buildFieldMappings(customFields []models.CustomField) map[string]string {
 
 // buildScheduleMap creates a map to find schedules by address, time, or days
 // Key format: "address|time|days" (all normalized and lowercased)
-func buildScheduleMap(locations []models.LocationClass) map[string]struct {
+// Also supports UUID-based keys for direct schedule/class lookup
+func buildScheduleMap(locations []models.LocationClass, remoteClassLoaded bool, remoteClass *models.RemoteClass) map[string]struct {
 	LocationID uuid.UUID
 	ScheduleID uuid.UUID
 } {
@@ -104,6 +105,18 @@ func buildScheduleMap(locations []models.LocationClass) map[string]struct {
 			// Create multiple keys for better matching
 			normalizedTime := strings.ToLower(strings.TrimSpace(schedule.ClassTime))
 			normalizedDays := strings.ToLower(strings.TrimSpace(schedule.ClassDays))
+
+			// Key by UUID (schedule_id)
+			scheduleMap[schedule.ID.String()] = struct {
+				LocationID uuid.UUID
+				ScheduleID uuid.UUID
+			}{loc.ID, schedule.ID}
+
+			// Key by UUID (location_id)
+			scheduleMap[loc.ID.String()] = struct {
+				LocationID uuid.UUID
+				ScheduleID uuid.UUID
+			}{loc.ID, schedule.ID}
 
 			// Key by address only
 			addressKey := normalizedAddr
@@ -135,6 +148,33 @@ func buildScheduleMap(locations []models.LocationClass) map[string]struct {
 		}
 	}
 
+	// Add remote class schedules
+	if remoteClassLoaded && remoteClass != nil {
+		for _, schedule := range remoteClass.Schedules {
+			normalizedTime := strings.ToLower(strings.TrimSpace(schedule.ClassTime))
+			normalizedDays := strings.ToLower(strings.TrimSpace(schedule.ClassDays))
+
+			// Key by UUID (schedule_id)
+			scheduleMap[schedule.ID.String()] = struct {
+				LocationID uuid.UUID
+				ScheduleID uuid.UUID
+			}{remoteClass.ID, schedule.ID}
+
+			// Key by UUID (remote_class_id)
+			scheduleMap[remoteClass.ID.String()] = struct {
+				LocationID uuid.UUID
+				ScheduleID uuid.UUID
+			}{remoteClass.ID, schedule.ID}
+
+			// Key by time + days (for remote courses without address)
+			timeDaysKey := normalizedTime + "|" + normalizedDays
+			scheduleMap[timeDaysKey] = struct {
+				LocationID uuid.UUID
+				ScheduleID uuid.UUID
+			}{remoteClass.ID, schedule.ID}
+		}
+	}
+
 	return scheduleMap
 }
 
@@ -162,8 +202,18 @@ func (p *EnrollmentImportProcessor) Process(ctx context.Context, job *models.Job
 		log.Printf("Aviso: erro ao carregar location_classes: %v", err)
 	}
 
+	var remoteClass models.RemoteClass
+	remoteClassLoaded := false
+	if err := p.db.Where("curso_id = ?", metadata.CursoID).Preload("Schedules").First(&remoteClass).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			log.Printf("Aviso: erro ao carregar remote_class: %v", err)
+		}
+	} else {
+		remoteClassLoaded = true
+	}
+
 	fieldMappings := buildFieldMappings(customFields)
-	scheduleMap := buildScheduleMap(locationClasses)
+	scheduleMap := buildScheduleMap(locationClasses, remoteClassLoaded, &remoteClass)
 
 	var rows []EnrollmentRow
 	var parseErr error
@@ -203,7 +253,7 @@ func (p *EnrollmentImportProcessor) Process(ctx context.Context, job *models.Job
 
 		lineNumber := i + 2 // +2 because of header row and 1-indexed
 
-		enrollmentID, err := p.processRow(ctx, metadata.CursoID, row, customFields, scheduleMap, locationClasses)
+		enrollmentID, err := p.processRow(ctx, metadata.CursoID, row, customFields, scheduleMap, locationClasses, remoteClassLoaded, &remoteClass)
 		if err != nil {
 			errorCount++
 			errorMsg := err.Error()
@@ -348,18 +398,25 @@ func validateFieldType(value string, field models.CustomField) error {
 }
 
 // findScheduleByTurma tries to match the "Turma" field from CSV to a schedule
-// It tries multiple strategies: exact match, partial match by address, address+time, address+days
+// It tries multiple strategies: UUID match, exact match, partial match by address, address+time, address+days
 func findScheduleByTurma(turma string, scheduleMap map[string]struct {
 	LocationID uuid.UUID
 	ScheduleID uuid.UUID
-}, locations []models.LocationClass) (*uuid.UUID, *uuid.UUID, error) {
+}, locations []models.LocationClass, remoteClassLoaded bool, remoteClass *models.RemoteClass) (*uuid.UUID, *uuid.UUID, error) {
 	if turma == "" {
 		return nil, nil, nil
 	}
 
 	turmaNorm := strings.ToLower(strings.TrimSpace(turma))
 
-	// Try exact match first
+	// Try UUID parsing first (supports schedule_id or class_id)
+	if parsedUUID, err := uuid.Parse(turmaNorm); err == nil {
+		if match, exists := scheduleMap[parsedUUID.String()]; exists {
+			return &match.LocationID, &match.ScheduleID, nil
+		}
+	}
+
+	// Try exact match
 	if match, exists := scheduleMap[turmaNorm]; exists {
 		return &match.LocationID, &match.ScheduleID, nil
 	}
@@ -370,7 +427,7 @@ func findScheduleByTurma(turma string, scheduleMap map[string]struct {
 	})
 
 	if len(parts) >= 2 {
-		// Try address|time
+		// Try address|time OR time|days (for remote courses)
 		key := strings.TrimSpace(parts[0]) + "|" + strings.TrimSpace(parts[1])
 		if match, exists := scheduleMap[key]; exists {
 			return &match.LocationID, &match.ScheduleID, nil
@@ -385,7 +442,7 @@ func findScheduleByTurma(turma string, scheduleMap map[string]struct {
 		}
 	}
 
-	// Fallback: fuzzy match by address only
+	// Fallback: fuzzy match by address for presential courses
 	for _, loc := range locations {
 		locAddrNorm := strings.ToLower(strings.TrimSpace(loc.Address))
 		if strings.Contains(locAddrNorm, turmaNorm) || strings.Contains(turmaNorm, locAddrNorm) {
@@ -396,13 +453,26 @@ func findScheduleByTurma(turma string, scheduleMap map[string]struct {
 		}
 	}
 
+	// Fallback: fuzzy match by time+days for remote courses
+	if remoteClassLoaded && remoteClass != nil && len(remoteClass.Schedules) > 0 {
+		for _, schedule := range remoteClass.Schedules {
+			timeNorm := strings.ToLower(strings.TrimSpace(schedule.ClassTime))
+			daysNorm := strings.ToLower(strings.TrimSpace(schedule.ClassDays))
+
+			if (strings.Contains(turmaNorm, timeNorm) && strings.Contains(turmaNorm, daysNorm)) ||
+			   (strings.Contains(timeNorm, turmaNorm) || strings.Contains(daysNorm, turmaNorm)) {
+				return &remoteClass.ID, &schedule.ID, nil
+			}
+		}
+	}
+
 	return nil, nil, fmt.Errorf("turma '%s' não encontrada para este curso", turma)
 }
 
 func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int, row EnrollmentRow, customFields []models.CustomField, scheduleMap map[string]struct {
 	LocationID uuid.UUID
 	ScheduleID uuid.UUID
-}, locationClasses []models.LocationClass) (*uuid.UUID, error) {
+}, locationClasses []models.LocationClass, remoteClassLoaded bool, remoteClass *models.RemoteClass) (*uuid.UUID, error) {
 	if row.NomeCompleto == "" {
 		return nil, fmt.Errorf("nome completo é obrigatório")
 	}
@@ -426,10 +496,13 @@ func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int,
 		return nil, err
 	}
 
-	// Count total schedules across all locations
+	// Count total schedules across all locations and remote classes
 	totalSchedules := 0
 	for _, loc := range locationClasses {
 		totalSchedules += len(loc.Schedules)
+	}
+	if remoteClassLoaded && remoteClass != nil {
+		totalSchedules += len(remoteClass.Schedules)
 	}
 
 	if totalSchedules > 1 && row.Turma == "" {
@@ -440,7 +513,7 @@ func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int,
 	var scheduleID *uuid.UUID
 
 	if row.Turma != "" {
-		locationID, foundScheduleID, err := findScheduleByTurma(row.Turma, scheduleMap, locationClasses)
+		locationID, foundScheduleID, err := findScheduleByTurma(row.Turma, scheduleMap, locationClasses, remoteClassLoaded, remoteClass)
 		if err != nil {
 			return nil, err
 		}
@@ -448,6 +521,8 @@ func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int,
 		if locationID != nil && foundScheduleID != nil {
 			scheduleID = foundScheduleID
 
+			// Try to find in location classes
+			found := false
 			for _, loc := range locationClasses {
 				if loc.ID == *locationID {
 					// Convert schedules to EnrolledUnitSchedule format
@@ -475,38 +550,95 @@ func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int,
 						CreatedAt:    loc.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 						UpdatedAt:    loc.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 					}
+					found = true
 					break
 				}
 			}
-		}
-	} else if len(locationClasses) == 1 && len(locationClasses[0].Schedules) == 1 {
-		// Auto-select if only one location with one schedule
-		loc := locationClasses[0]
-		schedule := loc.Schedules[0]
-		scheduleID = &schedule.ID
 
-		enrolledSchedules := []models.EnrolledUnitSchedule{
-			{
-				ID:             schedule.ID.String(),
-				LocationID:     loc.ID.String(),
-				Vacancies:      schedule.Vacancies,
-				ClassStartDate: schedule.ClassStartDate.Format("2006-01-02"),
-				ClassEndDate:   schedule.ClassEndDate.Format("2006-01-02"),
-				ClassTime:      schedule.ClassTime,
-				ClassDays:      schedule.ClassDays,
-				CreatedAt:      schedule.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-				UpdatedAt:      schedule.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			},
-		}
+			// If not found in location classes, try remote class
+			if !found && remoteClassLoaded && remoteClass != nil && remoteClass.ID == *locationID {
+				// Convert remote schedules to EnrolledUnitSchedule format
+				enrolledSchedules := make([]models.EnrolledUnitSchedule, 0, len(remoteClass.Schedules))
+				for _, schedule := range remoteClass.Schedules {
+					enrolledSchedules = append(enrolledSchedules, models.EnrolledUnitSchedule{
+						ID:             schedule.ID.String(),
+						LocationID:     remoteClass.ID.String(),
+						Vacancies:      schedule.Vacancies,
+						ClassStartDate: schedule.ClassStartDate.Format("2006-01-02"),
+						ClassEndDate:   schedule.ClassEndDate.Format("2006-01-02"),
+						ClassTime:      schedule.ClassTime,
+						ClassDays:      schedule.ClassDays,
+						CreatedAt:      schedule.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+						UpdatedAt:      schedule.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+					})
+				}
 
-		enrolledUnit = &models.EnrolledUnit{
-			ID:           loc.ID.String(),
-			CursoID:      cursoID,
-			Address:      loc.Address,
-			Neighborhood: loc.Neighborhood,
-			Schedules:    enrolledSchedules,
-			CreatedAt:    loc.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			UpdatedAt:    loc.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				enrolledUnit = &models.EnrolledUnit{
+					ID:        remoteClass.ID.String(),
+					CursoID:   cursoID,
+					Schedules: enrolledSchedules,
+					CreatedAt: remoteClass.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+					UpdatedAt: remoteClass.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				}
+			}
+		}
+	} else if totalSchedules == 1 {
+		// Auto-select if only one schedule total (either location or remote)
+		if len(locationClasses) == 1 && len(locationClasses[0].Schedules) == 1 {
+			// Single location class with one schedule
+			loc := locationClasses[0]
+			schedule := loc.Schedules[0]
+			scheduleID = &schedule.ID
+
+			enrolledSchedules := []models.EnrolledUnitSchedule{
+				{
+					ID:             schedule.ID.String(),
+					LocationID:     loc.ID.String(),
+					Vacancies:      schedule.Vacancies,
+					ClassStartDate: schedule.ClassStartDate.Format("2006-01-02"),
+					ClassEndDate:   schedule.ClassEndDate.Format("2006-01-02"),
+					ClassTime:      schedule.ClassTime,
+					ClassDays:      schedule.ClassDays,
+					CreatedAt:      schedule.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+					UpdatedAt:      schedule.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				},
+			}
+
+			enrolledUnit = &models.EnrolledUnit{
+				ID:           loc.ID.String(),
+				CursoID:      cursoID,
+				Address:      loc.Address,
+				Neighborhood: loc.Neighborhood,
+				Schedules:    enrolledSchedules,
+				CreatedAt:    loc.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				UpdatedAt:    loc.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			}
+		} else if remoteClassLoaded && remoteClass != nil && len(remoteClass.Schedules) == 1 {
+			// Single remote class with one schedule
+			schedule := remoteClass.Schedules[0]
+			scheduleID = &schedule.ID
+
+			enrolledSchedules := []models.EnrolledUnitSchedule{
+				{
+					ID:             schedule.ID.String(),
+					LocationID:     remoteClass.ID.String(),
+					Vacancies:      schedule.Vacancies,
+					ClassStartDate: schedule.ClassStartDate.Format("2006-01-02"),
+					ClassEndDate:   schedule.ClassEndDate.Format("2006-01-02"),
+					ClassTime:      schedule.ClassTime,
+					ClassDays:      schedule.ClassDays,
+					CreatedAt:      schedule.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+					UpdatedAt:      schedule.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				},
+			}
+
+			enrolledUnit = &models.EnrolledUnit{
+				ID:        remoteClass.ID.String(),
+				CursoID:   cursoID,
+				Schedules: enrolledSchedules,
+				CreatedAt: remoteClass.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				UpdatedAt: remoteClass.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			}
 		}
 	}
 
