@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -18,6 +20,7 @@ type CourseHandler struct {
 	cursoService     *services.CursoService
 	inscricaoService *services.InscricaoService
 	cursoRepo        *repository.CursoRepository
+	courseCache      *cache.CourseCache
 }
 
 func NewCourseHandler(cursoService *services.CursoService, inscricaoService *services.InscricaoService, cursoRepo *repository.CursoRepository) *CourseHandler {
@@ -25,7 +28,14 @@ func NewCourseHandler(cursoService *services.CursoService, inscricaoService *ser
 		cursoService:     cursoService,
 		inscricaoService: inscricaoService,
 		cursoRepo:        cursoRepo,
+		courseCache:      nil,
 	}
+}
+
+// WithCache adds cache support to the handler
+func (h *CourseHandler) WithCache(cache *cache.CourseCache) *CourseHandler {
+	h.courseCache = cache
+	return h
 }
 
 func transformCursoToResponse(curso *models.Curso) gin.H {
@@ -253,6 +263,12 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	}
 
 	curso.ID = id
+
+	// Invalidate course list cache after create (if caching is enabled)
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -305,6 +321,12 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 	}
 
 	curso.ID = id
+
+	// Invalidate course list cache after create (if caching is enabled)
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -378,6 +400,11 @@ func (h *CourseHandler) Update(c *gin.Context) {
 			"field": dbErr.Field,
 		})
 		return
+	}
+
+	// Invalidate course list cache after update (if caching is enabled)
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
 	}
 
 	var message string
@@ -454,6 +481,20 @@ func (h *CourseHandler) List(c *gin.Context) {
 		}
 	}
 
+	// Try cache first (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		cachedData, err := h.courseCache.GetList(c.Request.Context(), filterHash)
+		if err == nil && cachedData != nil {
+			var cachedResponse gin.H
+			if err := json.Unmarshal(cachedData, &cachedResponse); err == nil {
+				c.JSON(http.StatusOK, cachedResponse)
+				return
+			}
+			// If unmarshal fails, fall through to database query
+		}
+	}
+
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos: " + err.Error()})
@@ -473,7 +514,7 @@ func (h *CourseHandler) List(c *gin.Context) {
 		coursesData[i] = transformCursoToResponse(curso)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"success": true,
 		"data": gin.H{
 			"courses": coursesData,
@@ -484,7 +525,15 @@ func (h *CourseHandler) List(c *gin.Context) {
 				"total_pages": totalPages,
 			},
 		},
-	})
+	}
+
+	// Cache the result (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		_ = h.courseCache.SetList(c.Request.Context(), filterHash, response)
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // @Summary      Listar cursos rascunho
@@ -530,6 +579,20 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		}
 	}
 
+	// Try cache first (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		cachedData, err := h.courseCache.GetList(c.Request.Context(), filterHash)
+		if err == nil && cachedData != nil {
+			var cachedResponse gin.H
+			if err := json.Unmarshal(cachedData, &cachedResponse); err == nil {
+				c.JSON(http.StatusOK, cachedResponse)
+				return
+			}
+			// If unmarshal fails, fall through to database query
+		}
+	}
+
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar rascunhos: " + err.Error()})
@@ -549,7 +612,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		draftsData[i] = transformCursoToResponse(curso)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"success": true,
 		"data": gin.H{
 			"drafts": draftsData,
@@ -560,7 +623,15 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 				"total_pages": totalPages,
 			},
 		},
-	})
+	}
+
+	// Cache the result (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		_ = h.courseCache.SetList(c.Request.Context(), filterHash, response)
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // @Summary      Buscar curso específico
@@ -636,6 +707,11 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	// Invalidate course list cache after delete (if caching is enabled)
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Curso excluído com sucesso",
@@ -690,6 +766,20 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 		}
 	}
 
+	// Try cache first (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		cachedData, err := h.courseCache.GetList(c.Request.Context(), filterHash)
+		if err == nil && cachedData != nil {
+			var cachedResponse gin.H
+			if err := json.Unmarshal(cachedData, &cachedResponse); err == nil {
+				c.JSON(http.StatusOK, cachedResponse)
+				return
+			}
+			// If unmarshal fails, fall through to database query
+		}
+	}
+
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos do usuário: " + err.Error()})
@@ -709,7 +799,7 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 		coursesData[i] = transformCursoToResponse(curso)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"success": true,
 		"data": gin.H{
 			"courses": coursesData,
@@ -720,5 +810,13 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 				"total_pages": totalPages,
 			},
 		},
-	})
+	}
+
+	// Cache the result (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		_ = h.courseCache.SetList(c.Request.Context(), filterHash, response)
+	}
+
+	c.JSON(http.StatusOK, response)
 }

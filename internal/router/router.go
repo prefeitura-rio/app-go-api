@@ -94,6 +94,10 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	acessibilidadesCache := cache.NewReferenceDataCache(redisClient, 1*time.Hour, "acessibilidades")
 	escolaridadesCache := cache.NewReferenceDataCache(redisClient, 1*time.Hour, "escolaridades")
 
+	// Initialize course cache (5 minute TTL)
+	// Shorter TTL since courses change more frequently than reference data
+	courseCache := cache.NewCourseCache(redisClient, 5*time.Minute)
+
 	// Initialize CNAE validation service
 	cnaeValidationService := services.NewCNAEValidationService(rmiClient, legalEntitiesCache)
 
@@ -121,7 +125,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService).WithCache(escolaridadesCache)
 	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
 	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService, jobService)
-	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo)
+	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo).WithCache(courseCache)
 	jobHandler := v1.NewJobHandler(jobService)
 	oportunidadeMEIHandler := v1.NewOportunidadeMEIHandler(oportunidadeMEIService)
 	propostaMEIHandler := v1.NewPropostaMEIHandler(propostaMEIService)
