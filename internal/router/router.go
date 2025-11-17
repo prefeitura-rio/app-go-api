@@ -35,7 +35,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	}
 
 	// Request timeout middleware (prevents long-running requests from accumulating)
-	r.Use(middlewares.TimeoutMiddleware(30 * time.Second))
+	r.Use(middlewares.TimeoutMiddleware(time.Duration(cfg.Server.RequestTimeout) * time.Second))
 
 	r.Use(middlewares.CorsMiddleware())
 

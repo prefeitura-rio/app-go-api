@@ -54,8 +54,9 @@ type DatabaseSettings struct {
 
 // ServerSettings define configurações do servidor HTTP
 type ServerSettings struct {
-	Host string
-	Port int
+	Host           string
+	Port           int
+	RequestTimeout int // in seconds
 }
 
 // JWTSettings define configurações de autenticação
@@ -283,8 +284,9 @@ func Load() (*AppConfig, error) {
 			ConnMaxIdleTime: getInt(v, "DB_CONN_MAX_IDLE_TIME", 2),
 		},
 		Server: ServerSettings{
-			Host: getEnv(v, "SERVER_HOST", "0.0.0.0"),
-			Port: getInt(v, "SERVER_PORT", 8080),
+			Host:           getEnv(v, "SERVER_HOST", "0.0.0.0"),
+			Port:           getInt(v, "SERVER_PORT", 8080),
+			RequestTimeout: getInt(v, "SERVER_REQUEST_TIMEOUT", 30),
 		},
 		Swagger: SwaggerSettings{
 			Host: getEnv(v, "SWAGGER_HOST", "localhost:8080"),
