@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -72,6 +73,21 @@ func main() {
 		log.Fatalf("Erro ao conectar ao banco de dados: %v", err)
 	}
 	log.Println("Conexão com o banco de dados estabelecida com sucesso!")
+
+	// Configure connection pool for optimal performance under high load
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("Erro ao obter database/sql DB: %v", err)
+	}
+
+	sqlDB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(time.Duration(cfg.Database.ConnMaxLifetime) * time.Minute)
+	sqlDB.SetConnMaxIdleTime(time.Duration(cfg.Database.ConnMaxIdleTime) * time.Minute)
+
+	log.Printf("Database connection pool configured: MaxOpen=%d, MaxIdle=%d, MaxLifetime=%dm, MaxIdleTime=%dm",
+		cfg.Database.MaxOpenConns, cfg.Database.MaxIdleConns,
+		cfg.Database.ConnMaxLifetime, cfg.Database.ConnMaxIdleTime)
 
 	// Add OpenTelemetry instrumentation to GORM (if tracing is enabled)
 	if cfg.Tracing.Enabled {

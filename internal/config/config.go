@@ -45,6 +45,11 @@ type DatabaseSettings struct {
 	Name     string
 	SSLMode  string
 	Timezone string
+	// Connection pool settings
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime int // in minutes
+	ConnMaxIdleTime int // in minutes
 }
 
 // ServerSettings define configurações do servidor HTTP
@@ -265,13 +270,17 @@ func Load() (*AppConfig, error) {
 			APIToken:    getEnv(v, "API_TOKEN", ""),
 		},
 		Database: DatabaseSettings{
-			Host:     getEnv(v, "DB_HOST", "localhost"),
-			Port:     getInt(v, "DB_PORT", 5432),
-			User:     getEnv(v, "DB_USER", "postgres"),
-			Password: getEnv(v, "DB_PASSWORD", "postgres"),
-			Name:     getEnv(v, "DB_NAME", "app_go_api"),
-			SSLMode:  getEnv(v, "DB_SSL_MODE", "disable"),
-			Timezone: getEnv(v, "DB_TIMEZONE", "UTC"),
+			Host:            getEnv(v, "DB_HOST", "localhost"),
+			Port:            getInt(v, "DB_PORT", 5432),
+			User:            getEnv(v, "DB_USER", "postgres"),
+			Password:        getEnv(v, "DB_PASSWORD", "postgres"),
+			Name:            getEnv(v, "DB_NAME", "app_go_api"),
+			SSLMode:         getEnv(v, "DB_SSL_MODE", "disable"),
+			Timezone:        getEnv(v, "DB_TIMEZONE", "UTC"),
+			MaxOpenConns:    getInt(v, "DB_MAX_OPEN_CONNS", 25),
+			MaxIdleConns:    getInt(v, "DB_MAX_IDLE_CONNS", 10),
+			ConnMaxLifetime: getInt(v, "DB_CONN_MAX_LIFETIME", 5),
+			ConnMaxIdleTime: getInt(v, "DB_CONN_MAX_IDLE_TIME", 2),
 		},
 		Server: ServerSettings{
 			Host: getEnv(v, "SERVER_HOST", "0.0.0.0"),
