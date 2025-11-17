@@ -10,7 +10,9 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/observability"
 	"github.com/prefeitura-rio/app-go-api/internal/router"
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 )
 
 // @title API Go
@@ -43,6 +45,12 @@ func main() {
 		log.Fatalf("Erro ao carregar configurações: %v", err)
 	}
 
+	// Initialize OpenTelemetry tracing
+	if err := observability.InitTracer(cfg); err != nil {
+		log.Fatalf("Erro ao inicializar tracer: %v", err)
+	}
+	defer observability.ShutdownTracer()
+
 	// Conecta ao banco de dados usando GORM
 	dsn := cfg.Database.DSN()
 
@@ -64,6 +72,14 @@ func main() {
 		log.Fatalf("Erro ao conectar ao banco de dados: %v", err)
 	}
 	log.Println("Conexão com o banco de dados estabelecida com sucesso!")
+
+	// Add OpenTelemetry instrumentation to GORM (if tracing is enabled)
+	if cfg.Tracing.Enabled {
+		if err := db.Use(otelgorm.NewPlugin()); err != nil {
+			log.Fatalf("Erro ao adicionar plugin OTEL ao GORM: %v", err)
+		}
+		log.Println("GORM OpenTelemetry instrumentation enabled")
+	}
 
 	// Auto-migração do GORM (opcional)
 	if cfg.Migrations.Run {

@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"gorm.io/gorm"
 
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
@@ -26,6 +28,12 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	// Middleware global
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
+
+	// OpenTelemetry middleware (if tracing is enabled)
+	if cfg.Tracing.Enabled {
+		r.Use(otelgin.Middleware(cfg.Tracing.ServiceName))
+	}
+
 	r.Use(middlewares.CorsMiddleware())
 
 	// Configuração do Swagger com host dinâmico
@@ -63,6 +71,13 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		Password: cfg.Redis.Password,
 		DB:       cfg.Redis.DB,
 	})
+
+	// Add OpenTelemetry instrumentation to Redis (if tracing is enabled)
+	if cfg.Tracing.Enabled {
+		if err := redisotel.InstrumentTracing(redisClient); err != nil {
+			panic(fmt.Sprintf("Error instrumenting Redis with OTEL: %v", err))
+		}
+	}
 
 	// Initialize RMI client (15s timeout per request)
 	rmiClient := clients.NewRMIClient(cfg.RMI.BaseURL, 15*time.Second)

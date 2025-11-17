@@ -24,6 +24,7 @@ type AppConfig struct {
 	Migrations MigrationSettings
 	RMI        RMISettings
 	Redis      RedisSettings
+	Tracing    TracingSettings
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -92,6 +93,14 @@ type RedisSettings struct {
 	Port     int
 	Password string
 	DB       int
+}
+
+// TracingSettings define configurações de observabilidade/tracing
+type TracingSettings struct {
+	Enabled        bool
+	Endpoint       string
+	ServiceName    string
+	ServiceVersion string
 }
 
 // Erros comuns de validação
@@ -288,6 +297,12 @@ func Load() (*AppConfig, error) {
 			Port:     getInt(v, "REDIS_PORT", 6379),
 			Password: getEnv(v, "REDIS_PASSWORD", ""),
 			DB:       getInt(v, "REDIS_DB", 0),
+		},
+		Tracing: TracingSettings{
+			Enabled:        getBool(v, "TRACING_ENABLED", false),
+			Endpoint:       getEnv(v, "TRACING_ENDPOINT", "localhost:4317"),
+			ServiceName:    getEnv(v, "TRACING_SERVICE_NAME", "app-go-api"),
+			ServiceVersion: getEnv(v, "TRACING_SERVICE_VERSION", "v1.0.0"),
 		},
 	}
 
