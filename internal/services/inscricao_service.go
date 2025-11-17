@@ -24,26 +24,23 @@ func NewInscricaoService(repo *repository.InscricaoRepository, cursoRepo *reposi
 }
 
 func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscricao) error {
-	// Validate course exists
-	curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+	// Validate course exists and can accept enrollments (lightweight query)
+	status, enrollmentStart, enrollmentEnd, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)
 	if err != nil {
-		return fmt.Errorf("erro ao verificar curso: %w", err)
-	}
-	if curso == nil {
-		return fmt.Errorf("curso não encontrado")
+		return err
 	}
 
 	// Check if enrollment is open
-	if curso.Status != models.StatusCursoOpened {
+	if models.StatusCurso(status) != models.StatusCursoOpened {
 		return fmt.Errorf("curso não está aberto para inscrições")
 	}
 
 	// Check enrollment dates
 	now := time.Now()
-	if curso.EnrollmentStartDate != nil && now.Before(*curso.EnrollmentStartDate) {
+	if enrollmentStart != nil && now.Before(*enrollmentStart) {
 		return fmt.Errorf("período de inscrições ainda não iniciou")
 	}
-	if curso.EnrollmentEndDate != nil && now.After(*curso.EnrollmentEndDate) {
+	if enrollmentEnd != nil && now.After(*enrollmentEnd) {
 		return fmt.Errorf("período de inscrições já encerrou")
 	}
 
@@ -57,7 +54,16 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	}
 
 	// Validate schedule_id if provided
+	// Only load full course with schedules when schedule validation is needed
 	if inscricao.ScheduleID != nil {
+		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+		if err != nil {
+			return fmt.Errorf("erro ao verificar curso para validação de schedule: %w", err)
+		}
+		if curso == nil {
+			return fmt.Errorf("curso não encontrado")
+		}
+
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
 			return err
 		}
@@ -103,13 +109,10 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 }
 
 func (s *InscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) {
-	// Validate course exists
-	curso, err := s.cursoRepo.GetByID(ctx, cursoID)
+	// Validate course exists (lightweight query - only checks existence)
+	_, _, _, err := s.cursoRepo.ValidateForEnrollment(ctx, cursoID)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao verificar curso: %w", err)
-	}
-	if curso == nil {
-		return nil, fmt.Errorf("curso não encontrado")
+		return nil, err
 	}
 
 	return s.repo.GetSummaryByCursoID(ctx, cursoID)

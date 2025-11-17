@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -419,4 +420,30 @@ func (r *CursoRepository) CountEnrollmentsByScheduleIDs(ctx context.Context, sch
 	}
 
 	return countMap, nil
+}
+
+// ValidateForEnrollment checks if a course exists and can accept enrollments
+// This is a lightweight query that only fetches the fields needed for validation,
+// avoiding the overhead of loading all relationships
+func (r *CursoRepository) ValidateForEnrollment(ctx context.Context, cursoID int) (status string, enrollmentStart, enrollmentEnd *time.Time, err error) {
+	var result struct {
+		Status              string     `gorm:"column:status"`
+		EnrollmentStartDate *time.Time `gorm:"column:enrollment_start_date"`
+		EnrollmentEndDate   *time.Time `gorm:"column:enrollment_end_date"`
+	}
+
+	err = r.db.WithContext(ctx).
+		Model(&models.Curso{}).
+		Select("status, enrollment_start_date, enrollment_end_date").
+		Where("id = ?", cursoID).
+		First(&result).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", nil, nil, fmt.Errorf("curso não encontrado")
+		}
+		return "", nil, nil, fmt.Errorf("erro ao validar curso: %w", err)
+	}
+
+	return result.Status, result.EnrollmentStartDate, result.EnrollmentEndDate, nil
 }
