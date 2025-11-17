@@ -144,6 +144,76 @@ func (h *CourseHandler) calculateRemainingVacancies(c *gin.Context, curso *model
 	return nil
 }
 
+// calculateRemainingVacanciesForCourses calculates remaining vacancies for multiple courses
+// in a single batched query to eliminate N+1 query problem in list endpoints
+func (h *CourseHandler) calculateRemainingVacanciesForCourses(c *gin.Context, cursos []*models.Curso) error {
+	if len(cursos) == 0 {
+		return nil
+	}
+
+	// Collect all schedule IDs from all courses (both location and remote)
+	var allScheduleIDs []uuid.UUID
+	for _, curso := range cursos {
+		// Collect location schedule IDs
+		for _, location := range curso.LocationClasses {
+			for _, schedule := range location.Schedules {
+				allScheduleIDs = append(allScheduleIDs, schedule.ID)
+			}
+		}
+
+		// Collect remote schedule IDs
+		if curso.RemoteClass != nil {
+			for _, schedule := range curso.RemoteClass.Schedules {
+				allScheduleIDs = append(allScheduleIDs, schedule.ID)
+			}
+		}
+	}
+
+	// If no schedules at all, nothing to do
+	if len(allScheduleIDs) == 0 {
+		return nil
+	}
+
+	// Get enrollment counts for ALL schedules in a SINGLE query
+	enrollmentCounts, err := h.cursoRepo.CountEnrollmentsByScheduleIDs(c.Request.Context(), allScheduleIDs)
+	if err != nil {
+		return err
+	}
+
+	// Apply counts to each course's schedules
+	for _, curso := range cursos {
+		// Update location schedules
+		for i := range curso.LocationClasses {
+			for j := range curso.LocationClasses[i].Schedules {
+				schedule := &curso.LocationClasses[i].Schedules[j]
+				enrolledCount := enrollmentCounts[schedule.ID]
+				schedule.RemainingVacancies = schedule.Vacancies - int(enrolledCount)
+
+				// Ensure it doesn't go negative
+				if schedule.RemainingVacancies < 0 {
+					schedule.RemainingVacancies = 0
+				}
+			}
+		}
+
+		// Update remote schedules
+		if curso.RemoteClass != nil {
+			for j := range curso.RemoteClass.Schedules {
+				schedule := &curso.RemoteClass.Schedules[j]
+				enrolledCount := enrollmentCounts[schedule.ID]
+				schedule.RemainingVacancies = schedule.Vacancies - int(enrolledCount)
+
+				// Ensure it doesn't go negative
+				if schedule.RemainingVacancies < 0 {
+					schedule.RemainingVacancies = 0
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // @Summary      Criar curso
 // @Description  Cria um novo curso no sistema (status: "opened")
 // @Tags         courses
@@ -390,12 +460,10 @@ func (h *CourseHandler) List(c *gin.Context) {
 		return
 	}
 
-	// Calculate remaining vacancies for all courses
-	for _, curso := range cursos {
-		if err := h.calculateRemainingVacancies(c, curso); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
-			return
-		}
+	// Calculate remaining vacancies for all courses in a single batched query
+	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		return
 	}
 
 	totalPages := (total + limit - 1) / limit
@@ -468,12 +536,10 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		return
 	}
 
-	// Calculate remaining vacancies for all courses
-	for _, curso := range cursos {
-		if err := h.calculateRemainingVacancies(c, curso); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
-			return
-		}
+	// Calculate remaining vacancies for all courses in a single batched query
+	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		return
 	}
 
 	totalPages := (total + limit - 1) / limit
@@ -630,12 +696,10 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 		return
 	}
 
-	// Calculate remaining vacancies for all courses
-	for _, curso := range cursos {
-		if err := h.calculateRemainingVacancies(c, curso); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
-			return
-		}
+	// Calculate remaining vacancies for all courses in a single batched query
+	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		return
 	}
 
 	totalPages := (total + limit - 1) / limit
