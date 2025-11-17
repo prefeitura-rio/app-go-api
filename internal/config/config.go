@@ -99,6 +99,9 @@ type RedisSettings struct {
 	Port     int
 	Password string
 	DB       int
+	// Connection pool settings
+	PoolSize     int // Maximum number of socket connections
+	MinIdleConns int // Minimum number of idle connections
 }
 
 // TracingSettings define configurações de observabilidade/tracing
@@ -304,10 +307,12 @@ func Load() (*AppConfig, error) {
 			BaseURL: getEnv(v, "RMI_BASE_URL", ""),
 		},
 		Redis: RedisSettings{
-			Host:     getEnv(v, "REDIS_HOST", "localhost"),
-			Port:     getInt(v, "REDIS_PORT", 6379),
-			Password: getEnv(v, "REDIS_PASSWORD", ""),
-			DB:       getInt(v, "REDIS_DB", 0),
+			Host:         getEnv(v, "REDIS_HOST", "localhost"),
+			Port:         getInt(v, "REDIS_PORT", 6379),
+			Password:     getEnv(v, "REDIS_PASSWORD", ""),
+			DB:           getInt(v, "REDIS_DB", 0),
+			PoolSize:     getInt(v, "REDIS_POOL_SIZE", 10),
+			MinIdleConns: getInt(v, "REDIS_MIN_IDLE_CONNS", 2),
 		},
 		Tracing: TracingSettings{
 			Enabled:        getBool(v, "TRACING_ENABLED", false),
