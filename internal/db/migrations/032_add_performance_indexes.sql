@@ -1,6 +1,8 @@
 -- +goose Up
+-- +goose NO TRANSACTION
 -- Add performance indexes for high-load optimization
 -- These indexes address full table scans on filtered queries
+-- CONCURRENTLY requires running outside transaction block
 
 -- Course listings (hottest endpoint)
 -- Composite index for status + visibility filtering
