@@ -1,5 +1,29 @@
 basePath: /
 definitions:
+  models.Acessibilidade:
+    properties:
+      cursos:
+        description: Relacionamentos
+        items:
+          $ref: '#/definitions/models.Curso'
+        type: array
+      id:
+        type: integer
+      nome:
+        type: string
+    type: object
+  models.Categoria:
+    properties:
+      cursos:
+        description: Relacionamentos
+        items:
+          $ref: '#/definitions/models.Curso'
+        type: array
+      id:
+        type: integer
+      nome:
+        type: string
+    type: object
   models.CertificateUpdateRequest:
     properties:
       certificate_url:
@@ -655,6 +679,348 @@ info:
   title: API Go
   version: "1.0"
 paths:
+  /api/v1/acessibilidades:
+    get:
+      description: Retorna lista paginada de opções de acessibilidade
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/models.Acessibilidade'
+                type: array
+              meta:
+                properties:
+                  page:
+                    type: integer
+                  page_size:
+                    type: integer
+                  total:
+                    type: integer
+                type: object
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar acessibilidades
+      tags:
+      - acessibilidades
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova opção de acessibilidade
+      parameters:
+      - description: Dados da acessibilidade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Acessibilidade'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Acessibilidade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar acessibilidade
+      tags:
+      - acessibilidades
+  /api/v1/acessibilidades/{id}:
+    delete:
+      description: Remove uma acessibilidade pelo ID
+      parameters:
+      - description: ID da acessibilidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir acessibilidade
+      tags:
+      - acessibilidades
+    get:
+      description: Retorna uma acessibilidade pelo ID
+      parameters:
+      - description: ID da acessibilidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Acessibilidade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Buscar acessibilidade
+      tags:
+      - acessibilidades
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma acessibilidade existente
+      parameters:
+      - description: ID da acessibilidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da acessibilidade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Acessibilidade'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Acessibilidade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar acessibilidade
+      tags:
+      - acessibilidades
+  /api/v1/categorias:
+    get:
+      description: Retorna lista paginada de categorias
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/models.Categoria'
+                type: array
+              meta:
+                properties:
+                  page:
+                    type: integer
+                  page_size:
+                    type: integer
+                  total:
+                    type: integer
+                type: object
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar categorias
+      tags:
+      - categorias
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova categoria de curso
+      parameters:
+      - description: Dados da categoria
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Categoria'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Categoria'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar categoria
+      tags:
+      - categorias
+  /api/v1/categorias/{id}:
+    delete:
+      description: Remove uma categoria pelo ID
+      parameters:
+      - description: ID da categoria
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir categoria
+      tags:
+      - categorias
+    get:
+      description: Retorna uma categoria pelo ID
+      parameters:
+      - description: ID da categoria
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Categoria'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Buscar categoria
+      tags:
+      - categorias
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma categoria existente
+      parameters:
+      - description: ID da categoria
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da categoria
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Categoria'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Categoria'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar categoria
+      tags:
+      - categorias
   /api/v1/courses:
     get:
       description: 'Retorna lista paginada de cursos criados (status: "opened", "closed",
@@ -1510,6 +1876,177 @@ paths:
       summary: Listar inscrições de um usuário específico
       tags:
       - enrollments
+  /api/v1/escolaridades:
+    get:
+      description: Retorna lista paginada de níveis de escolaridade
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/models.Escolaridade'
+                type: array
+              meta:
+                properties:
+                  page:
+                    type: integer
+                  page_size:
+                    type: integer
+                  total:
+                    type: integer
+                type: object
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar escolaridades
+      tags:
+      - escolaridades
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo nível de escolaridade
+      parameters:
+      - description: Dados da escolaridade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Escolaridade'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Escolaridade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar escolaridade
+      tags:
+      - escolaridades
+  /api/v1/escolaridades/{id}:
+    delete:
+      description: Remove uma escolaridade pelo ID
+      parameters:
+      - description: ID da escolaridade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir escolaridade
+      tags:
+      - escolaridades
+    get:
+      description: Retorna uma escolaridade pelo ID
+      parameters:
+      - description: ID da escolaridade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Escolaridade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Buscar escolaridade
+      tags:
+      - escolaridades
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma escolaridade existente
+      parameters:
+      - description: ID da escolaridade
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da escolaridade
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Escolaridade'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Escolaridade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar escolaridade
+      tags:
+      - escolaridades
   /api/v1/jobs/{jobId}/status:
     get:
       description: Retorna o status e progresso de um job em execução ou concluído
