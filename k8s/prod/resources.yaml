@@ -24,6 +24,15 @@ spec:
           image: ghcr.io/prefeitura-rio/app-go-api:stable
           ports:
             - containerPort: 8080
+          env:
+            - name: TRACING_ENABLED
+              value: "true"
+            - name: TRACING_ENDPOINT
+              value: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+            - name: TRACING_SERVICE_NAME
+              value: "go"
+            - name: TRACING_SERVICE_VERSION
+              value: "v1.0.0"
           envFrom:
             - secretRef:
                 name: go-secrets

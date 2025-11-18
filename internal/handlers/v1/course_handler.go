@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -18,6 +20,7 @@ type CourseHandler struct {
 	cursoService     *services.CursoService
 	inscricaoService *services.InscricaoService
 	cursoRepo        *repository.CursoRepository
+	courseCache      *cache.CourseCache
 }
 
 func NewCourseHandler(cursoService *services.CursoService, inscricaoService *services.InscricaoService, cursoRepo *repository.CursoRepository) *CourseHandler {
@@ -25,7 +28,14 @@ func NewCourseHandler(cursoService *services.CursoService, inscricaoService *ser
 		cursoService:     cursoService,
 		inscricaoService: inscricaoService,
 		cursoRepo:        cursoRepo,
+		courseCache:      nil,
 	}
+}
+
+// WithCache adds cache support to the handler
+func (h *CourseHandler) WithCache(cache *cache.CourseCache) *CourseHandler {
+	h.courseCache = cache
+	return h
 }
 
 func transformCursoToResponse(curso *models.Curso) gin.H {
@@ -144,6 +154,76 @@ func (h *CourseHandler) calculateRemainingVacancies(c *gin.Context, curso *model
 	return nil
 }
 
+// calculateRemainingVacanciesForCourses calculates remaining vacancies for multiple courses
+// in a single batched query to eliminate N+1 query problem in list endpoints
+func (h *CourseHandler) calculateRemainingVacanciesForCourses(c *gin.Context, cursos []*models.Curso) error {
+	if len(cursos) == 0 {
+		return nil
+	}
+
+	// Collect all schedule IDs from all courses (both location and remote)
+	var allScheduleIDs []uuid.UUID
+	for _, curso := range cursos {
+		// Collect location schedule IDs
+		for _, location := range curso.LocationClasses {
+			for _, schedule := range location.Schedules {
+				allScheduleIDs = append(allScheduleIDs, schedule.ID)
+			}
+		}
+
+		// Collect remote schedule IDs
+		if curso.RemoteClass != nil {
+			for _, schedule := range curso.RemoteClass.Schedules {
+				allScheduleIDs = append(allScheduleIDs, schedule.ID)
+			}
+		}
+	}
+
+	// If no schedules at all, nothing to do
+	if len(allScheduleIDs) == 0 {
+		return nil
+	}
+
+	// Get enrollment counts for ALL schedules in a SINGLE query
+	enrollmentCounts, err := h.cursoRepo.CountEnrollmentsByScheduleIDs(c.Request.Context(), allScheduleIDs)
+	if err != nil {
+		return err
+	}
+
+	// Apply counts to each course's schedules
+	for _, curso := range cursos {
+		// Update location schedules
+		for i := range curso.LocationClasses {
+			for j := range curso.LocationClasses[i].Schedules {
+				schedule := &curso.LocationClasses[i].Schedules[j]
+				enrolledCount := enrollmentCounts[schedule.ID]
+				schedule.RemainingVacancies = schedule.Vacancies - int(enrolledCount)
+
+				// Ensure it doesn't go negative
+				if schedule.RemainingVacancies < 0 {
+					schedule.RemainingVacancies = 0
+				}
+			}
+		}
+
+		// Update remote schedules
+		if curso.RemoteClass != nil {
+			for j := range curso.RemoteClass.Schedules {
+				schedule := &curso.RemoteClass.Schedules[j]
+				enrolledCount := enrollmentCounts[schedule.ID]
+				schedule.RemainingVacancies = schedule.Vacancies - int(enrolledCount)
+
+				// Ensure it doesn't go negative
+				if schedule.RemainingVacancies < 0 {
+					schedule.RemainingVacancies = 0
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // @Summary      Criar curso
 // @Description  Cria um novo curso no sistema (status: "opened")
 // @Tags         courses
@@ -183,6 +263,12 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	}
 
 	curso.ID = id
+
+	// Invalidate course list cache after create (if caching is enabled)
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -235,6 +321,12 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 	}
 
 	curso.ID = id
+
+	// Invalidate course list cache after create (if caching is enabled)
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -308,6 +400,11 @@ func (h *CourseHandler) Update(c *gin.Context) {
 			"field": dbErr.Field,
 		})
 		return
+	}
+
+	// Invalidate course list cache after update (if caching is enabled)
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
 	}
 
 	var message string
@@ -384,18 +481,30 @@ func (h *CourseHandler) List(c *gin.Context) {
 		}
 	}
 
+	// Try cache first (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		cachedData, err := h.courseCache.GetList(c.Request.Context(), filterHash)
+		if err == nil && cachedData != nil {
+			var cachedResponse gin.H
+			if err := json.Unmarshal(cachedData, &cachedResponse); err == nil {
+				c.JSON(http.StatusOK, cachedResponse)
+				return
+			}
+			// If unmarshal fails, fall through to database query
+		}
+	}
+
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos: " + err.Error()})
 		return
 	}
 
-	// Calculate remaining vacancies for all courses
-	for _, curso := range cursos {
-		if err := h.calculateRemainingVacancies(c, curso); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
-			return
-		}
+	// Calculate remaining vacancies for all courses in a single batched query
+	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		return
 	}
 
 	totalPages := (total + limit - 1) / limit
@@ -405,7 +514,7 @@ func (h *CourseHandler) List(c *gin.Context) {
 		coursesData[i] = transformCursoToResponse(curso)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"success": true,
 		"data": gin.H{
 			"courses": coursesData,
@@ -416,7 +525,15 @@ func (h *CourseHandler) List(c *gin.Context) {
 				"total_pages": totalPages,
 			},
 		},
-	})
+	}
+
+	// Cache the result (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		_ = h.courseCache.SetList(c.Request.Context(), filterHash, response)
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // @Summary      Listar cursos rascunho
@@ -462,18 +579,30 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		}
 	}
 
+	// Try cache first (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		cachedData, err := h.courseCache.GetList(c.Request.Context(), filterHash)
+		if err == nil && cachedData != nil {
+			var cachedResponse gin.H
+			if err := json.Unmarshal(cachedData, &cachedResponse); err == nil {
+				c.JSON(http.StatusOK, cachedResponse)
+				return
+			}
+			// If unmarshal fails, fall through to database query
+		}
+	}
+
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar rascunhos: " + err.Error()})
 		return
 	}
 
-	// Calculate remaining vacancies for all courses
-	for _, curso := range cursos {
-		if err := h.calculateRemainingVacancies(c, curso); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
-			return
-		}
+	// Calculate remaining vacancies for all courses in a single batched query
+	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		return
 	}
 
 	totalPages := (total + limit - 1) / limit
@@ -483,7 +612,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		draftsData[i] = transformCursoToResponse(curso)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"success": true,
 		"data": gin.H{
 			"drafts": draftsData,
@@ -494,7 +623,15 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 				"total_pages": totalPages,
 			},
 		},
-	})
+	}
+
+	// Cache the result (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		_ = h.courseCache.SetList(c.Request.Context(), filterHash, response)
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // @Summary      Buscar curso específico
@@ -570,6 +707,11 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	// Invalidate course list cache after delete (if caching is enabled)
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Curso excluído com sucesso",
@@ -624,18 +766,30 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 		}
 	}
 
+	// Try cache first (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		cachedData, err := h.courseCache.GetList(c.Request.Context(), filterHash)
+		if err == nil && cachedData != nil {
+			var cachedResponse gin.H
+			if err := json.Unmarshal(cachedData, &cachedResponse); err == nil {
+				c.JSON(http.StatusOK, cachedResponse)
+				return
+			}
+			// If unmarshal fails, fall through to database query
+		}
+	}
+
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos do usuário: " + err.Error()})
 		return
 	}
 
-	// Calculate remaining vacancies for all courses
-	for _, curso := range cursos {
-		if err := h.calculateRemainingVacancies(c, curso); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
-			return
-		}
+	// Calculate remaining vacancies for all courses in a single batched query
+	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		return
 	}
 
 	totalPages := (total + limit - 1) / limit
@@ -645,7 +799,7 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 		coursesData[i] = transformCursoToResponse(curso)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"success": true,
 		"data": gin.H{
 			"courses": coursesData,
@@ -656,5 +810,13 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 				"total_pages": totalPages,
 			},
 		},
-	})
+	}
+
+	// Cache the result (if caching is enabled)
+	if h.courseCache != nil {
+		filterHash := cache.HashFilter(filter, page, limit)
+		_ = h.courseCache.SetList(c.Request.Context(), filterHash, response)
+	}
+
+	c.JSON(http.StatusOK, response)
 }

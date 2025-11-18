@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -10,7 +11,9 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/observability"
 	"github.com/prefeitura-rio/app-go-api/internal/router"
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 )
 
 // @title API Go
@@ -43,6 +46,12 @@ func main() {
 		log.Fatalf("Erro ao carregar configurações: %v", err)
 	}
 
+	// Initialize OpenTelemetry tracing
+	if err := observability.InitTracer(cfg); err != nil {
+		log.Fatalf("Erro ao inicializar tracer: %v", err)
+	}
+	defer observability.ShutdownTracer()
+
 	// Conecta ao banco de dados usando GORM
 	dsn := cfg.Database.DSN()
 
@@ -64,6 +73,29 @@ func main() {
 		log.Fatalf("Erro ao conectar ao banco de dados: %v", err)
 	}
 	log.Println("Conexão com o banco de dados estabelecida com sucesso!")
+
+	// Configure connection pool for optimal performance under high load
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("Erro ao obter database/sql DB: %v", err)
+	}
+
+	sqlDB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(time.Duration(cfg.Database.ConnMaxLifetime) * time.Minute)
+	sqlDB.SetConnMaxIdleTime(time.Duration(cfg.Database.ConnMaxIdleTime) * time.Minute)
+
+	log.Printf("Database connection pool configured: MaxOpen=%d, MaxIdle=%d, MaxLifetime=%dm, MaxIdleTime=%dm",
+		cfg.Database.MaxOpenConns, cfg.Database.MaxIdleConns,
+		cfg.Database.ConnMaxLifetime, cfg.Database.ConnMaxIdleTime)
+
+	// Add OpenTelemetry instrumentation to GORM (if tracing is enabled)
+	if cfg.Tracing.Enabled {
+		if err := db.Use(otelgorm.NewPlugin()); err != nil {
+			log.Fatalf("Erro ao adicionar plugin OTEL ao GORM: %v", err)
+		}
+		log.Println("GORM OpenTelemetry instrumentation enabled")
+	}
 
 	// Auto-migração do GORM (opcional)
 	if cfg.Migrations.Run {

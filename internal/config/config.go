@@ -24,6 +24,7 @@ type AppConfig struct {
 	Migrations MigrationSettings
 	RMI        RMISettings
 	Redis      RedisSettings
+	Tracing    TracingSettings
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -44,12 +45,18 @@ type DatabaseSettings struct {
 	Name     string
 	SSLMode  string
 	Timezone string
+	// Connection pool settings
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime int // in minutes
+	ConnMaxIdleTime int // in minutes
 }
 
 // ServerSettings define configurações do servidor HTTP
 type ServerSettings struct {
-	Host string
-	Port int
+	Host           string
+	Port           int
+	RequestTimeout int // in seconds
 }
 
 // JWTSettings define configurações de autenticação
@@ -92,6 +99,17 @@ type RedisSettings struct {
 	Port     int
 	Password string
 	DB       int
+	// Connection pool settings
+	PoolSize     int // Maximum number of socket connections
+	MinIdleConns int // Minimum number of idle connections
+}
+
+// TracingSettings define configurações de observabilidade/tracing
+type TracingSettings struct {
+	Enabled        bool
+	Endpoint       string
+	ServiceName    string
+	ServiceVersion string
 }
 
 // Erros comuns de validação
@@ -256,17 +274,22 @@ func Load() (*AppConfig, error) {
 			APIToken:    getEnv(v, "API_TOKEN", ""),
 		},
 		Database: DatabaseSettings{
-			Host:     getEnv(v, "DB_HOST", "localhost"),
-			Port:     getInt(v, "DB_PORT", 5432),
-			User:     getEnv(v, "DB_USER", "postgres"),
-			Password: getEnv(v, "DB_PASSWORD", "postgres"),
-			Name:     getEnv(v, "DB_NAME", "app_go_api"),
-			SSLMode:  getEnv(v, "DB_SSL_MODE", "disable"),
-			Timezone: getEnv(v, "DB_TIMEZONE", "UTC"),
+			Host:            getEnv(v, "DB_HOST", "localhost"),
+			Port:            getInt(v, "DB_PORT", 5432),
+			User:            getEnv(v, "DB_USER", "postgres"),
+			Password:        getEnv(v, "DB_PASSWORD", "postgres"),
+			Name:            getEnv(v, "DB_NAME", "app_go_api"),
+			SSLMode:         getEnv(v, "DB_SSL_MODE", "disable"),
+			Timezone:        getEnv(v, "DB_TIMEZONE", "UTC"),
+			MaxOpenConns:    getInt(v, "DB_MAX_OPEN_CONNS", 25),
+			MaxIdleConns:    getInt(v, "DB_MAX_IDLE_CONNS", 10),
+			ConnMaxLifetime: getInt(v, "DB_CONN_MAX_LIFETIME", 5),
+			ConnMaxIdleTime: getInt(v, "DB_CONN_MAX_IDLE_TIME", 2),
 		},
 		Server: ServerSettings{
-			Host: getEnv(v, "SERVER_HOST", "0.0.0.0"),
-			Port: getInt(v, "SERVER_PORT", 8080),
+			Host:           getEnv(v, "SERVER_HOST", "0.0.0.0"),
+			Port:           getInt(v, "SERVER_PORT", 8080),
+			RequestTimeout: getInt(v, "SERVER_REQUEST_TIMEOUT", 30),
 		},
 		Swagger: SwaggerSettings{
 			Host: getEnv(v, "SWAGGER_HOST", "localhost:8080"),
@@ -284,10 +307,18 @@ func Load() (*AppConfig, error) {
 			BaseURL: getEnv(v, "RMI_BASE_URL", ""),
 		},
 		Redis: RedisSettings{
-			Host:     getEnv(v, "REDIS_HOST", "localhost"),
-			Port:     getInt(v, "REDIS_PORT", 6379),
-			Password: getEnv(v, "REDIS_PASSWORD", ""),
-			DB:       getInt(v, "REDIS_DB", 0),
+			Host:         getEnv(v, "REDIS_HOST", "localhost"),
+			Port:         getInt(v, "REDIS_PORT", 6379),
+			Password:     getEnv(v, "REDIS_PASSWORD", ""),
+			DB:           getInt(v, "REDIS_DB", 0),
+			PoolSize:     getInt(v, "REDIS_POOL_SIZE", 10),
+			MinIdleConns: getInt(v, "REDIS_MIN_IDLE_CONNS", 2),
+		},
+		Tracing: TracingSettings{
+			Enabled:        getBool(v, "TRACING_ENABLED", false),
+			Endpoint:       getEnv(v, "TRACING_ENDPOINT", "localhost:4317"),
+			ServiceName:    getEnv(v, "TRACING_SERVICE_NAME", "app-go-api"),
+			ServiceVersion: getEnv(v, "TRACING_SERVICE_VERSION", "v1.0.0"),
 		},
 	}
 

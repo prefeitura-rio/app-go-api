@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -106,19 +107,21 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 	var cursos []*models.Curso
 	var total int64
 
-	// Contar total de registros
-	db := r.db.WithContext(ctx).Model(&models.Curso{})
-	db = r.applyFilters(db, filter)
-	db.Count(&total)
+	// Build base query
+	baseQuery := r.db.WithContext(ctx).Model(&models.Curso{})
+	baseQuery = r.applyFilters(baseQuery, filter)
 
-	// Buscar registros com paginação
-	db = r.db.WithContext(ctx).Model(&models.Curso{})
-	db = r.applyFilters(db, filter)
-	result := db.
+	// Count total records (reuse filtered query)
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar cursos: %w", err)
+	}
+
+	// Fetch records with selective preloading
+	// List view only needs basic info + schedules for vacancy calculation
+	// Skip CustomFields, Instituicao details to reduce data transfer
+	result := baseQuery.
 		Preload("Categorias").
 		Preload("Acessibilidades").
-		Preload("Instituicao").
-		Preload("CustomFields").
 		Preload("LocationClasses.Schedules").
 		Preload("RemoteClass.Schedules").
 		Order("id DESC").
@@ -419,4 +422,30 @@ func (r *CursoRepository) CountEnrollmentsByScheduleIDs(ctx context.Context, sch
 	}
 
 	return countMap, nil
+}
+
+// ValidateForEnrollment checks if a course exists and can accept enrollments
+// This is a lightweight query that only fetches the fields needed for validation,
+// avoiding the overhead of loading all relationships
+func (r *CursoRepository) ValidateForEnrollment(ctx context.Context, cursoID int) (status string, enrollmentStart, enrollmentEnd *time.Time, err error) {
+	var result struct {
+		Status              string     `gorm:"column:status"`
+		EnrollmentStartDate *time.Time `gorm:"column:enrollment_start_date"`
+		EnrollmentEndDate   *time.Time `gorm:"column:enrollment_end_date"`
+	}
+
+	err = r.db.WithContext(ctx).
+		Model(&models.Curso{}).
+		Select("status, enrollment_start_date, enrollment_end_date").
+		Where("id = ?", cursoID).
+		First(&result).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", nil, nil, fmt.Errorf("curso não encontrado")
+		}
+		return "", nil, nil, fmt.Errorf("erro ao validar curso: %w", err)
+	}
+
+	return result.Status, result.EnrollmentStartDate, result.EnrollmentEndDate, nil
 }

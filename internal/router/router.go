@@ -5,13 +5,15 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"gorm.io/gorm"
 
-	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
+	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
@@ -26,6 +28,15 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	// Middleware global
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
+
+	// OpenTelemetry middleware (if tracing is enabled)
+	if cfg.Tracing.Enabled {
+		r.Use(otelgin.Middleware(cfg.Tracing.ServiceName))
+	}
+
+	// Request timeout middleware (prevents long-running requests from accumulating)
+	r.Use(middlewares.TimeoutMiddleware(time.Duration(cfg.Server.RequestTimeout) * time.Second))
+
 	r.Use(middlewares.CorsMiddleware())
 
 	// Configuração do Swagger com host dinâmico
@@ -57,18 +68,37 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	oportunidadeMEIRepo := repository.NewOportunidadeMEIRepository(db)
 	propostaMEIRepo := repository.NewPropostaMEIRepository(db)
 
-	// Initialize Redis client
+	// Initialize Redis client with connection pool
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
+		Addr:         fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
+		Password:     cfg.Redis.Password,
+		DB:           cfg.Redis.DB,
+		PoolSize:     cfg.Redis.PoolSize,
+		MinIdleConns: cfg.Redis.MinIdleConns,
 	})
+
+	// Add OpenTelemetry instrumentation to Redis (if tracing is enabled)
+	if cfg.Tracing.Enabled {
+		if err := redisotel.InstrumentTracing(redisClient); err != nil {
+			panic(fmt.Sprintf("Error instrumenting Redis with OTEL: %v", err))
+		}
+	}
 
 	// Initialize RMI client (15s timeout per request)
 	rmiClient := clients.NewRMIClient(cfg.RMI.BaseURL, 15*time.Second)
 
 	// Initialize Redis cache for legal entities (30 min TTL)
 	legalEntitiesCache := cache.NewLegalEntitiesCache(redisClient, 30*time.Minute)
+
+	// Initialize Redis caches for static reference data (1 hour TTL)
+	// These are rarely-changing lookup tables accessed frequently
+	categoriasCache := cache.NewReferenceDataCache(redisClient, 1*time.Hour, "categorias")
+	acessibilidadesCache := cache.NewReferenceDataCache(redisClient, 1*time.Hour, "acessibilidades")
+	escolaridadesCache := cache.NewReferenceDataCache(redisClient, 1*time.Hour, "escolaridades")
+
+	// Initialize course cache (5 minute TTL)
+	// Shorter TTL since courses change more frequently than reference data
+	courseCache := cache.NewCourseCache(redisClient, 5*time.Minute)
 
 	// Initialize CNAE validation service
 	cnaeValidationService := services.NewCNAEValidationService(rmiClient, legalEntitiesCache)
@@ -91,13 +121,13 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 
 	// Inicializando handlers
 	empregoHandler := v1.NewEmpregoHandler(empregoService)
-	acessibilidadeHandler := v1.NewAcessibilidadeHandler(acessibilidadeService)
-	categoriaHandler := v1.NewCategoriaHandler(categoriaService)
+	acessibilidadeHandler := v1.NewAcessibilidadeHandler(acessibilidadeService).WithCache(acessibilidadesCache)
+	categoriaHandler := v1.NewCategoriaHandler(categoriaService).WithCache(categoriasCache)
 	empresaHandler := v1.NewEmpresaHandler(empresaService)
-	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService)
+	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService).WithCache(escolaridadesCache)
 	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
 	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService, jobService)
-	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo)
+	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo).WithCache(courseCache)
 	jobHandler := v1.NewJobHandler(jobService)
 	oportunidadeMEIHandler := v1.NewOportunidadeMEIHandler(oportunidadeMEIService)
 	propostaMEIHandler := v1.NewPropostaMEIHandler(propostaMEIService)
