@@ -53,13 +53,14 @@ func (Inscricao) TableName() string {
 }
 
 type EnrolledUnit struct {
-	ID           string                 `json:"id"`
-	CursoID      int                    `json:"curso_id"`
-	Address      string                 `json:"address"`
-	Neighborhood string                 `json:"neighborhood"`
-	Schedules    []EnrolledUnitSchedule `json:"schedules"`
-	CreatedAt    string                 `json:"created_at"`
-	UpdatedAt    string                 `json:"updated_at"`
+	ID               string                 `json:"id"`
+	CursoID          int                    `json:"curso_id"`
+	Address          string                 `json:"address"`
+	Neighborhood     string                 `json:"neighborhood"`
+	NeighborhoodZone string                 `json:"neighborhood_zone,omitempty"`
+	Schedules        []EnrolledUnitSchedule `json:"schedules"`
+	CreatedAt        string                 `json:"created_at"`
+	UpdatedAt        string                 `json:"updated_at"`
 }
 
 type EnrolledUnitSchedule struct {
@@ -163,12 +164,13 @@ func (RemoteSchedule) TableName() string {
 }
 
 type LocationClass struct {
-	ID           uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	CursoID      int       `json:"curso_id" gorm:"column:curso_id;not null"`
-	Address      string    `json:"address" gorm:"type:varchar(20000);not null"`
-	Neighborhood string    `json:"neighborhood" gorm:"type:varchar(20000);not null"`
-	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID               uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	CursoID          int       `json:"curso_id" gorm:"column:curso_id;not null"`
+	Address          string    `json:"address" gorm:"type:varchar(20000);not null"`
+	Neighborhood     string    `json:"neighborhood" gorm:"type:varchar(20000);not null"`
+	NeighborhoodZone string    `json:"neighborhood_zone,omitempty" gorm:"type:varchar(20000);column:neighborhood_zone"`
+	CreatedAt        time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt        time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos
 	Curso     *Curso           `json:"curso,omitempty" gorm:"foreignKey:CursoID"`

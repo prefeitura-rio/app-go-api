@@ -216,6 +216,8 @@ definitions:
         type: string
       neighborhood:
         type: string
+      neighborhood_zone:
+        type: string
       schedules:
         items:
           $ref: '#/definitions/models.EnrolledUnitSchedule'
@@ -1042,13 +1044,25 @@ paths:
         in: query
         name: modalidade
         type: string
-      - description: Filtrar por organização
+      - description: Filtrar por organização (provedor do curso)
         in: query
         name: organization
         type: string
       - description: Buscar no título
         in: query
         name: search
+        type: string
+      - description: Filtrar por categoria
+        in: query
+        name: categoria_id
+        type: integer
+      - description: Filtrar por acessibilidade
+        in: query
+        name: acessibilidade_id
+        type: integer
+      - description: Filtrar por zona do bairro
+        in: query
+        name: neighborhood_zone
         type: string
       produces:
       - application/json
@@ -1640,13 +1654,29 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Filtrar por organização
+      - description: Filtrar por organização (provedor do curso)
         in: query
         name: organization
         type: string
       - description: Buscar no título
         in: query
         name: search
+        type: string
+      - description: Filtrar por modalidade
+        in: query
+        name: modalidade
+        type: string
+      - description: Filtrar por categoria
+        in: query
+        name: categoria_id
+        type: integer
+      - description: Filtrar por acessibilidade
+        in: query
+        name: acessibilidade_id
+        type: integer
+      - description: Filtrar por zona do bairro
+        in: query
+        name: neighborhood_zone
         type: string
       produces:
       - application/json
@@ -2729,6 +2759,18 @@ paths:
       - description: Filtrar por modalidade
         in: query
         name: modalidade
+        type: string
+      - description: Filtrar por categoria
+        in: query
+        name: categoria_id
+        type: integer
+      - description: Filtrar por acessibilidade
+        in: query
+        name: acessibilidade_id
+        type: integer
+      - description: Filtrar por zona do bairro
+        in: query
+        name: neighborhood_zone
         type: string
       produces:
       - application/json

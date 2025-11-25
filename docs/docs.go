@@ -581,7 +581,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filtrar por organização",
+                        "description": "Filtrar por organização (provedor do curso)",
                         "name": "organization",
                         "in": "query"
                     },
@@ -589,6 +589,24 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Buscar no título",
                         "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por categoria",
+                        "name": "categoria_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por acessibilidade",
+                        "name": "acessibilidade_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por zona do bairro",
+                        "name": "neighborhood_zone",
                         "in": "query"
                     }
                 ],
@@ -723,7 +741,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filtrar por organização",
+                        "description": "Filtrar por organização (provedor do curso)",
                         "name": "organization",
                         "in": "query"
                     },
@@ -731,6 +749,30 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Buscar no título",
                         "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por modalidade",
+                        "name": "modalidade",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por categoria",
+                        "name": "categoria_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por acessibilidade",
+                        "name": "acessibilidade_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por zona do bairro",
+                        "name": "neighborhood_zone",
                         "in": "query"
                     }
                 ],
@@ -3110,6 +3152,24 @@ const docTemplate = `{
                         "description": "Filtrar por modalidade",
                         "name": "modalidade",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por categoria",
+                        "name": "categoria_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por acessibilidade",
+                        "name": "acessibilidade_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por zona do bairro",
+                        "name": "neighborhood_zone",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -3455,6 +3515,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "neighborhood": {
+                    "type": "string"
+                },
+                "neighborhood_zone": {
                     "type": "string"
                 },
                 "schedules": {
