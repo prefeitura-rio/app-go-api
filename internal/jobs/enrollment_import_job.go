@@ -479,9 +479,6 @@ func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int,
 	if row.CPF == "" {
 		return nil, fmt.Errorf("CPF é obrigatório")
 	}
-	if row.Email == "" {
-		return nil, fmt.Errorf("email é obrigatório")
-	}
 
 	// Clean CPF (remove dots, dashes)
 	cpf := strings.ReplaceAll(row.CPF, ".", "")
@@ -721,9 +718,6 @@ func (p *EnrollmentImportProcessor) parseCSV(filePath string, fieldMappings map[
 	if !hasRequiredField([]string{"cpf"}) {
 		return nil, fmt.Errorf("cabeçalho deve conter coluna 'cpf'")
 	}
-	if !hasRequiredField([]string{"email"}) {
-		return nil, fmt.Errorf("cabeçalho deve conter coluna 'email'")
-	}
 
 	var rows []EnrollmentRow
 
@@ -829,9 +823,6 @@ func (p *EnrollmentImportProcessor) parseXLSX(filePath string, fieldMappings map
 	}
 	if !hasRequiredField([]string{"cpf"}) {
 		return nil, fmt.Errorf("cabeçalho deve conter coluna 'cpf'")
-	}
-	if !hasRequiredField([]string{"email"}) {
-		return nil, fmt.Errorf("cabeçalho deve conter coluna 'email'")
 	}
 
 	var rows []EnrollmentRow

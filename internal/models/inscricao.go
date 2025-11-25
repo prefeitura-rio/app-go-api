@@ -25,7 +25,7 @@ type Inscricao struct {
 	CursoID int       `json:"course_id" gorm:"column:curso_id;not null"`
 	CPF     string    `json:"cpf" gorm:"type:varchar(11);not null"`
 	Name    string    `json:"name" gorm:"type:varchar(20000);not null"`
-	Email   string    `json:"email" gorm:"type:varchar(20000);not null"`
+	Email   string    `json:"email" gorm:"type:varchar(20000)"`
 	Phone   string    `json:"phone" gorm:"type:varchar(20)"`
 
 	// Additional enrollment fields for manual/bulk import
