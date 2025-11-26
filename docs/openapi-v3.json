@@ -713,7 +713,7 @@
             }
           },
           {
-            "description": "Filtrar por organização",
+            "description": "Filtrar por organização (provedor do curso)",
             "name": "organization",
             "in": "query",
             "schema": {
@@ -723,6 +723,30 @@
           {
             "description": "Buscar no título",
             "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por categoria",
+            "name": "categoria_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por acessibilidade",
+            "name": "acessibilidade_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por zona do bairro",
+            "name": "neighborhood_zone",
             "in": "query",
             "schema": {
               "type": "string"
@@ -879,7 +903,7 @@
             }
           },
           {
-            "description": "Filtrar por organização",
+            "description": "Filtrar por organização (provedor do curso)",
             "name": "organization",
             "in": "query",
             "schema": {
@@ -889,6 +913,38 @@
           {
             "description": "Buscar no título",
             "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por modalidade",
+            "name": "modalidade",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por categoria",
+            "name": "categoria_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por acessibilidade",
+            "name": "acessibilidade_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por zona do bairro",
+            "name": "neighborhood_zone",
             "in": "query",
             "schema": {
               "type": "string"
@@ -4023,6 +4079,30 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Filtrar por categoria",
+            "name": "categoria_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por acessibilidade",
+            "name": "acessibilidade_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por zona do bairro",
+            "name": "neighborhood_zone",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -4487,6 +4567,9 @@
             "type": "string"
           },
           "neighborhood": {
+            "type": "string"
+          },
+          "neighborhood_zone": {
             "type": "string"
           },
           "schedules": {

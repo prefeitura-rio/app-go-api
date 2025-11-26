@@ -431,14 +431,17 @@ func (h *CourseHandler) Update(c *gin.Context) {
 // @Description  Retorna lista paginada de cursos criados (status: "opened", "closed", "canceled")
 // @Tags         courses
 // @Produce      json
-// @Param        page         query     int     false  "Número da página (default: 1)"
-// @Param        limit        query     int     false  "Tamanho da página (default: 10)"
-// @Param        status       query     string  false  "Filtrar por status"
-// @Param        modalidade   query     string  false  "Filtrar por modalidade"
-// @Param        organization query     string  false  "Filtrar por organização"
-// @Param        search       query     string  false  "Buscar no título"
-// @Success      200          {object}  object
-// @Failure      500          {object}  models.ErrorResponse
+// @Param        page              query     int     false  "Número da página (default: 1)"
+// @Param        limit             query     int     false  "Tamanho da página (default: 10)"
+// @Param        status            query     string  false  "Filtrar por status"
+// @Param        modalidade        query     string  false  "Filtrar por modalidade"
+// @Param        organization      query     string  false  "Filtrar por organização (provedor do curso)"
+// @Param        search            query     string  false  "Buscar no título"
+// @Param        categoria_id      query     int     false  "Filtrar por categoria"
+// @Param        acessibilidade_id query     int     false  "Filtrar por acessibilidade"
+// @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
+// @Success      200               {object}  object
+// @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/v1/courses [get]
 func (h *CourseHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -475,10 +478,19 @@ func (h *CourseHandler) List(c *gin.Context) {
 	}
 
 	if categoriaID := c.Query("categoria_id"); categoriaID != "" {
-		// Convert to int and add to filter
 		if catID, err := strconv.Atoi(categoriaID); err == nil {
 			filter["categoria_id"] = catID
 		}
+	}
+
+	if acessibilidadeID := c.Query("acessibilidade_id"); acessibilidadeID != "" {
+		if accID, err := strconv.Atoi(acessibilidadeID); err == nil {
+			filter["acessibilidade_id"] = accID
+		}
+	}
+
+	if neighborhoodZone := c.Query("neighborhood_zone"); neighborhoodZone != "" {
+		filter["neighborhood_zone"] = neighborhoodZone
 	}
 
 	// Try cache first (if caching is enabled)
@@ -540,12 +552,16 @@ func (h *CourseHandler) List(c *gin.Context) {
 // @Description  Retorna lista paginada de cursos salvos como rascunho (status: "draft")
 // @Tags         courses
 // @Produce      json
-// @Param        page         query     int     false  "Número da página (default: 1)"
-// @Param        limit        query     int     false  "Tamanho da página (default: 10)"
-// @Param        organization query     string  false  "Filtrar por organização"
-// @Param        search       query     string  false  "Buscar no título"
-// @Success      200          {object}  object
-// @Failure      500          {object}  models.ErrorResponse
+// @Param        page              query     int     false  "Número da página (default: 1)"
+// @Param        limit             query     int     false  "Tamanho da página (default: 10)"
+// @Param        organization      query     string  false  "Filtrar por organização (provedor do curso)"
+// @Param        search            query     string  false  "Buscar no título"
+// @Param        modalidade        query     string  false  "Filtrar por modalidade"
+// @Param        categoria_id      query     int     false  "Filtrar por categoria"
+// @Param        acessibilidade_id query     int     false  "Filtrar por acessibilidade"
+// @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
+// @Success      200               {object}  object
+// @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/v1/courses/drafts [get]
 func (h *CourseHandler) ListDrafts(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -572,11 +588,24 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		filter["title ILIKE"] = "%" + search + "%"
 	}
 
+	if modalidade := c.Query("modalidade"); modalidade != "" {
+		filter["modalidade"] = modalidade
+	}
+
 	if categoriaID := c.Query("categoria_id"); categoriaID != "" {
-		// Convert to int and add to filter
 		if catID, err := strconv.Atoi(categoriaID); err == nil {
 			filter["categoria_id"] = catID
 		}
+	}
+
+	if acessibilidadeID := c.Query("acessibilidade_id"); acessibilidadeID != "" {
+		if accID, err := strconv.Atoi(acessibilidadeID); err == nil {
+			filter["acessibilidade_id"] = accID
+		}
+	}
+
+	if neighborhoodZone := c.Query("neighborhood_zone"); neighborhoodZone != "" {
+		filter["neighborhood_zone"] = neighborhoodZone
 	}
 
 	// Try cache first (if caching is enabled)
@@ -722,14 +751,17 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 // @Description  Retorna lista paginada de cursos criados por um usuário/organização
 // @Tags         courses
 // @Produce      json
-// @Param        userId       path      string  true   "ID do usuário/orgão (external reference)"
-// @Param        page         query     int     false  "Número da página (default: 1)"
-// @Param        limit        query     int     false  "Tamanho da página (default: 10)"
-// @Param        status       query     string  false  "Filtrar por status"
-// @Param        modalidade   query     string  false  "Filtrar por modalidade"
-// @Success      200          {object}  object
-// @Failure      400          {object}  models.ErrorResponse
-// @Failure      500          {object}  models.ErrorResponse
+// @Param        userId            path      string  true   "ID do usuário/orgão (external reference)"
+// @Param        page              query     int     false  "Número da página (default: 1)"
+// @Param        limit             query     int     false  "Tamanho da página (default: 10)"
+// @Param        status            query     string  false  "Filtrar por status"
+// @Param        modalidade        query     string  false  "Filtrar por modalidade"
+// @Param        categoria_id      query     int     false  "Filtrar por categoria"
+// @Param        acessibilidade_id query     int     false  "Filtrar por acessibilidade"
+// @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
+// @Success      200               {object}  object
+// @Failure      400               {object}  models.ErrorResponse
+// @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/v1/users/{userId}/courses [get]
 func (h *CourseHandler) ListByUser(c *gin.Context) {
 	userID := c.Param("userId")
@@ -760,10 +792,19 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 	}
 
 	if categoriaID := c.Query("categoria_id"); categoriaID != "" {
-		// Convert to int and add to filter
 		if catID, err := strconv.Atoi(categoriaID); err == nil {
 			filter["categoria_id"] = catID
 		}
+	}
+
+	if acessibilidadeID := c.Query("acessibilidade_id"); acessibilidadeID != "" {
+		if accID, err := strconv.Atoi(acessibilidadeID); err == nil {
+			filter["acessibilidade_id"] = accID
+		}
+	}
+
+	if neighborhoodZone := c.Query("neighborhood_zone"); neighborhoodZone != "" {
+		filter["neighborhood_zone"] = neighborhoodZone
 	}
 
 	// Try cache first (if caching is enabled)

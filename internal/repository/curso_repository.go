@@ -144,8 +144,11 @@ func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{
 		case "title ILIKE":
 			db = db.Where("titulo ILIKE ?", value)
 		case "categoria_id":
-			// Filter by category - use subquery to avoid duplicates
 			db = db.Where("cursos.id IN (SELECT curso_id FROM cursos_categorias WHERE categoria_id = ?)", value)
+		case "acessibilidade_id":
+			db = db.Where("cursos.id IN (SELECT curso_id FROM cursos_acessibilidades WHERE acessibilidade_id = ?)", value)
+		case "neighborhood_zone":
+			db = db.Where("cursos.id IN (SELECT curso_id FROM location_classes WHERE neighborhood_zone = ?)", value)
 		default:
 			db = db.Where(key+" = ?", value)
 		}
@@ -337,9 +340,9 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 		curso.LocationClasses[i].CursoID = curso.ID
 
 		if curso.LocationClasses[i].ID.String() != "00000000-0000-0000-0000-000000000000" {
-			// Update existing location (only address and neighborhood)
+			// Update existing location
 			tx.WithContext(ctx).Model(&curso.LocationClasses[i]).
-				Select("address", "neighborhood", "updated_at").
+				Select("address", "neighborhood", "neighborhood_zone", "updated_at").
 				Updates(&curso.LocationClasses[i])
 
 			// Delete all existing schedules for this location
