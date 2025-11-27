@@ -287,23 +287,50 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 			curso.RemoteClass.ID = existingRemote.ID
 			tx.WithContext(ctx).Model(&existingRemote).Updates(curso.RemoteClass)
 
-			// Delete all existing schedules for this remote class
-			tx.WithContext(ctx).Where("remote_class_id = ?", curso.RemoteClass.ID).Delete(&models.RemoteSchedule{})
+			// Build map of schedule IDs to keep
+			scheduleIDsToKeep := make(map[string]bool)
+			for _, schedule := range curso.RemoteClass.Schedules {
+				if schedule.ID.String() != "00000000-0000-0000-0000-000000000000" {
+					scheduleIDsToKeep[schedule.ID.String()] = true
+				}
+			}
+
+			// Delete only schedules that are not in the update list
+			var existingSchedules []models.RemoteSchedule
+			tx.WithContext(ctx).Where("remote_class_id = ?", curso.RemoteClass.ID).Find(&existingSchedules)
+			for _, existing := range existingSchedules {
+				if !scheduleIDsToKeep[existing.ID.String()] {
+					tx.WithContext(ctx).Delete(&existing)
+				}
+			}
 		} else {
 			// Create new remote class
 			tx.WithContext(ctx).Omit("Schedules").Create(curso.RemoteClass)
 		}
 
-		// Create schedules for this remote class
+		// Update or create schedules for this remote class
 		if len(curso.RemoteClass.Schedules) > 0 {
+			var schedulesToCreate []models.RemoteSchedule
+
 			for j := range curso.RemoteClass.Schedules {
 				curso.RemoteClass.Schedules[j].RemoteClassID = curso.RemoteClass.ID
-				// Reset ID to ensure new schedule is created
-				curso.RemoteClass.Schedules[j].ID = uuid.UUID{}
+
+				if curso.RemoteClass.Schedules[j].ID.String() != "00000000-0000-0000-0000-000000000000" {
+					// Update existing schedule
+					tx.WithContext(ctx).Model(&curso.RemoteClass.Schedules[j]).
+						Select("vacancies", "class_start_date", "class_end_date", "class_time", "class_days", "updated_at").
+						Updates(&curso.RemoteClass.Schedules[j])
+				} else {
+					// Queue for batch creation
+					schedulesToCreate = append(schedulesToCreate, curso.RemoteClass.Schedules[j])
+				}
 			}
 
-			if err := tx.WithContext(ctx).Create(&curso.RemoteClass.Schedules).Error; err != nil {
-				return fmt.Errorf("erro ao criar remote schedules: %w", err)
+			// Batch create new schedules
+			if len(schedulesToCreate) > 0 {
+				if err := tx.WithContext(ctx).Create(&schedulesToCreate).Error; err != nil {
+					return fmt.Errorf("erro ao criar remote schedules: %w", err)
+				}
 			}
 		}
 	} else {
@@ -320,17 +347,17 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 	var existingLocations []models.LocationClass
 	tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingLocations)
 
-	// Build map of IDs to keep
-	idsToKeep := make(map[string]bool)
+	// Build map of location IDs to keep
+	locationIDsToKeep := make(map[string]bool)
 	for _, location := range curso.LocationClasses {
 		if location.ID.String() != "00000000-0000-0000-0000-000000000000" {
-			idsToKeep[location.ID.String()] = true
+			locationIDsToKeep[location.ID.String()] = true
 		}
 	}
 
 	// Delete locations that are not in the update list (CASCADE will delete schedules)
 	for _, existing := range existingLocations {
-		if !idsToKeep[existing.ID.String()] {
+		if !locationIDsToKeep[existing.ID.String()] {
 			tx.WithContext(ctx).Delete(&existing)
 		}
 	}
@@ -338,30 +365,58 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 	// Update or create locations and their schedules
 	for i := range curso.LocationClasses {
 		curso.LocationClasses[i].CursoID = curso.ID
+		locationID := curso.LocationClasses[i].ID
 
-		if curso.LocationClasses[i].ID.String() != "00000000-0000-0000-0000-000000000000" {
+		if locationID.String() != "00000000-0000-0000-0000-000000000000" {
 			// Update existing location
 			tx.WithContext(ctx).Model(&curso.LocationClasses[i]).
 				Select("address", "neighborhood", "neighborhood_zone", "updated_at").
 				Updates(&curso.LocationClasses[i])
 
-			// Delete all existing schedules for this location
-			tx.WithContext(ctx).Where("location_id = ?", curso.LocationClasses[i].ID).Delete(&models.CourseSchedule{})
+			// Build map of schedule IDs to keep for this location
+			scheduleIDsToKeep := make(map[string]bool)
+			for _, schedule := range curso.LocationClasses[i].Schedules {
+				if schedule.ID.String() != "00000000-0000-0000-0000-000000000000" {
+					scheduleIDsToKeep[schedule.ID.String()] = true
+				}
+			}
+
+			// Delete only schedules that are not in the update list
+			var existingSchedules []models.CourseSchedule
+			tx.WithContext(ctx).Where("location_id = ?", locationID).Find(&existingSchedules)
+			for _, existing := range existingSchedules {
+				if !scheduleIDsToKeep[existing.ID.String()] {
+					tx.WithContext(ctx).Delete(&existing)
+				}
+			}
 		} else {
 			// Create new location
 			tx.WithContext(ctx).Omit("Schedules").Create(&curso.LocationClasses[i])
 		}
 
-		// Create schedules for this location
+		// Update or create schedules for this location
 		if len(curso.LocationClasses[i].Schedules) > 0 {
+			var schedulesToCreate []models.CourseSchedule
+
 			for j := range curso.LocationClasses[i].Schedules {
 				curso.LocationClasses[i].Schedules[j].LocationID = curso.LocationClasses[i].ID
-				// Reset ID to ensure new schedule is created
-				curso.LocationClasses[i].Schedules[j].ID = uuid.UUID{}
+
+				if curso.LocationClasses[i].Schedules[j].ID.String() != "00000000-0000-0000-0000-000000000000" {
+					// Update existing schedule
+					tx.WithContext(ctx).Model(&curso.LocationClasses[i].Schedules[j]).
+						Select("vacancies", "class_start_date", "class_end_date", "class_time", "class_days", "updated_at").
+						Updates(&curso.LocationClasses[i].Schedules[j])
+				} else {
+					// Queue for batch creation
+					schedulesToCreate = append(schedulesToCreate, curso.LocationClasses[i].Schedules[j])
+				}
 			}
 
-			if err := tx.WithContext(ctx).Create(&curso.LocationClasses[i].Schedules).Error; err != nil {
-				return fmt.Errorf("erro ao criar schedules: %w", err)
+			// Batch create new schedules
+			if len(schedulesToCreate) > 0 {
+				if err := tx.WithContext(ctx).Create(&schedulesToCreate).Error; err != nil {
+					return fmt.Errorf("erro ao criar schedules: %w", err)
+				}
 			}
 		}
 	}
