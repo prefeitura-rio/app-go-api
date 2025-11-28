@@ -1,18 +1,25 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/observability"
+	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/router"
+	"github.com/prefeitura-rio/app-go-api/internal/workers"
 	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 )
 
@@ -150,11 +157,70 @@ func main() {
 	// Configura o router
 	r := router.SetupRouter(db, cfg)
 
-	// Inicia o servidor
+	// Initialize orgao sync worker if enabled
+	var workerCtx context.Context
+	var workerCancel context.CancelFunc
+
+	if cfg.OrgaoSync.Enabled {
+		log.Println("Initializing orgao sync worker...")
+
+		// Create RMI client for worker
+		rmiClient := clients.NewRMIClient(cfg.RMI.BaseURL, 30*time.Second)
+
+		// Create repositories
+		orgaoSnapshotRepo := repository.NewOrgaoSnapshotRepository(db)
+		cursoRepo := repository.NewCursoRepository(db)
+		empregoRepo := repository.NewEmpregoRepository(db)
+		oportunidadeMEIRepo := repository.NewOportunidadeMEIRepository(db)
+
+		// Create worker
+		worker := workers.NewOrgaoSyncWorker(
+			db,
+			rmiClient,
+			orgaoSnapshotRepo,
+			cursoRepo,
+			empregoRepo,
+			oportunidadeMEIRepo,
+			&cfg.OrgaoSync,
+		)
+
+		// Start worker in background
+		workerCtx, workerCancel = context.WithCancel(context.Background())
+		go func() {
+			if err := worker.Start(workerCtx); err != nil && err != context.Canceled {
+				log.Printf("Orgao sync worker error: %v", err)
+			}
+		}()
+
+		log.Printf("Orgao sync worker started (interval: %v, stale threshold: %v)",
+			cfg.OrgaoSync.SyncInterval, cfg.OrgaoSync.StaleThreshold)
+	} else {
+		log.Println("Orgao sync worker disabled")
+	}
+
+	// Setup graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start server in goroutine
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("Servidor iniciado em %s", addr)
 
-	if err := r.Run(addr); err != nil {
-		log.Fatalf("Erro ao iniciar o servidor: %v", err)
+	go func() {
+		if err := r.Run(addr); err != nil {
+			log.Fatalf("Erro ao iniciar o servidor: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	<-quit
+	log.Println("Shutting down server...")
+
+	// Cancel worker context if worker is running
+	if workerCancel != nil {
+		log.Println("Stopping orgao sync worker...")
+		workerCancel()
 	}
+
+	log.Println("Server shutdown complete")
 }
