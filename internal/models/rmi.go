@@ -2,11 +2,11 @@ package models
 
 // LegalEntity represents a legal entity (CNPJ) from the RMI API
 type LegalEntity struct {
-	CNPJ             string   `json:"cnpj"`
-	CNAEFiscal       string   `json:"cnae_fiscal"`
-	CNAESecundarias  []string `json:"cnae_secundarias"`
-	RazaoSocial      string   `json:"razao_social"`
-	NomeFantasia     string   `json:"nome_fantasia"`
+	CNPJ              string   `json:"cnpj"`
+	CNAEFiscal        string   `json:"cnae_fiscal"`
+	CNAESecundarias   []string `json:"cnae_secundarias"`
+	RazaoSocial       string   `json:"razao_social"`
+	NomeFantasia      string   `json:"nome_fantasia"`
 	SituacaoCadastral struct {
 		ID        string `json:"id"`
 		Descricao string `json:"descricao"`
@@ -44,4 +44,18 @@ func (l *LegalEntity) GetAllCNAEs() []string {
 	}
 
 	return cnaes
+}
+
+// Orgao represents an orgao (department/government entity) from the RMI API
+// Response from GET /v1/departments/{orgao_id}
+type Orgao struct {
+	ID            string `json:"id"`
+	CdUA          string `json:"cd_ua"`
+	SiglaUA       string `json:"sigla_ua"` // Short name/acronym
+	NomeUA        string `json:"nome_ua"`  // Full name
+	CdUAPai       string `json:"cd_ua_pai"`
+	Nivel         int    `json:"nivel"`
+	OrdemUABasica string `json:"ordem_ua_basica"`
+	OrdemAbsoluta string `json:"ordem_absoluta"`
+	OrdemRelativa string `json:"ordem_relativa"`
 }

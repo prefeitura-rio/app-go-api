@@ -3251,6 +3251,19 @@ const docTemplate = `{
                 }
             }
         },
+        "models.CourseManagementType": {
+            "type": "string",
+            "enum": [
+                "OWN_ORG",
+                "EXTERNAL_MANAGED_BY_ORG",
+                "EXTERNAL_MANAGED_BY_PARTNER"
+            ],
+            "x-enum-varnames": [
+                "CourseManagementOwnOrg",
+                "CourseManagementExternalManagedByOrg",
+                "CourseManagementExternalManagedByPartner"
+            ]
+        },
         "models.Curso": {
             "type": "object",
             "properties": {
@@ -3266,6 +3279,9 @@ const docTemplate = `{
                 },
                 "contato_duvidas": {
                     "type": "string"
+                },
+                "course_management_type": {
+                    "$ref": "#/definitions/models.CourseManagementType"
                 },
                 "cover_image": {
                     "type": "string"
@@ -3307,6 +3323,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "facilitator": {
+                    "type": "string"
+                },
+                "formacao_link": {
                     "type": "string"
                 },
                 "formato_aula": {
@@ -3872,7 +3891,8 @@ const docTemplate = `{
                 "Remoto",
                 "PRESENCIAL",
                 "ONLINE",
-                "HIBRIDO"
+                "HIBRIDO",
+                "LIVRE_FORMACAO_ONLINE"
             ],
             "x-enum-varnames": [
                 "ModalidadePresencial",
@@ -3880,7 +3900,8 @@ const docTemplate = `{
                 "ModalidadeRemoto",
                 "ModalidadePresencialLegacy",
                 "ModalidadeOnline",
-                "ModalidadeHibrido"
+                "ModalidadeHibrido",
+                "ModalidadeLivreFormacaoOnline"
             ]
         },
         "models.MultiCollectionSearchParameters": {

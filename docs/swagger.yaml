@@ -36,6 +36,16 @@ definitions:
       message:
         type: string
     type: object
+  models.CourseManagementType:
+    enum:
+    - OWN_ORG
+    - EXTERNAL_MANAGED_BY_ORG
+    - EXTERNAL_MANAGED_BY_PARTNER
+    type: string
+    x-enum-varnames:
+    - CourseManagementOwnOrg
+    - CourseManagementExternalManagedByOrg
+    - CourseManagementExternalManagedByPartner
   models.Curso:
     properties:
       accessibility:
@@ -47,6 +57,8 @@ definitions:
         type: boolean
       contato_duvidas:
         type: string
+      course_management_type:
+        $ref: '#/definitions/models.CourseManagementType'
       cover_image:
         type: string
       created_at:
@@ -74,6 +86,8 @@ definitions:
       external_partner_url:
         type: string
       facilitator:
+        type: string
+      formacao_link:
         type: string
       formato_aula:
         $ref: '#/definitions/models.FormatoAula'
@@ -462,6 +476,7 @@ definitions:
     - PRESENCIAL
     - ONLINE
     - HIBRIDO
+    - LIVRE_FORMACAO_ONLINE
     type: string
     x-enum-varnames:
     - ModalidadePresencial
@@ -470,6 +485,7 @@ definitions:
     - ModalidadePresencialLegacy
     - ModalidadeOnline
     - ModalidadeHibrido
+    - ModalidadeLivreFormacaoOnline
   models.MultiCollectionSearchParameters:
     properties:
       collections:

@@ -104,3 +104,45 @@ func (c *RMIClient) fetchPage(ctx context.Context, authToken string, cpf string,
 
 	return response.Data, response.Pagination, nil
 }
+
+// GetOrgao fetches orgao (department) details from RMI API
+// Endpoint: GET /v1/departments/{orgao_id}
+// No authentication required for this endpoint
+func (c *RMIClient) GetOrgao(ctx context.Context, orgaoID string) (*models.Orgao, error) {
+	if c.baseURL == "" {
+		return nil, fmt.Errorf("RMI base URL not configured")
+	}
+
+	url := fmt.Sprintf("%s/v1/departments/%s", c.baseURL, orgaoID)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Error closing RMI response body: %v\n", err)
+		}
+	}()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response - note: API returns the object directly, not wrapped in "data"
+	var orgao models.Orgao
+	if err := json.NewDecoder(resp.Body).Decode(&orgao); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &orgao, nil
+}

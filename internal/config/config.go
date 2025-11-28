@@ -25,6 +25,7 @@ type AppConfig struct {
 	RMI        RMISettings
 	Redis      RedisSettings
 	Tracing    TracingSettings
+	OrgaoSync  OrgaoSyncSettings
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -110,6 +111,15 @@ type TracingSettings struct {
 	Endpoint       string
 	ServiceName    string
 	ServiceVersion string
+}
+
+// OrgaoSyncSettings define configurações do worker de sincronização de órgãos
+type OrgaoSyncSettings struct {
+	Enabled        bool
+	SyncInterval   time.Duration // How often to run sync cycle
+	StaleThreshold time.Duration // Consider snapshot stale after this duration
+	BatchSize      int           // Number of orgaos to sync per batch
+	MaxRetries     int           // Maximum retries for failed syncs
 }
 
 // Erros comuns de validação
@@ -320,6 +330,13 @@ func Load() (*AppConfig, error) {
 			ServiceName:    getEnv(v, "TRACING_SERVICE_NAME", "app-go-api"),
 			ServiceVersion: getEnv(v, "TRACING_SERVICE_VERSION", "v1.0.0"),
 		},
+		OrgaoSync: OrgaoSyncSettings{
+			Enabled:        getBool(v, "ORGAO_SYNC_ENABLED", true),
+			SyncInterval:   getDuration(v, "ORGAO_SYNC_INTERVAL", 15*time.Minute),
+			StaleThreshold: getDuration(v, "ORGAO_SYNC_STALE_THRESHOLD", 7*24*time.Hour), // 1 week
+			BatchSize:      getInt(v, "ORGAO_SYNC_BATCH_SIZE", 50),
+			MaxRetries:     getInt(v, "ORGAO_SYNC_MAX_RETRIES", 3),
+		},
 	}
 
 	// Validar configurações
@@ -388,6 +405,19 @@ func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 	// Fallback para os.Getenv diretamente
 	if value := os.Getenv(key); value != "" {
 		return strings.ToLower(value) == "true"
+	}
+	return defaultValue
+}
+
+func getDuration(v *viper.Viper, key string, defaultValue time.Duration) time.Duration {
+	if v.IsSet(key) {
+		return v.GetDuration(key)
+	}
+	// Fallback para os.Getenv diretamente
+	if value := os.Getenv(key); value != "" {
+		if d, err := time.ParseDuration(value); err == nil {
+			return d
+		}
 	}
 	return defaultValue
 }
