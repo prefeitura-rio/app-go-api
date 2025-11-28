@@ -135,7 +135,8 @@ func InitializeJobProcessor(
 	cursoRepo *repository.CursoRepository,
 ) {
 	jobService := services.NewJobService(jobRepo)
-	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
+	// Job processor doesn't need email notifications (bulk imports handle their own flow)
+	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, nil)
 	cursoService := services.NewCursoService(cursoRepo)
 
 	GlobalJobProcessor = NewJobProcessor(db, jobService, inscricaoService, cursoService)

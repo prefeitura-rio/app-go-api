@@ -12,14 +12,16 @@ import (
 )
 
 type InscricaoService struct {
-	repo      *repository.InscricaoRepository
-	cursoRepo *repository.CursoRepository
+	repo                     *repository.InscricaoRepository
+	cursoRepo                *repository.CursoRepository
+	emailNotificationService *EmailNotificationService
 }
 
-func NewInscricaoService(repo *repository.InscricaoRepository, cursoRepo *repository.CursoRepository) *InscricaoService {
+func NewInscricaoService(repo *repository.InscricaoRepository, cursoRepo *repository.CursoRepository, emailNotificationService *EmailNotificationService) *InscricaoService {
 	return &InscricaoService{
-		repo:      repo,
-		cursoRepo: cursoRepo,
+		repo:                     repo,
+		cursoRepo:                cursoRepo,
+		emailNotificationService: emailNotificationService,
 	}
 }
 
@@ -74,7 +76,25 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	inscricao.EnrolledAt = time.Now()
 	inscricao.UpdatedAt = time.Now()
 
-	return s.repo.Create(ctx, inscricao)
+	// Create enrollment
+	if err := s.repo.Create(ctx, inscricao); err != nil {
+		return err
+	}
+
+	// Send "Em Análise" email (pending status)
+	if s.emailNotificationService != nil {
+		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+		if err == nil && curso != nil {
+			// Send email asynchronously to avoid blocking the creation
+			go func() {
+				if err := s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso); err != nil {
+					fmt.Printf("Failed to send enrollment created email: %v\n", err)
+				}
+			}()
+		}
+	}
+
+	return nil
 }
 
 func (s *InscricaoService) GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
@@ -96,7 +116,39 @@ func (s *InscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UU
 		return fmt.Errorf("inscrição não encontrada")
 	}
 
-	return s.repo.UpdateStatus(ctx, inscricaoID, status, reason, adminNotes)
+	// Store old status for email decision
+	oldStatus := inscricao.Status
+
+	// Update status
+	if err := s.repo.UpdateStatus(ctx, inscricaoID, status, reason, adminNotes); err != nil {
+		return err
+	}
+
+	// Send status change emails
+	if s.emailNotificationService != nil && oldStatus != status {
+		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+		if err == nil && curso != nil {
+			// Update inscricao with new status and reason for email template
+			inscricao.Status = status
+			inscricao.Reason = reason
+
+			// Send email asynchronously
+			go func() {
+				var emailErr error
+				switch status {
+				case models.StatusInscricaoApproved:
+					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), inscricao, curso)
+				case models.StatusInscricaoRejected:
+					emailErr = s.emailNotificationService.SendEnrollmentRejectedEmail(context.Background(), inscricao, curso)
+				}
+				if emailErr != nil {
+					fmt.Printf("Failed to send status change email: %v\n", emailErr)
+				}
+			}()
+		}
+	}
+
+	return nil
 }
 
 func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
@@ -105,7 +157,56 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 		return 0, fmt.Errorf("nenhuma inscrição selecionada")
 	}
 
-	return s.repo.UpdateMultipleStatus(ctx, inscricaoIDs, status, reason, adminNotes)
+	// Fetch enrollments before update for email sending
+	var enrollmentsForEmail []*models.Inscricao
+	if s.emailNotificationService != nil && (status == models.StatusInscricaoApproved || status == models.StatusInscricaoRejected) {
+		for _, id := range inscricaoIDs {
+			inscricao, err := s.repo.GetByID(ctx, id)
+			if err == nil && inscricao != nil {
+				enrollmentsForEmail = append(enrollmentsForEmail, inscricao)
+			}
+		}
+	}
+
+	// Update statuses
+	updatedCount, err := s.repo.UpdateMultipleStatus(ctx, inscricaoIDs, status, reason, adminNotes)
+	if err != nil {
+		return updatedCount, err
+	}
+
+	// Send emails asynchronously for batch status updates
+	if s.emailNotificationService != nil && len(enrollmentsForEmail) > 0 {
+		go func() {
+			for _, inscricao := range enrollmentsForEmail {
+				// Skip if status didn't change
+				if inscricao.Status == status {
+					continue
+				}
+
+				curso, err := s.cursoRepo.GetByID(context.Background(), inscricao.CursoID)
+				if err != nil || curso == nil {
+					continue
+				}
+
+				// Update inscricao with new status and reason for email template
+				inscricao.Status = status
+				inscricao.Reason = reason
+
+				var emailErr error
+				switch status {
+				case models.StatusInscricaoApproved:
+					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), inscricao, curso)
+				case models.StatusInscricaoRejected:
+					emailErr = s.emailNotificationService.SendEnrollmentRejectedEmail(context.Background(), inscricao, curso)
+				}
+				if emailErr != nil {
+					fmt.Printf("Failed to send batch status change email for enrollment %s: %v\n", inscricao.ID, emailErr)
+				}
+			}
+		}()
+	}
+
+	return updatedCount, nil
 }
 
 func (s *InscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) {

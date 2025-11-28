@@ -26,6 +26,7 @@ type AppConfig struct {
 	Redis      RedisSettings
 	Tracing    TracingSettings
 	OrgaoSync  OrgaoSyncSettings
+	DataRelay  DataRelaySettings
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -92,6 +93,12 @@ type MigrationSettings struct {
 // RMISettings define configurações da API RMI (para validação de CNPJs/CNAEs)
 type RMISettings struct {
 	BaseURL string
+}
+
+// DataRelaySettings define configurações da API Data Relay (para envio de emails)
+type DataRelaySettings struct {
+	BaseURL string
+	APIKey  string
 }
 
 // RedisSettings define configurações do Redis
@@ -336,6 +343,10 @@ func Load() (*AppConfig, error) {
 			StaleThreshold: getDuration(v, "ORGAO_SYNC_STALE_THRESHOLD", 7*24*time.Hour), // 1 week
 			BatchSize:      getInt(v, "ORGAO_SYNC_BATCH_SIZE", 50),
 			MaxRetries:     getInt(v, "ORGAO_SYNC_MAX_RETRIES", 3),
+		},
+		DataRelay: DataRelaySettings{
+			BaseURL: getEnv(v, "DATA_RELAY_BASE_URL", ""),
+			APIKey:  getEnv(v, "DATA_RELAY_API_KEY", ""),
 		},
 	}
 

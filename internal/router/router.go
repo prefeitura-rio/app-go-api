@@ -103,6 +103,13 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	// Initialize CNAE validation service
 	cnaeValidationService := services.NewCNAEValidationService(rmiClient, legalEntitiesCache)
 
+	// Initialize Data Relay client for email sending
+	dataRelayClient := clients.NewDataRelayClient(cfg.DataRelay.BaseURL, cfg.DataRelay.APIKey, 30*time.Second)
+
+	// Initialize email notification service
+	emailNotificationEnabled := cfg.DataRelay.BaseURL != "" && cfg.DataRelay.APIKey != ""
+	emailNotificationService := services.NewEmailNotificationService(dataRelayClient, emailNotificationEnabled)
+
 	// Inicializando serviços
 	cursoService := services.NewCursoService(cursoRepo)
 	empregoService := services.NewEmpregoService(empregoRepo)
@@ -111,7 +118,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empresaService := services.NewEmpresaService(empresaRepo)
 	escolaridadeService := services.NewEscolaridadeService(escolaridadeRepo)
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
-	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo)
+	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, emailNotificationService)
 	jobService := services.NewJobService(jobRepo)
 	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo)
 	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, cnaeValidationService)
