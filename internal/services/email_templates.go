@@ -21,10 +21,10 @@ func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *model
 
 Sua inscrição foi recebida com sucesso e agora está em análise.
 
-Estamos avaliando as solicitações e entraremos em contato em breve para informar o resultado. Você pode acompanhar o status da sua inscrição a qualquer momento na seção "Meus Cursos" na plataforma do Ciclo Carioca.
+Estamos avaliando as solicitações e entraremos em contato em breve para informar o resultado. Você pode acompanhar o status da sua inscrição a qualquer momento na seção "Meus Cursos" na plataforma do Oportunidades Cariocas.
 
 Até logo,
-Equipe do Ciclo Carioca`,
+Equipe do Oportunidades Cariocas`,
 		inscricao.Name,
 	)
 
@@ -48,7 +48,7 @@ Você está confirmado(a) na atividade. Mantenha-se atento(a) ao seu e-mail e/ou
 Estamos felizes por ter você conosco!
 
 Até logo,
-Equipe do Ciclo Carioca`,
+Equipe do Oportunidades Cariocas`,
 		inscricao.Name,
 	)
 
@@ -72,7 +72,7 @@ Analisamos sua inscrição, mas, infelizmente, ela não foi aprovada desta vez. 
 Não desanime! Convidamos você a conhecer outras oportunidades disponíveis em nossa plataforma que podem ser do seu interesse.
 
 Até logo,
-Equipe do Ciclo Carioca`,
+Equipe do Oportunidades Cariocas`,
 		inscricao.Name,
 		curso.Titulo,
 	)
