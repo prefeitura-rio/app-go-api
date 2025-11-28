@@ -9,6 +9,7 @@ import (
 type Modalidade string
 type StatusCurso string
 type FormatoAula string
+type CourseManagementType string
 
 const (
 	ModalidadePresencial     Modalidade = "Presencial"
@@ -16,9 +17,10 @@ const (
 	ModalidadeRemoto         Modalidade = "Remoto"
 
 	// Legacy values for backwards compatibility
-	ModalidadePresencialLegacy Modalidade = "PRESENCIAL"
-	ModalidadeOnline           Modalidade = "ONLINE"
-	ModalidadeHibrido          Modalidade = "HIBRIDO"
+	ModalidadePresencialLegacy    Modalidade = "PRESENCIAL"
+	ModalidadeOnline              Modalidade = "ONLINE"
+	ModalidadeHibrido             Modalidade = "HIBRIDO"
+	ModalidadeLivreFormacaoOnline Modalidade = "LIVRE_FORMACAO_ONLINE"
 
 	// New status values matching specification
 	StatusCursoDraft    StatusCurso = "draft"
@@ -33,6 +35,10 @@ const (
 
 	FormatoAulaGravado FormatoAula = "GRAVADO"
 	FormatoAulaAoVivo  FormatoAula = "AO_VIVO"
+
+	CourseManagementOwnOrg                   CourseManagementType = "OWN_ORG"
+	CourseManagementExternalManagedByOrg     CourseManagementType = "EXTERNAL_MANAGED_BY_ORG"
+	CourseManagementExternalManagedByPartner CourseManagementType = "EXTERNAL_MANAGED_BY_PARTNER"
 )
 
 type Curso struct {
@@ -63,6 +69,7 @@ type Curso struct {
 	CargaHoraria         int         `json:"carga_horaria" gorm:"column:carga_horaria"`
 	Turno                Turno       `json:"turno" gorm:"type:varchar(50)"`
 	FormatoAula          FormatoAula `json:"formato_aula" gorm:"column:formato_aula;type:varchar(50)"`
+	FormacaoLink         string      `json:"formacao_link,omitempty" gorm:"column:formacao_link;type:varchar(20000)"`
 	LinkInscricao        string      `json:"link_inscricao" gorm:"type:varchar(20000);column:link_inscricao"`
 	ContatoDuvidas       string      `json:"contato_duvidas" gorm:"type:varchar(20000);column:contato_duvidas"`
 
@@ -82,11 +89,12 @@ type Curso struct {
 	CertificacaoOferecida bool   `json:"certificacao_oferecida" gorm:"column:certificacao_oferecida"`
 
 	// External partner fields
-	IsExternalPartner      *bool  `json:"is_external_partner,omitempty" gorm:"column:is_external_partner"`
-	ExternalPartnerName    string `json:"external_partner_name,omitempty" gorm:"column:external_partner_name;type:varchar(20000)"`
-	ExternalPartnerURL     string `json:"external_partner_url,omitempty" gorm:"column:external_partner_url;type:varchar(20000)"`
-	ExternalPartnerLogoURL string `json:"external_partner_logo_url,omitempty" gorm:"column:external_partner_logo_url;type:varchar(20000)"`
-	ExternalPartnerContact string `json:"external_partner_contact,omitempty" gorm:"column:external_partner_contact;type:varchar(20000)"`
+	IsExternalPartner      *bool                `json:"is_external_partner,omitempty" gorm:"column:is_external_partner"`
+	CourseManagementType   CourseManagementType `json:"course_management_type" gorm:"column:course_management_type;type:varchar(50);default:'OWN_ORG'"`
+	ExternalPartnerName    string               `json:"external_partner_name,omitempty" gorm:"column:external_partner_name;type:varchar(20000)"`
+	ExternalPartnerURL     string               `json:"external_partner_url,omitempty" gorm:"column:external_partner_url;type:varchar(20000)"`
+	ExternalPartnerLogoURL string               `json:"external_partner_logo_url,omitempty" gorm:"column:external_partner_logo_url;type:varchar(20000)"`
+	ExternalPartnerContact string               `json:"external_partner_contact,omitempty" gorm:"column:external_partner_contact;type:varchar(20000)"`
 
 	// Accessibility field - free text field for frontend
 	Accessibility string `json:"accessibility,omitempty" gorm:"column:accessibility;type:varchar(20000)"`
@@ -119,7 +127,7 @@ func (Curso) TableName() string {
 func (m Modalidade) IsValid() bool {
 	validValues := []string{
 		"Presencial", "Semipresencial", "Remoto",
-		"PRESENCIAL", "ONLINE", "HIBRIDO",
+		"PRESENCIAL", "ONLINE", "HIBRIDO", "LIVRE_FORMACAO_ONLINE",
 	}
 	for _, v := range validValues {
 		if string(m) == v {
@@ -146,6 +154,21 @@ func (f FormatoAula) IsValid() bool {
 	validValues := []string{"GRAVADO", "AO_VIVO", "PRESENCIAL", ""}
 	for _, v := range validValues {
 		if string(f) == v {
+			return true
+		}
+	}
+	return false
+}
+
+func (c CourseManagementType) IsValid() bool {
+	validValues := []string{
+		string(CourseManagementOwnOrg),
+		string(CourseManagementExternalManagedByOrg),
+		string(CourseManagementExternalManagedByPartner),
+		"",
+	}
+	for _, v := range validValues {
+		if string(c) == v {
 			return true
 		}
 	}

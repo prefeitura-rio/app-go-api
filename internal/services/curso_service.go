@@ -149,14 +149,26 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 		return fmt.Errorf("público-alvo deve ter no máximo 20000 caracteres")
 	}
 
-	// Validate locations and schedules
-	if err := s.validateLocationClasses(curso.LocationClasses); err != nil {
-		return fmt.Errorf("erro de validação em locations: %w", err)
+	// Validate course management type and external partner fields
+	if err := s.validateCourseManagementType(curso); err != nil {
+		return err
 	}
 
-	// Validate remote class and schedules
-	if err := s.validateRemoteClass(curso.RemoteClass); err != nil {
-		return fmt.Errorf("erro de validação em remote class: %w", err)
+	// Validate LIVRE_FORMACAO_ONLINE modality
+	if err := s.validateLivreFormacaoOnline(curso); err != nil {
+		return err
+	}
+
+	// Validate locations and schedules (skip for LIVRE_FORMACAO_ONLINE)
+	if curso.Modalidade != models.ModalidadeLivreFormacaoOnline {
+		if err := s.validateLocationClasses(curso.LocationClasses); err != nil {
+			return fmt.Errorf("erro de validação em locations: %w", err)
+		}
+
+		// Validate remote class and schedules
+		if err := s.validateRemoteClass(curso.RemoteClass); err != nil {
+			return fmt.Errorf("erro de validação em remote class: %w", err)
+		}
 	}
 
 	return nil
@@ -184,6 +196,28 @@ func (s *CursoService) normalizeCurso(curso *models.Curso) {
 	curso.MaterialUsed = strings.TrimSpace(curso.MaterialUsed)
 	curso.TeachingMaterial = strings.TrimSpace(curso.TeachingMaterial)
 	curso.Accessibility = strings.TrimSpace(curso.Accessibility)
+	curso.FormacaoLink = strings.TrimSpace(curso.FormacaoLink)
+
+	// Normalize external partner fields
+	curso.ExternalPartnerName = strings.TrimSpace(curso.ExternalPartnerName)
+	curso.ExternalPartnerURL = strings.TrimSpace(curso.ExternalPartnerURL)
+	curso.ExternalPartnerLogoURL = strings.TrimSpace(curso.ExternalPartnerLogoURL)
+	curso.ExternalPartnerContact = strings.TrimSpace(curso.ExternalPartnerContact)
+
+	// Backwards compatibility: infer course_management_type from is_external_partner
+	if curso.CourseManagementType == "" {
+		if curso.IsExternalPartner != nil && *curso.IsExternalPartner {
+			if curso.ExternalPartnerURL != "" {
+				curso.CourseManagementType = models.CourseManagementExternalManagedByPartner
+			} else if curso.ExternalPartnerName != "" {
+				curso.CourseManagementType = models.CourseManagementExternalManagedByOrg
+			} else {
+				curso.CourseManagementType = models.CourseManagementOwnOrg
+			}
+		} else {
+			curso.CourseManagementType = models.CourseManagementOwnOrg
+		}
+	}
 
 	if curso.Status == "" {
 		curso.Status = models.StatusCursoDraft
@@ -323,4 +357,73 @@ func (s *CursoService) validateRemoteSchedules(schedules []models.RemoteSchedule
 	}
 
 	return nil
+}
+
+func (s *CursoService) validateCourseManagementType(curso *models.Curso) error {
+	if curso.CourseManagementType != "" && !curso.CourseManagementType.IsValid() {
+		return fmt.Errorf("tipo de gestão do curso inválido: %s", curso.CourseManagementType)
+	}
+
+	switch curso.CourseManagementType {
+	case models.CourseManagementOwnOrg:
+		if strings.TrimSpace(curso.ExternalPartnerName) != "" ||
+			strings.TrimSpace(curso.ExternalPartnerURL) != "" ||
+			strings.TrimSpace(curso.ExternalPartnerLogoURL) != "" ||
+			strings.TrimSpace(curso.ExternalPartnerContact) != "" {
+			return fmt.Errorf("campos de parceiro externo devem estar vazios quando course_management_type é OWN_ORG")
+		}
+
+	case models.CourseManagementExternalManagedByOrg:
+		if strings.TrimSpace(curso.ExternalPartnerName) == "" {
+			return fmt.Errorf("external_partner_name é obrigatório quando course_management_type é EXTERNAL_MANAGED_BY_ORG")
+		}
+		if strings.TrimSpace(curso.ExternalPartnerURL) != "" {
+			return fmt.Errorf("external_partner_url deve estar vazio quando course_management_type é EXTERNAL_MANAGED_BY_ORG")
+		}
+		if strings.TrimSpace(curso.ExternalPartnerContact) != "" {
+			return fmt.Errorf("external_partner_contact deve estar vazio quando course_management_type é EXTERNAL_MANAGED_BY_ORG")
+		}
+
+	case models.CourseManagementExternalManagedByPartner:
+		if strings.TrimSpace(curso.ExternalPartnerName) == "" {
+			return fmt.Errorf("external_partner_name é obrigatório quando course_management_type é EXTERNAL_MANAGED_BY_PARTNER")
+		}
+		if strings.TrimSpace(curso.ExternalPartnerURL) == "" {
+			return fmt.Errorf("external_partner_url é obrigatório quando course_management_type é EXTERNAL_MANAGED_BY_PARTNER")
+		}
+	}
+
+	return nil
+}
+
+func (s *CursoService) validateLivreFormacaoOnline(curso *models.Curso) error {
+	if curso.Modalidade != models.ModalidadeLivreFormacaoOnline {
+		return nil
+	}
+
+	if strings.TrimSpace(curso.FormacaoLink) == "" {
+		return fmt.Errorf("formacao_link é obrigatório para modalidade LIVRE_FORMACAO_ONLINE")
+	}
+
+	if !isValidURL(curso.FormacaoLink) {
+		return fmt.Errorf("formacao_link deve ser uma URL válida")
+	}
+
+	if len(curso.LocationClasses) > 0 {
+		return fmt.Errorf("LIVRE_FORMACAO_ONLINE não deve ter locations (unidades presenciais)")
+	}
+
+	if curso.RemoteClass != nil {
+		return fmt.Errorf("LIVRE_FORMACAO_ONLINE não deve ter remote_class (turmas online com horários)")
+	}
+
+	return nil
+}
+
+func isValidURL(str string) bool {
+	str = strings.TrimSpace(str)
+	if str == "" {
+		return false
+	}
+	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
 }
