@@ -166,7 +166,7 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 		}
 
 		// Validate remote class and schedules
-		if err := s.validateRemoteClass(curso.RemoteClass); err != nil {
+		if err := s.validateRemoteClass(curso.RemoteClass, curso.Modalidade); err != nil {
 			return fmt.Errorf("erro de validação em remote class: %w", err)
 		}
 	}
@@ -299,7 +299,7 @@ func (s *CursoService) validateSchedules(schedules []models.CourseSchedule, loca
 }
 
 // validateRemoteClass validates remote class and its schedules
-func (s *CursoService) validateRemoteClass(remoteClass *models.RemoteClass) error {
+func (s *CursoService) validateRemoteClass(remoteClass *models.RemoteClass, modalidade models.Modalidade) error {
 	// Remote class is optional, so nil is valid
 	if remoteClass == nil {
 		return nil
@@ -311,7 +311,7 @@ func (s *CursoService) validateRemoteClass(remoteClass *models.RemoteClass) erro
 	}
 
 	// Validate each schedule
-	if err := s.validateRemoteSchedules(remoteClass.Schedules); err != nil {
+	if err := s.validateRemoteSchedules(remoteClass.Schedules, modalidade); err != nil {
 		return err
 	}
 
@@ -319,40 +319,62 @@ func (s *CursoService) validateRemoteClass(remoteClass *models.RemoteClass) erro
 }
 
 // validateRemoteSchedules validates remote schedules
-func (s *CursoService) validateRemoteSchedules(schedules []models.RemoteSchedule) error {
+func (s *CursoService) validateRemoteSchedules(schedules []models.RemoteSchedule, modalidade models.Modalidade) error {
+	// Determine if schedule fields are optional based on modalidade
+	// For "Online" (normalized to "Remoto") courses, date/time/days fields are optional
+	isOnlineMode := modalidade == models.ModalidadeRemoto || modalidade == models.ModalidadeOnline
+
 	for j, schedule := range schedules {
-		// Validate vacancies
+		// Validate vacancies (always required)
 		if schedule.Vacancies < 1 || schedule.Vacancies > 1000 {
 			return fmt.Errorf("remote schedule[%d]: número de vagas deve estar entre 1 e 1000", j)
 		}
 
-		// Validate dates
-		if schedule.ClassStartDate.IsZero() {
-			return fmt.Errorf("remote schedule[%d]: data de início é obrigatória", j)
-		}
+		// For Online courses, these fields are optional
+		if !isOnlineMode {
+			// Validate dates (required for non-Online courses)
+			if schedule.ClassStartDate == nil || schedule.ClassStartDate.IsZero() {
+				return fmt.Errorf("remote schedule[%d]: data de início é obrigatória", j)
+			}
 
-		if schedule.ClassEndDate.IsZero() {
-			return fmt.Errorf("remote schedule[%d]: data de término é obrigatória", j)
-		}
+			if schedule.ClassEndDate == nil || schedule.ClassEndDate.IsZero() {
+				return fmt.Errorf("remote schedule[%d]: data de término é obrigatória", j)
+			}
 
-		if schedule.ClassEndDate.Before(schedule.ClassStartDate) {
-			return fmt.Errorf("remote schedule[%d]: data de término deve ser maior ou igual à data de início", j)
-		}
+			if schedule.ClassEndDate.Before(*schedule.ClassStartDate) {
+				return fmt.Errorf("remote schedule[%d]: data de término deve ser maior ou igual à data de início", j)
+			}
 
-		// Validate class time
-		if strings.TrimSpace(schedule.ClassTime) == "" {
-			return fmt.Errorf("remote schedule[%d]: horário da aula é obrigatório", j)
-		}
-		if len(schedule.ClassTime) > 20000 {
-			return fmt.Errorf("remote schedule[%d]: horário da aula deve ter no máximo 20000 caracteres", j)
-		}
+			// Validate class time (required for non-Online courses)
+			if schedule.ClassTime == nil || strings.TrimSpace(*schedule.ClassTime) == "" {
+				return fmt.Errorf("remote schedule[%d]: horário da aula é obrigatório", j)
+			}
+			if len(*schedule.ClassTime) > 20000 {
+				return fmt.Errorf("remote schedule[%d]: horário da aula deve ter no máximo 20000 caracteres", j)
+			}
 
-		// Validate class days
-		if strings.TrimSpace(schedule.ClassDays) == "" {
-			return fmt.Errorf("remote schedule[%d]: dias da semana são obrigatórios", j)
-		}
-		if len(schedule.ClassDays) > 20000 {
-			return fmt.Errorf("remote schedule[%d]: dias da semana deve ter no máximo 20000 caracteres", j)
+			// Validate class days (required for non-Online courses)
+			if schedule.ClassDays == nil || strings.TrimSpace(*schedule.ClassDays) == "" {
+				return fmt.Errorf("remote schedule[%d]: dias da semana são obrigatórios", j)
+			}
+			if len(*schedule.ClassDays) > 20000 {
+				return fmt.Errorf("remote schedule[%d]: dias da semana deve ter no máximo 20000 caracteres", j)
+			}
+		} else {
+			// For Online courses, validate only if provided
+			if schedule.ClassStartDate != nil && schedule.ClassEndDate != nil {
+				if schedule.ClassEndDate.Before(*schedule.ClassStartDate) {
+					return fmt.Errorf("remote schedule[%d]: data de término deve ser maior ou igual à data de início", j)
+				}
+			}
+
+			if schedule.ClassTime != nil && len(*schedule.ClassTime) > 20000 {
+				return fmt.Errorf("remote schedule[%d]: horário da aula deve ter no máximo 20000 caracteres", j)
+			}
+
+			if schedule.ClassDays != nil && len(*schedule.ClassDays) > 20000 {
+				return fmt.Errorf("remote schedule[%d]: dias da semana deve ter no máximo 20000 caracteres", j)
+			}
 		}
 	}
 

@@ -151,8 +151,17 @@ func buildScheduleMap(locations []models.LocationClass, remoteClassLoaded bool, 
 	// Add remote class schedules
 	if remoteClassLoaded && remoteClass != nil {
 		for _, schedule := range remoteClass.Schedules {
-			normalizedTime := strings.ToLower(strings.TrimSpace(schedule.ClassTime))
-			normalizedDays := strings.ToLower(strings.TrimSpace(schedule.ClassDays))
+			// Handle pointer fields safely
+			classTime := ""
+			if schedule.ClassTime != nil {
+				classTime = *schedule.ClassTime
+			}
+			classDays := ""
+			if schedule.ClassDays != nil {
+				classDays = *schedule.ClassDays
+			}
+			normalizedTime := strings.ToLower(strings.TrimSpace(classTime))
+			normalizedDays := strings.ToLower(strings.TrimSpace(classDays))
 
 			// Key by UUID (schedule_id)
 			scheduleMap[schedule.ID.String()] = struct {
@@ -456,8 +465,17 @@ func findScheduleByTurma(turma string, scheduleMap map[string]struct {
 	// Fallback: fuzzy match by time+days for remote courses
 	if remoteClassLoaded && remoteClass != nil && len(remoteClass.Schedules) > 0 {
 		for _, schedule := range remoteClass.Schedules {
-			timeNorm := strings.ToLower(strings.TrimSpace(schedule.ClassTime))
-			daysNorm := strings.ToLower(strings.TrimSpace(schedule.ClassDays))
+			// Handle pointer fields safely
+			classTime := ""
+			if schedule.ClassTime != nil {
+				classTime = *schedule.ClassTime
+			}
+			classDays := ""
+			if schedule.ClassDays != nil {
+				classDays = *schedule.ClassDays
+			}
+			timeNorm := strings.ToLower(strings.TrimSpace(classTime))
+			daysNorm := strings.ToLower(strings.TrimSpace(classDays))
 
 			if (strings.Contains(turmaNorm, timeNorm) && strings.Contains(turmaNorm, daysNorm)) ||
 			   (strings.Contains(timeNorm, turmaNorm) || strings.Contains(daysNorm, turmaNorm)) {
@@ -557,14 +575,32 @@ func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int,
 				// Convert remote schedules to EnrolledUnitSchedule format
 				enrolledSchedules := make([]models.EnrolledUnitSchedule, 0, len(remoteClass.Schedules))
 				for _, schedule := range remoteClass.Schedules {
+					// Handle optional pointer fields
+					classStartDate := ""
+					if schedule.ClassStartDate != nil {
+						classStartDate = schedule.ClassStartDate.Format("2006-01-02")
+					}
+					classEndDate := ""
+					if schedule.ClassEndDate != nil {
+						classEndDate = schedule.ClassEndDate.Format("2006-01-02")
+					}
+					classTime := ""
+					if schedule.ClassTime != nil {
+						classTime = *schedule.ClassTime
+					}
+					classDays := ""
+					if schedule.ClassDays != nil {
+						classDays = *schedule.ClassDays
+					}
+
 					enrolledSchedules = append(enrolledSchedules, models.EnrolledUnitSchedule{
 						ID:             schedule.ID.String(),
 						LocationID:     remoteClass.ID.String(),
 						Vacancies:      schedule.Vacancies,
-						ClassStartDate: schedule.ClassStartDate.Format("2006-01-02"),
-						ClassEndDate:   schedule.ClassEndDate.Format("2006-01-02"),
-						ClassTime:      schedule.ClassTime,
-						ClassDays:      schedule.ClassDays,
+						ClassStartDate: classStartDate,
+						ClassEndDate:   classEndDate,
+						ClassTime:      classTime,
+						ClassDays:      classDays,
 						CreatedAt:      schedule.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 						UpdatedAt:      schedule.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 					})
@@ -615,15 +651,33 @@ func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int,
 			schedule := remoteClass.Schedules[0]
 			scheduleID = &schedule.ID
 
+			// Handle optional pointer fields
+			classStartDate := ""
+			if schedule.ClassStartDate != nil {
+				classStartDate = schedule.ClassStartDate.Format("2006-01-02")
+			}
+			classEndDate := ""
+			if schedule.ClassEndDate != nil {
+				classEndDate = schedule.ClassEndDate.Format("2006-01-02")
+			}
+			classTime := ""
+			if schedule.ClassTime != nil {
+				classTime = *schedule.ClassTime
+			}
+			classDays := ""
+			if schedule.ClassDays != nil {
+				classDays = *schedule.ClassDays
+			}
+
 			enrolledSchedules := []models.EnrolledUnitSchedule{
 				{
 					ID:             schedule.ID.String(),
 					LocationID:     remoteClass.ID.String(),
 					Vacancies:      schedule.Vacancies,
-					ClassStartDate: schedule.ClassStartDate.Format("2006-01-02"),
-					ClassEndDate:   schedule.ClassEndDate.Format("2006-01-02"),
-					ClassTime:      schedule.ClassTime,
-					ClassDays:      schedule.ClassDays,
+					ClassStartDate: classStartDate,
+					ClassEndDate:   classEndDate,
+					ClassTime:      classTime,
+					ClassDays:      classDays,
 					CreatedAt:      schedule.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 					UpdatedAt:      schedule.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 				},

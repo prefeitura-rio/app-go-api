@@ -142,15 +142,15 @@ func (CourseSchedule) TableName() string {
 }
 
 type RemoteSchedule struct {
-	ID             uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	RemoteClassID  uuid.UUID `json:"remote_class_id" gorm:"type:uuid;column:remote_class_id;not null"`
-	Vacancies      int       `json:"vacancies" gorm:"not null;check:vacancies >= 1 AND vacancies <= 1000"`
-	ClassStartDate time.Time `json:"class_start_date" gorm:"type:timestamp with time zone;column:class_start_date;not null"`
-	ClassEndDate   time.Time `json:"class_end_date" gorm:"type:timestamp with time zone;column:class_end_date;not null"`
-	ClassTime      string    `json:"class_time" gorm:"type:varchar(20000);column:class_time;not null"`
-	ClassDays      string    `json:"class_days" gorm:"type:varchar(20000);column:class_days;not null"`
-	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID             uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	RemoteClassID  uuid.UUID  `json:"remote_class_id" gorm:"type:uuid;column:remote_class_id;not null"`
+	Vacancies      int        `json:"vacancies" gorm:"not null;check:vacancies >= 1 AND vacancies <= 1000"`
+	ClassStartDate *time.Time `json:"class_start_date,omitempty" gorm:"type:timestamp with time zone;column:class_start_date"`
+	ClassEndDate   *time.Time `json:"class_end_date,omitempty" gorm:"type:timestamp with time zone;column:class_end_date"`
+	ClassTime      *string    `json:"class_time,omitempty" gorm:"type:varchar(20000);column:class_time"`
+	ClassDays      *string    `json:"class_days,omitempty" gorm:"type:varchar(20000);column:class_days"`
+	CreatedAt      time.Time  `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Computed field (not stored in DB)
 	RemainingVacancies int `json:"remaining_vacancies,omitempty" gorm:"-"`
