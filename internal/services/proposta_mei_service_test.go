@@ -12,13 +12,13 @@ import (
 
 // Mock PropostaMEI Repository
 type MockPropostaRepo struct {
-	propostas       map[uuid.UUID]*models.PropostaMEI
-	existingCheck   bool
-	createError     error
-	getError        error
-	updateError     error
-	deleteError     error
-	checkError      error
+	propostas        map[uuid.UUID]*models.PropostaMEI
+	existingCheck    bool
+	createError      error
+	getError         error
+	updateError      error
+	deleteError      error
+	checkError       error
 	updateMultiCount int
 }
 
@@ -426,10 +426,10 @@ func TestPropostaMEIService_UpdateStatusCidadao(t *testing.T) {
 
 		id := uuid.New()
 		mockPropostaRepo.propostas[id] = &models.PropostaMEI{
-			ID:             id,
-			StatusCidadao:  models.StatusPropostaCidadaoSubmitted,
-			StatusAdmin:    models.StatusPropostaAdminActive,
-			MEIEmpresaID:   "12345678000190",
+			ID:            id,
+			StatusCidadao: models.StatusPropostaCidadaoSubmitted,
+			StatusAdmin:   models.StatusPropostaAdminActive,
+			MEIEmpresaID:  "12345678000190",
 		}
 
 		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)

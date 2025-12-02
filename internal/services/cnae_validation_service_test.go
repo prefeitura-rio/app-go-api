@@ -53,7 +53,6 @@ func (m *MockCache) Set(ctx context.Context, cpf string, entities []models.Legal
 	return nil
 }
 
-
 func TestCNAEValidationService_ValidatePropostaForCNAE_Success(t *testing.T) {
 	// Valid JWT token with CPF in preferred_username
 	validToken := "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcmVmZXJyZWRfdXNlcm5hbWUiOiIxMjM0NTY3ODkwMCJ9.fake"

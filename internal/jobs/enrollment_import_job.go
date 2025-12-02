@@ -478,7 +478,7 @@ func findScheduleByTurma(turma string, scheduleMap map[string]struct {
 			daysNorm := strings.ToLower(strings.TrimSpace(classDays))
 
 			if (strings.Contains(turmaNorm, timeNorm) && strings.Contains(turmaNorm, daysNorm)) ||
-			   (strings.Contains(timeNorm, turmaNorm) || strings.Contains(daysNorm, turmaNorm)) {
+				(strings.Contains(timeNorm, turmaNorm) || strings.Contains(daysNorm, turmaNorm)) {
 				return &remoteClass.ID, &schedule.ID, nil
 			}
 		}
