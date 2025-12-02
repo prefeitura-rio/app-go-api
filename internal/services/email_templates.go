@@ -14,72 +14,111 @@ type EmailTemplate struct {
 }
 
 // GetEnrollmentPendingEmailTemplate returns email template for "Em Análise" status
-func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *models.Curso) EmailTemplate {
+func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *models.Curso, prefrioDomain string) EmailTemplate {
 	subject := fmt.Sprintf("Inscrição recebida! - %s", curso.Titulo)
 
-	body := fmt.Sprintf(`Olá, %s!
+	meusCoursosURL := fmt.Sprintf("https://%s/servicos/cursos/meus-cursos", prefrioDomain)
 
-Sua inscrição foi recebida com sucesso e agora está em análise.
+	body := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <p>Olá, %s!</p>
 
-Estamos avaliando as solicitações e entraremos em contato em breve para informar o resultado. Você pode acompanhar o status da sua inscrição a qualquer momento na seção "Meus Cursos" na plataforma do Oportunidades Cariocas.
+    <p>Sua inscrição foi recebida com sucesso e agora está em análise.</p>
 
-Até logo,
-Equipe do Oportunidades Cariocas`,
+    <p>Estamos avaliando as solicitações e entraremos em contato em breve para informar o resultado. Você pode acompanhar o status da sua inscrição a qualquer momento na seção <a href="%s" style="color: #0066cc; text-decoration: none;">Meus Cursos</a> na plataforma do Oportunidades Cariocas.</p>
+
+    <p>Até logo,<br>
+    Equipe do Oportunidades Cariocas</p>
+</body>
+</html>`,
 		inscricao.Name,
+		meusCoursosURL,
 	)
 
 	return EmailTemplate{
 		Subject: subject,
 		Body:    body,
-		IsHTML:  false,
+		IsHTML:  true,
 	}
 }
 
 // GetEnrollmentApprovedEmailTemplate returns email template for "Inscrito" status
-func GetEnrollmentApprovedEmailTemplate(inscricao *models.Inscricao, curso *models.Curso) EmailTemplate {
+func GetEnrollmentApprovedEmailTemplate(inscricao *models.Inscricao, curso *models.Curso, prefrioDomain string) EmailTemplate {
 	subject := fmt.Sprintf("Parabéns! Sua inscrição foi aprovada - %s", curso.Titulo)
 
-	body := fmt.Sprintf(`Olá, %s!
+	meusCoursosURL := fmt.Sprintf("https://%s/servicos/cursos/meus-cursos", prefrioDomain)
 
-Temos uma ótima notícia! Sua inscrição foi aprovada.
+	body := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <p>Olá, %s!</p>
 
-Você está confirmado(a) na atividade. Mantenha-se atento(a) ao seu e-mail e/ou telefone, caso informações adicionais sejam necessárias para a atividade.
+    <p>Temos uma ótima notícia! Sua inscrição foi aprovada.</p>
 
-Estamos felizes por ter você conosco!
+    <p>Você está confirmado(a) na atividade. Mantenha-se atento(a) ao seu e-mail e/ou telefone, caso informações adicionais sejam necessárias para a atividade.</p>
 
-Até logo,
-Equipe do Oportunidades Cariocas`,
+    <p>Você pode acompanhar o status da sua inscrição a qualquer momento na seção <a href="%s" style="color: #0066cc; text-decoration: none;">Meus Cursos</a> na plataforma do Oportunidades Cariocas.</p>
+
+    <p>Estamos felizes por ter você conosco!</p>
+
+    <p>Até logo,<br>
+    Equipe do Oportunidades Cariocas</p>
+</body>
+</html>`,
 		inscricao.Name,
+		meusCoursosURL,
 	)
 
 	return EmailTemplate{
 		Subject: subject,
 		Body:    body,
-		IsHTML:  false,
+		IsHTML:  true,
 	}
 }
 
 // GetEnrollmentRejectedEmailTemplate returns email template for "Recusado" status
-func GetEnrollmentRejectedEmailTemplate(inscricao *models.Inscricao, curso *models.Curso) EmailTemplate {
+func GetEnrollmentRejectedEmailTemplate(inscricao *models.Inscricao, curso *models.Curso, prefrioDomain string) EmailTemplate {
 	subject := fmt.Sprintf("Informações sobre sua inscrição - %s", curso.Titulo)
 
-	body := fmt.Sprintf(`Olá, %s!
+	meusCoursosURL := fmt.Sprintf("https://%s/servicos/cursos/meus-cursos", prefrioDomain)
+	cursosURL := fmt.Sprintf("https://%s/servicos/cursos", prefrioDomain)
 
-Agradecemos o seu interesse na atividade "%s".
+	body := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <p>Olá, %s!</p>
 
-Analisamos sua inscrição, mas, infelizmente, ela não foi aprovada desta vez. A recusa pode ter ocorrido por não ter sido cumprido algum dos requisitos ou critérios definidos pela unidade responsável.
+    <p>Agradecemos o seu interesse na atividade "%s".</p>
 
-Não desanime! Convidamos você a conhecer outras oportunidades disponíveis em nossa plataforma que podem ser do seu interesse.
+    <p>Analisamos sua inscrição, mas, infelizmente, ela não foi aprovada desta vez. A recusa pode ter ocorrido por não ter sido cumprido algum dos requisitos ou critérios definidos pela unidade responsável.</p>
 
-Até logo,
-Equipe do Oportunidades Cariocas`,
+    <p>Você pode acompanhar o status da sua inscrição a qualquer momento na seção <a href="%s" style="color: #0066cc; text-decoration: none;">Meus Cursos</a> na plataforma do Oportunidades Cariocas.</p>
+
+    <p>Não desanime! Convidamos você a conhecer <a href="%s" style="color: #0066cc; text-decoration: none;">outras oportunidades</a> disponíveis em nossa plataforma que podem ser do seu interesse.</p>
+
+    <p>Até logo,<br>
+    Equipe do Oportunidades Cariocas</p>
+</body>
+</html>`,
 		inscricao.Name,
 		curso.Titulo,
+		meusCoursosURL,
+		cursosURL,
 	)
 
 	return EmailTemplate{
 		Subject: subject,
 		Body:    body,
-		IsHTML:  false,
+		IsHTML:  true,
 	}
 }

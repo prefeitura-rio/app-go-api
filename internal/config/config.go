@@ -27,6 +27,7 @@ type AppConfig struct {
 	Tracing    TracingSettings
 	OrgaoSync  OrgaoSyncSettings
 	DataRelay  DataRelaySettings
+	PrefRio    PrefRioSettings
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -99,6 +100,11 @@ type RMISettings struct {
 type DataRelaySettings struct {
 	BaseURL string
 	APIKey  string
+}
+
+// PrefRioSettings define configurações da plataforma Prefeitura Rio
+type PrefRioSettings struct {
+	Domain string // Domain for the Prefeitura Rio platform (e.g., "prefeitura.rio" or "1746.rio")
 }
 
 // RedisSettings define configurações do Redis
@@ -347,6 +353,9 @@ func Load() (*AppConfig, error) {
 		DataRelay: DataRelaySettings{
 			BaseURL: getEnv(v, "DATA_RELAY_BASE_URL", ""),
 			APIKey:  getEnv(v, "DATA_RELAY_API_KEY", ""),
+		},
+		PrefRio: PrefRioSettings{
+			Domain: getEnv(v, "PREFRIO_DOMAIN", "pref.rio"),
 		},
 	}
 

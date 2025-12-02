@@ -13,13 +13,15 @@ import (
 type EmailNotificationService struct {
 	dataRelayClient *clients.DataRelayClient
 	enabled         bool
+	prefrioDomain   string
 }
 
 // NewEmailNotificationService creates a new email notification service
-func NewEmailNotificationService(dataRelayClient *clients.DataRelayClient, enabled bool) *EmailNotificationService {
+func NewEmailNotificationService(dataRelayClient *clients.DataRelayClient, enabled bool, prefrioDomain string) *EmailNotificationService {
 	return &EmailNotificationService{
 		dataRelayClient: dataRelayClient,
 		enabled:         enabled,
+		prefrioDomain:   prefrioDomain,
 	}
 }
 
@@ -35,7 +37,7 @@ func (s *EmailNotificationService) SendEnrollmentCreatedEmail(ctx context.Contex
 		return nil
 	}
 
-	template := GetEnrollmentPendingEmailTemplate(inscricao, curso)
+	template := GetEnrollmentPendingEmailTemplate(inscricao, curso, s.prefrioDomain)
 
 	emailReq := &clients.EmailRequest{
 		ToAddresses: []string{inscricao.Email},
@@ -64,7 +66,7 @@ func (s *EmailNotificationService) SendEnrollmentApprovedEmail(ctx context.Conte
 		return nil
 	}
 
-	template := GetEnrollmentApprovedEmailTemplate(inscricao, curso)
+	template := GetEnrollmentApprovedEmailTemplate(inscricao, curso, s.prefrioDomain)
 
 	emailReq := &clients.EmailRequest{
 		ToAddresses: []string{inscricao.Email},
@@ -93,7 +95,7 @@ func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Conte
 		return nil
 	}
 
-	template := GetEnrollmentRejectedEmailTemplate(inscricao, curso)
+	template := GetEnrollmentRejectedEmailTemplate(inscricao, curso, s.prefrioDomain)
 
 	emailReq := &clients.EmailRequest{
 		ToAddresses: []string{inscricao.Email},

@@ -108,7 +108,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 
 	// Initialize email notification service
 	emailNotificationEnabled := cfg.DataRelay.BaseURL != "" && cfg.DataRelay.APIKey != ""
-	emailNotificationService := services.NewEmailNotificationService(dataRelayClient, emailNotificationEnabled)
+	emailNotificationService := services.NewEmailNotificationService(dataRelayClient, emailNotificationEnabled, cfg.PrefRio.Domain)
 
 	// Inicializando serviços
 	cursoService := services.NewCursoService(cursoRepo)
