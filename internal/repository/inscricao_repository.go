@@ -237,7 +237,6 @@ func (r *InscricaoRepository) ListByCPF(ctx context.Context, cpf string, filter 
 	// Get records with pagination and preload course data
 	result := query.
 		Preload("Curso").
-		Preload("Curso.Orgao").
 		Preload("Curso.Instituicao").
 		Offset(offset).
 		Limit(limit).
