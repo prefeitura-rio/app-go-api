@@ -90,6 +90,44 @@ func (s *CursoService) List(ctx context.Context, filter map[string]interface{}, 
 
 // validateCurso performs business logic validation
 func (s *CursoService) validateCurso(curso *models.Curso) error {
+	if curso.Status == models.StatusCursoDraft {
+		return s.validateDraftCurso(curso)
+	}
+
+	return s.validatePublishedCurso(curso)
+}
+
+// validateDraftCurso performs minimal validation for draft courses
+func (s *CursoService) validateDraftCurso(curso *models.Curso) error {
+	if strings.TrimSpace(curso.Titulo) == "" {
+		return fmt.Errorf("título é obrigatório")
+	}
+
+	if len(curso.Titulo) > 20000 {
+		return fmt.Errorf("título deve ter no máximo 20000 caracteres")
+	}
+
+	if curso.Modalidade != "" && !curso.Modalidade.IsValid() {
+		return fmt.Errorf("modalidade inválida: %s", curso.Modalidade)
+	}
+
+	if curso.FormatoAula != "" && !curso.FormatoAula.IsValid() {
+		return fmt.Errorf("formato de aula inválido: %s", curso.FormatoAula)
+	}
+
+	if curso.Turno != "" && !curso.Turno.IsValid() {
+		return fmt.Errorf("turno inválido: %s", curso.Turno)
+	}
+
+	if curso.CourseManagementType != "" && !curso.CourseManagementType.IsValid() {
+		return fmt.Errorf("tipo de gestão do curso inválido: %s", curso.CourseManagementType)
+	}
+
+	return nil
+}
+
+// validatePublishedCurso performs full validation for published courses
+func (s *CursoService) validatePublishedCurso(curso *models.Curso) error {
 	if strings.TrimSpace(curso.Titulo) == "" {
 		return fmt.Errorf("título é obrigatório")
 	}
@@ -114,7 +152,6 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 		return fmt.Errorf("turno inválido: %s", curso.Turno)
 	}
 
-	// Organization can be empty for some cases, just normalize it
 	if curso.Organization != "" && len(curso.Organization) > 20000 {
 		return fmt.Errorf("organização deve ter no máximo 20000 caracteres")
 	}
@@ -127,7 +164,6 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 		return fmt.Errorf("carga horária deve ser positiva")
 	}
 
-	// Validate URL fields if not empty
 	if curso.InstitutionalLogo != "" && len(curso.InstitutionalLogo) > 20000 {
 		return fmt.Errorf("URL do logo institucional deve ter no máximo 20000 caracteres")
 	}
@@ -136,7 +172,6 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 		return fmt.Errorf("URL da imagem de capa deve ter no máximo 20000 caracteres")
 	}
 
-	// Validate text fields length
 	if len(curso.Theme) > 20000 {
 		return fmt.Errorf("tema deve ter no máximo 20000 caracteres")
 	}
@@ -149,23 +184,19 @@ func (s *CursoService) validateCurso(curso *models.Curso) error {
 		return fmt.Errorf("público-alvo deve ter no máximo 20000 caracteres")
 	}
 
-	// Validate course management type and external partner fields
 	if err := s.validateCourseManagementType(curso); err != nil {
 		return err
 	}
 
-	// Validate LIVRE_FORMACAO_ONLINE modality
 	if err := s.validateLivreFormacaoOnline(curso); err != nil {
 		return err
 	}
 
-	// Validate locations and schedules (skip for LIVRE_FORMACAO_ONLINE)
 	if curso.Modalidade != models.ModalidadeLivreFormacaoOnline {
 		if err := s.validateLocationClasses(curso.LocationClasses); err != nil {
 			return fmt.Errorf("erro de validação em locations: %w", err)
 		}
 
-		// Validate remote class and schedules
 		if err := s.validateRemoteClass(curso.RemoteClass, curso.Modalidade); err != nil {
 			return fmt.Errorf("erro de validação em remote class: %w", err)
 		}
