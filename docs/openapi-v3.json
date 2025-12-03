@@ -346,7 +346,7 @@
     },
     "/api/v1/categorias": {
       "get": {
-        "description": "Retorna lista paginada de categorias. Use onlyWithCourses=true para filtrar apenas categorias com cursos publicados e com inscrições abertas ou vencidas há no máximo N dias.",
+        "description": "Retorna lista paginada de categorias. Use onlyWithCourses=true para filtrar apenas categorias com cursos abertos, visíveis e com inscrições dentro do período de tolerância.",
         "tags": [
           "categorias"
         ],
@@ -369,7 +369,7 @@
             }
           },
           {
-            "description": "Filtrar apenas categorias com cursos publicados",
+            "description": "Filtrar apenas categorias com cursos abertos",
             "name": "onlyWithCourses",
             "in": "query",
             "schema": {
@@ -382,6 +382,14 @@
             "in": "query",
             "schema": {
               "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar cursos visíveis (default: true)",
+            "name": "isVisible",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
