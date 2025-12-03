@@ -73,13 +73,31 @@ func (r *CategoriaRepository) List(ctx context.Context, filter map[string]interf
 	if daysTolerance, ok := filter["days_tolerance"].(int); ok {
 		delete(filter, "days_tolerance")
 		cutoffDate := time.Now().AddDate(0, 0, -daysTolerance)
-		db = db.Where(`id IN (
-			SELECT DISTINCT cc.categoria_id 
-			FROM cursos_categorias cc 
-			INNER JOIN cursos c ON cc.curso_id = c.id 
-			WHERE c.status != ? 
-			AND c.enrollment_end_date >= ?
-		)`, "draft", cutoffDate)
+
+		isVisible := true
+		if iv, ok := filter["is_visible"].(bool); ok {
+			isVisible = iv
+			delete(filter, "is_visible")
+		}
+
+		if isVisible {
+			db = db.Where(`id IN (
+				SELECT DISTINCT cc.categoria_id 
+				FROM cursos_categorias cc 
+				INNER JOIN cursos c ON cc.curso_id = c.id 
+				WHERE c.status IN ('opened', 'ABERTO')
+				AND (c.is_visible = true OR c.is_visible IS NULL)
+				AND c.enrollment_end_date >= ?
+			)`, cutoffDate)
+		} else {
+			db = db.Where(`id IN (
+				SELECT DISTINCT cc.categoria_id 
+				FROM cursos_categorias cc 
+				INNER JOIN cursos c ON cc.curso_id = c.id 
+				WHERE c.status IN ('opened', 'ABERTO')
+				AND c.enrollment_end_date >= ?
+			)`, cutoffDate)
+		}
 	}
 
 	for key, value := range filter {

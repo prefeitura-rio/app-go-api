@@ -286,7 +286,7 @@ const docTemplate = `{
         },
         "/api/v1/categorias": {
             "get": {
-                "description": "Retorna lista paginada de categorias. Use onlyWithCourses=true para filtrar apenas categorias com cursos publicados e com inscrições abertas ou vencidas há no máximo N dias.",
+                "description": "Retorna lista paginada de categorias. Use onlyWithCourses=true para filtrar apenas categorias com cursos abertos, visíveis e com inscrições dentro do período de tolerância.",
                 "produces": [
                     "application/json"
                 ],
@@ -309,7 +309,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Filtrar apenas categorias com cursos publicados",
+                        "description": "Filtrar apenas categorias com cursos abertos",
                         "name": "onlyWithCourses",
                         "in": "query"
                     },
@@ -317,6 +317,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Dias de tolerância após vencimento da inscrição (default: 30)",
                         "name": "daysTolerance",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filtrar cursos visíveis (default: true)",
+                        "name": "isVisible",
                         "in": "query"
                     }
                 ],

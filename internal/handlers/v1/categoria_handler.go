@@ -44,13 +44,14 @@ func (h *CategoriaHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Listar categorias
-// @Description  Retorna lista paginada de categorias. Use onlyWithCourses=true para filtrar apenas categorias com cursos publicados e com inscrições abertas ou vencidas há no máximo N dias.
+// @Description  Retorna lista paginada de categorias. Use onlyWithCourses=true para filtrar apenas categorias com cursos abertos, visíveis e com inscrições dentro do período de tolerância.
 // @Tags         categorias
 // @Produce      json
 // @Param        page            query     int   false  "Número da página (default: 1)"
 // @Param        pageSize        query     int   false  "Tamanho da página (default: 10)"
-// @Param        onlyWithCourses query     bool  false  "Filtrar apenas categorias com cursos publicados"
+// @Param        onlyWithCourses query     bool  false  "Filtrar apenas categorias com cursos abertos"
 // @Param        daysTolerance   query     int   false  "Dias de tolerância após vencimento da inscrição (default: 30)"
+// @Param        isVisible       query     bool  false  "Filtrar cursos visíveis (default: true)"
 // @Success      200             {object}  object{data=[]models.Categoria,meta=object{page=int,page_size=int,total=int}}
 // @Failure      500             {object}  models.ErrorResponse
 // @Router       /api/v1/categorias [get]
@@ -75,6 +76,12 @@ func (h *CategoriaHandler) List(c *gin.Context) {
 			}
 		}
 		filter["days_tolerance"] = daysTolerance
+
+		isVisible := true
+		if iv := c.Query("isVisible"); iv == "false" {
+			isVisible = false
+		}
+		filter["is_visible"] = isVisible
 	}
 
 	categorias, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
