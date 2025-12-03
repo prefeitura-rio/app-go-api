@@ -870,7 +870,9 @@ paths:
       - acessibilidades
   /api/v1/categorias:
     get:
-      description: Retorna lista paginada de categorias
+      description: Retorna lista paginada de categorias. Use onlyWithCourses=true
+        para filtrar apenas categorias com cursos publicados e com inscrições abertas
+        ou vencidas há no máximo N dias.
       parameters:
       - description: 'Número da página (default: 1)'
         in: query
@@ -879,6 +881,14 @@ paths:
       - description: 'Tamanho da página (default: 10)'
         in: query
         name: pageSize
+        type: integer
+      - description: Filtrar apenas categorias com cursos publicados
+        in: query
+        name: onlyWithCourses
+        type: boolean
+      - description: 'Dias de tolerância após vencimento da inscrição (default: 30)'
+        in: query
+        name: daysTolerance
         type: integer
       produces:
       - application/json
