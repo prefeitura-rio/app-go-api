@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -67,14 +68,26 @@ func (r *CategoriaRepository) List(ctx context.Context, filter map[string]interf
 	var categorias []*models.Categoria
 	var total int64
 
-	// Contar total de registros
 	db := r.db.WithContext(ctx).Model(&models.Categoria{})
+
+	if daysTolerance, ok := filter["days_tolerance"].(int); ok {
+		delete(filter, "days_tolerance")
+		cutoffDate := time.Now().AddDate(0, 0, -daysTolerance)
+		db = db.Where(`id IN (
+			SELECT DISTINCT cc.categoria_id 
+			FROM cursos_categorias cc 
+			INNER JOIN cursos c ON cc.curso_id = c.id 
+			WHERE c.status != ? 
+			AND c.enrollment_end_date >= ?
+		)`, "draft", cutoffDate)
+	}
+
 	for key, value := range filter {
 		db = db.Where(key+" = ?", value)
 	}
+
 	db.Count(&total)
 
-	// Buscar registros com paginau00e7u00e3o
 	result := db.
 		Order("id DESC").
 		Limit(limit).
