@@ -36,3 +36,7 @@ external_configs
 
 .direnv/
 .DS_Store
+
+# Touch scripts (utility scripts, not for version control)
+scripts/touch_all_courses.sql
+scripts/touch_all_courses.sh
