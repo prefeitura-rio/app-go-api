@@ -269,14 +269,18 @@ func (h *OportunidadeMEIHandler) List(c *gin.Context) {
 // @Description  Retorna uma lista paginada de oportunidades MEI em rascunho
 // @Tags         oportunidades-mei
 // @Produce      json
-// @Param        page     query     int  false  "Número da página (default: 1)"
-// @Param        pageSize query     int  false  "Tamanho da página (default: 10, max: 1000)"
+// @Param        page     query     int     false  "Número da página (default: 1)"
+// @Param        pageSize query     int     false  "Tamanho da página (default: 10, max: 1000)"
+// @Param        orgaoId  query     string  false  "Filtrar por órgão"
+// @Param        titulo   query     string  false  "Buscar por título (case-insensitive)"
 // @Success      200      {object}  object
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/drafts [get]
 func (h *OportunidadeMEIHandler) ListDrafts(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	orgaoID := c.Query("orgaoId")
+	titulo := c.Query("titulo")
 
 	if page < 1 {
 		page = 1
@@ -286,7 +290,7 @@ func (h *OportunidadeMEIHandler) ListDrafts(c *gin.Context) {
 		pageSize = 10
 	}
 
-	oportunidades, total, err := h.service.ListDrafts(c.Request.Context(), page, pageSize)
+	oportunidades, total, err := h.service.ListDrafts(c.Request.Context(), orgaoID, titulo, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar rascunhos: " + err.Error()})
 		return

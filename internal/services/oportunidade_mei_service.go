@@ -122,8 +122,16 @@ func (s *OportunidadeMEIService) ListByStatus(ctx context.Context, status models
 	return s.repo.ListByStatus(ctx, status, pageSize, offset)
 }
 
-func (s *OportunidadeMEIService) ListDrafts(ctx context.Context, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {
-	return s.ListByStatus(ctx, models.StatusOportunidadeDraft, page, pageSize)
+func (s *OportunidadeMEIService) ListDrafts(ctx context.Context, orgaoID, titulo string, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {
+	filters := map[string]interface{}{
+		"status": models.StatusOportunidadeDraft,
+	}
+
+	if orgaoID != "" {
+		filters["orgao_id"] = orgaoID
+	}
+
+	return s.List(ctx, filters, titulo, page, pageSize)
 }
 
 func (s *OportunidadeMEIService) ListActive(ctx context.Context, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {
