@@ -2812,41 +2812,6 @@ paths:
       summary: Listar rascunhos de oportunidades MEI
       tags:
       - oportunidades-mei
-  /api/v1/propostas-mei/por-empresa:
-    get:
-      description: Retorna uma lista paginada de propostas MEI de uma empresa
-      parameters:
-      - description: CNPJ da MEI empresa
-        in: query
-        name: meiEmpresaId
-        required: true
-        type: string
-      - description: 'Número da página (default: 1)'
-        in: query
-        name: page
-        type: integer
-      - description: 'Tamanho da página (default: 10, max: 1000)'
-        in: query
-        name: pageSize
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-      summary: Listar propostas MEI por MEI empresa
-      tags:
-      - propostas-mei
   /api/v1/typesense/collections/{collection}/documents/search:
     post:
       consumes:
@@ -2967,6 +2932,41 @@ paths:
       summary: Listar cursos de um usuário específico
       tags:
       - courses
+  /propostas-mei/por-empresa:
+    get:
+      description: Retorna uma lista paginada de propostas MEI de uma empresa
+      parameters:
+      - description: CNPJ da MEI empresa
+        in: query
+        name: meiEmpresaId
+        required: true
+        type: string
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10, max: 1000)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar propostas MEI por MEI empresa
+      tags:
+      - propostas-mei
 schemes:
 - http
 - https

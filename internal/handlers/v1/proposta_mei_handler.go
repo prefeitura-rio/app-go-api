@@ -348,7 +348,7 @@ func (h *PropostaMEIHandler) List(c *gin.Context) {
 // @Success      200           {object}  object
 // @Failure      400           {object}  models.ErrorResponse
 // @Failure      500           {object}  models.ErrorResponse
-// @Router       /api/v1/propostas-mei/por-empresa [get]
+// @Router       /propostas-mei/por-empresa [get]
 func (h *PropostaMEIHandler) ListByMEIEmpresa(c *gin.Context) {
 	meiEmpresaID := c.Query("meiEmpresaId")
 	if meiEmpresaID == "" {
