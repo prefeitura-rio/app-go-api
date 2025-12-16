@@ -177,9 +177,21 @@ func (o *OportunidadeMEI) ValidateForPublish() error {
 
 // UpdateStatusBasedOnExpiration atualiza o status baseado na data de expiração
 func (o *OportunidadeMEI) UpdateStatusBasedOnExpiration() {
-	if o.Status == StatusOportunidadeActive && o.DataExpiracao != nil {
-		if time.Now().After(*o.DataExpiracao) {
+	if o.DataExpiracao == nil {
+		return
+	}
+
+	now := time.Now()
+
+	// Se a data de expiração está no passado, marcar como expirado
+	if now.After(*o.DataExpiracao) {
+		if o.Status == StatusOportunidadeActive {
 			o.Status = StatusOportunidadeExpired
+		}
+	} else {
+		// Se a data de expiração está no futuro e estava expirado, reativar
+		if o.Status == StatusOportunidadeExpired {
+			o.Status = StatusOportunidadeActive
 		}
 	}
 }
