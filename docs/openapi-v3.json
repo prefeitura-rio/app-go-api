@@ -4176,11 +4176,11 @@
   ],
   "servers": [
     {
-      "url": "https://services.pref.rio/go/v1",
+      "url": "https://services.pref.rio/go",
       "description": "Production"
     },
     {
-      "url": "https://services.staging.app.dados.rio/go/v1",
+      "url": "https://services.staging.app.dados.rio/go",
       "description": "Staging"
     }
   ],

@@ -39,8 +39,8 @@ jobs:
       - name: Post-process OpenAPI v3 JSON
         run: |
           jq '.servers = [
-              {"url": "https://services.pref.rio/go/v1", "description": "Production"},
-              {"url": "https://services.staging.app.dados.rio/go/v1", "description": "Staging"}
+              {"url": "https://services.pref.rio/go", "description": "Production"},
+              {"url": "https://services.staging.app.dados.rio/go", "description": "Staging"}
             ] |
               .components.securitySchemes = {
                 "bearerAuth": {
