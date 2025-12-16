@@ -1,15 +1,30 @@
 package models
 
 import (
+	"database/sql/driver"
 	"errors"
 	"strings"
 	"time"
 
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
 type StatusOportunidadeMEI string
 type FormaPagamento string
+
+// StringArray is a custom type for PostgreSQL string arrays
+type StringArray []string
+
+// Scan implements the sql.Scanner interface for StringArray
+func (a *StringArray) Scan(value interface{}) error {
+	return pq.Array(a).Scan(value)
+}
+
+// Value implements the driver.Valuer interface for StringArray
+func (a StringArray) Value() (driver.Value, error) {
+	return pq.Array(a).Value()
+}
 
 const (
 	StatusOportunidadeDraft   StatusOportunidadeMEI = "draft"
@@ -30,8 +45,8 @@ type OportunidadeMEI struct {
 	OutrasInformacoes string `json:"outras_informacoes" gorm:"type:text"`
 
 	// Relacionamentos
-	OrgaoID string   `json:"orgao_id" gorm:"type:varchar(100);not null"`
-	CNAEIDs []string `json:"cnae_ids" gorm:"type:varchar(20)[];not null;default:'{}'"`
+	OrgaoID string      `json:"orgao_id" gorm:"type:varchar(100);not null"`
+	CNAEIDs StringArray `json:"cnae_ids" gorm:"type:varchar(20)[];not null;default:'{}'"`
 
 	// Local de execução
 	Logradouro  string `json:"logradouro" gorm:"type:varchar(255);not null"`
