@@ -3025,6 +3025,22 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "description": "Filtrar por órgão",
+            "name": "orgaoId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Buscar por título (case-insensitive)",
+            "name": "titulo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
