@@ -106,8 +106,57 @@ func (s *OportunidadeMEIService) Delete(ctx context.Context, id int) error {
 }
 
 func (s *OportunidadeMEIService) List(ctx context.Context, filters map[string]interface{}, titulo string, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {
+	// Extract status filter if present, we'll handle it after updating expiration
+	var requestedStatus models.StatusOportunidadeMEI
+	var hasStatusFilter bool
+	if statusFilter, ok := filters["status"]; ok {
+		requestedStatus = statusFilter.(models.StatusOportunidadeMEI)
+		hasStatusFilter = true
+		// Remove status from database filters - we'll filter after updating status
+		delete(filters, "status")
+	}
+
+	// Get all opportunities matching other filters (without status filter)
 	offset := (page - 1) * pageSize
-	return s.repo.List(ctx, filters, titulo, pageSize, offset)
+	oportunidades, _, err := s.repo.List(ctx, filters, titulo, pageSize*10, 0) // Get more to filter
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Update status based on expiration for each opportunity
+	for _, oportunidade := range oportunidades {
+		oportunidade.UpdateStatusBasedOnExpiration()
+	}
+
+	// Filter by status if requested (after updating statuses)
+	if hasStatusFilter {
+		filtered := make([]*models.OportunidadeMEI, 0)
+		for _, oportunidade := range oportunidades {
+			if oportunidade.Status == requestedStatus {
+				filtered = append(filtered, oportunidade)
+			}
+		}
+		oportunidades = filtered
+	}
+
+	// Apply pagination to filtered results
+	total := len(oportunidades)
+	start := offset
+	end := offset + pageSize
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+
+	if start < end {
+		oportunidades = oportunidades[start:end]
+	} else {
+		oportunidades = []*models.OportunidadeMEI{}
+	}
+
+	return oportunidades, total, nil
 }
 
 func (s *OportunidadeMEIService) ListByStatus(ctx context.Context, status models.StatusOportunidadeMEI, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {
