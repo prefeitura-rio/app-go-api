@@ -3958,10 +3958,190 @@ const docTemplate = `{
             }
         },
         "models.OportunidadeMEI": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "bairro": {
+                    "type": "string",
+                    "example": "Centro"
+                },
+                "cidade": {
+                    "type": "string",
+                    "example": "Rio de Janeiro"
+                },
+                "cnae_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "8130300",
+                        "8121400"
+                    ]
+                },
+                "complemento": {
+                    "type": "string",
+                    "example": "Próximo ao Paço Imperial"
+                },
+                "cover_image": {
+                    "description": "Imagens",
+                    "type": "string",
+                    "example": "https://example.com/imagem.jpg"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T10:00:00Z"
+                },
+                "data_expiracao": {
+                    "type": "string",
+                    "example": "2024-12-31T23:59:59Z"
+                },
+                "data_limite_execucao": {
+                    "type": "string",
+                    "example": "2024-12-31T23:59:59Z"
+                },
+                "deleted_at": {
+                    "type": "string",
+                    "example": "2024-12-31T23:59:59Z"
+                },
+                "descricao_servico": {
+                    "type": "string",
+                    "example": "Serviço de poda, jardinagem e manutenção das áreas verdes"
+                },
+                "estado": {
+                    "type": "string",
+                    "example": "RJ"
+                },
+                "forma_pagamento": {
+                    "description": "Pagamento e prazos",
+                    "type": "string",
+                    "enum": [
+                        "CHEQUE",
+                        "DINHEIRO",
+                        "CARTAO",
+                        "PIX",
+                        "TRANSFERENCIA",
+                        ""
+                    ],
+                    "example": "PIX"
+                },
+                "gallery_images": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://example.com/img1.jpg",
+                        "https://example.com/img2.jpg"
+                    ]
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "logradouro": {
+                    "description": "Local de execução",
+                    "type": "string",
+                    "example": "Praça XV de Novembro"
+                },
+                "numero": {
+                    "type": "string",
+                    "example": "S/N"
+                },
+                "orgao_id": {
+                    "description": "Relacionamentos",
+                    "type": "string",
+                    "example": "SECONSERVA"
+                },
+                "outras_informacoes": {
+                    "type": "string",
+                    "example": "Trabalho a ser realizado nos finais de semana"
+                },
+                "prazo_pagamento": {
+                    "type": "string",
+                    "example": "30 dias após conclusão"
+                },
+                "status": {
+                    "description": "Status e controle",
+                    "enum": [
+                        "draft",
+                        "active",
+                        "expired"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.StatusOportunidadeMEI"
+                        }
+                    ],
+                    "example": "active"
+                },
+                "titulo": {
+                    "type": "string",
+                    "example": "Manutenção de Jardins da Praça XV"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-01T10:00:00Z"
+                }
+            }
         },
         "models.PropostaMEI": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T10:00:00Z"
+                },
+                "deleted_at": {
+                    "type": "string",
+                    "example": "2024-12-31T23:59:59Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "mei_empresa_id": {
+                    "type": "string",
+                    "example": "12.345.678/0001-90"
+                },
+                "oportunidade_mei_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "status_admin": {
+                    "enum": [
+                        "draft",
+                        "active",
+                        "expired"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.StatusPropostaAdmin"
+                        }
+                    ],
+                    "example": "active"
+                },
+                "status_cidadao": {
+                    "enum": [
+                        "submitted",
+                        "approved",
+                        "rejected"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.StatusPropostaCidadao"
+                        }
+                    ],
+                    "example": "submitted"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-01T10:00:00Z"
+                },
+                "valor_proposta": {
+                    "type": "number",
+                    "example": 1500.5
+                }
+            }
         },
         "models.PropostaStatusUpdateRequest": {
             "type": "object",
@@ -3974,10 +4154,24 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "550e8400-e29b-41d4-a716-446655440000",
+                        "660e8400-e29b-41d4-a716-446655440001"
+                    ]
                 },
                 "status": {
-                    "$ref": "#/definitions/models.StatusPropostaCidadao"
+                    "enum": [
+                        "submitted",
+                        "approved",
+                        "rejected"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.StatusPropostaCidadao"
+                        }
+                    ],
+                    "example": "approved"
                 }
             }
         },
@@ -3985,13 +4179,25 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "status": {
-                    "$ref": "#/definitions/models.StatusPropostaCidadao"
+                    "enum": [
+                        "submitted",
+                        "approved",
+                        "rejected"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.StatusPropostaCidadao"
+                        }
+                    ],
+                    "example": "approved"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2024-01-01T10:00:00Z"
                 },
                 "updated_count": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 2
                 }
             }
         },

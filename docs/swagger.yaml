@@ -509,17 +509,156 @@ definitions:
         type: integer
     type: object
   models.OportunidadeMEI:
+    properties:
+      bairro:
+        example: Centro
+        type: string
+      cidade:
+        example: Rio de Janeiro
+        type: string
+      cnae_ids:
+        example:
+        - "8130300"
+        - "8121400"
+        items:
+          type: string
+        type: array
+      complemento:
+        example: Próximo ao Paço Imperial
+        type: string
+      cover_image:
+        description: Imagens
+        example: https://example.com/imagem.jpg
+        type: string
+      created_at:
+        example: "2024-01-01T10:00:00Z"
+        type: string
+      data_expiracao:
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      data_limite_execucao:
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      deleted_at:
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      descricao_servico:
+        example: Serviço de poda, jardinagem e manutenção das áreas verdes
+        type: string
+      estado:
+        example: RJ
+        type: string
+      forma_pagamento:
+        description: Pagamento e prazos
+        enum:
+        - CHEQUE
+        - DINHEIRO
+        - CARTAO
+        - PIX
+        - TRANSFERENCIA
+        - ""
+        example: PIX
+        type: string
+      gallery_images:
+        example:
+        - https://example.com/img1.jpg
+        - https://example.com/img2.jpg
+        items:
+          type: string
+        type: array
+      id:
+        example: 1
+        type: integer
+      logradouro:
+        description: Local de execução
+        example: Praça XV de Novembro
+        type: string
+      numero:
+        example: S/N
+        type: string
+      orgao_id:
+        description: Relacionamentos
+        example: SECONSERVA
+        type: string
+      outras_informacoes:
+        example: Trabalho a ser realizado nos finais de semana
+        type: string
+      prazo_pagamento:
+        example: 30 dias após conclusão
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.StatusOportunidadeMEI'
+        description: Status e controle
+        enum:
+        - draft
+        - active
+        - expired
+        example: active
+      titulo:
+        example: Manutenção de Jardins da Praça XV
+        type: string
+      updated_at:
+        example: "2024-01-01T10:00:00Z"
+        type: string
     type: object
   models.PropostaMEI:
+    properties:
+      created_at:
+        example: "2024-01-01T10:00:00Z"
+        type: string
+      deleted_at:
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      mei_empresa_id:
+        example: 12.345.678/0001-90
+        type: string
+      oportunidade_mei_id:
+        example: 1
+        type: integer
+      status_admin:
+        allOf:
+        - $ref: '#/definitions/models.StatusPropostaAdmin'
+        enum:
+        - draft
+        - active
+        - expired
+        example: active
+      status_cidadao:
+        allOf:
+        - $ref: '#/definitions/models.StatusPropostaCidadao'
+        enum:
+        - submitted
+        - approved
+        - rejected
+        example: submitted
+      updated_at:
+        example: "2024-01-01T10:00:00Z"
+        type: string
+      valor_proposta:
+        example: 1500.5
+        type: number
     type: object
   models.PropostaStatusUpdateRequest:
     properties:
       proposta_ids:
+        example:
+        - 550e8400-e29b-41d4-a716-446655440000
+        - 660e8400-e29b-41d4-a716-446655440001
         items:
           type: string
         type: array
       status:
-        $ref: '#/definitions/models.StatusPropostaCidadao'
+        allOf:
+        - $ref: '#/definitions/models.StatusPropostaCidadao'
+        enum:
+        - submitted
+        - approved
+        - rejected
+        example: approved
     required:
     - proposta_ids
     - status
@@ -527,10 +666,18 @@ definitions:
   models.PropostaStatusUpdateResponse:
     properties:
       status:
-        $ref: '#/definitions/models.StatusPropostaCidadao'
+        allOf:
+        - $ref: '#/definitions/models.StatusPropostaCidadao'
+        enum:
+        - submitted
+        - approved
+        - rejected
+        example: approved
       updated_at:
+        example: "2024-01-01T10:00:00Z"
         type: string
       updated_count:
+        example: 2
         type: integer
     type: object
   models.SearchDocumentsResponse:

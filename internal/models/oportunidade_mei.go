@@ -38,40 +38,41 @@ const (
 	FormaPagamentoTransferencia FormaPagamento = "TRANSFERENCIA"
 )
 
+// OportunidadeMEI representa uma oportunidade de negócio para MEIs
 type OportunidadeMEI struct {
-	ID                int    `json:"id" gorm:"primaryKey"`
-	Titulo            string `json:"titulo" gorm:"type:varchar(255);not null"`
-	DescricaoServico  string `json:"descricao_servico" gorm:"type:text;not null"`
-	OutrasInformacoes string `json:"outras_informacoes" gorm:"type:text"`
+	ID                int    `json:"id" gorm:"primaryKey" example:"1"`
+	Titulo            string `json:"titulo" gorm:"type:varchar(255);not null" example:"Manutenção de Jardins da Praça XV"`
+	DescricaoServico  string `json:"descricao_servico" gorm:"type:text;not null" example:"Serviço de poda, jardinagem e manutenção das áreas verdes"`
+	OutrasInformacoes string `json:"outras_informacoes,omitempty" gorm:"type:text" example:"Trabalho a ser realizado nos finais de semana"`
 
 	// Relacionamentos
-	OrgaoID string      `json:"orgao_id" gorm:"type:varchar(100);not null"`
-	CNAEIDs StringArray `json:"cnae_ids" gorm:"type:varchar(20)[];not null;default:'{}'"`
+	OrgaoID string      `json:"orgao_id" gorm:"type:varchar(100);not null" example:"SECONSERVA"`
+	CNAEIDs StringArray `json:"cnae_ids" gorm:"type:varchar(20)[];not null;default:'{}'" swaggertype:"array,string" example:"8130300,8121400"`
 
 	// Local de execução
-	Logradouro  string `json:"logradouro" gorm:"type:varchar(255);not null"`
-	Numero      string `json:"numero" gorm:"type:varchar(20);not null"`
-	Complemento string `json:"complemento" gorm:"type:varchar(100)"`
-	Bairro      string `json:"bairro" gorm:"type:varchar(100);not null"`
-	Cidade      string `json:"cidade" gorm:"type:varchar(100);not null"`
-	Estado      string `json:"estado" gorm:"type:varchar(2);not null"`
+	Logradouro  string `json:"logradouro" gorm:"type:varchar(255);not null" example:"Praça XV de Novembro"`
+	Numero      string `json:"numero" gorm:"type:varchar(20);not null" example:"S/N"`
+	Complemento string `json:"complemento,omitempty" gorm:"type:varchar(100)" example:"Próximo ao Paço Imperial"`
+	Bairro      string `json:"bairro" gorm:"type:varchar(100);not null" example:"Centro"`
+	Cidade      string `json:"cidade" gorm:"type:varchar(100);not null" example:"Rio de Janeiro"`
+	Estado      string `json:"estado" gorm:"type:varchar(2);not null" example:"RJ"`
 
 	// Pagamento e prazos
-	FormaPagamento     *string    `json:"forma_pagamento,omitempty" gorm:"type:varchar(50)" swaggertype:"string" enums:"CHEQUE,DINHEIRO,CARTAO,PIX,TRANSFERENCIA," example:"PIX"` // Valores aceitos: CHEQUE, DINHEIRO, CARTAO, PIX, TRANSFERENCIA ou vazio
-	PrazoPagamento     string     `json:"prazo_pagamento" gorm:"type:varchar(100)"`
-	DataLimiteExecucao *time.Time `json:"data_limite_execucao" gorm:"type:timestamp with time zone"`
-	DataExpiracao      *time.Time `json:"data_expiracao" gorm:"type:timestamp with time zone;not null"`
+	FormaPagamento     *string    `json:"forma_pagamento,omitempty" gorm:"type:varchar(50)" swaggertype:"string" enums:"CHEQUE,DINHEIRO,CARTAO,PIX,TRANSFERENCIA," example:"PIX"`
+	PrazoPagamento     string     `json:"prazo_pagamento,omitempty" gorm:"type:varchar(100)" example:"30 dias após conclusão"`
+	DataLimiteExecucao *time.Time `json:"data_limite_execucao,omitempty" gorm:"type:timestamp with time zone" example:"2024-12-31T23:59:59Z"`
+	DataExpiracao      *time.Time `json:"data_expiracao" gorm:"type:timestamp with time zone;not null" example:"2024-12-31T23:59:59Z"`
 
 	// Imagens
-	CoverImage    string   `json:"cover_image" gorm:"type:varchar(500)"`
-	GalleryImages []string `json:"gallery_images" gorm:"type:jsonb;serializer:json"`
+	CoverImage    string   `json:"cover_image,omitempty" gorm:"type:varchar(500)" example:"https://example.com/imagem.jpg"`
+	GalleryImages []string `json:"gallery_images,omitempty" gorm:"type:jsonb;serializer:json" swaggertype:"array,string" example:"https://example.com/img1.jpg,https://example.com/img2.jpg"`
 
 	// Status e controle
-	Status    StatusOportunidadeMEI `json:"status" gorm:"type:varchar(50);not null;default:'draft'"`
-	DeletedAt gorm.DeletedAt        `json:"deleted_at,omitempty" gorm:"index"`
+	Status    StatusOportunidadeMEI `json:"status" gorm:"type:varchar(50);not null;default:'draft'" enums:"draft,active,expired" example:"active"`
+	DeletedAt gorm.DeletedAt        `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
 
-	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime" example:"2024-01-01T10:00:00Z"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime" example:"2024-01-01T10:00:00Z"`
 
 	// Relacionamentos expandidos
 	Propostas []PropostaMEI `json:"propostas,omitempty" gorm:"foreignKey:OportunidadeMEIID" swaggerignore:"true"`

@@ -23,21 +23,22 @@ const (
 	StatusPropostaCidadaoRejected  StatusPropostaCidadao = "rejected"
 )
 
+// PropostaMEI representa uma proposta de um MEI para uma oportunidade
 type PropostaMEI struct {
-	ID                uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OportunidadeMEIID int       `json:"oportunidade_mei_id" gorm:"not null;index"`
-	MEIEmpresaID      string    `json:"mei_empresa_id" gorm:"type:varchar(18);not null;index"`
-	ValorProposta     *float64  `json:"valor_proposta,omitempty" gorm:"type:decimal(10,2)"`
+	ID                uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" example:"550e8400-e29b-41d4-a716-446655440000"`
+	OportunidadeMEIID int       `json:"oportunidade_mei_id" gorm:"not null;index" example:"1"`
+	MEIEmpresaID      string    `json:"mei_empresa_id" gorm:"type:varchar(18);not null;index" example:"12.345.678/0001-90"`
+	ValorProposta     *float64  `json:"valor_proposta,omitempty" gorm:"type:decimal(10,2)" example:"1500.50"`
 
-	StatusAdmin   StatusPropostaAdmin   `json:"status_admin" gorm:"type:varchar(50);not null;default:'active'"`
-	StatusCidadao StatusPropostaCidadao `json:"status_cidadao" gorm:"type:varchar(50);not null;default:'submitted'"`
+	StatusAdmin   StatusPropostaAdmin   `json:"status_admin" gorm:"type:varchar(50);not null;default:'active'" enums:"draft,active,expired" example:"active"`
+	StatusCidadao StatusPropostaCidadao `json:"status_cidadao" gorm:"type:varchar(50);not null;default:'submitted'" enums:"submitted,approved,rejected" example:"submitted"`
 
-	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
-	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
+	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime" example:"2024-01-01T10:00:00Z"`
+	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime" example:"2024-01-01T10:00:00Z"`
 
 	// Relacionamentos
-	Oportunidade *OportunidadeMEI `json:"oportunidade,omitempty" gorm:"foreignKey:OportunidadeMEIID"`
+	Oportunidade *OportunidadeMEI `json:"oportunidade,omitempty" gorm:"foreignKey:OportunidadeMEIID" swaggerignore:"true"`
 }
 
 func (PropostaMEI) TableName() string {
@@ -90,13 +91,15 @@ func (p *PropostaMEI) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
+// PropostaStatusUpdateRequest representa requisição para atualizar status de múltiplas propostas
 type PropostaStatusUpdateRequest struct {
-	PropostaIDs []uuid.UUID           `json:"proposta_ids" binding:"required"`
-	Status      StatusPropostaCidadao `json:"status" binding:"required"`
+	PropostaIDs []uuid.UUID           `json:"proposta_ids" binding:"required" example:"550e8400-e29b-41d4-a716-446655440000,660e8400-e29b-41d4-a716-446655440001"`
+	Status      StatusPropostaCidadao `json:"status" binding:"required" enums:"submitted,approved,rejected" example:"approved"`
 }
 
+// PropostaStatusUpdateResponse representa resposta de atualização de status de propostas
 type PropostaStatusUpdateResponse struct {
-	UpdatedCount int                   `json:"updated_count"`
-	Status       StatusPropostaCidadao `json:"status"`
-	UpdatedAt    time.Time             `json:"updated_at"`
+	UpdatedCount int                   `json:"updated_count" example:"2"`
+	Status       StatusPropostaCidadao `json:"status" enums:"submitted,approved,rejected" example:"approved"`
+	UpdatedAt    time.Time             `json:"updated_at" example:"2024-01-01T10:00:00Z"`
 }
