@@ -76,9 +76,9 @@ func (r *OportunidadeMEIRepository) List(ctx context.Context, filters map[string
 		db = db.Where(key+" = ?", value)
 	}
 
-	// Filtro de busca por título (case-insensitive)
+	// Filtro de busca por título (case-insensitive and accent-insensitive)
 	if titulo != "" {
-		db = db.Where("titulo ILIKE ?", "%"+titulo+"%")
+		db = db.Where("unaccent(titulo) ILIKE unaccent(?)", "%"+titulo+"%")
 	}
 
 	db.Count(&total)
