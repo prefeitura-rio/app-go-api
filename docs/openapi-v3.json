@@ -3857,79 +3857,6 @@
         ]
       }
     },
-    "/api/v1/propostas-mei/por-empresa": {
-      "get": {
-        "description": "Retorna uma lista paginada de propostas MEI de uma empresa",
-        "tags": [
-          "propostas-mei"
-        ],
-        "summary": "Listar propostas MEI por MEI empresa",
-        "parameters": [
-          {
-            "description": "CNPJ da MEI empresa",
-            "name": "meiEmpresaId",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Número da página (default: 1)",
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Tamanho da página (default: 10, max: 1000)",
-            "name": "pageSize",
-            "in": "query",
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/models.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/models.ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
     "/api/v1/typesense/collections/{collection}/documents/search": {
       "post": {
         "description": "Busca documentos em uma coleção",
@@ -4126,6 +4053,79 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/propostas-mei/por-empresa": {
+      "get": {
+        "description": "Retorna uma lista paginada de propostas MEI de uma empresa",
+        "tags": [
+          "propostas-mei"
+        ],
+        "summary": "Listar propostas MEI por MEI empresa",
+        "parameters": [
+          {
+            "description": "CNPJ da MEI empresa",
+            "name": "meiEmpresaId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Número da página (default: 1)",
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Tamanho da página (default: 10, max: 1000)",
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer"
             }
           }
         ],
