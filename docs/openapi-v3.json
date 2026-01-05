@@ -5161,6 +5161,10 @@
       "models.PropostaMEI": {
         "type": "object",
         "properties": {
+          "aceita_custos_integrais": {
+            "type": "boolean",
+            "example": true
+          },
           "created_at": {
             "type": "string",
             "example": "2024-01-01T10:00:00Z"
@@ -5180,6 +5184,10 @@
           "oportunidade_mei_id": {
             "type": "integer",
             "example": 1
+          },
+          "prazo_execucao": {
+            "type": "string",
+            "example": "30 dias"
           },
           "status_admin": {
             "enum": [
