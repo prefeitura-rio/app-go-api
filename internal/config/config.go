@@ -15,19 +15,21 @@ import (
 
 // AppConfig contém todas as configurações da aplicação
 type AppConfig struct {
-	App        AppSettings
-	Database   DatabaseSettings
-	Server     ServerSettings
-	JWT        JWTSettings
-	Swagger    SwaggerSettings
-	TypeSense  TypeSenseSettings
-	Migrations MigrationSettings
-	RMI        RMISettings
-	Redis      RedisSettings
-	Tracing    TracingSettings
-	OrgaoSync  OrgaoSyncSettings
-	DataRelay  DataRelaySettings
-	PrefRio    PrefRioSettings
+	App         AppSettings
+	Database    DatabaseSettings
+	Server      ServerSettings
+	JWT         JWTSettings
+	Swagger     SwaggerSettings
+	TypeSense   TypeSenseSettings
+	Migrations  MigrationSettings
+	RMI         RMISettings
+	Redis       RedisSettings
+	Tracing     TracingSettings
+	OrgaoSync   OrgaoSyncSettings
+	DataRelay   DataRelaySettings
+	PrefRio     PrefRioSettings
+	Cerbos      CerbosSettings
+	PropostaMEI PropostaMEIPermissions
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -133,6 +135,19 @@ type OrgaoSyncSettings struct {
 	StaleThreshold time.Duration // Consider snapshot stale after this duration
 	BatchSize      int           // Number of orgaos to sync per batch
 	MaxRetries     int           // Maximum retries for failed syncs
+}
+
+// CerbosSettings define configurações do Cerbos PDP para autorização
+type CerbosSettings struct {
+	Endpoint string
+	Timeout  int
+	Enabled  bool
+}
+
+// PropostaMEIPermissions define permissões configuráveis para propostas MEI
+type PropostaMEIPermissions struct {
+	DeletePermissions []string // Lista de ações permitidas para deletar propostas de outros
+	UpdatePermissions []string // Lista de ações permitidas para atualizar propostas de outros
 }
 
 // Erros comuns de validação
@@ -357,6 +372,15 @@ func Load() (*AppConfig, error) {
 		PrefRio: PrefRioSettings{
 			Domain: getEnv(v, "PREFRIO_DOMAIN", "pref.rio"),
 		},
+		Cerbos: CerbosSettings{
+			Endpoint: getEnv(v, "CERBOS_ENDPOINT", ""),
+			Timeout:  getInt(v, "CERBOS_TIMEOUT_SECONDS", 2),
+			Enabled:  getBool(v, "CERBOS_ENABLED", false),
+		},
+		PropostaMEI: PropostaMEIPermissions{
+			DeletePermissions: getStringSlice(v, "PROPOSTA_MEI_DELETE_PERMISSIONS"),
+			UpdatePermissions: getStringSlice(v, "PROPOSTA_MEI_UPDATE_PERMISSIONS"),
+		},
 	}
 
 	// Validar configurações
@@ -440,6 +464,27 @@ func getDuration(v *viper.Viper, key string, defaultValue time.Duration) time.Du
 		}
 	}
 	return defaultValue
+}
+
+func getStringSlice(v *viper.Viper, key string) []string {
+	// Try viper first
+	if v.IsSet(key) {
+		return v.GetStringSlice(key)
+	}
+	// Fallback para os.Getenv com parse de comma-separated values
+	if value := os.Getenv(key); value != "" {
+		// Split by comma and trim spaces
+		parts := strings.Split(value, ",")
+		result := make([]string, 0, len(parts))
+		for _, part := range parts {
+			trimmed := strings.TrimSpace(part)
+			if trimmed != "" {
+				result = append(result, trimmed)
+			}
+		}
+		return result
+	}
+	return []string{}
 }
 
 // logConfig imprime as configurações atuais para depuração

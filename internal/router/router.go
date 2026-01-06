@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"gorm.io/gorm"
 
+	"github.com/prefeitura-rio/app-go-api/internal/authorization"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
@@ -126,6 +127,15 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	// Initialize job processor
 	jobs.InitializeJobProcessor(db, jobRepo, inscricaoRepo, cursoRepo)
 
+	// Initialize Cerbos authorization checker (if enabled)
+	var authChecker *authorization.Checker
+	if cfg.Cerbos.Enabled {
+		authChecker = authorization.NewChecker(
+			cfg.Cerbos.Endpoint,
+			time.Duration(cfg.Cerbos.Timeout)*time.Second,
+		)
+	}
+
 	// Inicializando handlers
 	empregoHandler := v1.NewEmpregoHandler(empregoService)
 	acessibilidadeHandler := v1.NewAcessibilidadeHandler(acessibilidadeService).WithCache(acessibilidadesCache)
@@ -137,7 +147,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo).WithCache(courseCache)
 	jobHandler := v1.NewJobHandler(jobService)
 	oportunidadeMEIHandler := v1.NewOportunidadeMEIHandler(oportunidadeMEIService)
-	propostaMEIHandler := v1.NewPropostaMEIHandler(propostaMEIService)
+	propostaMEIHandler := v1.NewPropostaMEIHandler(propostaMEIService, authChecker, cfg)
 	typesenseHandler, err := v1.NewTypesenseHandler()
 	if err != nil {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)
