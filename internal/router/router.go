@@ -147,7 +147,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo).WithCache(courseCache)
 	jobHandler := v1.NewJobHandler(jobService)
 	oportunidadeMEIHandler := v1.NewOportunidadeMEIHandler(oportunidadeMEIService)
-	propostaMEIHandler := v1.NewPropostaMEIHandler(propostaMEIService, authChecker, cfg)
+	propostaMEIHandler := v1.NewPropostaMEIHandler(propostaMEIService, cnaeValidationService, authChecker, cfg)
 	typesenseHandler, err := v1.NewTypesenseHandler()
 	if err != nil {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)

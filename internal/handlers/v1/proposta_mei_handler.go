@@ -16,16 +16,23 @@ import (
 )
 
 type PropostaMEIHandler struct {
-	service     services.PropostaMEIServiceInterface
-	authChecker *authorization.Checker
-	config      *config.AppConfig
+	service              services.PropostaMEIServiceInterface
+	cnaeValidationSvc    services.CNAEValidationServiceInterface
+	authChecker          *authorization.Checker
+	config               *config.AppConfig
 }
 
-func NewPropostaMEIHandler(service services.PropostaMEIServiceInterface, authChecker *authorization.Checker, cfg *config.AppConfig) *PropostaMEIHandler {
+func NewPropostaMEIHandler(
+	service services.PropostaMEIServiceInterface,
+	cnaeValidationSvc services.CNAEValidationServiceInterface,
+	authChecker *authorization.Checker,
+	cfg *config.AppConfig,
+) *PropostaMEIHandler {
 	return &PropostaMEIHandler{
-		service:     service,
-		authChecker: authChecker,
-		config:      cfg,
+		service:           service,
+		cnaeValidationSvc: cnaeValidationSvc,
+		authChecker:       authChecker,
+		config:            cfg,
 	}
 }
 
@@ -163,10 +170,11 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Check authorization: owner OR has any of the configured permissions
-	if err := authorization.RequireOwnershipOrAnyPermission(
+	// Check authorization: CNPJ owner OR has any of the configured permissions
+	if err := authorization.RequireCNPJOwnershipOrAnyPermission(
 		c,
 		h.authChecker,
+		h.cnaeValidationSvc,
 		proposta.MEIEmpresaID,
 		"proposta_mei",
 		h.config.PropostaMEI.UpdatePermissions,
@@ -326,10 +334,11 @@ func (h *PropostaMEIHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	// Check authorization: owner OR has any of the configured permissions
-	if err := authorization.RequireOwnershipOrAnyPermission(
+	// Check authorization: CNPJ owner OR has any of the configured permissions
+	if err := authorization.RequireCNPJOwnershipOrAnyPermission(
 		c,
 		h.authChecker,
+		h.cnaeValidationSvc,
 		proposta.MEIEmpresaID,
 		"proposta_mei",
 		h.config.PropostaMEI.DeletePermissions,

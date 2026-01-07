@@ -24,6 +24,40 @@ func NewCNAEValidationService(rmiClient RMIClientInterface, cache LegalEntitiesC
 	}
 }
 
+// CheckCNPJOwnership checks if a CPF owns a specific CNPJ
+// Returns true if the CPF owns the CNPJ, false otherwise
+func (s *CNAEValidationService) CheckCNPJOwnership(
+	ctx context.Context,
+	authToken string,
+	cpf string,
+	cnpj string,
+) (bool, error) {
+	// Get user's legal entities (with caching)
+	legalEntities, err := s.getUserLegalEntities(ctx, authToken, cpf)
+	if err != nil {
+		log.Printf("[CNPJ_OWNERSHIP_ERROR] CPF=%s Error fetching legal entities: %v", cpf, err)
+		return false, err
+	}
+
+	// Check if user has any CNPJs
+	if len(legalEntities) == 0 {
+		return false, nil
+	}
+
+	// Find the CNPJ in user's legal entities
+	for i := range legalEntities {
+		// Normalize CNPJ for comparison (remove formatting)
+		normalizedCNPJ := utils.ExtractDigits(legalEntities[i].CNPJ)
+		normalizedProvidedCNPJ := utils.ExtractDigits(cnpj)
+
+		if normalizedCNPJ == normalizedProvidedCNPJ {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // ValidatePropostaForCNAE validates that:
 // 1. CNPJ belongs to the user (via CPF from JWT)
 // 2. CNPJ has at least one CNAE matching opportunity's allowed CNAEs

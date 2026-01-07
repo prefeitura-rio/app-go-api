@@ -39,6 +39,7 @@ type OportunidadeMEIRepositoryInterface interface {
 // CNAEValidationServiceInterface defines the interface for CNAE validation service
 type CNAEValidationServiceInterface interface {
 	ValidatePropostaForCNAE(ctx context.Context, authToken string, cnpj string, opportunityCNAEIDs []string) error
+	CheckCNPJOwnership(ctx context.Context, authToken string, cpf string, cnpj string) (bool, error)
 }
 
 // PropostaMEIServiceInterface defines the interface for PropostaMEI service
