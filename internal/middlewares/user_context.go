@@ -1,6 +1,8 @@
 package middlewares
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -15,45 +17,108 @@ const (
 	UserEmailKey = "user_email"
 )
 
-// ExtractUserContext extrai informações do usuário dos headers injetados pelo Istio
-// O Istio deve injetar os seguintes headers após validar o JWT:
-// - X-User-CPF: CPF do usuário (extraído de preferred_username)
-// - X-User-Role: Role do usuário (ADMIN se tem go:admin em resource_access.superapp.roles)
-// - X-User-ID: ID do usuário (extraído de sub)
-// - X-User-Name: Nome completo (extraído de name)
-// - X-User-Email: Email do usuário (extraído de email)
+// JWTClaims representa as claims do JWT que nos interessam
+type JWTClaims struct {
+	PreferredUsername string `json:"preferred_username"` // CPF
+	Sub               string `json:"sub"`                // User ID
+	Name              string `json:"name"`               // Full name
+	Email             string `json:"email"`              // Email
+	ResourceAccess    map[string]struct {
+		Roles []string `json:"roles"`
+	} `json:"resource_access"` // Roles
+}
+
+// decodeJWT decodifica o payload do JWT (sem validar assinatura - já validado pelo Istio/Keycloak)
+func decodeJWT(token string) (*JWTClaims, error) {
+	// Remove "Bearer " prefix if present
+	token = strings.TrimPrefix(token, "Bearer ")
+	token = strings.TrimSpace(token)
+
+	// Split token into parts
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return nil, nil // Not a valid JWT format, skip silently
+	}
+
+	// Decode payload (second part)
+	payload := parts[1]
+	// Add padding if needed
+	if l := len(payload) % 4; l > 0 {
+		payload += strings.Repeat("=", 4-l)
+	}
+
+	decoded, err := base64.URLEncoding.DecodeString(payload)
+	if err != nil {
+		return nil, nil // Invalid base64, skip silently
+	}
+
+	var claims JWTClaims
+	if err := json.Unmarshal(decoded, &claims); err != nil {
+		return nil, nil // Invalid JSON, skip silently
+	}
+
+	return &claims, nil
+}
+
+// ExtractUserContext extrai informações do usuário do JWT no header Authorization
+// O JWT deve conter as seguintes claims:
+// - preferred_username: CPF do usuário
+// - sub: ID do usuário
+// - name: Nome completo
+// - email: Email do usuário
+// - resource_access.superapp.roles: Lista de roles (se contém "go:admin", usuário é ADMIN)
 func ExtractUserContext() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// CPF do usuário (preferred_username no JWT)
-		cpf := c.GetHeader("X-User-CPF")
-		if cpf != "" {
+		// Try X-Auth-Request-Token first (Istio), then Authorization header
+		authHeader := c.GetHeader("X-Auth-Request-Token")
+		if authHeader == "" {
+			authHeader = c.GetHeader("Authorization")
+		}
+
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		// Decode JWT
+		claims, err := decodeJWT(authHeader)
+		if err != nil || claims == nil {
+			c.Next()
+			return
+		}
+
+		// Extract CPF from preferred_username (remove dots and dashes)
+		if claims.PreferredUsername != "" {
+			cpf := strings.NewReplacer(".", "", "-", "").Replace(claims.PreferredUsername)
 			c.Set(UserCPFKey, cpf)
 		}
 
-		// ID do usuário (sub no JWT)
-		userID := c.GetHeader("X-User-ID")
-		if userID != "" {
-			c.Set(UserIDKey, userID)
+		// Extract user ID
+		if claims.Sub != "" {
+			c.Set(UserIDKey, claims.Sub)
 		}
 
-		// Role do usuário (baseado em resource_access.superapp.roles)
-		// Istio deve enviar "ADMIN" se go:admin está presente, senão "USER"
-		role := c.GetHeader("X-User-Role")
-		if role != "" {
-			c.Set(UserRoleKey, strings.ToUpper(role))
+		// Extract name
+		if claims.Name != "" {
+			c.Set(UserNameKey, claims.Name)
 		}
 
-		// Nome completo do usuário
-		userName := c.GetHeader("X-User-Name")
-		if userName != "" {
-			c.Set(UserNameKey, userName)
+		// Extract email
+		if claims.Email != "" {
+			c.Set(UserEmailKey, claims.Email)
 		}
 
-		// Email do usuário
-		userEmail := c.GetHeader("X-User-Email")
-		if userEmail != "" {
-			c.Set(UserEmailKey, userEmail)
+		// Determine role based on resource_access.superapp.roles
+		role := "USER"
+		if superappAccess, ok := claims.ResourceAccess["superapp"]; ok {
+			for _, r := range superappAccess.Roles {
+				if r == "go:admin" {
+					role = "ADMIN"
+					break
+				}
+			}
 		}
+		c.Set(UserRoleKey, role)
 
 		c.Next()
 	}
