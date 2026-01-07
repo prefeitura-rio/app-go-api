@@ -70,7 +70,11 @@ func RequireCNPJOwnershipOrAnyPermission(
 	}
 
 	// Extract auth token from headers
-	authToken := c.GetHeader("Authorization")
+	// Try X-Auth-Request-Token first (Istio), then fallback to Authorization
+	authToken := c.GetHeader("X-Auth-Request-Token")
+	if authToken == "" {
+		authToken = c.GetHeader("Authorization")
+	}
 	if authToken == "" {
 		return fmt.Errorf("authorization token not found")
 	}
