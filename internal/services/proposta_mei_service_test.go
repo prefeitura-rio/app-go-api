@@ -116,11 +116,17 @@ func (m *MockOportunidadeRepo) GetByID(ctx context.Context, id int) (*models.Opo
 
 // Mock CNAE Validation Service
 type MockCNAEValidation struct {
-	validateError error
+	validateError         error
+	checkOwnershipResult  bool
+	checkOwnershipError   error
 }
 
 func (m *MockCNAEValidation) ValidatePropostaForCNAE(ctx context.Context, authToken string, cnpj string, opportunityCNAEIDs []string) error {
 	return m.validateError
+}
+
+func (m *MockCNAEValidation) CheckCNPJOwnership(ctx context.Context, authToken string, cpf string, cnpj string) (bool, error) {
+	return m.checkOwnershipResult, m.checkOwnershipError
 }
 
 func TestPropostaMEIService_Create_Success(t *testing.T) {
