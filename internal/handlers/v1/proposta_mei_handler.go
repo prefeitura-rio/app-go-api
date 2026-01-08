@@ -16,10 +16,10 @@ import (
 )
 
 type PropostaMEIHandler struct {
-	service              services.PropostaMEIServiceInterface
-	cnaeValidationSvc    services.CNAEValidationServiceInterface
-	authChecker          *authorization.Checker
-	config               *config.AppConfig
+	service           services.PropostaMEIServiceInterface
+	cnaeValidationSvc services.CNAEValidationServiceInterface
+	authChecker       *authorization.Checker
+	config            *config.AppConfig
 }
 
 func NewPropostaMEIHandler(

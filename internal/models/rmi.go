@@ -101,16 +101,16 @@ func (l *LegalEntityDetails) GetSocioCPFs() []string {
 // CitizenContactInfo represents contact information for a citizen
 // Response from GET /v1/citizen/{cpf}
 type CitizenContactInfo struct {
-	CPF      string `json:"cpf"`
-	Nome     string `json:"nome"`
+	CPF      string              `json:"cpf"`
+	Nome     string              `json:"nome"`
 	Email    CitizenEmailInfo    `json:"email"`
 	Telefone CitizenTelefoneInfo `json:"telefone"`
 }
 
 // CitizenEmailInfo represents the email field structure from citizen API
 type CitizenEmailInfo struct {
-	Indicador  bool `json:"indicador"`
-	Principal  struct {
+	Indicador bool `json:"indicador"`
+	Principal struct {
 		Valor string `json:"valor"`
 	} `json:"principal"`
 }

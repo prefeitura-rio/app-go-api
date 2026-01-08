@@ -7,11 +7,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/prefeitura-rio/app-go-api/internal/auth"
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/redis/go-redis/v9"
 )
 
 // ContactInfoService handles fetching and caching of CNPJ owner contact information
