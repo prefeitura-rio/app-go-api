@@ -39,6 +39,10 @@ type PropostaMEI struct {
 	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime" example:"2024-01-01T10:00:00Z"`
 	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime" example:"2024-01-01T10:00:00Z"`
 
+	// Computed fields from RMI API (not persisted to database)
+	EmailPessoaFisica   string `json:"email_pessoa_fisica,omitempty" gorm:"-" example:"joao@example.com"`
+	CelularPessoaFisica string `json:"celular_pessoa_fisica,omitempty" gorm:"-" example:"21987654321"`
+
 	// Relacionamentos
 	Oportunidade *OportunidadeMEI `json:"oportunidade,omitempty" gorm:"foreignKey:OportunidadeMEIID" swaggerignore:"true"`
 }

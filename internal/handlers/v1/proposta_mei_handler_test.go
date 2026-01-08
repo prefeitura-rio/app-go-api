@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
-	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 )
 
@@ -122,22 +121,33 @@ func setupRouter(service *MockPropostaMEIService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	// Create mock CNAE validation service
-	cnaeValidationSvc := &MockCNAEValidationService{}
+	// Create mock CNAE validation service (default: user owns CNPJ)
+	cnaeValidationSvc := &MockCNAEValidationService{
+		ownsCNPJ: true,
+	}
 
 	// Create minimal config for tests
 	cfg := &config.AppConfig{
 		PropostaMEI: config.PropostaMEIPermissions{
 			DeletePermissions: []string{},
 			UpdatePermissions: []string{},
+			ReadPermissions:   []string{},
 		},
 	}
 
 	handler := v1.NewPropostaMEIHandler(service, cnaeValidationSvc, nil, cfg)
 
-	// Setup routes matching actual router with user context middleware
+	// Setup routes matching actual router with a mock user context middleware
+	// Instead of using ExtractUserContext(), we set test values directly
+	mockUserContext := func(c *gin.Context) {
+		// Set test user CPF and token in context (simulating ExtractUserContext middleware)
+		c.Set("user_cpf", "12345678900")
+		c.Set("user_id", "test-user-id")
+		c.Next()
+	}
+
 	api := r.Group("/api/v1/oportunidades-mei/:id/propostas")
-	api.Use(middlewares.ExtractUserContext())
+	api.Use(mockUserContext)
 	{
 		api.POST("", handler.Create)
 		api.GET("/:propostaId", handler.GetByID)
@@ -356,11 +366,13 @@ func TestPropostaMEIHandler_GetByID_Success(t *testing.T) {
 	router := setupRouter(mockService)
 
 	req, _ := http.NewRequest("GET", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), nil)
+	// Add JWT token with CPF that owns the CNPJ (mock will return ownership=true)
+	req.Header.Set("Authorization", "Bearer test-token")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
+		t.Errorf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
 	}
 
 	var response models.PropostaMEI
@@ -382,11 +394,12 @@ func TestPropostaMEIHandler_GetByID_NotFound(t *testing.T) {
 
 	propostaID := uuid.New()
 	req, _ := http.NewRequest("GET", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), nil)
+	req.Header.Set("Authorization", "Bearer test-token")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status 404, got %d", w.Code)
+		t.Errorf("Expected status 404, got %d. Response: %s", w.Code, w.Body.String())
 	}
 }
 

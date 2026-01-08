@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"gorm.io/gorm"
 
+	"github.com/prefeitura-rio/app-go-api/internal/auth"
 	"github.com/prefeitura-rio/app-go-api/internal/authorization"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
@@ -104,6 +105,23 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	// Initialize CNAE validation service
 	cnaeValidationService := services.NewCNAEValidationService(rmiClient, legalEntitiesCache)
 
+	// Initialize service account token manager for Keycloak
+	var tokenManager *auth.ServiceAccountTokenManager
+	if cfg.Keycloak.URL != "" && cfg.Keycloak.ClientID != "" && cfg.Keycloak.ClientSecret != "" {
+		tokenManager = auth.NewServiceAccountTokenManager(
+			cfg.Keycloak.URL,
+			cfg.Keycloak.Realm,
+			cfg.Keycloak.ClientID,
+			cfg.Keycloak.ClientSecret,
+		)
+	}
+
+	// Initialize contact info service (for fetching CNPJ owner contact info)
+	var contactInfoService *services.ContactInfoService
+	if tokenManager != nil {
+		contactInfoService = services.NewContactInfoService(rmiClient, tokenManager, redisClient, cfg)
+	}
+
 	// Initialize Data Relay client for email sending
 	dataRelayClient := clients.NewDataRelayClient(cfg.DataRelay.BaseURL, cfg.DataRelay.APIKey, 30*time.Second)
 
@@ -122,7 +140,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, emailNotificationService)
 	jobService := services.NewJobService(jobRepo)
 	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo)
-	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, cnaeValidationService)
+	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, cnaeValidationService, contactInfoService)
 
 	// Initialize job processor
 	jobs.InitializeJobProcessor(db, jobRepo, inscricaoRepo, cursoRepo)

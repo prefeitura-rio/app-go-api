@@ -142,7 +142,7 @@ func TestPropostaMEIService_Create_Success(t *testing.T) {
 			CNAEIDs: []string{"4110700"},
 		}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		proposta := &models.PropostaMEI{
 			OportunidadeMEIID: 1,
@@ -177,7 +177,7 @@ func TestPropostaMEIService_Create_Failures(t *testing.T) {
 		mockOportunidadeRepo := NewMockOportunidadeRepo()
 		mockCNAEValidation := &MockCNAEValidation{}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		// Missing required fields
 		proposta := &models.PropostaMEI{}
@@ -195,7 +195,7 @@ func TestPropostaMEIService_Create_Failures(t *testing.T) {
 		mockOportunidadeRepo := NewMockOportunidadeRepo()
 		mockCNAEValidation := &MockCNAEValidation{}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		proposta := &models.PropostaMEI{
 			OportunidadeMEIID: 999, // Non-existent
@@ -227,7 +227,7 @@ func TestPropostaMEIService_Create_Failures(t *testing.T) {
 			CNAEIDs: []string{"4110700"},
 		}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		proposta := &models.PropostaMEI{
 			OportunidadeMEIID: 1,
@@ -260,7 +260,7 @@ func TestPropostaMEIService_Create_Failures(t *testing.T) {
 			CNAEIDs: []string{"4110700"},
 		}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		proposta := &models.PropostaMEI{
 			OportunidadeMEIID: 1,
@@ -292,7 +292,7 @@ func TestPropostaMEIService_Create_Failures(t *testing.T) {
 			CNAEIDs: []string{"4110700"},
 		}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		proposta := &models.PropostaMEI{
 			OportunidadeMEIID: 1,
@@ -328,7 +328,7 @@ func TestPropostaMEIService_UpdateProposta(t *testing.T) {
 			ValorProposta:     nil,
 		}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		newValue := 1500.00
 		ctx := context.Background()
@@ -357,7 +357,7 @@ func TestPropostaMEIService_UpdateProposta(t *testing.T) {
 			MEIEmpresaID:      "12345678000190",
 		}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		negativeValue := -100.00
 		ctx := context.Background()
@@ -378,7 +378,7 @@ func TestPropostaMEIService_UpdateProposta(t *testing.T) {
 		mockOportunidadeRepo := NewMockOportunidadeRepo()
 		mockCNAEValidation := &MockCNAEValidation{}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		nonExistentID := uuid.New()
 		newValue := 1500.00
@@ -407,7 +407,7 @@ func TestPropostaMEIService_UpdateProposta(t *testing.T) {
 			MEIEmpresaID:      "12345678000190",
 		}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		newValue := 1500.00
 		ctx := context.Background()
@@ -438,7 +438,7 @@ func TestPropostaMEIService_UpdateStatusCidadao(t *testing.T) {
 			MEIEmpresaID:  "12345678000190",
 		}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		ctx := context.Background()
 		err := service.UpdateStatusCidadao(ctx, id, models.StatusPropostaCidadaoApproved)
@@ -466,7 +466,7 @@ func TestPropostaMEIService_UpdateStatusCidadao(t *testing.T) {
 			MEIEmpresaID:  "12345678000190",
 		}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		ctx := context.Background()
 
@@ -498,7 +498,7 @@ func TestPropostaMEIService_UpdateMultipleStatus(t *testing.T) {
 		mockOportunidadeRepo := NewMockOportunidadeRepo()
 		mockCNAEValidation := &MockCNAEValidation{}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		ids := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()}
 		ctx := context.Background()
@@ -519,7 +519,7 @@ func TestPropostaMEIService_UpdateMultipleStatus(t *testing.T) {
 		mockOportunidadeRepo := NewMockOportunidadeRepo()
 		mockCNAEValidation := &MockCNAEValidation{}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		ctx := context.Background()
 		_, err := service.UpdateMultipleStatus(ctx, []uuid.UUID{}, models.StatusPropostaCidadaoApproved)
@@ -547,7 +547,7 @@ func TestPropostaMEIService_Delete(t *testing.T) {
 			MEIEmpresaID: "12345678000190",
 		}
 
-		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation)
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		ctx := context.Background()
 		err := service.Delete(ctx, id)

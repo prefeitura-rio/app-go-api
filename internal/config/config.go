@@ -30,6 +30,8 @@ type AppConfig struct {
 	PrefRio     PrefRioSettings
 	Cerbos      CerbosSettings
 	PropostaMEI PropostaMEIPermissions
+	Cache       CacheSettings
+	Keycloak    KeycloakSettings
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -148,6 +150,23 @@ type CerbosSettings struct {
 type PropostaMEIPermissions struct {
 	DeletePermissions []string // Lista de ações permitidas para deletar propostas de outros
 	UpdatePermissions []string // Lista de ações permitidas para atualizar propostas de outros
+	ReadPermissions   []string // Lista de ações permitidas para visualizar propostas de outros
+}
+
+// CacheSettings define configurações de cache TTL
+type CacheSettings struct {
+	LegalEntitiesTTL time.Duration // TTL para cache de entidades legais (CNPJs)
+	ReferenceDataTTL time.Duration // TTL para dados de referência (categorias, etc)
+	CourseTTL        time.Duration // TTL para cache de cursos
+	ContactInfoTTL   time.Duration // TTL para informações de contato de donos de CNPJ
+}
+
+// KeycloakSettings define configurações do Keycloak para service account
+type KeycloakSettings struct {
+	URL          string // URL base do Keycloak (ex: https://auth.example.com/auth)
+	Realm        string // Realm do Keycloak
+	ClientID     string // Client ID do service account
+	ClientSecret string // Client Secret do service account
 }
 
 // Erros comuns de validação
@@ -380,6 +399,19 @@ func Load() (*AppConfig, error) {
 		PropostaMEI: PropostaMEIPermissions{
 			DeletePermissions: getStringSlice(v, "PROPOSTA_MEI_DELETE_PERMISSIONS"),
 			UpdatePermissions: getStringSlice(v, "PROPOSTA_MEI_UPDATE_PERMISSIONS"),
+			ReadPermissions:   getStringSlice(v, "PROPOSTA_MEI_READ_PERMISSIONS"),
+		},
+		Cache: CacheSettings{
+			LegalEntitiesTTL: getDuration(v, "CACHE_LEGAL_ENTITIES_TTL", 30*time.Minute),
+			ReferenceDataTTL: getDuration(v, "CACHE_REFERENCE_DATA_TTL", 1*time.Hour),
+			CourseTTL:        getDuration(v, "CACHE_COURSE_TTL", 5*time.Minute),
+			ContactInfoTTL:   getDuration(v, "CACHE_CONTACT_INFO_TTL", 1*time.Hour),
+		},
+		Keycloak: KeycloakSettings{
+			URL:          getEnv(v, "KEYCLOAK_URL", ""),
+			Realm:        getEnv(v, "KEYCLOAK_REALM", ""),
+			ClientID:     getEnv(v, "KEYCLOAK_CLIENT_ID", ""),
+			ClientSecret: getEnv(v, "KEYCLOAK_CLIENT_SECRET", ""),
 		},
 	}
 

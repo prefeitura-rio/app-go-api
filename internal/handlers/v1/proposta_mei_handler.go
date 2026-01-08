@@ -100,13 +100,15 @@ func (h *PropostaMEIHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Obter proposta MEI por ID
-// @Description  Retorna uma proposta MEI pelo seu ID
+// @Description  Retorna uma proposta MEI pelo seu ID. Requer que o usuário seja dono do CNPJ ou tenha permissões de leitura.
 // @Tags         propostas-mei
 // @Produce      json
+// @Param        Authorization   header    string  true  "Bearer token"
 // @Param        id              path      int     true  "ID da oportunidade"
 // @Param        propostaId      path      string  true  "UUID da proposta"
 // @Success      200             {object}  models.PropostaMEI
 // @Failure      400             {object}  models.ErrorResponse
+// @Failure      403             {object}  models.ErrorResponse "Acesso negado: não é dono do CNPJ"
 // @Failure      404             {object}  models.ErrorResponse
 // @Failure      500             {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{id}/propostas/{propostaId} [get]
@@ -117,6 +119,7 @@ func (h *PropostaMEIHandler) GetByID(c *gin.Context) {
 		return
 	}
 
+	// Get proposal from database to check ownership
 	proposta, err := h.service.GetByID(c.Request.Context(), propostaID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar proposta: " + err.Error()})
@@ -125,6 +128,20 @@ func (h *PropostaMEIHandler) GetByID(c *gin.Context) {
 
 	if proposta == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Proposta não encontrada"})
+		return
+	}
+
+	// Check authorization: CNPJ owner OR has any of the configured read permissions
+	if err := authorization.RequireCNPJOwnershipOrAnyPermission(
+		c,
+		h.authChecker,
+		h.cnaeValidationSvc,
+		proposta.MEIEmpresaID,
+		"proposta_mei",
+		h.config.PropostaMEI.ReadPermissions,
+	); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você não tem permissão para visualizar esta proposta"})
+		c.Abort()
 		return
 	}
 
