@@ -17,8 +17,6 @@ type EmailTemplate struct {
 func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *models.Curso, prefrioDomain string) EmailTemplate {
 	subject := fmt.Sprintf("Inscrição recebida! - %s", curso.Titulo)
 
-	meusCoursosURL := fmt.Sprintf("https://%s/servicos/cursos/meus-cursos", prefrioDomain)
-
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head>
@@ -42,7 +40,7 @@ func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *model
 </html>`,
 		inscricao.Name,
 		curso.Titulo,
-		curso.InstituicaoNome,
+		curso.Organization,
 	)
 
 	return EmailTemplate{
@@ -58,17 +56,24 @@ func GetEnrollmentApprovedEmailTemplate(inscricao *models.Inscricao, curso *mode
 
 	cursosURL := fmt.Sprintf("https://%s/servicos/cursos", prefrioDomain)
 
-	// Build location and schedule info
+	// Build location info based on modalidade
 	var locationInfo string
-	if curso.IsPresencial() {
-		locationInfo = fmt.Sprintf("📍 Endereço: %s", curso.GetPresencialAddress())
+	if curso.Modalidade == models.ModalidadePresencial || curso.Modalidade == models.ModalidadePresencialLegacy {
+		if curso.LocalRealizacao != "" {
+			locationInfo = fmt.Sprintf("📍 Endereço: %s", curso.LocalRealizacao)
+		} else {
+			locationInfo = "📍 Endereço: [presencial: puxar endereço da turma]"
+		}
 	} else {
 		locationInfo = "📍 Endereço: online"
 	}
 
+	// Build schedule info
 	var scheduleInfo string
-	if curso.HasSchedule() {
-		scheduleInfo = fmt.Sprintf("🕒 Horário de início: %s", curso.GetScheduleDescription())
+	if curso.DataInicio != nil {
+		scheduleInfo = fmt.Sprintf("🕒 Horário de início: %s", curso.DataInicio.Format("02/01/2006 15:04"))
+	} else {
+		scheduleInfo = "🕒 Horário de início: [puxar o horário da turma]"
 	}
 
 	body := fmt.Sprintf(`<!DOCTYPE html>
@@ -101,8 +106,8 @@ func GetEnrollmentApprovedEmailTemplate(inscricao *models.Inscricao, curso *mode
 		curso.Titulo,
 		locationInfo,
 		scheduleInfo,
-		curso.InstituicaoNome,
-		curso.InstituicaoNome,
+		curso.Organization,
+		curso.Organization,
 		cursosURL,
 	)
 
