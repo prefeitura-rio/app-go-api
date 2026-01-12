@@ -332,7 +332,7 @@ func TestPropostaMEIService_UpdateProposta(t *testing.T) {
 
 		newValue := 1500.00
 		ctx := context.Background()
-		err := service.UpdateProposta(ctx, id, 1, &newValue)
+		err := service.UpdateProposta(ctx, id, 1, &newValue, nil, nil)
 
 		if err != nil {
 			t.Errorf("Expected successful update, got error: %v", err)
@@ -361,7 +361,7 @@ func TestPropostaMEIService_UpdateProposta(t *testing.T) {
 
 		negativeValue := -100.00
 		ctx := context.Background()
-		err := service.UpdateProposta(ctx, id, 1, &negativeValue)
+		err := service.UpdateProposta(ctx, id, 1, &negativeValue, nil, nil)
 
 		if err == nil {
 			t.Error("Expected error for negative value")
@@ -383,7 +383,7 @@ func TestPropostaMEIService_UpdateProposta(t *testing.T) {
 		nonExistentID := uuid.New()
 		newValue := 1500.00
 		ctx := context.Background()
-		err := service.UpdateProposta(ctx, nonExistentID, 1, &newValue)
+		err := service.UpdateProposta(ctx, nonExistentID, 1, &newValue, nil, nil)
 
 		if err == nil {
 			t.Error("Expected error for non-existent proposal")
@@ -411,7 +411,7 @@ func TestPropostaMEIService_UpdateProposta(t *testing.T) {
 
 		newValue := 1500.00
 		ctx := context.Background()
-		err := service.UpdateProposta(ctx, id, 999, &newValue) // Wrong opportunity ID
+		err := service.UpdateProposta(ctx, id, 999, &newValue, nil, nil) // Wrong opportunity ID
 
 		if err == nil {
 			t.Error("Expected error for wrong opportunity ID")

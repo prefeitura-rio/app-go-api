@@ -47,7 +47,7 @@ func (m *MockPropostaMEIService) Update(ctx context.Context, proposta *models.Pr
 	return m.updateError
 }
 
-func (m *MockPropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64) error {
+func (m *MockPropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64, prazoExecucao *string, aceitaCustosIntegrais *bool) error {
 	return m.updateError
 }
 

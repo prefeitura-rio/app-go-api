@@ -47,7 +47,7 @@ type PropostaMEIServiceInterface interface {
 	Create(ctx context.Context, proposta *models.PropostaMEI, authToken string) (uuid.UUID, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.PropostaMEI, error)
 	Update(ctx context.Context, proposta *models.PropostaMEI) error
-	UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64) error
+	UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64, prazoExecucao *string, aceitaCustosIntegrais *bool) error
 	UpdateStatusCidadao(ctx context.Context, id uuid.UUID, status models.StatusPropostaCidadao) error
 	Approve(ctx context.Context, id uuid.UUID) error
 	Reject(ctx context.Context, id uuid.UUID) error

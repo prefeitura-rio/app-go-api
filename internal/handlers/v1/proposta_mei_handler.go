@@ -202,7 +202,9 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 	}
 
 	var req struct {
-		ValorProposta *float64 `json:"valor_proposta"`
+		ValorProposta         *float64 `json:"valor_proposta"`
+		PrazoExecucao         *string  `json:"prazo_execucao"`
+		AceitaCustosIntegrais *bool    `json:"aceita_custos_integrais"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -210,7 +212,7 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UpdateProposta(c.Request.Context(), propostaID, oportunidadeID, req.ValorProposta); err != nil {
+	if err := h.service.UpdateProposta(c.Request.Context(), propostaID, oportunidadeID, req.ValorProposta, req.PrazoExecucao, req.AceitaCustosIntegrais); err != nil {
 		if err.Error() == "proposta não encontrada" {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return

@@ -28,9 +28,9 @@ type PropostaMEI struct {
 	ID                    uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" example:"550e8400-e29b-41d4-a716-446655440000"`
 	OportunidadeMEIID     int       `json:"oportunidade_mei_id" gorm:"not null;index" example:"1"`
 	MEIEmpresaID          string    `json:"mei_empresa_id" gorm:"type:varchar(18);not null;index" example:"12.345.678/0001-90"`
-	ValorProposta         *float64  `json:"valor_proposta,omitempty" gorm:"type:decimal(10,2)" example:"1500.50"`
-	PrazoExecucao         *string   `json:"prazo_execucao,omitempty" gorm:"type:varchar(255)" example:"30 dias"`
-	AceitaCustosIntegrais *bool     `json:"aceita_custos_integrais,omitempty" gorm:"type:boolean" example:"true"`
+	ValorProposta         *float64  `json:"valor_proposta" gorm:"type:decimal(10,2)" example:"1500.50"`
+	PrazoExecucao         *string   `json:"prazo_execucao" gorm:"type:varchar(255)" example:"30 dias"`
+	AceitaCustosIntegrais *bool     `json:"aceita_custos_integrais" gorm:"type:boolean" example:"true"`
 
 	StatusAdmin   StatusPropostaAdmin   `json:"status_admin" gorm:"type:varchar(50);not null;default:'active'" enums:"draft,active,expired" example:"active"`
 	StatusCidadao StatusPropostaCidadao `json:"status_cidadao" gorm:"type:varchar(50);not null;default:'submitted'" enums:"submitted,approved,rejected" example:"submitted"`

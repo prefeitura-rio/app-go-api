@@ -48,8 +48,12 @@ func (r *PropostaMEIRepository) GetByID(ctx context.Context, id uuid.UUID) (*mod
 }
 
 func (r *PropostaMEIRepository) Update(ctx context.Context, proposta *models.PropostaMEI) error {
+	// Use Select("*") to update all fields, including zero values
+	// This is necessary because GORM's Updates() skips zero values by default
+	// which would prevent updating boolean fields to false or clearing string fields
 	result := r.db.WithContext(ctx).Model(proposta).
 		Where("id = ?", proposta.ID).
+		Select("*").
 		Updates(proposta)
 
 	if result.Error != nil {

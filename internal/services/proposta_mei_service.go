@@ -92,7 +92,7 @@ func (s *PropostaMEIService) Update(ctx context.Context, proposta *models.Propos
 	return s.repo.Update(ctx, proposta)
 }
 
-func (s *PropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64) error {
+func (s *PropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64, prazoExecucao *string, aceitaCustosIntegrais *bool) error {
 	// Buscar proposta existente
 	proposta, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -107,13 +107,21 @@ func (s *PropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, o
 		return errors.New("proposta não pertence à oportunidade especificada")
 	}
 
-	// Atualizar apenas o valor da proposta
+	// Atualizar os campos fornecidos
 	if valorProposta != nil {
 		// Validate that the value is positive
 		if *valorProposta < 0 {
 			return errors.New("valor_proposta deve ser positivo")
 		}
 		proposta.ValorProposta = valorProposta
+	}
+
+	if prazoExecucao != nil {
+		proposta.PrazoExecucao = prazoExecucao
+	}
+
+	if aceitaCustosIntegrais != nil {
+		proposta.AceitaCustosIntegrais = aceitaCustosIntegrais
 	}
 
 	return s.repo.Update(ctx, proposta)
