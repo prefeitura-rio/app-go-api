@@ -64,15 +64,16 @@ type EnrolledUnit struct {
 }
 
 type EnrolledUnitSchedule struct {
-	ID             string `json:"id"`
-	LocationID     string `json:"location_id"`
-	Vacancies      int    `json:"vacancies"`
-	ClassStartDate string `json:"class_start_date"`
-	ClassEndDate   string `json:"class_end_date"`
-	ClassTime      string `json:"class_time"`
-	ClassDays      string `json:"class_days"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
+	ID                 string `json:"id"`
+	LocationID         string `json:"location_id"`
+	Vacancies          int    `json:"vacancies"`
+	ClassStartDate     string `json:"class_start_date"`
+	ClassEndDate       string `json:"class_end_date"`
+	ClassTime          string `json:"class_time"`
+	ClassDays          string `json:"class_days"`
+	CreatedAt          string `json:"created_at"`
+	UpdatedAt          string `json:"updated_at"`
+	RemainingVacancies int    `json:"remaining_vacancies"`
 }
 
 // Value implements the driver.Valuer interface for EnrolledUnit
@@ -131,7 +132,7 @@ type CourseSchedule struct {
 	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Computed field (not stored in DB)
-	RemainingVacancies int `json:"remaining_vacancies,omitempty" gorm:"-"`
+	RemainingVacancies int `json:"remaining_vacancies" gorm:"-"`
 
 	// Relacionamentos
 	Location *LocationClass `json:"-" gorm:"foreignKey:LocationID"`
@@ -153,7 +154,7 @@ type RemoteSchedule struct {
 	UpdatedAt      time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Computed field (not stored in DB)
-	RemainingVacancies int `json:"remaining_vacancies,omitempty" gorm:"-"`
+	RemainingVacancies int `json:"remaining_vacancies" gorm:"-"`
 
 	// Relacionamentos
 	RemoteClass *RemoteClass `json:"-" gorm:"foreignKey:RemoteClassID"`
