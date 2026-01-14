@@ -9,17 +9,30 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/authorization"
+	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
 type PropostaMEIHandler struct {
-	service services.PropostaMEIServiceInterface
+	service           services.PropostaMEIServiceInterface
+	cnaeValidationSvc services.CNAEValidationServiceInterface
+	authChecker       *authorization.Checker
+	config            *config.AppConfig
 }
 
-func NewPropostaMEIHandler(service services.PropostaMEIServiceInterface) *PropostaMEIHandler {
+func NewPropostaMEIHandler(
+	service services.PropostaMEIServiceInterface,
+	cnaeValidationSvc services.CNAEValidationServiceInterface,
+	authChecker *authorization.Checker,
+	cfg *config.AppConfig,
+) *PropostaMEIHandler {
 	return &PropostaMEIHandler{
-		service: service,
+		service:           service,
+		cnaeValidationSvc: cnaeValidationSvc,
+		authChecker:       authChecker,
+		config:            cfg,
 	}
 }
 
@@ -87,13 +100,15 @@ func (h *PropostaMEIHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Obter proposta MEI por ID
-// @Description  Retorna uma proposta MEI pelo seu ID
+// @Description  Retorna uma proposta MEI pelo seu ID. Requer que o usuário seja dono do CNPJ ou tenha permissões de leitura.
 // @Tags         propostas-mei
 // @Produce      json
+// @Param        Authorization   header    string  true  "Bearer token"
 // @Param        id              path      int     true  "ID da oportunidade"
 // @Param        propostaId      path      string  true  "UUID da proposta"
 // @Success      200             {object}  models.PropostaMEI
 // @Failure      400             {object}  models.ErrorResponse
+// @Failure      403             {object}  models.ErrorResponse "Acesso negado: não é dono do CNPJ"
 // @Failure      404             {object}  models.ErrorResponse
 // @Failure      500             {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{id}/propostas/{propostaId} [get]
@@ -104,6 +119,7 @@ func (h *PropostaMEIHandler) GetByID(c *gin.Context) {
 		return
 	}
 
+	// Get proposal from database to check ownership
 	proposta, err := h.service.GetByID(c.Request.Context(), propostaID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar proposta: " + err.Error()})
@@ -115,11 +131,25 @@ func (h *PropostaMEIHandler) GetByID(c *gin.Context) {
 		return
 	}
 
+	// Check authorization: CNPJ owner OR has any of the configured read permissions
+	if err := authorization.RequireCNPJOwnershipOrAnyPermission(
+		c,
+		h.authChecker,
+		h.cnaeValidationSvc,
+		proposta.MEIEmpresaID,
+		"proposta_mei",
+		h.config.PropostaMEI.ReadPermissions,
+	); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você não tem permissão para visualizar esta proposta"})
+		c.Abort()
+		return
+	}
+
 	c.JSON(http.StatusOK, proposta)
 }
 
 // @Summary      Atualizar proposta MEI
-// @Description  Atualiza os dados de uma proposta MEI existente
+// @Description  Atualiza os dados de uma proposta MEI existente. Requer que o usuário seja o dono da proposta ou tenha uma das permissões configuradas.
 // @Tags         propostas-mei
 // @Accept       json
 // @Produce      json
@@ -128,6 +158,7 @@ func (h *PropostaMEIHandler) GetByID(c *gin.Context) {
 // @Param        request         body      object  true  "Dados para atualização: {\"valor_proposta\": 1500.00}"
 // @Success      200             {object}  models.PropostaMEI
 // @Failure      400             {object}  models.ErrorResponse
+// @Failure      403             {object}  models.ErrorResponse "Acesso negado"
 // @Failure      404             {object}  models.ErrorResponse
 // @Failure      500             {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{id}/propostas/{propostaId} [put]
@@ -144,8 +175,36 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// Get proposal from database to check ownership
+	proposta, err := h.service.GetByID(c.Request.Context(), propostaID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar proposta: " + err.Error()})
+		return
+	}
+
+	if proposta == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Proposta não encontrada"})
+		return
+	}
+
+	// Check authorization: CNPJ owner OR has any of the configured permissions
+	if err := authorization.RequireCNPJOwnershipOrAnyPermission(
+		c,
+		h.authChecker,
+		h.cnaeValidationSvc,
+		proposta.MEIEmpresaID,
+		"proposta_mei",
+		h.config.PropostaMEI.UpdatePermissions,
+	); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você não tem permissão para atualizar esta proposta"})
+		c.Abort()
+		return
+	}
+
 	var req struct {
-		ValorProposta *float64 `json:"valor_proposta"`
+		ValorProposta         *float64 `json:"valor_proposta"`
+		PrazoExecucao         *string  `json:"prazo_execucao"`
+		AceitaCustosIntegrais *bool    `json:"aceita_custos_integrais"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -153,7 +212,7 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UpdateProposta(c.Request.Context(), propostaID, oportunidadeID, req.ValorProposta); err != nil {
+	if err := h.service.UpdateProposta(c.Request.Context(), propostaID, oportunidadeID, req.ValorProposta, req.PrazoExecucao, req.AceitaCustosIntegrais); err != nil {
 		if err.Error() == "proposta não encontrada" {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
@@ -162,7 +221,7 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 		return
 	}
 
-	proposta, _ := h.service.GetByID(c.Request.Context(), propostaID)
+	proposta, _ = h.service.GetByID(c.Request.Context(), propostaID)
 	c.JSON(http.StatusOK, proposta)
 }
 
@@ -264,13 +323,15 @@ func (h *PropostaMEIHandler) UpdateStatus(c *gin.Context) {
 }
 
 // @Summary      Excluir proposta MEI
-// @Description  Remove uma proposta MEI pelo ID (soft delete)
+// @Description  Remove uma proposta MEI pelo ID (soft delete). Requer que o usuário seja o dono da proposta ou tenha uma das permissões configuradas.
 // @Tags         propostas-mei
 // @Produce      json
 // @Param        id              path      int     true  "ID da oportunidade"
 // @Param        propostaId      path      string  true  "UUID da proposta"
 // @Success      200             {object}  object
 // @Failure      400             {object}  models.ErrorResponse
+// @Failure      403             {object}  models.ErrorResponse "Acesso negado"
+// @Failure      404             {object}  models.ErrorResponse
 // @Failure      500             {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{id}/propostas/{propostaId} [delete]
 func (h *PropostaMEIHandler) Delete(c *gin.Context) {
@@ -280,6 +341,33 @@ func (h *PropostaMEIHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	// Get proposal from database to check ownership
+	proposta, err := h.service.GetByID(c.Request.Context(), propostaID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar proposta: " + err.Error()})
+		return
+	}
+
+	if proposta == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Proposta não encontrada"})
+		return
+	}
+
+	// Check authorization: CNPJ owner OR has any of the configured permissions
+	if err := authorization.RequireCNPJOwnershipOrAnyPermission(
+		c,
+		h.authChecker,
+		h.cnaeValidationSvc,
+		proposta.MEIEmpresaID,
+		"proposta_mei",
+		h.config.PropostaMEI.DeletePermissions,
+	); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você não tem permissão para excluir esta proposta"})
+		c.Abort()
+		return
+	}
+
+	// Proceed with deletion
 	if err := h.service.Delete(c.Request.Context(), propostaID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir proposta: " + err.Error()})
 		return
@@ -348,7 +436,7 @@ func (h *PropostaMEIHandler) List(c *gin.Context) {
 // @Success      200           {object}  object
 // @Failure      400           {object}  models.ErrorResponse
 // @Failure      500           {object}  models.ErrorResponse
-// @Router       /propostas-mei/por-empresa [get]
+// @Router       /api/v1/propostas-mei/por-empresa [get]
 func (h *PropostaMEIHandler) ListByMEIEmpresa(c *gin.Context) {
 	meiEmpresaID := c.Query("meiEmpresaId")
 	if meiEmpresaID == "" {

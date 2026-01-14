@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/config"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 )
@@ -46,7 +47,7 @@ func (m *MockPropostaMEIService) Update(ctx context.Context, proposta *models.Pr
 	return m.updateError
 }
 
-func (m *MockPropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64) error {
+func (m *MockPropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64, prazoExecucao *string, aceitaCustosIntegrais *bool) error {
 	return m.updateError
 }
 
@@ -94,13 +95,59 @@ func (m *MockPropostaMEIService) UpdateMultipleStatus(ctx context.Context, propo
 	return len(propostaIDs), nil
 }
 
+// Mock CNAE Validation Service
+type MockCNAEValidationService struct {
+	ownsCNPJ       bool
+	ownershipError error
+}
+
+func (m *MockCNAEValidationService) ValidatePropostaForCNAE(ctx context.Context, authToken string, cnpj string, opportunityCNAEIDs []string) error {
+	return nil
+}
+
+func (m *MockCNAEValidationService) CheckCNPJOwnership(ctx context.Context, authToken string, cpf string, cnpj string) (bool, error) {
+	// For tests, default to true if not set
+	if m.ownershipError != nil {
+		return false, m.ownershipError
+	}
+	if m.ownsCNPJ {
+		return true, nil
+	}
+	// Default to true for tests
+	return true, nil
+}
+
 func setupRouter(service *MockPropostaMEIService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	handler := v1.NewPropostaMEIHandler(service)
 
-	// Setup routes matching actual router
+	// Create mock CNAE validation service (default: user owns CNPJ)
+	cnaeValidationSvc := &MockCNAEValidationService{
+		ownsCNPJ: true,
+	}
+
+	// Create minimal config for tests
+	cfg := &config.AppConfig{
+		PropostaMEI: config.PropostaMEIPermissions{
+			DeletePermissions: []string{},
+			UpdatePermissions: []string{},
+			ReadPermissions:   []string{},
+		},
+	}
+
+	handler := v1.NewPropostaMEIHandler(service, cnaeValidationSvc, nil, cfg)
+
+	// Setup routes matching actual router with a mock user context middleware
+	// Instead of using ExtractUserContext(), we set test values directly
+	mockUserContext := func(c *gin.Context) {
+		// Set test user CPF and token in context (simulating ExtractUserContext middleware)
+		c.Set("user_cpf", "12345678900")
+		c.Set("user_id", "test-user-id")
+		c.Next()
+	}
+
 	api := r.Group("/api/v1/oportunidades-mei/:id/propostas")
+	api.Use(mockUserContext)
 	{
 		api.POST("", handler.Create)
 		api.GET("/:propostaId", handler.GetByID)
@@ -319,11 +366,13 @@ func TestPropostaMEIHandler_GetByID_Success(t *testing.T) {
 	router := setupRouter(mockService)
 
 	req, _ := http.NewRequest("GET", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), nil)
+	// Add JWT token with CPF that owns the CNPJ (mock will return ownership=true)
+	req.Header.Set("Authorization", "Bearer test-token")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
+		t.Errorf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
 	}
 
 	var response models.PropostaMEI
@@ -345,11 +394,12 @@ func TestPropostaMEIHandler_GetByID_NotFound(t *testing.T) {
 
 	propostaID := uuid.New()
 	req, _ := http.NewRequest("GET", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), nil)
+	req.Header.Set("Authorization", "Bearer test-token")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status 404, got %d", w.Code)
+		t.Errorf("Expected status 404, got %d. Response: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -426,15 +476,24 @@ func TestPropostaMEIHandler_UpdateStatus_InvalidStatus(t *testing.T) {
 
 func TestPropostaMEIHandler_Delete_Success(t *testing.T) {
 	propostaID := uuid.New()
-	mockService := &MockPropostaMEIService{}
+	mockService := &MockPropostaMEIService{
+		proposta: &models.PropostaMEI{
+			ID:           propostaID,
+			MEIEmpresaID: "12345678000190",
+		},
+	}
 	router := setupRouter(mockService)
 
 	req, _ := http.NewRequest("DELETE", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), nil)
+	// Add required headers for authorization
+	req.Header.Set("Authorization", "Bearer test-token")
+	req.Header.Set("X-User-CPF", "12345678900")
+
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
+		t.Errorf("Expected status 200, got %d. Response body: %s", w.Code, w.Body.String())
 	}
 
 	var response map[string]interface{}

@@ -3514,12 +3514,21 @@
     },
     "/api/v1/oportunidades-mei/{id}/propostas/{propostaId}": {
       "get": {
-        "description": "Retorna uma proposta MEI pelo seu ID",
+        "description": "Retorna uma proposta MEI pelo seu ID. Requer que o usuário seja dono do CNPJ ou tenha permissões de leitura.",
         "tags": [
           "propostas-mei"
         ],
         "summary": "Obter proposta MEI por ID",
         "parameters": [
+          {
+            "description": "Bearer token",
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "description": "ID da oportunidade",
             "name": "id",
@@ -3560,6 +3569,16 @@
               }
             }
           },
+          "403": {
+            "description": "Acesso negado: não é dono do CNPJ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -3588,7 +3607,7 @@
         ]
       },
       "put": {
-        "description": "Atualiza os dados de uma proposta MEI existente",
+        "description": "Atualiza os dados de uma proposta MEI existente. Requer que o usuário seja o dono da proposta ou tenha uma das permissões configuradas.",
         "tags": [
           "propostas-mei"
         ],
@@ -3637,6 +3656,16 @@
               }
             }
           },
+          "403": {
+            "description": "Acesso negado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -3665,7 +3694,7 @@
         ]
       },
       "delete": {
-        "description": "Remove uma proposta MEI pelo ID (soft delete)",
+        "description": "Remove uma proposta MEI pelo ID (soft delete). Requer que o usuário seja o dono da proposta ou tenha uma das permissões configuradas.",
         "tags": [
           "propostas-mei"
         ],
@@ -3703,6 +3732,26 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3847,6 +3896,79 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/propostas-mei/por-empresa": {
+      "get": {
+        "description": "Retorna uma lista paginada de propostas MEI de uma empresa",
+        "tags": [
+          "propostas-mei"
+        ],
+        "summary": "Listar propostas MEI por MEI empresa",
+        "parameters": [
+          {
+            "description": "CNPJ da MEI empresa",
+            "name": "meiEmpresaId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Número da página (default: 1)",
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Tamanho da página (default: 10, max: 1000)",
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
@@ -4069,79 +4191,6 @@
             "in": "query",
             "schema": {
               "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/models.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/models.ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/propostas-mei/por-empresa": {
-      "get": {
-        "description": "Retorna uma lista paginada de propostas MEI de uma empresa",
-        "tags": [
-          "propostas-mei"
-        ],
-        "summary": "Listar propostas MEI por MEI empresa",
-        "parameters": [
-          {
-            "description": "CNPJ da MEI empresa",
-            "name": "meiEmpresaId",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Número da página (default: 1)",
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Tamanho da página (default: 10, max: 1000)",
-            "name": "pageSize",
-            "in": "query",
-            "schema": {
-              "type": "integer"
             }
           }
         ],
@@ -5161,6 +5210,14 @@
       "models.PropostaMEI": {
         "type": "object",
         "properties": {
+          "aceita_custos_integrais": {
+            "type": "boolean",
+            "example": true
+          },
+          "celular_pessoa_fisica": {
+            "type": "string",
+            "example": "21987654321"
+          },
           "created_at": {
             "type": "string",
             "example": "2024-01-01T10:00:00Z"
@@ -5168,6 +5225,11 @@
           "deleted_at": {
             "type": "string",
             "example": "2024-12-31T23:59:59Z"
+          },
+          "email_pessoa_fisica": {
+            "description": "Computed fields from RMI API (not persisted to database)",
+            "type": "string",
+            "example": "joao@example.com"
           },
           "id": {
             "type": "string",
@@ -5180,6 +5242,10 @@
           "oportunidade_mei_id": {
             "type": "integer",
             "example": 1
+          },
+          "prazo_execucao": {
+            "type": "string",
+            "example": "30 dias"
           },
           "status_admin": {
             "enum": [

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"log"
 
 	"github.com/google/uuid"
 
@@ -13,17 +14,20 @@ type PropostaMEIService struct {
 	repo                  PropostaMEIRepositoryInterface
 	oportunidadeRepo      OportunidadeMEIRepositoryInterface
 	cnaeValidationService CNAEValidationServiceInterface
+	contactInfoService    *ContactInfoService
 }
 
 func NewPropostaMEIService(
 	repo PropostaMEIRepositoryInterface,
 	oportunidadeRepo OportunidadeMEIRepositoryInterface,
 	cnaeValidationService CNAEValidationServiceInterface,
+	contactInfoService *ContactInfoService,
 ) *PropostaMEIService {
 	return &PropostaMEIService{
 		repo:                  repo,
 		oportunidadeRepo:      oportunidadeRepo,
 		cnaeValidationService: cnaeValidationService,
+		contactInfoService:    contactInfoService,
 	}
 }
 
@@ -73,14 +77,22 @@ func (s *PropostaMEIService) Create(ctx context.Context, proposta *models.Propos
 }
 
 func (s *PropostaMEIService) GetByID(ctx context.Context, id uuid.UUID) (*models.PropostaMEI, error) {
-	return s.repo.GetByID(ctx, id)
+	proposta, err := s.repo.GetByID(ctx, id)
+	if err != nil || proposta == nil {
+		return proposta, err
+	}
+
+	// Enrich with contact info (graceful degradation on error)
+	s.enrichPropostaWithContactInfo(ctx, proposta)
+
+	return proposta, nil
 }
 
 func (s *PropostaMEIService) Update(ctx context.Context, proposta *models.PropostaMEI) error {
 	return s.repo.Update(ctx, proposta)
 }
 
-func (s *PropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64) error {
+func (s *PropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, oportunidadeID int, valorProposta *float64, prazoExecucao *string, aceitaCustosIntegrais *bool) error {
 	// Buscar proposta existente
 	proposta, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -95,13 +107,21 @@ func (s *PropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, o
 		return errors.New("proposta não pertence à oportunidade especificada")
 	}
 
-	// Atualizar apenas o valor da proposta
+	// Atualizar os campos fornecidos
 	if valorProposta != nil {
 		// Validate that the value is positive
 		if *valorProposta < 0 {
 			return errors.New("valor_proposta deve ser positivo")
 		}
 		proposta.ValorProposta = valorProposta
+	}
+
+	if prazoExecucao != nil {
+		proposta.PrazoExecucao = prazoExecucao
+	}
+
+	if aceitaCustosIntegrais != nil {
+		proposta.AceitaCustosIntegrais = aceitaCustosIntegrais
 	}
 
 	return s.repo.Update(ctx, proposta)
@@ -135,7 +155,15 @@ func (s *PropostaMEIService) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (s *PropostaMEIService) ListByOportunidade(ctx context.Context, oportunidadeID int, nomeEmpresa, cnpj, status string, page, pageSize int) ([]*models.PropostaMEI, int, error) {
 	offset := (page - 1) * pageSize
-	return s.repo.ListByOportunidade(ctx, oportunidadeID, nomeEmpresa, cnpj, status, pageSize, offset)
+	propostas, total, err := s.repo.ListByOportunidade(ctx, oportunidadeID, nomeEmpresa, cnpj, status, pageSize, offset)
+	if err != nil {
+		return propostas, total, err
+	}
+
+	// Enrich all proposals with contact info (parallel)
+	s.enrichMultiplePropostasWithContactInfo(ctx, propostas)
+
+	return propostas, total, nil
 }
 
 func (s *PropostaMEIService) ListByMEIEmpresa(ctx context.Context, meiEmpresaID string, page, pageSize int) ([]*models.PropostaMEI, int, error) {
@@ -158,4 +186,65 @@ func (s *PropostaMEIService) UpdateMultipleStatus(ctx context.Context, propostaI
 	}
 
 	return s.repo.UpdateMultipleStatus(ctx, propostaIDs, status)
+}
+
+// enrichPropostaWithContactInfo enriches a single proposta with contact information
+// Implements graceful degradation: logs errors but doesn't fail the operation
+func (s *PropostaMEIService) enrichPropostaWithContactInfo(ctx context.Context, proposta *models.PropostaMEI) {
+	if proposta == nil || proposta.MEIEmpresaID == "" {
+		return
+	}
+
+	// Skip if contact info service is not configured
+	if s.contactInfoService == nil {
+		return
+	}
+
+	contactInfo, err := s.contactInfoService.GetCNPJOwnerContactInfo(ctx, proposta.MEIEmpresaID)
+	if err != nil {
+		log.Printf("[CONTACT_INFO_ERROR] Failed to fetch contact info for CNPJ %s: %v",
+			proposta.MEIEmpresaID, err)
+		return
+	}
+
+	// Set contact fields (these are computed fields, not persisted)
+	proposta.EmailPessoaFisica = contactInfo.EmailPessoaFisica
+	proposta.CelularPessoaFisica = contactInfo.CelularPessoaFisica
+}
+
+// enrichMultiplePropostasWithContactInfo enriches multiple propostas in parallel
+// Implements graceful degradation: errors don't stop the entire operation
+func (s *PropostaMEIService) enrichMultiplePropostasWithContactInfo(ctx context.Context, propostas []*models.PropostaMEI) {
+	if len(propostas) == 0 || s.contactInfoService == nil {
+		return
+	}
+
+	// Extract unique CNPJs
+	cnpjSet := make(map[string]bool)
+	for _, p := range propostas {
+		if p.MEIEmpresaID != "" {
+			cnpjSet[p.MEIEmpresaID] = true
+		}
+	}
+
+	if len(cnpjSet) == 0 {
+		return
+	}
+
+	// Convert set to slice
+	cnpjs := make([]string, 0, len(cnpjSet))
+	for cnpj := range cnpjSet {
+		cnpjs = append(cnpjs, cnpj)
+	}
+
+	// Fetch all contact info in parallel
+	contactInfoMap := s.contactInfoService.GetMultipleCNPJOwnerContactInfo(ctx, cnpjs)
+
+	// Enrich each proposta
+	for _, proposta := range propostas {
+		if contactInfo, found := contactInfoMap[proposta.MEIEmpresaID]; found {
+			proposta.EmailPessoaFisica = contactInfo.EmailPessoaFisica
+			proposta.CelularPessoaFisica = contactInfo.CelularPessoaFisica
+		}
+	}
 }

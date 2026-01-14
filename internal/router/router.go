@@ -10,6 +10,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"gorm.io/gorm"
 
+	"github.com/prefeitura-rio/app-go-api/internal/auth"
+	"github.com/prefeitura-rio/app-go-api/internal/authorization"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
@@ -103,6 +105,23 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	// Initialize CNAE validation service
 	cnaeValidationService := services.NewCNAEValidationService(rmiClient, legalEntitiesCache)
 
+	// Initialize service account token manager for Keycloak
+	var tokenManager *auth.ServiceAccountTokenManager
+	if cfg.Keycloak.URL != "" && cfg.Keycloak.ClientID != "" && cfg.Keycloak.ClientSecret != "" {
+		tokenManager = auth.NewServiceAccountTokenManager(
+			cfg.Keycloak.URL,
+			cfg.Keycloak.Realm,
+			cfg.Keycloak.ClientID,
+			cfg.Keycloak.ClientSecret,
+		)
+	}
+
+	// Initialize contact info service (for fetching CNPJ owner contact info)
+	var contactInfoService *services.ContactInfoService
+	if tokenManager != nil {
+		contactInfoService = services.NewContactInfoService(rmiClient, tokenManager, redisClient, cfg)
+	}
+
 	// Initialize Data Relay client for email sending
 	dataRelayClient := clients.NewDataRelayClient(cfg.DataRelay.BaseURL, cfg.DataRelay.APIKey, 30*time.Second)
 
@@ -121,10 +140,19 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, emailNotificationService)
 	jobService := services.NewJobService(jobRepo)
 	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo)
-	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, cnaeValidationService)
+	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, cnaeValidationService, contactInfoService)
 
 	// Initialize job processor
 	jobs.InitializeJobProcessor(db, jobRepo, inscricaoRepo, cursoRepo)
+
+	// Initialize Cerbos authorization checker (if enabled)
+	var authChecker *authorization.Checker
+	if cfg.Cerbos.Enabled {
+		authChecker = authorization.NewChecker(
+			cfg.Cerbos.Endpoint,
+			time.Duration(cfg.Cerbos.Timeout)*time.Second,
+		)
+	}
 
 	// Inicializando handlers
 	empregoHandler := v1.NewEmpregoHandler(empregoService)
@@ -137,7 +165,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo).WithCache(courseCache)
 	jobHandler := v1.NewJobHandler(jobService)
 	oportunidadeMEIHandler := v1.NewOportunidadeMEIHandler(oportunidadeMEIService)
-	propostaMEIHandler := v1.NewPropostaMEIHandler(propostaMEIService)
+	propostaMEIHandler := v1.NewPropostaMEIHandler(propostaMEIService, cnaeValidationService, authChecker, cfg)
 	typesenseHandler, err := v1.NewTypesenseHandler()
 	if err != nil {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)

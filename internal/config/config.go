@@ -15,19 +15,23 @@ import (
 
 // AppConfig contém todas as configurações da aplicação
 type AppConfig struct {
-	App        AppSettings
-	Database   DatabaseSettings
-	Server     ServerSettings
-	JWT        JWTSettings
-	Swagger    SwaggerSettings
-	TypeSense  TypeSenseSettings
-	Migrations MigrationSettings
-	RMI        RMISettings
-	Redis      RedisSettings
-	Tracing    TracingSettings
-	OrgaoSync  OrgaoSyncSettings
-	DataRelay  DataRelaySettings
-	PrefRio    PrefRioSettings
+	App         AppSettings
+	Database    DatabaseSettings
+	Server      ServerSettings
+	JWT         JWTSettings
+	Swagger     SwaggerSettings
+	TypeSense   TypeSenseSettings
+	Migrations  MigrationSettings
+	RMI         RMISettings
+	Redis       RedisSettings
+	Tracing     TracingSettings
+	OrgaoSync   OrgaoSyncSettings
+	DataRelay   DataRelaySettings
+	PrefRio     PrefRioSettings
+	Cerbos      CerbosSettings
+	PropostaMEI PropostaMEIPermissions
+	Cache       CacheSettings
+	Keycloak    KeycloakSettings
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -133,6 +137,36 @@ type OrgaoSyncSettings struct {
 	StaleThreshold time.Duration // Consider snapshot stale after this duration
 	BatchSize      int           // Number of orgaos to sync per batch
 	MaxRetries     int           // Maximum retries for failed syncs
+}
+
+// CerbosSettings define configurações do Cerbos PDP para autorização
+type CerbosSettings struct {
+	Endpoint string
+	Timeout  int
+	Enabled  bool
+}
+
+// PropostaMEIPermissions define permissões configuráveis para propostas MEI
+type PropostaMEIPermissions struct {
+	DeletePermissions []string // Lista de ações permitidas para deletar propostas de outros
+	UpdatePermissions []string // Lista de ações permitidas para atualizar propostas de outros
+	ReadPermissions   []string // Lista de ações permitidas para visualizar propostas de outros
+}
+
+// CacheSettings define configurações de cache TTL
+type CacheSettings struct {
+	LegalEntitiesTTL time.Duration // TTL para cache de entidades legais (CNPJs)
+	ReferenceDataTTL time.Duration // TTL para dados de referência (categorias, etc)
+	CourseTTL        time.Duration // TTL para cache de cursos
+	ContactInfoTTL   time.Duration // TTL para informações de contato de donos de CNPJ
+}
+
+// KeycloakSettings define configurações do Keycloak para service account
+type KeycloakSettings struct {
+	URL          string // URL base do Keycloak (ex: https://auth.example.com/auth)
+	Realm        string // Realm do Keycloak
+	ClientID     string // Client ID do service account
+	ClientSecret string // Client Secret do service account
 }
 
 // Erros comuns de validação
@@ -357,6 +391,28 @@ func Load() (*AppConfig, error) {
 		PrefRio: PrefRioSettings{
 			Domain: getEnv(v, "PREFRIO_DOMAIN", "pref.rio"),
 		},
+		Cerbos: CerbosSettings{
+			Endpoint: getEnv(v, "CERBOS_ENDPOINT", ""),
+			Timeout:  getInt(v, "CERBOS_TIMEOUT_SECONDS", 2),
+			Enabled:  getBool(v, "CERBOS_ENABLED", false),
+		},
+		PropostaMEI: PropostaMEIPermissions{
+			DeletePermissions: getStringSlice(v, "PROPOSTA_MEI_DELETE_PERMISSIONS"),
+			UpdatePermissions: getStringSlice(v, "PROPOSTA_MEI_UPDATE_PERMISSIONS"),
+			ReadPermissions:   getStringSlice(v, "PROPOSTA_MEI_READ_PERMISSIONS"),
+		},
+		Cache: CacheSettings{
+			LegalEntitiesTTL: getDuration(v, "CACHE_LEGAL_ENTITIES_TTL", 30*time.Minute),
+			ReferenceDataTTL: getDuration(v, "CACHE_REFERENCE_DATA_TTL", 1*time.Hour),
+			CourseTTL:        getDuration(v, "CACHE_COURSE_TTL", 5*time.Minute),
+			ContactInfoTTL:   getDuration(v, "CACHE_CONTACT_INFO_TTL", 1*time.Hour),
+		},
+		Keycloak: KeycloakSettings{
+			URL:          getEnv(v, "KEYCLOAK_URL", ""),
+			Realm:        getEnv(v, "KEYCLOAK_REALM", ""),
+			ClientID:     getEnv(v, "KEYCLOAK_CLIENT_ID", ""),
+			ClientSecret: getEnv(v, "KEYCLOAK_CLIENT_SECRET", ""),
+		},
 	}
 
 	// Validar configurações
@@ -440,6 +496,27 @@ func getDuration(v *viper.Viper, key string, defaultValue time.Duration) time.Du
 		}
 	}
 	return defaultValue
+}
+
+func getStringSlice(v *viper.Viper, key string) []string {
+	// Try viper first
+	if v.IsSet(key) {
+		return v.GetStringSlice(key)
+	}
+	// Fallback para os.Getenv com parse de comma-separated values
+	if value := os.Getenv(key); value != "" {
+		// Split by comma and trim spaces
+		parts := strings.Split(value, ",")
+		result := make([]string, 0, len(parts))
+		for _, part := range parts {
+			trimmed := strings.TrimSpace(part)
+			if trimmed != "" {
+				result = append(result, trimmed)
+			}
+		}
+		return result
+	}
+	return []string{}
 }
 
 // logConfig imprime as configurações atuais para depuração

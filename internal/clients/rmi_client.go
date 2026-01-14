@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -145,4 +146,116 @@ func (c *RMIClient) GetOrgao(ctx context.Context, orgaoID string) (*models.Orgao
 	}
 
 	return &orgao, nil
+}
+
+// GetCNPJOwnerInfo fetches contact information for the owner of a CNPJ
+// This is a two-step process:
+// 1. GET /v1/legal-entity/{cnpj} to get the list of socios CPFs
+// 2. GET /v1/citizen/{cpf} for the first socio to get contact info
+// Requires service account authentication token
+func (c *RMIClient) GetCNPJOwnerInfo(ctx context.Context, serviceToken string, cnpj string) (*models.CNPJOwnerInfo, error) {
+	if c.baseURL == "" {
+		return nil, fmt.Errorf("RMI base URL not configured")
+	}
+
+	// Normalize CNPJ (remove formatting)
+	normalizedCNPJ := cnpj
+	for _, char := range []string{".", "/", "-"} {
+		normalizedCNPJ = strings.ReplaceAll(normalizedCNPJ, char, "")
+	}
+
+	// Step 1: Get legal entity details to find socios
+	legalEntityURL := fmt.Sprintf("%s/v1/legal-entity/%s", c.baseURL, normalizedCNPJ)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", legalEntityURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create legal entity request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceToken))
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute legal entity request: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Error closing legal entity response body: %v\n", err)
+		}
+	}()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("legal entity not found")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var legalEntity models.LegalEntityDetails
+	if err := json.NewDecoder(resp.Body).Decode(&legalEntity); err != nil {
+		return nil, fmt.Errorf("failed to decode legal entity response: %w", err)
+	}
+
+	// Get all socio CPFs
+	socioCPFs := legalEntity.GetSocioCPFs()
+
+	if len(socioCPFs) == 0 {
+		return nil, fmt.Errorf("no socios found for CNPJ")
+	}
+
+	// Step 2: Get contact info for the first socio
+	// TODO: In the future, we might want to match the socio CPF with the requesting user's CPF
+	firstCPF := socioCPFs[0]
+
+	// Normalize CPF (remove formatting)
+	normalizedCPF := firstCPF
+	for _, char := range []string{".", "-"} {
+		normalizedCPF = strings.ReplaceAll(normalizedCPF, char, "")
+	}
+
+	citizenURL := fmt.Sprintf("%s/v1/citizen/%s", c.baseURL, normalizedCPF)
+
+	req, err = http.NewRequestWithContext(ctx, "GET", citizenURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create citizen request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceToken))
+	req.Header.Set("Accept", "application/json")
+
+	resp, err = c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute citizen request: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Error closing citizen response body: %v\n", err)
+		}
+	}()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("citizen contact info not found")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var citizenInfo models.CitizenContactInfo
+	if err := json.NewDecoder(resp.Body).Decode(&citizenInfo); err != nil {
+		return nil, fmt.Errorf("failed to decode citizen response: %w", err)
+	}
+
+	// Build the final CNPJOwnerInfo
+	ownerInfo := &models.CNPJOwnerInfo{
+		CNPJ:                normalizedCNPJ,
+		EmailPessoaFisica:   citizenInfo.GetEmail(),
+		CelularPessoaFisica: citizenInfo.GetCelular(),
+	}
+
+	return ownerInfo, nil
 }
