@@ -17,19 +17,126 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
 type InscricaoHandler struct {
 	service    *services.InscricaoService
 	jobService *services.JobService
+	cursoRepo  *repository.CursoRepository
 }
 
-func NewInscricaoHandler(service *services.InscricaoService, jobService *services.JobService) *InscricaoHandler {
+func NewInscricaoHandler(service *services.InscricaoService, jobService *services.JobService, cursoRepo *repository.CursoRepository) *InscricaoHandler {
 	return &InscricaoHandler{
 		service:    service,
 		jobService: jobService,
+		cursoRepo:  cursoRepo,
 	}
+}
+
+// populateRemainingVacanciesForEnrollment calculates remaining vacancies for a single enrollment's enrolled_unit
+func (h *InscricaoHandler) populateRemainingVacanciesForEnrollment(c *gin.Context, inscricao *models.Inscricao) error {
+	if inscricao.EnrolledUnit == nil || len(inscricao.EnrolledUnit.Schedules) == 0 {
+		return nil
+	}
+
+	// Collect schedule IDs from enrolled_unit
+	scheduleIDs := make([]uuid.UUID, 0, len(inscricao.EnrolledUnit.Schedules))
+	for _, schedule := range inscricao.EnrolledUnit.Schedules {
+		scheduleID, err := uuid.Parse(schedule.ID)
+		if err != nil {
+			continue
+		}
+		scheduleIDs = append(scheduleIDs, scheduleID)
+	}
+
+	if len(scheduleIDs) == 0 {
+		return nil
+	}
+
+	// Get enrollment counts for all schedules
+	enrollmentCounts, err := h.cursoRepo.CountEnrollmentsByScheduleIDs(c.Request.Context(), scheduleIDs)
+	if err != nil {
+		return err
+	}
+
+	// Update enrolled_unit schedules with remaining vacancies
+	for i := range inscricao.EnrolledUnit.Schedules {
+		schedule := &inscricao.EnrolledUnit.Schedules[i]
+		scheduleID, err := uuid.Parse(schedule.ID)
+		if err != nil {
+			continue
+		}
+
+		enrolledCount := enrollmentCounts[scheduleID]
+		remaining := schedule.Vacancies - int(enrolledCount)
+
+		if remaining < 0 {
+			remaining = 0
+		}
+
+		schedule.RemainingVacancies = remaining
+	}
+
+	return nil
+}
+
+// populateRemainingVacanciesForEnrollments calculates remaining vacancies for multiple enrollments in a single batched query
+func (h *InscricaoHandler) populateRemainingVacanciesForEnrollments(c *gin.Context, inscricoes []*models.Inscricao) error {
+	if len(inscricoes) == 0 {
+		return nil
+	}
+
+	// Collect all schedule IDs from all enrolled_units
+	var allScheduleIDs []uuid.UUID
+	for _, inscricao := range inscricoes {
+		if inscricao.EnrolledUnit == nil {
+			continue
+		}
+		for _, schedule := range inscricao.EnrolledUnit.Schedules {
+			scheduleID, err := uuid.Parse(schedule.ID)
+			if err != nil {
+				continue
+			}
+			allScheduleIDs = append(allScheduleIDs, scheduleID)
+		}
+	}
+
+	if len(allScheduleIDs) == 0 {
+		return nil
+	}
+
+	// Single query to count all enrollments
+	enrollmentCounts, err := h.cursoRepo.CountEnrollmentsByScheduleIDs(c.Request.Context(), allScheduleIDs)
+	if err != nil {
+		return err
+	}
+
+	// Apply counts to each enrollment
+	for _, inscricao := range inscricoes {
+		if inscricao.EnrolledUnit == nil {
+			continue
+		}
+		for i := range inscricao.EnrolledUnit.Schedules {
+			schedule := &inscricao.EnrolledUnit.Schedules[i]
+			scheduleID, err := uuid.Parse(schedule.ID)
+			if err != nil {
+				continue
+			}
+
+			enrolledCount := enrollmentCounts[scheduleID]
+			remaining := schedule.Vacancies - int(enrolledCount)
+
+			if remaining < 0 {
+				remaining = 0
+			}
+
+			schedule.RemainingVacancies = remaining
+		}
+	}
+
+	return nil
 }
 
 // @Summary      Criar inscrição
@@ -127,6 +234,12 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 	inscricoes, total, err := h.service.GetByCursoID(c.Request.Context(), cursoID, filter, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar inscrições: " + err.Error()})
+		return
+	}
+
+	// Calculate remaining vacancies for all enrollments in a single batched query
+	if err := h.populateRemainingVacanciesForEnrollments(c, inscricoes); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
 		return
 	}
 
@@ -333,6 +446,12 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 
 	if inscricao == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Inscrição não encontrada"})
+		return
+	}
+
+	// Calculate remaining vacancies for enrolled_unit schedules
+	if err := h.populateRemainingVacanciesForEnrollment(c, inscricao); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
 		return
 	}
 
@@ -676,6 +795,12 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 	inscricoes, total, err := h.service.ListByCPF(c.Request.Context(), cpf, filter, offset, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar inscrições do usuário: " + err.Error()})
+		return
+	}
+
+	// Calculate remaining vacancies for all enrollments in a single batched query
+	if err := h.populateRemainingVacanciesForEnrollments(c, inscricoes); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
 		return
 	}
 

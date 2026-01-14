@@ -4715,6 +4715,9 @@
           "location_id": {
             "type": "string"
           },
+          "remaining_vacancies": {
+            "type": "integer"
+          },
           "updated_at": {
             "type": "string"
           },

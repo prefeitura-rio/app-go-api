@@ -161,7 +161,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empresaHandler := v1.NewEmpresaHandler(empresaService)
 	escolaridadeHandler := v1.NewEscolaridadeHandler(escolaridadeService).WithCache(escolaridadesCache)
 	instituicaoHandler := v1.NewInstituicaoHandler(instituicaoService)
-	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService, jobService)
+	inscricaoHandler := v1.NewInscricaoHandler(inscricaoService, jobService, cursoRepo)
 	courseHandler := v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo).WithCache(courseCache)
 	jobHandler := v1.NewJobHandler(jobService)
 	oportunidadeMEIHandler := v1.NewOportunidadeMEIHandler(oportunidadeMEIService)
