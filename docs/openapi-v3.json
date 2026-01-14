@@ -4665,19 +4665,6 @@
           "address": {
             "type": "string"
           },
-          "class_days": {
-            "type": "string"
-          },
-          "class_end_date": {
-            "type": "string"
-          },
-          "class_start_date": {
-            "type": "string"
-          },
-          "class_time": {
-            "description": "Legacy fields - schedule info directly on enrolled_unit (not in schedules array)\nThese exist in older database records",
-            "type": "string"
-          },
           "created_at": {
             "type": "string"
           },
@@ -4701,9 +4688,6 @@
           },
           "updated_at": {
             "type": "string"
-          },
-          "vacancies": {
-            "type": "integer"
           }
         }
       },
