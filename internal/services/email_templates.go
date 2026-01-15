@@ -14,7 +14,7 @@ type EmailTemplate struct {
 }
 
 // GetEnrollmentPendingEmailTemplate returns email template for "Em Análise" status
-func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *models.Curso, prefrioDomain string) EmailTemplate {
+func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *models.Curso, orgaoName string, prefrioDomain string) EmailTemplate {
 	subject := fmt.Sprintf("Inscrição recebida! - %s", curso.Titulo)
 
 	body := fmt.Sprintf(`<!DOCTYPE html>
@@ -40,7 +40,7 @@ func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *model
 </html>`,
 		inscricao.Name,
 		curso.Titulo,
-		curso.Organization,
+		orgaoName,
 	)
 
 	return EmailTemplate{
@@ -51,29 +51,40 @@ func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *model
 }
 
 // GetEnrollmentApprovedEmailTemplate returns email template for "Inscrito" status
-func GetEnrollmentApprovedEmailTemplate(inscricao *models.Inscricao, curso *models.Curso, prefrioDomain string) EmailTemplate {
+func GetEnrollmentApprovedEmailTemplate(inscricao *models.Inscricao, curso *models.Curso, orgaoName string, scheduleInfo *ScheduleInfo, prefrioDomain string) EmailTemplate {
 	subject := fmt.Sprintf("Parabéns! Sua inscrição foi confirmada - %s", curso.Titulo)
 
 	cursosURL := fmt.Sprintf("https://%s/servicos/cursos", prefrioDomain)
 
-	// Build location info based on modalidade
-	var locationInfo string
-	if curso.Modalidade == models.ModalidadePresencial || curso.Modalidade == models.ModalidadePresencialLegacy {
+	// Build location info from schedule or course
+	var locationInfoStr string
+	if scheduleInfo != nil && scheduleInfo.Address != "" {
+		locationInfoStr = fmt.Sprintf("📍 Endereço: %s", scheduleInfo.Address)
+	} else if curso.Modalidade == models.ModalidadePresencial || curso.Modalidade == models.ModalidadePresencialLegacy {
 		if curso.LocalRealizacao != "" {
-			locationInfo = fmt.Sprintf("📍 Endereço: %s", curso.LocalRealizacao)
+			locationInfoStr = fmt.Sprintf("📍 Endereço: %s", curso.LocalRealizacao)
 		} else {
-			locationInfo = "📍 Endereço: [presencial: puxar endereço da turma]"
+			locationInfoStr = "📍 Endereço: a confirmar"
 		}
 	} else {
-		locationInfo = "📍 Endereço: online"
+		locationInfoStr = "📍 Endereço: online"
 	}
 
-	// Build schedule info
-	var scheduleInfo string
-	if curso.DataInicio != nil {
-		scheduleInfo = fmt.Sprintf("🕒 Horário de início: %s", curso.DataInicio.Format("02/01/2006 15:04"))
+	// Build schedule info from enrollment's schedule or fallback to course data
+	var scheduleInfoStr string
+	if scheduleInfo != nil && scheduleInfo.ClassStartDate != "" {
+		if scheduleInfo.ClassTime != "" {
+			scheduleInfoStr = fmt.Sprintf("🕒 Horário de início: %s às %s", scheduleInfo.ClassStartDate, scheduleInfo.ClassTime)
+		} else {
+			scheduleInfoStr = fmt.Sprintf("🕒 Data de início: %s", scheduleInfo.ClassStartDate)
+		}
+		if scheduleInfo.ClassDays != "" {
+			scheduleInfoStr += fmt.Sprintf(" (%s)", scheduleInfo.ClassDays)
+		}
+	} else if curso.DataInicio != nil {
+		scheduleInfoStr = fmt.Sprintf("🕒 Horário de início: %s", curso.DataInicio.Format("02/01/2006 15:04"))
 	} else {
-		scheduleInfo = "🕒 Horário de início: [puxar o horário da turma]"
+		scheduleInfoStr = "🕒 Horário de início: a confirmar"
 	}
 
 	body := fmt.Sprintf(`<!DOCTYPE html>
@@ -104,10 +115,10 @@ func GetEnrollmentApprovedEmailTemplate(inscricao *models.Inscricao, curso *mode
 </html>`,
 		inscricao.Name,
 		curso.Titulo,
-		locationInfo,
-		scheduleInfo,
-		curso.Organization,
-		curso.Organization,
+		locationInfoStr,
+		scheduleInfoStr,
+		orgaoName,
+		orgaoName,
 		cursosURL,
 	)
 

@@ -507,3 +507,37 @@ func (r *CursoRepository) ValidateForEnrollment(ctx context.Context, cursoID int
 
 	return result.Status, result.EnrollmentStartDate, result.EnrollmentEndDate, nil
 }
+
+// GetCourseScheduleByID fetches a course schedule by its ID
+func (r *CursoRepository) GetCourseScheduleByID(ctx context.Context, scheduleID uuid.UUID) (*models.CourseSchedule, error) {
+	var schedule models.CourseSchedule
+
+	result := r.db.WithContext(ctx).
+		Preload("Location").
+		First(&schedule, "id = ?", scheduleID)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("erro ao buscar course schedule: %w", result.Error)
+	}
+
+	return &schedule, nil
+}
+
+// GetRemoteScheduleByID fetches a remote schedule by its ID
+func (r *CursoRepository) GetRemoteScheduleByID(ctx context.Context, scheduleID uuid.UUID) (*models.RemoteSchedule, error) {
+	var schedule models.RemoteSchedule
+
+	result := r.db.WithContext(ctx).First(&schedule, "id = ?", scheduleID)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("erro ao buscar remote schedule: %w", result.Error)
+	}
+
+	return &schedule, nil
+}

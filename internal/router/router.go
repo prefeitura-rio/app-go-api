@@ -69,6 +69,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	jobRepo := repository.NewJobRepository(db)
 	oportunidadeMEIRepo := repository.NewOportunidadeMEIRepository(db)
 	propostaMEIRepo := repository.NewPropostaMEIRepository(db)
+	orgaoSnapshotRepo := repository.NewOrgaoSnapshotRepository(db)
 
 	// Initialize Redis client with connection pool
 	redisClient := redis.NewClient(&redis.Options{
@@ -127,7 +128,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 
 	// Initialize email notification service
 	emailNotificationEnabled := cfg.DataRelay.BaseURL != "" && cfg.DataRelay.APIKey != ""
-	emailNotificationService := services.NewEmailNotificationService(dataRelayClient, emailNotificationEnabled, cfg.PrefRio.Domain)
+	emailNotificationService := services.NewEmailNotificationService(dataRelayClient, cursoRepo, orgaoSnapshotRepo, emailNotificationEnabled, cfg.PrefRio.Domain)
 
 	// Inicializando serviços
 	cursoService := services.NewCursoService(cursoRepo)
