@@ -243,6 +243,9 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 		return
 	}
 
+	// Enrich enrollments with personal info from citizen snapshots
+	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), inscricoes)
+
 	// Get summary
 	summary, err := h.service.GetSummaryByCursoID(c.Request.Context(), cursoID)
 	if err != nil {
@@ -454,6 +457,9 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
 		return
 	}
+
+	// Enrich enrollment with personal info from citizen snapshot
+	h.service.EnrichWithPersonalInfo(c.Request.Context(), inscricao)
 
 	// Verificar se o usuário tem permissão para ver esta inscrição
 	userCPF := c.GetString("user_cpf")
@@ -804,9 +810,12 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 		return
 	}
 
+	// Enrich enrollments with personal info from citizen snapshots
+	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), inscricoes)
+
 	totalPages := (total + limit - 1) / limit
 
-	// Transform enrollments to include course information
+	// Transform enrollments to include course information and personal_info
 	enrollmentsData := make([]gin.H, len(inscricoes))
 	for i, inscricao := range inscricoes {
 		enrollmentsData[i] = gin.H{
@@ -825,6 +834,7 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 			"enrolled_at":     inscricao.EnrolledAt,
 			"updated_at":      inscricao.UpdatedAt,
 			"curso":           inscricao.Curso,
+			"personal_info":   inscricao.PersonalInfo,
 		}
 	}
 

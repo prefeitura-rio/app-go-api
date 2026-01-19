@@ -36,6 +36,44 @@ definitions:
       message:
         type: string
     type: object
+  models.CitizenEndereco:
+    properties:
+      bairro:
+        type: string
+      cep:
+        type: string
+      cidade:
+        type: string
+      complemento:
+        type: string
+      logradouro:
+        type: string
+      numero:
+        type: string
+      uf:
+        type: string
+    type: object
+  models.CitizenPersonalInfo:
+    properties:
+      celular:
+        type: string
+      data_nascimento:
+        type: string
+      deficiencia:
+        type: string
+      email:
+        type: string
+      endereco:
+        $ref: '#/definitions/models.CitizenEndereco'
+      escolaridade:
+        type: string
+      genero:
+        type: string
+      raca:
+        type: string
+      renda_familiar:
+        type: string
+    type: object
   models.CourseManagementType:
     enum:
     - OWN_ORG
@@ -255,6 +293,8 @@ definitions:
         type: string
       location_id:
         type: string
+      remaining_vacancies:
+        type: integer
       updated_at:
         type: string
       vacancies:
@@ -352,6 +392,10 @@ definitions:
         description: Bairro
         example: Centro
         type: string
+      personal_info:
+        allOf:
+        - $ref: '#/definitions/models.CitizenPersonalInfo'
+        description: Computed field (not stored in DB) - populated from CitizenSnapshot
       phone:
         type: string
       reason:
@@ -604,11 +648,21 @@ definitions:
     type: object
   models.PropostaMEI:
     properties:
+      aceita_custos_integrais:
+        example: true
+        type: boolean
+      celular_pessoa_fisica:
+        example: "21987654321"
+        type: string
       created_at:
         example: "2024-01-01T10:00:00Z"
         type: string
       deleted_at:
         example: "2024-12-31T23:59:59Z"
+        type: string
+      email_pessoa_fisica:
+        description: Computed fields from RMI API (not persisted to database)
+        example: joao@example.com
         type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -619,6 +673,9 @@ definitions:
       oportunidade_mei_id:
         example: 1
         type: integer
+      prazo_execucao:
+        example: 30 dias
+        type: string
       status_admin:
         allOf:
         - $ref: '#/definitions/models.StatusPropostaAdmin'
@@ -2541,7 +2598,8 @@ paths:
       - propostas-mei
   /api/v1/oportunidades-mei/{id}/propostas/{propostaId}:
     delete:
-      description: Remove uma proposta MEI pelo ID (soft delete)
+      description: Remove uma proposta MEI pelo ID (soft delete). Requer que o usuário
+        seja o dono da proposta ou tenha uma das permissões configuradas.
       parameters:
       - description: ID da oportunidade
         in: path
@@ -2564,6 +2622,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Acesso negado
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2572,8 +2638,14 @@ paths:
       tags:
       - propostas-mei
     get:
-      description: Retorna uma proposta MEI pelo seu ID
+      description: Retorna uma proposta MEI pelo seu ID. Requer que o usuário seja
+        dono do CNPJ ou tenha permissões de leitura.
       parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       - description: ID da oportunidade
         in: path
         name: id
@@ -2595,6 +2667,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: 'Acesso negado: não é dono do CNPJ'
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2609,7 +2685,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: Atualiza os dados de uma proposta MEI existente
+      description: Atualiza os dados de uma proposta MEI existente. Requer que o usuário
+        seja o dono da proposta ou tenha uma das permissões configuradas.
       parameters:
       - description: ID da oportunidade
         in: path
@@ -2636,6 +2713,10 @@ paths:
             $ref: '#/definitions/models.PropostaMEI'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Acesso negado
           schema:
             $ref: '#/definitions/models.ErrorResponse'
         "404":
@@ -2798,6 +2879,14 @@ paths:
         in: query
         name: pageSize
         type: integer
+      - description: Filtrar por órgão
+        in: query
+        name: orgaoId
+        type: string
+      - description: Buscar por título (case-insensitive)
+        in: query
+        name: titulo
+        type: string
       produces:
       - application/json
       responses:
@@ -2812,6 +2901,41 @@ paths:
       summary: Listar rascunhos de oportunidades MEI
       tags:
       - oportunidades-mei
+  /api/v1/propostas-mei/por-empresa:
+    get:
+      description: Retorna uma lista paginada de propostas MEI de uma empresa
+      parameters:
+      - description: CNPJ da MEI empresa
+        in: query
+        name: meiEmpresaId
+        required: true
+        type: string
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10, max: 1000)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar propostas MEI por MEI empresa
+      tags:
+      - propostas-mei
   /api/v1/typesense/collections/{collection}/documents/search:
     post:
       consumes:
@@ -2932,41 +3056,6 @@ paths:
       summary: Listar cursos de um usuário específico
       tags:
       - courses
-  /propostas-mei/por-empresa:
-    get:
-      description: Retorna uma lista paginada de propostas MEI de uma empresa
-      parameters:
-      - description: CNPJ da MEI empresa
-        in: query
-        name: meiEmpresaId
-        required: true
-        type: string
-      - description: 'Número da página (default: 1)'
-        in: query
-        name: page
-        type: integer
-      - description: 'Tamanho da página (default: 10, max: 1000)'
-        in: query
-        name: pageSize
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-      summary: Listar propostas MEI por MEI empresa
-      tags:
-      - propostas-mei
 schemes:
 - http
 - https

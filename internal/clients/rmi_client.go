@@ -259,3 +259,54 @@ func (c *RMIClient) GetCNPJOwnerInfo(ctx context.Context, serviceToken string, c
 
 	return ownerInfo, nil
 }
+
+// GetCitizenByCPF fetches citizen data from RMI API by CPF
+// Endpoint: GET /v1/citizen/{cpf}
+// Requires service account authentication token
+func (c *RMIClient) GetCitizenByCPF(ctx context.Context, serviceToken string, cpf string) (*models.CitizenContactInfo, error) {
+	if c.baseURL == "" {
+		return nil, fmt.Errorf("RMI base URL not configured")
+	}
+
+	// Normalize CPF (remove formatting)
+	normalizedCPF := cpf
+	for _, char := range []string{".", "-"} {
+		normalizedCPF = strings.ReplaceAll(normalizedCPF, char, "")
+	}
+
+	citizenURL := fmt.Sprintf("%s/v1/citizen/%s", c.baseURL, normalizedCPF)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", citizenURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create citizen request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceToken))
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute citizen request: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Error closing citizen response body: %v\n", err)
+		}
+	}()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("citizen not found")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var citizenInfo models.CitizenContactInfo
+	if err := json.NewDecoder(resp.Body).Decode(&citizenInfo); err != nil {
+		return nil, fmt.Errorf("failed to decode citizen response: %w", err)
+	}
+
+	return &citizenInfo, nil
+}

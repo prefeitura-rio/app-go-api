@@ -11,16 +11,31 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
+// CitizenDataFetcher interface for fetching citizen data
+type CitizenDataFetcher interface {
+	SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+}
+
 type InscricaoService struct {
 	repo                     *repository.InscricaoRepository
 	cursoRepo                *repository.CursoRepository
+	citizenSnapshotRepo      *repository.CitizenSnapshotRepository
+	citizenDataFetcher       CitizenDataFetcher
 	emailNotificationService *EmailNotificationService
 }
 
-func NewInscricaoService(repo *repository.InscricaoRepository, cursoRepo *repository.CursoRepository, emailNotificationService *EmailNotificationService) *InscricaoService {
+func NewInscricaoService(
+	repo *repository.InscricaoRepository,
+	cursoRepo *repository.CursoRepository,
+	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
+	citizenDataFetcher CitizenDataFetcher,
+	emailNotificationService *EmailNotificationService,
+) *InscricaoService {
 	return &InscricaoService{
 		repo:                     repo,
 		cursoRepo:                cursoRepo,
+		citizenSnapshotRepo:      citizenSnapshotRepo,
+		citizenDataFetcher:       citizenDataFetcher,
 		emailNotificationService: emailNotificationService,
 	}
 }
@@ -68,6 +83,26 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
 			return err
+		}
+	}
+
+	// Fetch citizen data from RMI (on-demand sync) to populate Email and Phone
+	if s.citizenDataFetcher != nil && inscricao.CPF != "" {
+		citizenSnapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, inscricao.CPF)
+		if err != nil {
+			// Log error but don't fail enrollment creation - use provided data as fallback
+			fmt.Printf("[InscricaoService] Failed to fetch citizen data for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+		} else if citizenSnapshot != nil {
+			// Use RMI data for email and phone (overrides any value sent by frontend)
+			if citizenSnapshot.Email != "" {
+				inscricao.Email = citizenSnapshot.Email
+			}
+			if citizenSnapshot.Celular != "" {
+				inscricao.Phone = citizenSnapshot.Celular
+			}
+			if citizenSnapshot.Nome != "" && inscricao.Name == "" {
+				inscricao.Name = citizenSnapshot.Nome
+			}
 		}
 	}
 
@@ -334,4 +369,67 @@ func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uu
 	}
 
 	return fmt.Errorf("schedule_id fornecido não pertence a este curso")
+}
+
+// EnrichWithPersonalInfo populates PersonalInfo for a single enrollment
+func (s *InscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao *models.Inscricao) {
+	if s.citizenSnapshotRepo == nil || inscricao == nil || inscricao.CPF == "" {
+		return
+	}
+
+	snapshot, err := s.citizenSnapshotRepo.GetByCPF(ctx, inscricao.CPF)
+	if err != nil {
+		fmt.Printf("[InscricaoService] Failed to get citizen snapshot for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+		return
+	}
+
+	if snapshot != nil {
+		inscricao.PersonalInfo = snapshot.ToPersonalInfo()
+	}
+}
+
+// EnrichMultipleWithPersonalInfo populates PersonalInfo for multiple enrollments in a single batch query
+func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, inscricoes []*models.Inscricao) {
+	if s.citizenSnapshotRepo == nil || len(inscricoes) == 0 {
+		return
+	}
+
+	// Collect unique CPFs
+	cpfSet := make(map[string]struct{})
+	for _, inscricao := range inscricoes {
+		if inscricao.CPF != "" {
+			cpfSet[inscricao.CPF] = struct{}{}
+		}
+	}
+
+	cpfs := make([]string, 0, len(cpfSet))
+	for cpf := range cpfSet {
+		cpfs = append(cpfs, cpf)
+	}
+
+	if len(cpfs) == 0 {
+		return
+	}
+
+	// Batch query for all snapshots
+	snapshotMap, err := s.citizenSnapshotRepo.GetByCPFs(ctx, cpfs)
+	if err != nil {
+		fmt.Printf("[InscricaoService] Failed to get citizen snapshots: %v\n", err)
+		return
+	}
+
+	// Populate PersonalInfo for each enrollment
+	for _, inscricao := range inscricoes {
+		if snapshot, ok := snapshotMap[inscricao.CPF]; ok && snapshot != nil {
+			inscricao.PersonalInfo = snapshot.ToPersonalInfo()
+		}
+	}
+}
+
+// maskCPFForLog masks CPF for logging (shows only first 3 and last 2 digits)
+func maskCPFForLog(cpf string) string {
+	if len(cpf) < 5 {
+		return "***"
+	}
+	return cpf[:3] + "******" + cpf[len(cpf)-2:]
 }

@@ -2357,6 +2357,18 @@ const docTemplate = `{
                         "description": "Tamanho da página (default: 10, max: 1000)",
                         "name": "pageSize",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por órgão",
+                        "name": "orgaoId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Buscar por título (case-insensitive)",
+                        "name": "titulo",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2708,7 +2720,7 @@ const docTemplate = `{
         },
         "/api/v1/oportunidades-mei/{id}/propostas/{propostaId}": {
             "get": {
-                "description": "Retorna uma proposta MEI pelo seu ID",
+                "description": "Retorna uma proposta MEI pelo seu ID. Requer que o usuário seja dono do CNPJ ou tenha permissões de leitura.",
                 "produces": [
                     "application/json"
                 ],
@@ -2717,6 +2729,13 @@ const docTemplate = `{
                 ],
                 "summary": "Obter proposta MEI por ID",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "type": "integer",
                         "description": "ID da oportunidade",
@@ -2745,6 +2764,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Acesso negado: não é dono do CNPJ",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -2760,7 +2785,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza os dados de uma proposta MEI existente",
+                "description": "Atualiza os dados de uma proposta MEI existente. Requer que o usuário seja o dono da proposta ou tenha uma das permissões configuradas.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2809,6 +2834,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Acesso negado",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -2824,7 +2855,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Remove uma proposta MEI pelo ID (soft delete)",
+                "description": "Remove uma proposta MEI pelo ID (soft delete). Requer que o usuário seja o dono da proposta ou tenha uma das permissões configuradas.",
                 "produces": [
                     "application/json"
                 ],
@@ -2857,6 +2888,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -2964,6 +3007,59 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/propostas-mei/por-empresa": {
+            "get": {
+                "description": "Retorna uma lista paginada de propostas MEI de uma empresa",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "propostas-mei"
+                ],
+                "summary": "Listar propostas MEI por MEI empresa",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CNPJ da MEI empresa",
+                        "name": "meiEmpresaId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10, max: 1000)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -3158,59 +3254,6 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/propostas-mei/por-empresa": {
-            "get": {
-                "description": "Retorna uma lista paginada de propostas MEI de uma empresa",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "propostas-mei"
-                ],
-                "summary": "Listar propostas MEI por MEI empresa",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "CNPJ da MEI empresa",
-                        "name": "meiEmpresaId",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Número da página (default: 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Tamanho da página (default: 10, max: 1000)",
-                        "name": "pageSize",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
@@ -3265,6 +3308,64 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CitizenEndereco": {
+            "type": "object",
+            "properties": {
+                "bairro": {
+                    "type": "string"
+                },
+                "cep": {
+                    "type": "string"
+                },
+                "cidade": {
+                    "type": "string"
+                },
+                "complemento": {
+                    "type": "string"
+                },
+                "logradouro": {
+                    "type": "string"
+                },
+                "numero": {
+                    "type": "string"
+                },
+                "uf": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CitizenPersonalInfo": {
+            "type": "object",
+            "properties": {
+                "celular": {
+                    "type": "string"
+                },
+                "data_nascimento": {
+                    "type": "string"
+                },
+                "deficiencia": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "endereco": {
+                    "$ref": "#/definitions/models.CitizenEndereco"
+                },
+                "escolaridade": {
+                    "type": "string"
+                },
+                "genero": {
+                    "type": "string"
+                },
+                "raca": {
+                    "type": "string"
+                },
+                "renda_familiar": {
                     "type": "string"
                 }
             }
@@ -3592,6 +3693,9 @@ const docTemplate = `{
                 "location_id": {
                     "type": "string"
                 },
+                "remaining_vacancies": {
+                    "type": "integer"
+                },
                 "updated_at": {
                     "type": "string"
                 },
@@ -3736,6 +3840,14 @@ const docTemplate = `{
                     "description": "Bairro",
                     "type": "string",
                     "example": "Centro"
+                },
+                "personal_info": {
+                    "description": "Computed field (not stored in DB) - populated from CitizenSnapshot",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.CitizenPersonalInfo"
+                        }
+                    ]
                 },
                 "phone": {
                     "type": "string"
@@ -4087,6 +4199,14 @@ const docTemplate = `{
         "models.PropostaMEI": {
             "type": "object",
             "properties": {
+                "aceita_custos_integrais": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "celular_pessoa_fisica": {
+                    "type": "string",
+                    "example": "21987654321"
+                },
                 "created_at": {
                     "type": "string",
                     "example": "2024-01-01T10:00:00Z"
@@ -4094,6 +4214,11 @@ const docTemplate = `{
                 "deleted_at": {
                     "type": "string",
                     "example": "2024-12-31T23:59:59Z"
+                },
+                "email_pessoa_fisica": {
+                    "description": "Computed fields from RMI API (not persisted to database)",
+                    "type": "string",
+                    "example": "joao@example.com"
                 },
                 "id": {
                     "type": "string",
@@ -4106,6 +4231,10 @@ const docTemplate = `{
                 "oportunidade_mei_id": {
                     "type": "integer",
                     "example": 1
+                },
+                "prazo_execucao": {
+                    "type": "string",
+                    "example": "30 dias"
                 },
                 "status_admin": {
                     "enum": [
