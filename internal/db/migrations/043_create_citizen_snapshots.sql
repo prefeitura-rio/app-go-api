@@ -5,6 +5,7 @@
 CREATE TABLE citizen_snapshots (
     cpf VARCHAR(11) PRIMARY KEY,
     nome VARCHAR(500),
+    nome_social VARCHAR(500),
     email VARCHAR(500),
     celular VARCHAR(50),
     data_nascimento DATE,
@@ -27,7 +28,7 @@ CREATE INDEX idx_citizen_snapshots_email ON citizen_snapshots(email) WHERE email
 
 COMMENT ON TABLE citizen_snapshots IS 'Cache of citizen personal data from RMI API, synced periodically';
 COMMENT ON COLUMN citizen_snapshots.cpf IS 'Primary key - CPF without formatting';
-COMMENT ON COLUMN citizen_snapshots.endereco IS 'JSONB with logradouro, numero, complemento, bairro, cidade, uf, cep';
+COMMENT ON COLUMN citizen_snapshots.endereco IS 'JSONB with logradouro, tipo_logradouro, numero, complemento, bairro, municipio, estado, cep';
 COMMENT ON COLUMN citizen_snapshots.last_synced_at IS 'Last time this record was synced with RMI';
 
 -- +goose StatementEnd

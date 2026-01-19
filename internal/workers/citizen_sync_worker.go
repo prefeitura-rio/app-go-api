@@ -154,6 +154,7 @@ func (w *CitizenSyncWorker) citizenInfoToSnapshot(cpf string, info *models.Citiz
 	snapshot := &models.CitizenSnapshot{
 		CPF:           cpf,
 		Nome:          info.Nome,
+		NomeSocial:    info.NomeSocial,
 		Email:         info.GetEmail(),
 		Celular:       info.GetCelular(),
 		Raca:          info.GetRaca(),
@@ -163,7 +164,7 @@ func (w *CitizenSyncWorker) citizenInfoToSnapshot(cpf string, info *models.Citiz
 		Deficiencia:   info.GetDeficiencia(),
 	}
 
-	// Parse data_nascimento
+	// Parse data_nascimento from nascimento.data
 	if dataNascimento := info.GetDataNascimento(); dataNascimento != "" {
 		if t, err := parseDate(dataNascimento); err == nil {
 			snapshot.DataNascimento = &t
@@ -173,13 +174,14 @@ func (w *CitizenSyncWorker) citizenInfoToSnapshot(cpf string, info *models.Citiz
 	// Convert endereco
 	if endereco := info.GetEndereco(); endereco != nil {
 		snapshot.Endereco = &models.CitizenEndereco{
-			Logradouro:  endereco.Principal.Logradouro,
-			Numero:      endereco.Principal.Numero,
-			Complemento: endereco.Principal.Complemento,
-			Bairro:      endereco.Principal.Bairro,
-			Cidade:      endereco.Principal.Cidade,
-			UF:          endereco.Principal.UF,
-			CEP:         endereco.Principal.CEP,
+			Logradouro:     endereco.Principal.Logradouro,
+			TipoLogradouro: endereco.Principal.TipoLogradouro,
+			Numero:         endereco.Principal.Numero,
+			Complemento:    endereco.Principal.Complemento,
+			Bairro:         endereco.Principal.Bairro,
+			Municipio:      endereco.Principal.Municipio,
+			Estado:         endereco.Principal.Estado,
+			CEP:            endereco.Principal.CEP,
 		}
 	}
 

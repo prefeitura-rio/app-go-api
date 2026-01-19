@@ -42,15 +42,17 @@ definitions:
         type: string
       cep:
         type: string
-      cidade:
-        type: string
       complemento:
+        type: string
+      estado:
         type: string
       logradouro:
         type: string
+      municipio:
+        type: string
       numero:
         type: string
-      uf:
+      tipo_logradouro:
         type: string
     type: object
   models.CitizenPersonalInfo:
@@ -68,6 +70,8 @@ definitions:
       escolaridade:
         type: string
       genero:
+        type: string
+      nome_social:
         type: string
       raca:
         type: string

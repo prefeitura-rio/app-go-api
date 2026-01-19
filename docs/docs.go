@@ -3321,19 +3321,22 @@ const docTemplate = `{
                 "cep": {
                     "type": "string"
                 },
-                "cidade": {
+                "complemento": {
                     "type": "string"
                 },
-                "complemento": {
+                "estado": {
                     "type": "string"
                 },
                 "logradouro": {
                     "type": "string"
                 },
+                "municipio": {
+                    "type": "string"
+                },
                 "numero": {
                     "type": "string"
                 },
-                "uf": {
+                "tipo_logradouro": {
                     "type": "string"
                 }
             }
@@ -3360,6 +3363,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "genero": {
+                    "type": "string"
+                },
+                "nome_social": {
                     "type": "string"
                 },
                 "raca": {

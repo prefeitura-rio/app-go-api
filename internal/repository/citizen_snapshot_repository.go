@@ -66,7 +66,7 @@ func (r *CitizenSnapshotRepository) Upsert(ctx context.Context, snapshot *models
 	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "cpf"}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"nome", "email", "celular", "data_nascimento", "endereco",
+			"nome", "nome_social", "email", "celular", "data_nascimento", "endereco",
 			"raca", "genero", "renda_familiar", "escolaridade", "deficiencia",
 			"last_synced_at", "updated_at",
 		}),
@@ -93,7 +93,7 @@ func (r *CitizenSnapshotRepository) BatchUpsert(ctx context.Context, snapshots [
 	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "cpf"}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"nome", "email", "celular", "data_nascimento", "endereco",
+			"nome", "nome_social", "email", "celular", "data_nascimento", "endereco",
 			"raca", "genero", "renda_familiar", "escolaridade", "deficiencia",
 			"last_synced_at", "updated_at",
 		}),

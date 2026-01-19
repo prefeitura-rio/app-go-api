@@ -8,31 +8,33 @@ import (
 
 // CitizenSnapshot represents cached citizen data from RMI API
 type CitizenSnapshot struct {
-	CPF            string          `json:"cpf" gorm:"type:varchar(11);primaryKey"`
-	Nome           string          `json:"nome" gorm:"type:varchar(500)"`
-	Email          string          `json:"email" gorm:"type:varchar(500)"`
-	Celular        string          `json:"celular" gorm:"type:varchar(50)"`
-	DataNascimento *time.Time      `json:"data_nascimento" gorm:"type:date;column:data_nascimento"`
+	CPF            string           `json:"cpf" gorm:"type:varchar(11);primaryKey"`
+	Nome           string           `json:"nome" gorm:"type:varchar(500)"`
+	NomeSocial     string           `json:"nome_social" gorm:"type:varchar(500);column:nome_social"`
+	Email          string           `json:"email" gorm:"type:varchar(500)"`
+	Celular        string           `json:"celular" gorm:"type:varchar(50)"`
+	DataNascimento *time.Time       `json:"data_nascimento" gorm:"type:date;column:data_nascimento"`
 	Endereco       *CitizenEndereco `json:"endereco" gorm:"type:jsonb"`
-	Raca           string          `json:"raca" gorm:"type:varchar(100)"`
-	Genero         string          `json:"genero" gorm:"type:varchar(100)"`
-	RendaFamiliar  string          `json:"renda_familiar" gorm:"type:varchar(100);column:renda_familiar"`
-	Escolaridade   string          `json:"escolaridade" gorm:"type:varchar(100)"`
-	Deficiencia    string          `json:"deficiencia" gorm:"type:varchar(500)"`
-	LastSyncedAt   time.Time       `json:"last_synced_at" gorm:"not null;column:last_synced_at"`
-	CreatedAt      time.Time       `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt      time.Time       `json:"updated_at" gorm:"autoUpdateTime"`
+	Raca           string           `json:"raca" gorm:"type:varchar(100)"`
+	Genero         string           `json:"genero" gorm:"type:varchar(100)"`
+	RendaFamiliar  string           `json:"renda_familiar" gorm:"type:varchar(100);column:renda_familiar"`
+	Escolaridade   string           `json:"escolaridade" gorm:"type:varchar(100)"`
+	Deficiencia    string           `json:"deficiencia" gorm:"type:varchar(500)"`
+	LastSyncedAt   time.Time        `json:"last_synced_at" gorm:"not null;column:last_synced_at"`
+	CreatedAt      time.Time        `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time        `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 // CitizenEndereco represents the address structure from RMI
 type CitizenEndereco struct {
-	Logradouro  string `json:"logradouro"`
-	Numero      string `json:"numero"`
-	Complemento string `json:"complemento,omitempty"`
-	Bairro      string `json:"bairro"`
-	Cidade      string `json:"cidade"`
-	UF          string `json:"uf"`
-	CEP         string `json:"cep"`
+	Logradouro     string `json:"logradouro"`
+	TipoLogradouro string `json:"tipo_logradouro,omitempty"`
+	Numero         string `json:"numero"`
+	Complemento    string `json:"complemento,omitempty"`
+	Bairro         string `json:"bairro"`
+	Municipio      string `json:"municipio"`
+	Estado         string `json:"estado"`
+	CEP            string `json:"cep"`
 }
 
 // TableName specifies the table name for GORM
@@ -70,6 +72,7 @@ type CitizenPersonalInfo struct {
 	RendaFamiliar  string           `json:"renda_familiar,omitempty"`
 	Escolaridade   string           `json:"escolaridade,omitempty"`
 	Deficiencia    string           `json:"deficiencia,omitempty"`
+	NomeSocial     string           `json:"nome_social,omitempty"`
 }
 
 // ToPersonalInfo converts a CitizenSnapshot to CitizenPersonalInfo for API responses
@@ -87,5 +90,6 @@ func (c *CitizenSnapshot) ToPersonalInfo() *CitizenPersonalInfo {
 		RendaFamiliar:  c.RendaFamiliar,
 		Escolaridade:   c.Escolaridade,
 		Deficiencia:    c.Deficiencia,
+		NomeSocial:     c.NomeSocial,
 	}
 }
