@@ -150,6 +150,13 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 				log.Printf("[Router] Citizen sync worker stopped: %v", err)
 			}
 		}()
+		log.Println("[Router] Citizen sync worker initialized and started successfully")
+	} else {
+		if !cfg.CitizenSync.Enabled {
+			log.Println("[Router] Citizen sync worker disabled (CITIZEN_SYNC_ENABLED=false)")
+		} else if tokenManager == nil {
+			log.Println("[Router] Citizen sync worker disabled - Keycloak not configured (KEYCLOAK_URL, KEYCLOAK_CLIENT_ID, or KEYCLOAK_CLIENT_SECRET missing)")
+		}
 	}
 
 	// Inicializando serviços

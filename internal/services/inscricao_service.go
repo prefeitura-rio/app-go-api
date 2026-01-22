@@ -373,7 +373,11 @@ func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uu
 
 // EnrichWithPersonalInfo populates PersonalInfo for a single enrollment
 func (s *InscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao *models.Inscricao) {
-	if s.citizenSnapshotRepo == nil || inscricao == nil || inscricao.CPF == "" {
+	if s.citizenSnapshotRepo == nil {
+		fmt.Println("[InscricaoService] EnrichWithPersonalInfo: citizenSnapshotRepo is nil - check if CitizenSync is enabled and Keycloak is configured")
+		return
+	}
+	if inscricao == nil || inscricao.CPF == "" {
 		return
 	}
 
@@ -383,14 +387,21 @@ func (s *InscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao
 		return
 	}
 
-	if snapshot != nil {
-		inscricao.PersonalInfo = snapshot.ToPersonalInfo()
+	if snapshot == nil {
+		fmt.Printf("[InscricaoService] No citizen snapshot found for CPF %s - citizen may not be synced yet\n", maskCPFForLog(inscricao.CPF))
+		return
 	}
+
+	inscricao.PersonalInfo = snapshot.ToPersonalInfo()
 }
 
 // EnrichMultipleWithPersonalInfo populates PersonalInfo for multiple enrollments in a single batch query
 func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, inscricoes []*models.Inscricao) {
-	if s.citizenSnapshotRepo == nil || len(inscricoes) == 0 {
+	if s.citizenSnapshotRepo == nil {
+		fmt.Println("[InscricaoService] EnrichMultipleWithPersonalInfo: citizenSnapshotRepo is nil - check if CitizenSync is enabled and Keycloak is configured")
+		return
+	}
+	if len(inscricoes) == 0 {
 		return
 	}
 
@@ -418,11 +429,17 @@ func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, i
 		return
 	}
 
-	// Populate PersonalInfo for each enrollment
+	// Log statistics
+	enrichedCount := 0
 	for _, inscricao := range inscricoes {
 		if snapshot, ok := snapshotMap[inscricao.CPF]; ok && snapshot != nil {
 			inscricao.PersonalInfo = snapshot.ToPersonalInfo()
+			enrichedCount++
 		}
+	}
+
+	if enrichedCount == 0 && len(cpfs) > 0 {
+		fmt.Printf("[InscricaoService] No citizen snapshots found for %d CPFs - citizens may not be synced yet\n", len(cpfs))
 	}
 }
 
