@@ -372,6 +372,7 @@ func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uu
 }
 
 // EnrichWithPersonalInfo populates PersonalInfo for a single enrollment
+// If no snapshot exists, it will fetch on-demand from RMI (for legacy enrollments)
 func (s *InscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao *models.Inscricao) {
 	if s.citizenSnapshotRepo == nil {
 		fmt.Println("[InscricaoService] EnrichWithPersonalInfo: citizenSnapshotRepo is nil - check if CitizenSync is enabled and Keycloak is configured")
@@ -387,8 +388,17 @@ func (s *InscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao
 		return
 	}
 
+	// If no snapshot exists and we have a fetcher, try to sync on-demand (for legacy enrollments)
+	if snapshot == nil && s.citizenDataFetcher != nil {
+		fmt.Printf("[InscricaoService] No snapshot for CPF %s - attempting on-demand sync for legacy enrollment\n", maskCPFForLog(inscricao.CPF))
+		snapshot, err = s.citizenDataFetcher.SyncCitizenOnDemand(ctx, inscricao.CPF)
+		if err != nil {
+			fmt.Printf("[InscricaoService] On-demand sync failed for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+			return
+		}
+	}
+
 	if snapshot == nil {
-		fmt.Printf("[InscricaoService] No citizen snapshot found for CPF %s - citizen may not be synced yet\n", maskCPFForLog(inscricao.CPF))
 		return
 	}
 
@@ -396,6 +406,7 @@ func (s *InscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao
 }
 
 // EnrichMultipleWithPersonalInfo populates PersonalInfo for multiple enrollments in a single batch query
+// For legacy enrollments without snapshots, it will fetch on-demand from RMI
 func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, inscricoes []*models.Inscricao) {
 	if s.citizenSnapshotRepo == nil {
 		fmt.Println("[InscricaoService] EnrichMultipleWithPersonalInfo: citizenSnapshotRepo is nil - check if CitizenSync is enabled and Keycloak is configured")
@@ -429,7 +440,30 @@ func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, i
 		return
 	}
 
-	// Log statistics
+	// Find CPFs without snapshots (legacy enrollments)
+	var missingCPFs []string
+	for _, cpf := range cpfs {
+		if _, ok := snapshotMap[cpf]; !ok {
+			missingCPFs = append(missingCPFs, cpf)
+		}
+	}
+
+	// Sync missing CPFs on-demand if we have a fetcher
+	if len(missingCPFs) > 0 && s.citizenDataFetcher != nil {
+		fmt.Printf("[InscricaoService] Syncing %d legacy enrollments on-demand\n", len(missingCPFs))
+		for _, cpf := range missingCPFs {
+			snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
+			if err != nil {
+				fmt.Printf("[InscricaoService] On-demand sync failed for CPF %s: %v\n", maskCPFForLog(cpf), err)
+				continue
+			}
+			if snapshot != nil {
+				snapshotMap[cpf] = snapshot
+			}
+		}
+	}
+
+	// Enrich enrollments with snapshots
 	enrichedCount := 0
 	for _, inscricao := range inscricoes {
 		if snapshot, ok := snapshotMap[inscricao.CPF]; ok && snapshot != nil {
@@ -438,8 +472,8 @@ func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, i
 		}
 	}
 
-	if enrichedCount == 0 && len(cpfs) > 0 {
-		fmt.Printf("[InscricaoService] No citizen snapshots found for %d CPFs - citizens may not be synced yet\n", len(cpfs))
+	if enrichedCount < len(cpfs) {
+		fmt.Printf("[InscricaoService] Enriched %d/%d enrollments with personal info\n", enrichedCount, len(cpfs))
 	}
 }
 
