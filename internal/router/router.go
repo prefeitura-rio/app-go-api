@@ -135,14 +135,16 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	emailNotificationService := services.NewEmailNotificationService(dataRelayClient, cursoRepo, orgaoSnapshotRepo, emailNotificationEnabled, cfg.PrefRio.Domain)
 
 	// Initialize citizen sync worker (for fetching citizen data from RMI)
-	var citizenSyncWorker *workers.CitizenSyncWorker
+	// Use interface type to avoid nil pointer in interface issue
+	var citizenDataFetcher services.CitizenDataFetcher
 	if cfg.CitizenSync.Enabled && tokenManager != nil {
-		citizenSyncWorker = workers.NewCitizenSyncWorker(
+		citizenSyncWorker := workers.NewCitizenSyncWorker(
 			rmiClient,
 			citizenSnapshotRepo,
 			tokenManager,
 			&cfg.CitizenSync,
 		)
+		citizenDataFetcher = citizenSyncWorker
 
 		// Start citizen sync worker in background
 		go func() {
@@ -167,7 +169,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empresaService := services.NewEmpresaService(empresaRepo)
 	escolaridadeService := services.NewEscolaridadeService(escolaridadeRepo)
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
-	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, citizenSnapshotRepo, citizenSyncWorker, emailNotificationService)
+	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, citizenSnapshotRepo, citizenDataFetcher, emailNotificationService)
 	jobService := services.NewJobService(jobRepo)
 	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo)
 	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, cnaeValidationService, contactInfoService)
