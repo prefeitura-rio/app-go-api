@@ -11,16 +11,31 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
+// CitizenDataFetcher interface for fetching citizen data
+type CitizenDataFetcher interface {
+	SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+}
+
 type InscricaoService struct {
 	repo                     *repository.InscricaoRepository
 	cursoRepo                *repository.CursoRepository
+	citizenSnapshotRepo      *repository.CitizenSnapshotRepository
+	citizenDataFetcher       CitizenDataFetcher
 	emailNotificationService *EmailNotificationService
 }
 
-func NewInscricaoService(repo *repository.InscricaoRepository, cursoRepo *repository.CursoRepository, emailNotificationService *EmailNotificationService) *InscricaoService {
+func NewInscricaoService(
+	repo *repository.InscricaoRepository,
+	cursoRepo *repository.CursoRepository,
+	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
+	citizenDataFetcher CitizenDataFetcher,
+	emailNotificationService *EmailNotificationService,
+) *InscricaoService {
 	return &InscricaoService{
 		repo:                     repo,
 		cursoRepo:                cursoRepo,
+		citizenSnapshotRepo:      citizenSnapshotRepo,
+		citizenDataFetcher:       citizenDataFetcher,
 		emailNotificationService: emailNotificationService,
 	}
 }
@@ -68,6 +83,26 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
 			return err
+		}
+	}
+
+	// Fetch citizen data from RMI (on-demand sync) to populate Email and Phone
+	if s.citizenDataFetcher != nil && inscricao.CPF != "" {
+		citizenSnapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, inscricao.CPF)
+		if err != nil {
+			// Log error but don't fail enrollment creation - use provided data as fallback
+			fmt.Printf("[InscricaoService] Failed to fetch citizen data for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+		} else if citizenSnapshot != nil {
+			// Use RMI data for email and phone (overrides any value sent by frontend)
+			if citizenSnapshot.Email != "" {
+				inscricao.Email = citizenSnapshot.Email
+			}
+			if citizenSnapshot.Celular != "" {
+				inscricao.Phone = citizenSnapshot.Celular
+			}
+			if citizenSnapshot.Nome != "" && inscricao.Name == "" {
+				inscricao.Name = citizenSnapshot.Nome
+			}
 		}
 	}
 
@@ -157,13 +192,21 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 		return 0, fmt.Errorf("nenhuma inscrição selecionada")
 	}
 
-	// Fetch enrollments before update for email sending
-	var enrollmentsForEmail []*models.Inscricao
+	// Collect enrollment data for emails before update
+	type emailData struct {
+		inscricao *models.Inscricao
+		oldStatus models.StatusInscricao
+	}
+	var enrollmentsForEmail []emailData
+
 	if s.emailNotificationService != nil && (status == models.StatusInscricaoApproved || status == models.StatusInscricaoRejected) {
 		for _, id := range inscricaoIDs {
 			inscricao, err := s.repo.GetByID(ctx, id)
 			if err == nil && inscricao != nil {
-				enrollmentsForEmail = append(enrollmentsForEmail, inscricao)
+				enrollmentsForEmail = append(enrollmentsForEmail, emailData{
+					inscricao: inscricao,
+					oldStatus: inscricao.Status,
+				})
 			}
 		}
 	}
@@ -176,31 +219,36 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 
 	// Send emails asynchronously for batch status updates
 	if s.emailNotificationService != nil && len(enrollmentsForEmail) > 0 {
+		// Capture values for goroutine to avoid race conditions
+		newStatus := status
+		newReason := reason
+
 		go func() {
-			for _, inscricao := range enrollmentsForEmail {
+			for _, data := range enrollmentsForEmail {
 				// Skip if status didn't change
-				if inscricao.Status == status {
+				if data.oldStatus == newStatus {
 					continue
 				}
 
-				curso, err := s.cursoRepo.GetByID(context.Background(), inscricao.CursoID)
+				curso, err := s.cursoRepo.GetByID(context.Background(), data.inscricao.CursoID)
 				if err != nil || curso == nil {
 					continue
 				}
 
-				// Update inscricao with new status and reason for email template
-				inscricao.Status = status
-				inscricao.Reason = reason
+				// Create a copy of inscricao with updated status for email
+				inscricaoCopy := *data.inscricao
+				inscricaoCopy.Status = newStatus
+				inscricaoCopy.Reason = newReason
 
 				var emailErr error
-				switch status {
+				switch newStatus {
 				case models.StatusInscricaoApproved:
-					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), inscricao, curso)
+					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), &inscricaoCopy, curso)
 				case models.StatusInscricaoRejected:
-					emailErr = s.emailNotificationService.SendEnrollmentRejectedEmail(context.Background(), inscricao, curso)
+					emailErr = s.emailNotificationService.SendEnrollmentRejectedEmail(context.Background(), &inscricaoCopy, curso)
 				}
 				if emailErr != nil {
-					fmt.Printf("Failed to send batch status change email for enrollment %s: %v\n", inscricao.ID, emailErr)
+					fmt.Printf("Failed to send batch status change email for enrollment %s: %v\n", data.inscricao.ID, emailErr)
 				}
 			}
 		}()
@@ -321,4 +369,118 @@ func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uu
 	}
 
 	return fmt.Errorf("schedule_id fornecido não pertence a este curso")
+}
+
+// EnrichWithPersonalInfo populates PersonalInfo for a single enrollment
+// If no snapshot exists, it will fetch on-demand from RMI (for legacy enrollments)
+func (s *InscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao *models.Inscricao) {
+	if s.citizenSnapshotRepo == nil {
+		fmt.Println("[InscricaoService] EnrichWithPersonalInfo: citizenSnapshotRepo is nil - check if CitizenSync is enabled and Keycloak is configured")
+		return
+	}
+	if inscricao == nil || inscricao.CPF == "" {
+		return
+	}
+
+	snapshot, err := s.citizenSnapshotRepo.GetByCPF(ctx, inscricao.CPF)
+	if err != nil {
+		fmt.Printf("[InscricaoService] Failed to get citizen snapshot for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+		return
+	}
+
+	// If no snapshot exists and we have a fetcher, try to sync on-demand (for legacy enrollments)
+	if snapshot == nil && s.citizenDataFetcher != nil {
+		fmt.Printf("[InscricaoService] No snapshot for CPF %s - attempting on-demand sync for legacy enrollment\n", maskCPFForLog(inscricao.CPF))
+		snapshot, err = s.citizenDataFetcher.SyncCitizenOnDemand(ctx, inscricao.CPF)
+		if err != nil {
+			fmt.Printf("[InscricaoService] On-demand sync failed for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+			return
+		}
+	}
+
+	if snapshot == nil {
+		return
+	}
+
+	inscricao.PersonalInfo = snapshot.ToPersonalInfo()
+}
+
+// EnrichMultipleWithPersonalInfo populates PersonalInfo for multiple enrollments in a single batch query
+// For legacy enrollments without snapshots, it will fetch on-demand from RMI
+func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, inscricoes []*models.Inscricao) {
+	if s.citizenSnapshotRepo == nil {
+		fmt.Println("[InscricaoService] EnrichMultipleWithPersonalInfo: citizenSnapshotRepo is nil - check if CitizenSync is enabled and Keycloak is configured")
+		return
+	}
+	if len(inscricoes) == 0 {
+		return
+	}
+
+	// Collect unique CPFs
+	cpfSet := make(map[string]struct{})
+	for _, inscricao := range inscricoes {
+		if inscricao.CPF != "" {
+			cpfSet[inscricao.CPF] = struct{}{}
+		}
+	}
+
+	cpfs := make([]string, 0, len(cpfSet))
+	for cpf := range cpfSet {
+		cpfs = append(cpfs, cpf)
+	}
+
+	if len(cpfs) == 0 {
+		return
+	}
+
+	// Batch query for all snapshots
+	snapshotMap, err := s.citizenSnapshotRepo.GetByCPFs(ctx, cpfs)
+	if err != nil {
+		fmt.Printf("[InscricaoService] Failed to get citizen snapshots: %v\n", err)
+		return
+	}
+
+	// Find CPFs without snapshots (legacy enrollments)
+	var missingCPFs []string
+	for _, cpf := range cpfs {
+		if _, ok := snapshotMap[cpf]; !ok {
+			missingCPFs = append(missingCPFs, cpf)
+		}
+	}
+
+	// Sync missing CPFs on-demand if we have a fetcher
+	if len(missingCPFs) > 0 && s.citizenDataFetcher != nil {
+		fmt.Printf("[InscricaoService] Syncing %d legacy enrollments on-demand\n", len(missingCPFs))
+		for _, cpf := range missingCPFs {
+			snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
+			if err != nil {
+				fmt.Printf("[InscricaoService] On-demand sync failed for CPF %s: %v\n", maskCPFForLog(cpf), err)
+				continue
+			}
+			if snapshot != nil {
+				snapshotMap[cpf] = snapshot
+			}
+		}
+	}
+
+	// Enrich enrollments with snapshots
+	enrichedCount := 0
+	for _, inscricao := range inscricoes {
+		if snapshot, ok := snapshotMap[inscricao.CPF]; ok && snapshot != nil {
+			inscricao.PersonalInfo = snapshot.ToPersonalInfo()
+			enrichedCount++
+		}
+	}
+
+	if enrichedCount < len(cpfs) {
+		fmt.Printf("[InscricaoService] Enriched %d/%d enrollments with personal info\n", enrichedCount, len(cpfs))
+	}
+}
+
+// maskCPFForLog masks CPF for logging (shows only first 3 and last 2 digits)
+func maskCPFForLog(cpf string) string {
+	if len(cpf) < 5 {
+		return "***"
+	}
+	return cpf[:3] + "******" + cpf[len(cpf)-2:]
 }

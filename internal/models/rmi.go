@@ -101,17 +101,29 @@ func (l *LegalEntityDetails) GetSocioCPFs() []string {
 // CitizenContactInfo represents contact information for a citizen
 // Response from GET /v1/citizen/{cpf}
 type CitizenContactInfo struct {
-	CPF      string              `json:"cpf"`
-	Nome     string              `json:"nome"`
-	Email    CitizenEmailInfo    `json:"email"`
-	Telefone CitizenTelefoneInfo `json:"telefone"`
+	CPF           string               `json:"cpf"`
+	Nome          string               `json:"nome"`
+	NomeSocial    string               `json:"nome_social"`
+	Email         CitizenEmailInfo     `json:"email"`
+	Telefone      CitizenTelefoneInfo  `json:"telefone"`
+	Nascimento    *CitizenNascimento   `json:"nascimento"`
+	Endereco      *CitizenEnderecoInfo `json:"endereco"`
+	Raca          string               `json:"raca"`
+	Genero        string               `json:"genero"`
+	Sexo          string               `json:"sexo"`
+	RendaFamiliar string               `json:"renda_familiar"`
+	Escolaridade  string               `json:"escolaridade"`
+	Deficiencia   string               `json:"deficiencia"`
 }
 
 // CitizenEmailInfo represents the email field structure from citizen API
 type CitizenEmailInfo struct {
 	Indicador bool `json:"indicador"`
 	Principal struct {
-		Valor string `json:"valor"`
+		Valor     string `json:"valor"`
+		Origem    string `json:"origem"`
+		Sistema   string `json:"sistema"`
+		UpdatedAt string `json:"updated_at"`
 	} `json:"principal"`
 }
 
@@ -119,9 +131,40 @@ type CitizenEmailInfo struct {
 type CitizenTelefoneInfo struct {
 	Indicador bool `json:"indicador"`
 	Principal struct {
-		DDI   string `json:"ddi"`
-		DDD   string `json:"ddd"`
-		Valor string `json:"valor"`
+		DDI       string `json:"ddi"`
+		DDD       string `json:"ddd"`
+		Valor     string `json:"valor"`
+		Origem    string `json:"origem"`
+		Sistema   string `json:"sistema"`
+		UpdatedAt string `json:"updated_at"`
+	} `json:"principal"`
+}
+
+// CitizenNascimento represents the birth information from citizen API
+type CitizenNascimento struct {
+	Data        string `json:"data"`
+	Municipio   string `json:"municipio"`
+	MunicipioID string `json:"municipio_id"`
+	UF          string `json:"uf"`
+	Pais        string `json:"pais"`
+	PaisID      string `json:"pais_id"`
+}
+
+// CitizenEnderecoInfo represents the address field structure
+type CitizenEnderecoInfo struct {
+	Indicador bool `json:"indicador"`
+	Principal struct {
+		Logradouro     string `json:"logradouro"`
+		TipoLogradouro string `json:"tipo_logradouro"`
+		Numero         string `json:"numero"`
+		Complemento    string `json:"complemento"`
+		Bairro         string `json:"bairro"`
+		Municipio      string `json:"municipio"`
+		Estado         string `json:"estado"`
+		CEP            string `json:"cep"`
+		Origem         string `json:"origem"`
+		Sistema        string `json:"sistema"`
+		UpdatedAt      string `json:"updated_at"`
 	} `json:"principal"`
 }
 
@@ -136,10 +179,54 @@ func (c *CitizenContactInfo) GetEmail() string {
 // GetCelular returns the formatted phone number
 func (c *CitizenContactInfo) GetCelular() string {
 	if c.Telefone.Indicador && c.Telefone.Principal.Valor != "" {
-		// Return formatted as +DDI DDD Valor (e.g., +55 21 997015128)
+		// Return formatted as DDI+DDD+Valor (e.g., 5521997015128)
 		return c.Telefone.Principal.DDI + c.Telefone.Principal.DDD + c.Telefone.Principal.Valor
 	}
 	return ""
+}
+
+// GetDataNascimento returns the birth date string
+func (c *CitizenContactInfo) GetDataNascimento() string {
+	if c.Nascimento != nil && c.Nascimento.Data != "" {
+		return c.Nascimento.Data
+	}
+	return ""
+}
+
+// GetRaca returns the race/ethnicity value
+func (c *CitizenContactInfo) GetRaca() string {
+	return c.Raca
+}
+
+// GetGenero returns the gender value (prefers genero, falls back to sexo)
+func (c *CitizenContactInfo) GetGenero() string {
+	if c.Genero != "" {
+		return c.Genero
+	}
+	return c.Sexo
+}
+
+// GetRendaFamiliar returns the family income value
+func (c *CitizenContactInfo) GetRendaFamiliar() string {
+	return c.RendaFamiliar
+}
+
+// GetEscolaridade returns the education level value
+func (c *CitizenContactInfo) GetEscolaridade() string {
+	return c.Escolaridade
+}
+
+// GetDeficiencia returns the disability description
+func (c *CitizenContactInfo) GetDeficiencia() string {
+	return c.Deficiencia
+}
+
+// GetEndereco returns the address as a structured object
+func (c *CitizenContactInfo) GetEndereco() *CitizenEnderecoInfo {
+	if c.Endereco != nil && c.Endereco.Indicador {
+		return c.Endereco
+	}
+	return nil
 }
 
 // CNPJOwnerInfo represents the final enriched contact information

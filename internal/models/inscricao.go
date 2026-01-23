@@ -46,6 +46,9 @@ type Inscricao struct {
 
 	// Relacionamentos
 	Curso *Curso `json:"curso,omitempty" gorm:"foreignKey:CursoID"`
+
+	// Computed field (not stored in DB) - populated from CitizenSnapshot
+	PersonalInfo *CitizenPersonalInfo `json:"personal_info,omitempty" gorm:"-"`
 }
 
 func (Inscricao) TableName() string {

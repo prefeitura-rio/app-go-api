@@ -26,6 +26,7 @@ type AppConfig struct {
 	Redis       RedisSettings
 	Tracing     TracingSettings
 	OrgaoSync   OrgaoSyncSettings
+	CitizenSync CitizenSyncSettings
 	DataRelay   DataRelaySettings
 	PrefRio     PrefRioSettings
 	Cerbos      CerbosSettings
@@ -137,6 +138,14 @@ type OrgaoSyncSettings struct {
 	StaleThreshold time.Duration // Consider snapshot stale after this duration
 	BatchSize      int           // Number of orgaos to sync per batch
 	MaxRetries     int           // Maximum retries for failed syncs
+}
+
+// CitizenSyncSettings define configurações do worker de sincronização de dados de cidadão
+type CitizenSyncSettings struct {
+	Enabled        bool
+	SyncInterval   time.Duration // How often to run sync cycle
+	StaleThreshold time.Duration // Consider snapshot stale after this duration
+	BatchSize      int           // Number of citizens to sync per batch
 }
 
 // CerbosSettings define configurações do Cerbos PDP para autorização
@@ -383,6 +392,12 @@ func Load() (*AppConfig, error) {
 			StaleThreshold: getDuration(v, "ORGAO_SYNC_STALE_THRESHOLD", 7*24*time.Hour), // 1 week
 			BatchSize:      getInt(v, "ORGAO_SYNC_BATCH_SIZE", 50),
 			MaxRetries:     getInt(v, "ORGAO_SYNC_MAX_RETRIES", 3),
+		},
+		CitizenSync: CitizenSyncSettings{
+			Enabled:        getBool(v, "CITIZEN_SYNC_ENABLED", true),
+			SyncInterval:   getDuration(v, "CITIZEN_SYNC_INTERVAL", 15*time.Minute),
+			StaleThreshold: getDuration(v, "CITIZEN_SYNC_STALE_THRESHOLD", 15*time.Minute),
+			BatchSize:      getInt(v, "CITIZEN_SYNC_BATCH_SIZE", 100),
 		},
 		DataRelay: DataRelaySettings{
 			BaseURL: getEnv(v, "DATA_RELAY_BASE_URL", ""),

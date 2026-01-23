@@ -7,22 +7,96 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
 // EmailNotificationService handles enrollment email notifications
 type EmailNotificationService struct {
-	dataRelayClient *clients.DataRelayClient
-	enabled         bool
-	prefrioDomain   string
+	dataRelayClient   *clients.DataRelayClient
+	cursoRepo         *repository.CursoRepository
+	orgaoSnapshotRepo *repository.OrgaoSnapshotRepository
+	enabled           bool
+	prefrioDomain     string
 }
 
 // NewEmailNotificationService creates a new email notification service
-func NewEmailNotificationService(dataRelayClient *clients.DataRelayClient, enabled bool, prefrioDomain string) *EmailNotificationService {
+func NewEmailNotificationService(
+	dataRelayClient *clients.DataRelayClient,
+	cursoRepo *repository.CursoRepository,
+	orgaoSnapshotRepo *repository.OrgaoSnapshotRepository,
+	enabled bool,
+	prefrioDomain string,
+) *EmailNotificationService {
 	return &EmailNotificationService{
-		dataRelayClient: dataRelayClient,
-		enabled:         enabled,
-		prefrioDomain:   prefrioDomain,
+		dataRelayClient:   dataRelayClient,
+		cursoRepo:         cursoRepo,
+		orgaoSnapshotRepo: orgaoSnapshotRepo,
+		enabled:           enabled,
+		prefrioDomain:     prefrioDomain,
 	}
+}
+
+// getOrgaoName fetches the organization name from orgao_snapshots or falls back to curso.Organization
+func (s *EmailNotificationService) getOrgaoName(ctx context.Context, curso *models.Curso) string {
+	if curso.OrgaoID != "" && s.orgaoSnapshotRepo != nil {
+		snapshot, err := s.orgaoSnapshotRepo.GetByOrgaoID(ctx, curso.OrgaoID)
+		if err == nil && snapshot != nil && snapshot.Name != "" {
+			return snapshot.Name
+		}
+	}
+	if curso.Organization != "" {
+		return curso.Organization
+	}
+	return "órgão responsável"
+}
+
+// ScheduleInfo contains the schedule information for email templates
+type ScheduleInfo struct {
+	ClassTime      string
+	ClassStartDate string
+	ClassDays      string
+	Address        string
+}
+
+// getScheduleInfo fetches schedule information from the enrollment's schedule_id
+func (s *EmailNotificationService) getScheduleInfo(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) *ScheduleInfo {
+	if inscricao.ScheduleID == nil || s.cursoRepo == nil {
+		return nil
+	}
+
+	// Try to find in course schedules first
+	courseSchedule, err := s.cursoRepo.GetCourseScheduleByID(ctx, *inscricao.ScheduleID)
+	if err == nil && courseSchedule != nil {
+		info := &ScheduleInfo{
+			ClassTime:      courseSchedule.ClassTime,
+			ClassStartDate: courseSchedule.ClassStartDate.Format("02/01/2006"),
+			ClassDays:      courseSchedule.ClassDays,
+		}
+		if courseSchedule.Location != nil {
+			info.Address = courseSchedule.Location.Address
+		}
+		return info
+	}
+
+	// Try remote schedule
+	remoteSchedule, err := s.cursoRepo.GetRemoteScheduleByID(ctx, *inscricao.ScheduleID)
+	if err == nil && remoteSchedule != nil {
+		info := &ScheduleInfo{
+			Address: "online",
+		}
+		if remoteSchedule.ClassTime != nil {
+			info.ClassTime = *remoteSchedule.ClassTime
+		}
+		if remoteSchedule.ClassStartDate != nil {
+			info.ClassStartDate = remoteSchedule.ClassStartDate.Format("02/01/2006")
+		}
+		if remoteSchedule.ClassDays != nil {
+			info.ClassDays = *remoteSchedule.ClassDays
+		}
+		return info
+	}
+
+	return nil
 }
 
 // SendEnrollmentCreatedEmail sends "Em Análise" email when enrollment is created
@@ -37,7 +111,8 @@ func (s *EmailNotificationService) SendEnrollmentCreatedEmail(ctx context.Contex
 		return nil
 	}
 
-	template := GetEnrollmentPendingEmailTemplate(inscricao, curso, s.prefrioDomain)
+	orgaoName := s.getOrgaoName(ctx, curso)
+	template := GetEnrollmentPendingEmailTemplate(inscricao, curso, orgaoName, s.prefrioDomain)
 
 	emailReq := &clients.EmailRequest{
 		ToAddresses: []string{inscricao.Email},
@@ -66,7 +141,9 @@ func (s *EmailNotificationService) SendEnrollmentApprovedEmail(ctx context.Conte
 		return nil
 	}
 
-	template := GetEnrollmentApprovedEmailTemplate(inscricao, curso, s.prefrioDomain)
+	orgaoName := s.getOrgaoName(ctx, curso)
+	scheduleInfo := s.getScheduleInfo(ctx, inscricao, curso)
+	template := GetEnrollmentApprovedEmailTemplate(inscricao, curso, orgaoName, scheduleInfo, s.prefrioDomain)
 
 	emailReq := &clients.EmailRequest{
 		ToAddresses: []string{inscricao.Email},

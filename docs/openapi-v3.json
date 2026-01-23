@@ -4392,6 +4392,70 @@
           }
         }
       },
+      "models.CitizenEndereco": {
+        "type": "object",
+        "properties": {
+          "bairro": {
+            "type": "string"
+          },
+          "cep": {
+            "type": "string"
+          },
+          "complemento": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string"
+          },
+          "logradouro": {
+            "type": "string"
+          },
+          "municipio": {
+            "type": "string"
+          },
+          "numero": {
+            "type": "string"
+          },
+          "tipo_logradouro": {
+            "type": "string"
+          }
+        }
+      },
+      "models.CitizenPersonalInfo": {
+        "type": "object",
+        "properties": {
+          "celular": {
+            "type": "string"
+          },
+          "data_nascimento": {
+            "type": "string"
+          },
+          "deficiencia": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "endereco": {
+            "$ref": "#/components/schemas/models.CitizenEndereco"
+          },
+          "escolaridade": {
+            "type": "string"
+          },
+          "genero": {
+            "type": "string"
+          },
+          "nome_social": {
+            "type": "string"
+          },
+          "raca": {
+            "type": "string"
+          },
+          "renda_familiar": {
+            "type": "string"
+          }
+        }
+      },
       "models.CourseManagementType": {
         "type": "string",
         "enum": [
@@ -4862,6 +4926,14 @@
             "description": "Bairro",
             "type": "string",
             "example": "Centro"
+          },
+          "personal_info": {
+            "description": "Computed field (not stored in DB) - populated from CitizenSnapshot",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.CitizenPersonalInfo"
+              }
+            ]
           },
           "phone": {
             "type": "string"

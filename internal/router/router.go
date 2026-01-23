@@ -1,7 +1,9 @@
 package router
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +22,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	"github.com/prefeitura-rio/app-go-api/internal/workers"
 
 	_ "github.com/prefeitura-rio/app-go-api/docs"
 )
@@ -69,6 +72,8 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	jobRepo := repository.NewJobRepository(db)
 	oportunidadeMEIRepo := repository.NewOportunidadeMEIRepository(db)
 	propostaMEIRepo := repository.NewPropostaMEIRepository(db)
+	orgaoSnapshotRepo := repository.NewOrgaoSnapshotRepository(db)
+	citizenSnapshotRepo := repository.NewCitizenSnapshotRepository(db)
 
 	// Initialize Redis client with connection pool
 	redisClient := redis.NewClient(&redis.Options{
@@ -127,7 +132,32 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 
 	// Initialize email notification service
 	emailNotificationEnabled := cfg.DataRelay.BaseURL != "" && cfg.DataRelay.APIKey != ""
-	emailNotificationService := services.NewEmailNotificationService(dataRelayClient, emailNotificationEnabled, cfg.PrefRio.Domain)
+	emailNotificationService := services.NewEmailNotificationService(dataRelayClient, cursoRepo, orgaoSnapshotRepo, emailNotificationEnabled, cfg.PrefRio.Domain)
+
+	// Initialize citizen sync worker (for fetching citizen data from RMI)
+	var citizenSyncWorker *workers.CitizenSyncWorker
+	if cfg.CitizenSync.Enabled && tokenManager != nil {
+		citizenSyncWorker = workers.NewCitizenSyncWorker(
+			rmiClient,
+			citizenSnapshotRepo,
+			tokenManager,
+			&cfg.CitizenSync,
+		)
+
+		// Start citizen sync worker in background
+		go func() {
+			if err := citizenSyncWorker.Start(context.Background()); err != nil {
+				log.Printf("[Router] Citizen sync worker stopped: %v", err)
+			}
+		}()
+		log.Println("[Router] Citizen sync worker initialized and started successfully")
+	} else {
+		if !cfg.CitizenSync.Enabled {
+			log.Println("[Router] Citizen sync worker disabled (CITIZEN_SYNC_ENABLED=false)")
+		} else if tokenManager == nil {
+			log.Println("[Router] Citizen sync worker disabled - Keycloak not configured (KEYCLOAK_URL, KEYCLOAK_CLIENT_ID, or KEYCLOAK_CLIENT_SECRET missing)")
+		}
+	}
 
 	// Inicializando serviços
 	cursoService := services.NewCursoService(cursoRepo)
@@ -137,7 +167,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empresaService := services.NewEmpresaService(empresaRepo)
 	escolaridadeService := services.NewEscolaridadeService(escolaridadeRepo)
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
-	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, emailNotificationService)
+	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, citizenSnapshotRepo, citizenSyncWorker, emailNotificationService)
 	jobService := services.NewJobService(jobRepo)
 	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo)
 	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, cnaeValidationService, contactInfoService)
