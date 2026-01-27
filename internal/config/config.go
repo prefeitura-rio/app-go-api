@@ -33,6 +33,12 @@ type AppConfig struct {
 	PropostaMEI PropostaMEIPermissions
 	Cache       CacheSettings
 	Keycloak    KeycloakSettings
+	Enrollment  EnrollmentSettings
+}
+
+// EnrollmentSettings define configurações para inscrições em cursos
+type EnrollmentSettings struct {
+	ScheduleChangeDeadlineHours int // Horas antes do início para permitir troca de turma (default: 72)
 }
 
 // AppSettings define configurações gerais da aplicação
@@ -427,6 +433,9 @@ func Load() (*AppConfig, error) {
 			Realm:        getEnv(v, "KEYCLOAK_REALM", ""),
 			ClientID:     getEnv(v, "KEYCLOAK_CLIENT_ID", ""),
 			ClientSecret: getEnv(v, "KEYCLOAK_CLIENT_SECRET", ""),
+		},
+		Enrollment: EnrollmentSettings{
+			ScheduleChangeDeadlineHours: getInt(v, "ENROLLMENT_SCHEDULE_CHANGE_DEADLINE_HOURS", 48),
 		},
 	}
 

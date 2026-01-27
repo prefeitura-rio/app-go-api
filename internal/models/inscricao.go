@@ -233,3 +233,8 @@ type InscricaoUpdateRequest struct {
 	AdminNotes       *string        `json:"admin_notes"`
 	EnrolledUnit     *EnrolledUnit  `json:"enrolled_unit"`
 }
+
+type ScheduleChangeRequest struct {
+	ScheduleID   *uuid.UUID    `json:"schedule_id"`
+	EnrolledUnit *EnrolledUnit `json:"enrolled_unit" binding:"required"`
+}

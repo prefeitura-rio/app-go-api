@@ -851,3 +851,61 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 		},
 	})
 }
+
+// @Summary      Trocar turma/horário de inscrição
+// @Description  Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com pelo menos 72h de antecedência do início da aula. Se a inscrição estava aprovada, volta para status pendente.
+// @Tags         enrollments
+// @Accept       json
+// @Produce      json
+// @Param        enrollmentId path      string                         true  "UUID da inscrição"
+// @Param        request      body      models.ScheduleChangeRequest   true  "Dados da nova turma"
+// @Success      200          {object}  models.Inscricao
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
+// @Failure      404          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Router       /api/v1/enrollments/{enrollmentId}/schedule [put]
+func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
+	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
+		return
+	}
+
+	// Get user CPF from token
+	userCPF := c.GetString("user_cpf")
+	if userCPF == "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "CPF do usuário não encontrado no token"})
+		return
+	}
+
+	var request models.ScheduleChangeRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		return
+	}
+
+	inscricao, err := h.service.ChangeSchedule(c.Request.Context(), enrollmentID, userCPF, &request)
+	if err != nil {
+		errMsg := err.Error()
+		switch {
+		case errMsg == "inscrição não encontrada":
+			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+		case errMsg == "você só pode alterar suas próprias inscrições":
+			c.JSON(http.StatusForbidden, gin.H{"error": errMsg})
+		case strings.Contains(errMsg, "não é possível trocar de turma"):
+			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		case strings.Contains(errMsg, "não há vagas"):
+			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao trocar de turma: " + errMsg})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    inscricao,
+		"message": "Turma alterada com sucesso",
+	})
+}

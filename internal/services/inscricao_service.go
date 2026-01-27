@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
@@ -22,6 +23,7 @@ type InscricaoService struct {
 	citizenSnapshotRepo      *repository.CitizenSnapshotRepository
 	citizenDataFetcher       CitizenDataFetcher
 	emailNotificationService *EmailNotificationService
+	cfg                      *config.AppConfig
 }
 
 func NewInscricaoService(
@@ -30,6 +32,7 @@ func NewInscricaoService(
 	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
 	citizenDataFetcher CitizenDataFetcher,
 	emailNotificationService *EmailNotificationService,
+	cfg *config.AppConfig,
 ) *InscricaoService {
 	return &InscricaoService{
 		repo:                     repo,
@@ -37,6 +40,7 @@ func NewInscricaoService(
 		citizenSnapshotRepo:      citizenSnapshotRepo,
 		citizenDataFetcher:       citizenDataFetcher,
 		emailNotificationService: emailNotificationService,
+		cfg:                      cfg,
 	}
 }
 
@@ -483,4 +487,131 @@ func maskCPFForLog(cpf string) string {
 		return "***"
 	}
 	return cpf[:3] + "******" + cpf[len(cpf)-2:]
+}
+
+// ChangeSchedule allows a citizen to change their enrollment to a different schedule/class
+func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.UUID, userCPF string, request *models.ScheduleChangeRequest) (*models.Inscricao, error) {
+	// Fetch current enrollment
+	inscricao, err := s.repo.GetByID(ctx, inscricaoID)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar inscrição: %w", err)
+	}
+	if inscricao == nil {
+		return nil, fmt.Errorf("inscrição não encontrada")
+	}
+
+	// Validate that the enrollment belongs to the user
+	if inscricao.CPF != userCPF {
+		return nil, fmt.Errorf("você só pode alterar suas próprias inscrições")
+	}
+
+	// Validate status - cannot change if cancelled or concluded
+	if inscricao.Status == models.StatusInscricaoCancelled || inscricao.Status == models.StatusInscricaoConcluded {
+		return nil, fmt.Errorf("não é possível trocar de turma para inscrições com status '%s'", inscricao.Status)
+	}
+
+	// Get schedule deadline hours from config (default 48)
+	deadlineHours := 48
+	if s.cfg != nil && s.cfg.Enrollment.ScheduleChangeDeadlineHours > 0 {
+		deadlineHours = s.cfg.Enrollment.ScheduleChangeDeadlineHours
+	}
+
+	// Parse the new schedule start date from EnrolledUnit
+	if request.EnrolledUnit == nil || len(request.EnrolledUnit.Schedules) == 0 {
+		return nil, fmt.Errorf("enrolled_unit com schedules é obrigatório")
+	}
+
+	// Get the class start date from the first schedule in EnrolledUnit
+	newScheduleStartDateStr := request.EnrolledUnit.Schedules[0].ClassStartDate
+	if newScheduleStartDateStr == "" {
+		return nil, fmt.Errorf("data de início da turma não informada")
+	}
+
+	// Parse the date (try common formats)
+	var newScheduleStartDate time.Time
+	formats := []string{"2006-01-02T15:04:05Z07:00", "2006-01-02T15:04:05Z", "2006-01-02", time.RFC3339}
+	for _, format := range formats {
+		if parsed, err := time.Parse(format, newScheduleStartDateStr); err == nil {
+			newScheduleStartDate = parsed
+			break
+		}
+	}
+	if newScheduleStartDate.IsZero() {
+		return nil, fmt.Errorf("formato de data de início inválido: %s", newScheduleStartDateStr)
+	}
+
+	// Validate deadline - must be at least X hours before class start
+	deadline := time.Now().Add(time.Duration(deadlineHours) * time.Hour)
+	if newScheduleStartDate.Before(deadline) {
+		return nil, fmt.Errorf("não é possível trocar de turma com menos de %d horas do início da aula", deadlineHours)
+	}
+
+	// Validate that the new schedule has available vacancies
+	if request.ScheduleID != nil {
+		scheduleIDs := []uuid.UUID{*request.ScheduleID}
+		enrollmentCounts, err := s.cursoRepo.CountEnrollmentsByScheduleIDs(ctx, scheduleIDs)
+		if err != nil {
+			return nil, fmt.Errorf("erro ao verificar vagas: %w", err)
+		}
+
+		// Get schedule info to check vacancies
+		schedule, err := s.cursoRepo.GetCourseScheduleByID(ctx, *request.ScheduleID)
+		if err != nil {
+			return nil, fmt.Errorf("erro ao buscar turma: %w", err)
+		}
+		if schedule == nil {
+			// Try remote schedule
+			remoteSchedule, err := s.cursoRepo.GetRemoteScheduleByID(ctx, *request.ScheduleID)
+			if err != nil {
+				return nil, fmt.Errorf("erro ao buscar turma remota: %w", err)
+			}
+			if remoteSchedule == nil {
+				return nil, fmt.Errorf("turma não encontrada")
+			}
+			// Check vacancies for remote schedule
+			enrolledCount := enrollmentCounts[*request.ScheduleID]
+			if int(enrolledCount) >= remoteSchedule.Vacancies {
+				return nil, fmt.Errorf("não há vagas disponíveis nesta turma")
+			}
+		} else {
+			// Check vacancies for course schedule
+			enrolledCount := enrollmentCounts[*request.ScheduleID]
+			if int(enrolledCount) >= schedule.Vacancies {
+				return nil, fmt.Errorf("não há vagas disponíveis nesta turma")
+			}
+		}
+	}
+
+	// If status was approved, change to pending
+	statusChanged := false
+	if inscricao.Status == models.StatusInscricaoApproved {
+		inscricao.Status = models.StatusInscricaoPending
+		statusChanged = true
+	}
+
+	// Update schedule information
+	if request.ScheduleID != nil {
+		inscricao.ScheduleID = request.ScheduleID
+	}
+	inscricao.EnrolledUnit = request.EnrolledUnit
+	inscricao.UpdatedAt = time.Now()
+
+	// Save changes
+	if err := s.repo.Update(ctx, inscricao); err != nil {
+		return nil, fmt.Errorf("erro ao atualizar inscrição: %w", err)
+	}
+
+	// If status changed from approved to pending, send email notification
+	if statusChanged && s.emailNotificationService != nil {
+		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+		if err == nil && curso != nil {
+			go func() {
+				if err := s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso); err != nil {
+					fmt.Printf("Failed to send schedule change email: %v\n", err)
+				}
+			}()
+		}
+	}
+
+	return inscricao, nil
 }

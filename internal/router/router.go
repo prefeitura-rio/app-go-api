@@ -169,7 +169,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empresaService := services.NewEmpresaService(empresaRepo)
 	escolaridadeService := services.NewEscolaridadeService(escolaridadeRepo)
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
-	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, citizenSnapshotRepo, citizenDataFetcher, emailNotificationService)
+	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, citizenSnapshotRepo, citizenDataFetcher, emailNotificationService, cfg)
 	jobService := services.NewJobService(jobRepo)
 	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo)
 	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, cnaeValidationService, contactInfoService)
@@ -320,6 +320,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	enrollments := apiV1.Group("/enrollments")
 	{
 		enrollments.GET("/user/:cpf", inscricaoHandler.ListByUser)
+		enrollments.PUT("/:enrollmentId/schedule", inscricaoHandler.ChangeSchedule)
 	}
 
 	// Rotas de Oportunidades MEI
