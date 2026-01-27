@@ -2433,6 +2433,94 @@
         ]
       }
     },
+    "/api/v1/enrollments/{enrollmentId}/schedule": {
+      "put": {
+        "description": "Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com pelo menos 72h de antecedência do início da aula. Se a inscrição estava aprovada, volta para status pendente.",
+        "tags": [
+          "enrollments"
+        ],
+        "summary": "Trocar turma/horário de inscrição",
+        "parameters": [
+          {
+            "description": "UUID da inscrição",
+            "name": "enrollmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/models.ScheduleChangeRequest"
+              }
+            }
+          },
+          "description": "Dados da nova turma",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.Inscricao"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/escolaridades": {
       "get": {
         "description": "Retorna lista paginada de níveis de escolaridade",
@@ -5413,6 +5501,20 @@
           "updated_count": {
             "type": "integer",
             "example": 2
+          }
+        }
+      },
+      "models.ScheduleChangeRequest": {
+        "type": "object",
+        "required": [
+          "enrolled_unit"
+        ],
+        "properties": {
+          "enrolled_unit": {
+            "$ref": "#/components/schemas/models.EnrolledUnit"
+          },
+          "schedule_id": {
+            "type": "string"
           }
         }
       },
