@@ -22,7 +22,7 @@ func NewCurriculoHandler(service *services.CurriculoService) *CurriculoHandler {
 // @Tags         empregabilidade-curriculo
 // @Produce      json
 // @Param        cpf   path      string  true  "CPF do usuário"
-// @Success      200   {object}  services.CurriculoCompleto
+// @Success      200   {object}  empregabilidade.CurriculoCompleto
 // @Failure      500   {object}  map[string]string
 // @Router       /api/v1/empregabilidade/curriculo/{cpf} [get]
 func (h *CurriculoHandler) GetCurriculoCompleto(c *gin.Context) {

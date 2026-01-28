@@ -41,7 +41,7 @@ type Vaga struct {
 	Beneficios           string         `json:"beneficios" gorm:"type:text"`
 	IDOrgaoParceiro      string         `json:"id_orgao_parceiro" gorm:"type:varchar(50)"`
 	Status               StatusVaga     `json:"status" gorm:"type:varchar(50);not null;default:'em_edicao'"`
-	DeletedAt            gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
+	DeletedAt            gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
 	CreatedAt            time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt            time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 

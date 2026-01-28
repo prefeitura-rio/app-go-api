@@ -24,6 +24,106 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/public/empregabilidade/vagas": {
+            "get": {
+                "description": "Retorna lista paginada de vagas publicadas (apenas vagas ativas)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas-public"
+                ],
+                "summary": "Listar vagas públicas",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/empregabilidade/vagas/{id}": {
+            "get": {
+                "description": "Retorna uma vaga publicada pelo ID (apenas se estiver ativa)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas-public"
+                ],
+                "summary": "Buscar vaga pública",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/acessibilidades": {
             "get": {
                 "description": "Retorna lista paginada de opções de acessibilidade",
@@ -1558,6 +1658,1927 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/empregabilidade/candidaturas": {
+            "get": {
+                "description": "Retorna lista paginada de candidaturas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Listar candidaturas",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por CPF",
+                        "name": "cpf",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por ID da vaga",
+                        "name": "vagaId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova candidatura para uma vaga",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Criar candidatura",
+                "parameters": [
+                    {
+                        "description": "Dados da candidatura",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Candidatura"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Candidatura"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/candidaturas/{id}": {
+            "get": {
+                "description": "Retorna uma candidatura pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Buscar candidatura",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da candidatura",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Candidatura"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza uma candidatura existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Atualizar candidatura",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da candidatura",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da candidatura",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Candidatura"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Candidatura"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma candidatura pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Excluir candidatura",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da candidatura",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/candidaturas/{id}/approve": {
+            "put": {
+                "description": "Aprova uma candidatura",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Aprovar candidatura",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da candidatura",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/candidaturas/{id}/reject": {
+            "put": {
+                "description": "Reprova uma candidatura",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Reprovar candidatura",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da candidatura",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/candidaturas/{id}/status": {
+            "put": {
+                "description": "Atualiza o status de uma candidatura",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Atualizar status da candidatura",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da candidatura",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Novo status",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.UpdateStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/curriculo/{cpf}": {
+            "get": {
+                "description": "Retorna o currículo completo de um usuário",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-curriculo"
+                ],
+                "summary": "Buscar currículo completo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.CurriculoCompleto"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/empresas": {
+            "get": {
+                "description": "Retorna lista paginada de empresas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-empresas"
+                ],
+                "summary": "Listar empresas",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova empresa",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-empresas"
+                ],
+                "summary": "Criar empresa",
+                "parameters": [
+                    {
+                        "description": "Dados da empresa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Empresa"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Empresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/empresas/{cnpj}": {
+            "get": {
+                "description": "Retorna uma empresa pelo CNPJ",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-empresas"
+                ],
+                "summary": "Buscar empresa",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CNPJ da empresa",
+                        "name": "cnpj",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Empresa"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza uma empresa existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-empresas"
+                ],
+                "summary": "Atualizar empresa",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CNPJ da empresa",
+                        "name": "cnpj",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da empresa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Empresa"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Empresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma empresa pelo CNPJ",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-empresas"
+                ],
+                "summary": "Excluir empresa",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CNPJ da empresa",
+                        "name": "cnpj",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/onboarding/{cpf}": {
+            "get": {
+                "description": "Verifica se é o primeiro login do usuário no módulo de empregabilidade",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-onboarding"
+                ],
+                "summary": "Verificar primeiro login",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/onboarding/{cpf}/complete": {
+            "put": {
+                "description": "Marca o primeiro login do usuário como concluído",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-onboarding"
+                ],
+                "summary": "Marcar primeiro login como concluído",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/regimes-contratacao": {
+            "get": {
+                "description": "Retorna lista paginada de regimes de contratação",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-regimes-contratacao"
+                ],
+                "summary": "Listar regimes de contratação",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 100)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo regime de contratação",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-regimes-contratacao"
+                ],
+                "summary": "Criar regime de contratação",
+                "parameters": [
+                    {
+                        "description": "Dados do regime",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.RegimeContratacao"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.RegimeContratacao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/regimes-contratacao/{id}": {
+            "get": {
+                "description": "Retorna um regime de contratação pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-regimes-contratacao"
+                ],
+                "summary": "Buscar regime de contratação",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do regime",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.RegimeContratacao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza um regime de contratação existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-regimes-contratacao"
+                ],
+                "summary": "Atualizar regime de contratação",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do regime",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do regime",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.RegimeContratacao"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.RegimeContratacao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove um regime de contratação pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-regimes-contratacao"
+                ],
+                "summary": "Excluir regime de contratação",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do regime",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/termos-uso/{cpf}": {
+            "get": {
+                "description": "Verifica se o usuário aceitou os termos de uso",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-termos-uso"
+                ],
+                "summary": "Verificar aceite dos termos",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/termos-uso/{cpf}/accept": {
+            "put": {
+                "description": "Registra o aceite dos termos de uso pelo usuário",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-termos-uso"
+                ],
+                "summary": "Aceitar termos de uso",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/termos-uso/{cpf}/details": {
+            "get": {
+                "description": "Retorna os detalhes do aceite dos termos de uso",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-termos-uso"
+                ],
+                "summary": "Buscar detalhes dos termos",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.TermosUso"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas": {
+            "get": {
+                "description": "Retorna lista paginada de vagas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Listar vagas",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por CNPJ do contratante",
+                        "name": "contratante",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova vaga",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Criar vaga",
+                "parameters": [
+                    {
+                        "description": "Dados da vaga",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/draft": {
+            "post": {
+                "description": "Cria um rascunho de vaga",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Criar rascunho de vaga",
+                "parameters": [
+                    {
+                        "description": "Dados da vaga",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{id}": {
+            "get": {
+                "description": "Retorna uma vaga pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Buscar vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza uma vaga existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Atualizar vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da vaga",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma vaga pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Excluir vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{id}/publish": {
+            "put": {
+                "description": "Publica uma vaga em edição",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Publicar vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{id}/tipos-pcd": {
+            "put": {
+                "description": "Atualiza os tipos de PCD aceitos na vaga",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Atualizar tipos PCD da vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "IDs dos tipos PCD",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.UpdateTiposPCDRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{vagaId}/etapas": {
+            "get": {
+                "description": "Retorna todas as etapas de uma vaga",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-etapas"
+                ],
+                "summary": "Listar etapas da vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "vagaId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova etapa para uma vaga",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-etapas"
+                ],
+                "summary": "Criar etapa",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "vagaId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da etapa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Etapa"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Etapa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{vagaId}/etapas/{id}": {
+            "get": {
+                "description": "Retorna uma etapa pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-etapas"
+                ],
+                "summary": "Buscar etapa",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "vagaId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da etapa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Etapa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza uma etapa existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-etapas"
+                ],
+                "summary": "Atualizar etapa",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "vagaId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da etapa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da etapa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Etapa"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Etapa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma etapa pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-etapas"
+                ],
+                "summary": "Excluir etapa",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "vagaId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da etapa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/empregos": {
             "get": {
                 "description": "Retorna uma lista paginada de empregos com filtros opcionais",
@@ -1867,6 +3888,71 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/enrollments/{enrollmentId}/schedule": {
+            "put": {
+                "description": "Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com pelo menos 72h de antecedência do início da aula. Se a inscrição estava aprovada, volta para status pendente.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enrollments"
+                ],
+                "summary": "Trocar turma/horário de inscrição",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da inscrição",
+                        "name": "enrollmentId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da nova turma",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ScheduleChangeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Inscricao"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -3257,6 +5343,767 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "empregabilidade.Candidatura": {
+            "type": "object",
+            "properties": {
+                "cpf": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string",
+                    "example": "2024-12-31T23:59:59Z"
+                },
+                "etapa_atual": {
+                    "$ref": "#/definitions/empregabilidade.Etapa"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "id_etapa_atual": {
+                    "type": "string"
+                },
+                "id_vaga": {
+                    "type": "string"
+                },
+                "respostas_info_complementares": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.RespostaInfoComplementar"
+                    }
+                },
+                "status": {
+                    "$ref": "#/definitions/empregabilidade.StatusCandidatura"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vaga": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    ]
+                }
+            }
+        },
+        "empregabilidade.CurriculoCompleto": {
+            "type": "object",
+            "properties": {
+                "conquistas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CurriculoConquista"
+                    }
+                },
+                "cursos_complementares": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CurriculoCursoComplementar"
+                    }
+                },
+                "experiencias": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CurriculoExperiencia"
+                    }
+                },
+                "formacoes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CurriculoFormacao"
+                    }
+                },
+                "idiomas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CurriculoIdioma"
+                    }
+                },
+                "situacao_interesses": {
+                    "$ref": "#/definitions/empregabilidade.CurriculoSituacaoInteresses"
+                }
+            }
+        },
+        "empregabilidade.CurriculoConquista": {
+            "type": "object",
+            "properties": {
+                "cpf": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "id_tipo_conquista": {
+                    "type": "string"
+                },
+                "tipo_conquista": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.TipoConquista"
+                        }
+                    ]
+                },
+                "titulo": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.CurriculoCursoComplementar": {
+            "type": "object",
+            "properties": {
+                "ano_conclusao": {
+                    "type": "string"
+                },
+                "cpf": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "nome_curso": {
+                    "type": "string"
+                },
+                "nome_instituicao": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.CurriculoExperiencia": {
+            "type": "object",
+            "properties": {
+                "cargo": {
+                    "type": "string"
+                },
+                "cpf": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao_atividades": {
+                    "type": "string"
+                },
+                "eh_trabalho_atual": {
+                    "type": "boolean"
+                },
+                "empresa": {
+                    "type": "string"
+                },
+                "experiencia_comprovada_ct": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "tempo_experiencia_meses": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.CurriculoFormacao": {
+            "type": "object",
+            "properties": {
+                "ano_conclusao": {
+                    "type": "string"
+                },
+                "cpf": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "escolaridade": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.Escolaridade"
+                        }
+                    ]
+                },
+                "id": {
+                    "type": "string"
+                },
+                "id_escolaridade": {
+                    "type": "string"
+                },
+                "nome_curso": {
+                    "type": "string"
+                },
+                "nome_instituicao": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/empregabilidade.StatusFormacao"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.CurriculoIdioma": {
+            "type": "object",
+            "properties": {
+                "cpf": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "id_idioma": {
+                    "type": "string"
+                },
+                "id_nivel": {
+                    "type": "string"
+                },
+                "idioma": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.Idioma"
+                        }
+                    ]
+                },
+                "nivel": {
+                    "$ref": "#/definitions/empregabilidade.NivelIdioma"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.CurriculoSituacaoInteresses": {
+            "type": "object",
+            "properties": {
+                "cpf": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "disponibilidade": {
+                    "$ref": "#/definitions/empregabilidade.Disponibilidade"
+                },
+                "id_disponibilidade": {
+                    "type": "string"
+                },
+                "id_situacao": {
+                    "type": "string"
+                },
+                "ids_tipos_vinculo_preferencia": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "situacao": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.SituacaoAtual"
+                        }
+                    ]
+                },
+                "tempo_procurando_emprego": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.Disponibilidade": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.Empresa": {
+            "type": "object",
+            "properties": {
+                "cnpj": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "nome_fantasia": {
+                    "type": "string"
+                },
+                "razao_social": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url_logo": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.Escolaridade": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.Etapa": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "id_vaga": {
+                    "type": "string"
+                },
+                "ordem": {
+                    "type": "integer"
+                },
+                "titulo": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vaga": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    ]
+                }
+            }
+        },
+        "empregabilidade.Idioma": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.InformacaoComplementar": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "id_vaga": {
+                    "type": "string"
+                },
+                "obrigatorio": {
+                    "type": "boolean"
+                },
+                "opcoes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "tipo_campo": {
+                    "$ref": "#/definitions/empregabilidade.TipoCampo"
+                },
+                "titulo": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vaga": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    ]
+                },
+                "valor_maximo": {
+                    "type": "integer"
+                },
+                "valor_minimo": {
+                    "type": "integer"
+                }
+            }
+        },
+        "empregabilidade.ModeloTrabalho": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.NivelIdioma": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.RegimeContratacao": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.RespostaInfoComplementar": {
+            "type": "object",
+            "properties": {
+                "id_info": {
+                    "type": "string"
+                },
+                "resposta": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.SituacaoAtual": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.StatusCandidatura": {
+            "type": "string",
+            "enum": [
+                "candidatura_enviada",
+                "aprovada",
+                "reprovada",
+                "vaga_congelada",
+                "vaga_descontinuada"
+            ],
+            "x-enum-varnames": [
+                "StatusCandidaturaEnviada",
+                "StatusCandidaturaAprovada",
+                "StatusCandidaturaReprovada",
+                "StatusCandidaturaVagaCongelada",
+                "StatusCandidaturaDescontinuada"
+            ]
+        },
+        "empregabilidade.StatusFormacao": {
+            "type": "string",
+            "enum": [
+                "Completo",
+                "Em andamento",
+                "Incompleto"
+            ],
+            "x-enum-varnames": [
+                "StatusFormacaoCompleto",
+                "StatusFormacaoEmAndamento",
+                "StatusFormacaoIncompleto"
+            ]
+        },
+        "empregabilidade.StatusVaga": {
+            "type": "string",
+            "enum": [
+                "em_edicao",
+                "em_aprovacao",
+                "publicado_ativo",
+                "publicado_expirado"
+            ],
+            "x-enum-varnames": [
+                "StatusVagaEmEdicao",
+                "StatusVagaEmAprovacao",
+                "StatusVagaPublicadoAtivo",
+                "StatusVagaPublicadoExpirado"
+            ]
+        },
+        "empregabilidade.TermosUso": {
+            "type": "object",
+            "properties": {
+                "aceito_em": {
+                    "type": "string"
+                },
+                "cpf": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_consent": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "empregabilidade.TipoCampo": {
+            "type": "string",
+            "enum": [
+                "resposta_curta",
+                "resposta_numerica",
+                "selecao_unica",
+                "selecao_multipla"
+            ],
+            "x-enum-varnames": [
+                "TipoCampoRespostaCurta",
+                "TipoCampoRespostaNumerica",
+                "TipoCampoSelecaoUnica",
+                "TipoCampoSelecaoMultipla"
+            ]
+        },
+        "empregabilidade.TipoConquista": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.TipoPCD": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.UpdateStatusRequest": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "$ref": "#/definitions/empregabilidade.StatusCandidatura"
+                }
+            }
+        },
+        "empregabilidade.UpdateTiposPCDRequest": {
+            "type": "object",
+            "properties": {
+                "tipos_pcd_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "empregabilidade.Vaga": {
+            "type": "object",
+            "properties": {
+                "bairro": {
+                    "type": "string"
+                },
+                "beneficios": {
+                    "type": "string"
+                },
+                "contratante": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.Empresa"
+                        }
+                    ]
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "data_limite": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string",
+                    "example": "2024-12-31T23:59:59Z"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "diferenciais": {
+                    "type": "string"
+                },
+                "etapas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.Etapa"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "id_contratante": {
+                    "type": "string"
+                },
+                "id_modelo_trabalho": {
+                    "type": "string"
+                },
+                "id_orgao_parceiro": {
+                    "type": "string"
+                },
+                "id_regime_contratacao": {
+                    "type": "string"
+                },
+                "informacoes_complementares": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.InformacaoComplementar"
+                    }
+                },
+                "modelo_trabalho": {
+                    "$ref": "#/definitions/empregabilidade.ModeloTrabalho"
+                },
+                "regime_contratacao": {
+                    "$ref": "#/definitions/empregabilidade.RegimeContratacao"
+                },
+                "requisitos": {
+                    "type": "string"
+                },
+                "responsabilidades": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/empregabilidade.StatusVaga"
+                },
+                "tipos_pcd": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.TipoPCD"
+                    }
+                },
+                "titulo": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vaga_pcd": {
+                    "type": "boolean"
+                },
+                "valor_vaga": {
+                    "type": "number"
+                }
+            }
+        },
         "models.Acessibilidade": {
             "type": "object",
             "properties": {
@@ -4333,6 +7180,20 @@ const docTemplate = `{
                 "updated_count": {
                     "type": "integer",
                     "example": 2
+                }
+            }
+        },
+        "models.ScheduleChangeRequest": {
+            "type": "object",
+            "required": [
+                "enrolled_unit"
+            ],
+            "properties": {
+                "enrolled_unit": {
+                    "$ref": "#/definitions/models.EnrolledUnit"
+                },
+                "schedule_id": {
+                    "type": "string"
                 }
             }
         },

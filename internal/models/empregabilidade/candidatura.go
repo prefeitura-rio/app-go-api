@@ -37,7 +37,7 @@ type Candidatura struct {
 	Status                      StatusCandidatura          `json:"status" gorm:"type:varchar(100);not null;default:'candidatura_enviada'"`
 	IDEtapaAtual                *uuid.UUID                 `json:"id_etapa_atual" gorm:"type:uuid"`
 	RespostasInfoComplementares []RespostaInfoComplementar `json:"respostas_info_complementares" gorm:"type:jsonb;serializer:json"`
-	DeletedAt                   gorm.DeletedAt             `json:"deleted_at,omitempty" gorm:"index"`
+	DeletedAt                   gorm.DeletedAt             `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
 	CreatedAt                   time.Time                  `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt                   time.Time                  `json:"updated_at" gorm:"autoUpdateTime"`
 

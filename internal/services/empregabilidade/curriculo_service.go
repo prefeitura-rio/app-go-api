@@ -144,16 +144,7 @@ func (s *CurriculoService) GetSituacaoInteressesByCPF(ctx context.Context, cpf s
 
 // Currículo Completo
 
-type CurriculoCompleto struct {
-	Formacoes           []*empregabilidade.CurriculoFormacao           `json:"formacoes"`
-	Idiomas             []*empregabilidade.CurriculoIdioma             `json:"idiomas"`
-	CursosComplementares []*empregabilidade.CurriculoCursoComplementar `json:"cursos_complementares"`
-	Experiencias        []*empregabilidade.CurriculoExperiencia        `json:"experiencias"`
-	Conquistas          []*empregabilidade.CurriculoConquista          `json:"conquistas"`
-	SituacaoInteresses  *empregabilidade.CurriculoSituacaoInteresses   `json:"situacao_interesses"`
-}
-
-func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string) (*CurriculoCompleto, error) {
+func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string) (*empregabilidade.CurriculoCompleto, error) {
 	formacoes, err := s.repo.ListFormacoesByCPF(ctx, cpf)
 	if err != nil {
 		return nil, err
@@ -184,7 +175,7 @@ func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string)
 		return nil, err
 	}
 
-	return &CurriculoCompleto{
+	return &empregabilidade.CurriculoCompleto{
 		Formacoes:            formacoes,
 		Idiomas:              idiomas,
 		CursosComplementares: cursos,
