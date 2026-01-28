@@ -3,12 +3,35 @@ package empregabilidade
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
+
+func handleCandidaturaError(c *gin.Context, err error) {
+	msg := err.Error()
+
+	switch {
+	case strings.Contains(msg, "não encontrada"):
+		c.JSON(http.StatusNotFound, gin.H{"error": msg})
+		return
+	case strings.Contains(msg, "já existe"), strings.Contains(msg, "já se candidatou"):
+		c.JSON(http.StatusConflict, gin.H{"error": msg})
+		return
+	case strings.Contains(msg, "expirada"),
+		strings.Contains(msg, "não está ativa"),
+		strings.Contains(msg, "status inválido"):
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
+	}
+
+	dbErr := utils.ParseDatabaseError(err)
+	c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
+}
 
 type CandidaturaHandler struct {
 	service *services.CandidaturaService
@@ -37,7 +60,7 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handleCandidaturaError(c, err)
 		return
 	}
 
@@ -71,7 +94,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 	if cpf := c.Query("cpf"); cpf != "" {
 		entities, total, err := h.service.ListByCPF(c.Request.Context(), cpf, page, pageSize)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handleCandidaturaError(c, err)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"data": entities, "meta": gin.H{"page": page, "page_size": pageSize, "total": total}})
@@ -87,7 +110,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 		status := c.Query("status")
 		entities, total, err := h.service.ListByVaga(c.Request.Context(), id, status, page, pageSize)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handleCandidaturaError(c, err)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"data": entities, "meta": gin.H{"page": page, "page_size": pageSize, "total": total}})
@@ -101,7 +124,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleCandidaturaError(c, err)
 		return
 	}
 
@@ -134,7 +157,7 @@ func (h *CandidaturaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleCandidaturaError(c, err)
 		return
 	}
 
@@ -173,7 +196,7 @@ func (h *CandidaturaHandler) Update(c *gin.Context) {
 	entity.ID = id
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleCandidaturaError(c, err)
 		return
 	}
 
@@ -197,7 +220,7 @@ func (h *CandidaturaHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleCandidaturaError(c, err)
 		return
 	}
 
@@ -233,7 +256,7 @@ func (h *CandidaturaHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateStatus(c.Request.Context(), id, request.Status); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handleCandidaturaError(c, err)
 		return
 	}
 
@@ -257,7 +280,7 @@ func (h *CandidaturaHandler) Approve(c *gin.Context) {
 	}
 
 	if err := h.service.Approve(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleCandidaturaError(c, err)
 		return
 	}
 
@@ -281,7 +304,7 @@ func (h *CandidaturaHandler) Reject(c *gin.Context) {
 	}
 
 	if err := h.service.Reject(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleCandidaturaError(c, err)
 		return
 	}
 

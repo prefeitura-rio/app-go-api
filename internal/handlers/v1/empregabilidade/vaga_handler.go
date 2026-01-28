@@ -291,3 +291,78 @@ func (h *VagaHandler) UpdateTiposPCD(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Tipos PCD atualizados com sucesso"})
 }
+
+// ==================== Public Endpoints ====================
+
+// @Summary      Listar vagas públicas
+// @Description  Retorna lista paginada de vagas publicadas (apenas vagas ativas)
+// @Tags         empregabilidade-vagas-public
+// @Produce      json
+// @Param        page       query     int     false  "Número da página (default: 1)"
+// @Param        pageSize   query     int     false  "Tamanho da página (default: 10)"
+// @Success      200        {object}  map[string]interface{}
+// @Failure      500        {object}  map[string]string
+// @Router       /api/public/empregabilidade/vagas [get]
+func (h *VagaHandler) PublicList(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	// Force filter to only show published active vagas
+	filter := map[string]interface{}{
+		"status": empregabilidade.StatusVagaPublicadoAtivo,
+	}
+
+	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
+	if err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": entities,
+		"meta": gin.H{
+			"page":      page,
+			"page_size": pageSize,
+			"total":     total,
+		},
+	})
+}
+
+// @Summary      Buscar vaga pública
+// @Description  Retorna uma vaga publicada pelo ID (apenas se estiver ativa)
+// @Tags         empregabilidade-vagas-public
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  empregabilidade.Vaga
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/public/empregabilidade/vagas/{id} [get]
+func (h *VagaHandler) PublicGetByID(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	entity, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	// Return 404 if vaga doesn't exist or is not published active
+	if entity == nil || entity.Status != empregabilidade.StatusVagaPublicadoAtivo {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
+		return
+	}
+
+	c.JSON(http.StatusOK, entity)
+}

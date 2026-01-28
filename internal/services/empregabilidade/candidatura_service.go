@@ -76,6 +76,23 @@ func (s *CandidaturaService) GetByID(ctx context.Context, id uuid.UUID) (*empreg
 }
 
 func (s *CandidaturaService) Update(ctx context.Context, entity *empregabilidade.Candidatura) error {
+	// Fetch existing candidatura to preserve controlled fields
+	existing, err := s.repo.GetByID(ctx, entity.ID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("candidatura não encontrada")
+	}
+
+	// Preserve controlled fields - these must not be changed via Update
+	// Status changes should go through UpdateStatus/Approve/Reject
+	// CPF and IDVaga are immutable after creation
+	entity.Status = existing.Status
+	entity.CPF = existing.CPF
+	entity.IDVaga = existing.IDVaga
+	entity.IDEtapaAtual = existing.IDEtapaAtual
+
 	return s.repo.Update(ctx, entity)
 }
 

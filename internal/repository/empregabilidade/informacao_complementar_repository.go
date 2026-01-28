@@ -80,7 +80,14 @@ func (r *InformacaoComplementarRepository) CreateWithLimitCheck(ctx context.Cont
 	var resultID uuid.UUID
 
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Count existing with FOR UPDATE lock on the vaga's records
+		// Lock the vaga record to serialize concurrent inserts for the same vaga
+		var vaga empregabilidade.Vaga
+		if err := tx.Raw("SELECT id FROM emp_vagas WHERE id = ? FOR UPDATE", entity.IDVaga).
+			Scan(&vaga).Error; err != nil {
+			return fmt.Errorf("erro ao obter lock na vaga: %w", err)
+		}
+
+		// Count existing informações complementares
 		var count int64
 		if err := tx.Model(&empregabilidade.InformacaoComplementar{}).
 			Where("id_vaga = ?", entity.IDVaga).

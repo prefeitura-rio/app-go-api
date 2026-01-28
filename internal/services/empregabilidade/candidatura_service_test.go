@@ -503,3 +503,107 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 		}
 	})
 }
+
+func TestCandidaturaService_Update(t *testing.T) {
+	t.Run("Update preserves controlled fields", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+
+		id := uuid.New()
+		vagaID := uuid.New()
+		etapaID := uuid.New()
+		originalCPF := "12345678901"
+		originalStatus := empregabilidade.StatusCandidaturaAprovada
+
+		mockCandidaturaRepo.candidaturas[id] = &empregabilidade.Candidatura{
+			ID:           id,
+			CPF:          originalCPF,
+			IDVaga:       vagaID,
+			Status:       originalStatus,
+			IDEtapaAtual: &etapaID,
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo)
+
+		// Try to update with different controlled values
+		differentVagaID := uuid.New()
+		updated := &empregabilidade.Candidatura{
+			ID:     id,
+			CPF:    "99999999999",                               // Should be preserved
+			IDVaga: differentVagaID,                             // Should be preserved
+			Status: empregabilidade.StatusCandidaturaReprovada,  // Should be preserved
+		}
+
+		ctx := context.Background()
+		err := service.Update(ctx, updated)
+
+		if err != nil {
+			t.Errorf("Expected successful update, got error: %v", err)
+		}
+
+		result := mockCandidaturaRepo.candidaturas[id]
+
+		// Verify controlled fields are preserved
+		if result.CPF != originalCPF {
+			t.Errorf("Expected CPF to be preserved as '%s', got '%s'", originalCPF, result.CPF)
+		}
+
+		if result.IDVaga != vagaID {
+			t.Errorf("Expected IDVaga to be preserved as '%s', got '%s'", vagaID, result.IDVaga)
+		}
+
+		if result.Status != originalStatus {
+			t.Errorf("Expected Status to be preserved as '%s', got '%s'", originalStatus, result.Status)
+		}
+
+		if result.IDEtapaAtual == nil || *result.IDEtapaAtual != etapaID {
+			t.Error("Expected IDEtapaAtual to be preserved")
+		}
+	})
+
+	t.Run("Update returns error when candidatura not found", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo)
+
+		updated := &empregabilidade.Candidatura{
+			ID: uuid.New(),
+		}
+
+		ctx := context.Background()
+		err := service.Update(ctx, updated)
+
+		if err == nil {
+			t.Error("Expected error when candidatura not found")
+		}
+
+		expectedMsg := "candidatura não encontrada"
+		if err.Error() != expectedMsg {
+			t.Errorf("Expected error '%s', got '%s'", expectedMsg, err.Error())
+		}
+	})
+
+	t.Run("Update returns error when GetByID fails", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockCandidaturaRepo.getError = errors.New("database error")
+		mockVagaRepo := NewMockVagaRepo()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo)
+
+		updated := &empregabilidade.Candidatura{
+			ID: uuid.New(),
+		}
+
+		ctx := context.Background()
+		err := service.Update(ctx, updated)
+
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+
+		if err.Error() != "database error" {
+			t.Errorf("Expected 'database error', got '%s'", err.Error())
+		}
+	})
+}

@@ -48,7 +48,31 @@ func (r *VagaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empregabil
 }
 
 func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	// Use map to explicitly control which fields are updated
+	// This allows zero-values (e.g., VagaPCD=false) while preventing
+	// accidental overwrites from partial payloads
+	updates := map[string]interface{}{
+		"titulo":                entity.Titulo,
+		"descricao":             entity.Descricao,
+		"id_contratante":        entity.IDContratante,
+		"id_regime_contratacao": entity.IDRegimeContratacao,
+		"id_modelo_trabalho":    entity.IDModeloTrabalho,
+		"vaga_pcd":              entity.VagaPCD,
+		"valor_vaga":            entity.ValorVaga,
+		"bairro":                entity.Bairro,
+		"data_limite":           entity.DataLimite,
+		"requisitos":            entity.Requisitos,
+		"diferenciais":          entity.Diferenciais,
+		"responsabilidades":     entity.Responsabilidades,
+		"beneficios":            entity.Beneficios,
+		"id_orgao_parceiro":     entity.IDOrgaoParceiro,
+		"status":                entity.Status,
+	}
+
+	result := r.db.WithContext(ctx).
+		Model(&empregabilidade.Vaga{}).
+		Where("id = ?", entity.ID).
+		Updates(updates)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar vaga: %w", result.Error)
 	}

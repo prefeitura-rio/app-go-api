@@ -604,11 +604,11 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		empTermosUso.GET("/:cpf/details", empTermosUsoHandler.GetDetails)
 	}
 
-	// Endpoints públicos para empregabilidade
+	// Endpoints públicos para empregabilidade (apenas vagas publicadas)
 	apiPublicEmpregabilidade := apiPublic.Group("/empregabilidade")
 	{
-		apiPublicEmpregabilidade.GET("/vagas", empVagaHandler.List)
-		apiPublicEmpregabilidade.GET("/vagas/:id", empVagaHandler.GetByID)
+		apiPublicEmpregabilidade.GET("/vagas", empVagaHandler.PublicList)
+		apiPublicEmpregabilidade.GET("/vagas/:id", empVagaHandler.PublicGetByID)
 	}
 
 	return r
