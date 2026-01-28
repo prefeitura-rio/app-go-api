@@ -43,7 +43,7 @@ func (r *CandidaturaRepository) GetByID(ctx context.Context, id uuid.UUID) (*emp
 }
 
 func (r *CandidaturaRepository) Update(ctx context.Context, entity *empregabilidade.Candidatura) error {
-	result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(entity)
+	result := r.db.WithContext(ctx).Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar candidatura: %w", result.Error)
 	}

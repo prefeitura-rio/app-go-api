@@ -6,17 +6,33 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
-	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
 
+type CandidaturaRepositoryInterface interface {
+	Create(ctx context.Context, entity *empregabilidade.Candidatura) (uuid.UUID, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Candidatura, error)
+	Update(ctx context.Context, entity *empregabilidade.Candidatura) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Candidatura, int, error)
+	ListByCPF(ctx context.Context, cpf string, limit, offset int) ([]*empregabilidade.Candidatura, int, error)
+	ListByVaga(ctx context.Context, vagaID uuid.UUID, status string, limit, offset int) ([]*empregabilidade.Candidatura, int, error)
+	CheckExistingCandidatura(ctx context.Context, cpf string, vagaID uuid.UUID) (bool, error)
+	UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error
+	UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error
+}
+
+type VagaRepositoryInterface interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Vaga, error)
+}
+
 type CandidaturaService struct {
-	repo     *repository.CandidaturaRepository
-	vagaRepo *repository.VagaRepository
+	repo     CandidaturaRepositoryInterface
+	vagaRepo VagaRepositoryInterface
 }
 
 func NewCandidaturaService(
-	repo *repository.CandidaturaRepository,
-	vagaRepo *repository.VagaRepository,
+	repo CandidaturaRepositoryInterface,
+	vagaRepo VagaRepositoryInterface,
 ) *CandidaturaService {
 	return &CandidaturaService{
 		repo:     repo,
@@ -33,7 +49,13 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 		return uuid.Nil, errors.New("vaga não encontrada")
 	}
 
+	// Recalcula status baseado na data de expiração
+	vaga.UpdateStatusBasedOnExpiration()
+
 	if vaga.Status != empregabilidade.StatusVagaPublicadoAtivo {
+		if vaga.Status == empregabilidade.StatusVagaPublicadoExpirado {
+			return uuid.Nil, errors.New("vaga expirada, não aceita mais candidaturas")
+		}
 		return uuid.Nil, errors.New("vaga não está ativa para candidaturas")
 	}
 

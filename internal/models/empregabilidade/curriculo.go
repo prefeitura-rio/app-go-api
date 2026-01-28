@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,18 +24,25 @@ func (s StatusFormacao) IsValid() bool {
 }
 
 type CurriculoFormacao struct {
-	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	CPF             string     `json:"cpf" gorm:"type:varchar(14);not null"`
-	IDEscolaridade  *uuid.UUID `json:"id_escolaridade" gorm:"type:uuid"`
-	NomeInstituicao string     `json:"nome_instituicao" gorm:"type:varchar(500)"`
-	NomeCurso       string     `json:"nome_curso" gorm:"type:varchar(500)"`
-	Status          string     `json:"status" gorm:"type:varchar(50)"`
-	AnoConclusao    string     `json:"ano_conclusao" gorm:"type:varchar(4)"`
-	CreatedAt       time.Time  `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt       time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
+	ID              uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	CPF             string         `json:"cpf" gorm:"type:varchar(14);not null"`
+	IDEscolaridade  *uuid.UUID     `json:"id_escolaridade" gorm:"type:uuid"`
+	NomeInstituicao string         `json:"nome_instituicao" gorm:"type:varchar(500)"`
+	NomeCurso       string         `json:"nome_curso" gorm:"type:varchar(500)"`
+	Status          StatusFormacao `json:"status" gorm:"type:varchar(50)"`
+	AnoConclusao    string         `json:"ano_conclusao" gorm:"type:varchar(4)"`
+	CreatedAt       time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt       time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relationships
 	Escolaridade *Escolaridade `json:"escolaridade,omitempty" gorm:"foreignKey:IDEscolaridade"`
+}
+
+func (f *CurriculoFormacao) Validate() error {
+	if f.Status != "" && !f.Status.IsValid() {
+		return fmt.Errorf("status de formação inválido: %s", f.Status)
+	}
+	return nil
 }
 
 func (CurriculoFormacao) TableName() string {

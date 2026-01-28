@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
@@ -40,26 +41,21 @@ func (r *TermosUsoRepository) GetByCPF(ctx context.Context, cpf string) (*empreg
 
 func (r *TermosUsoRepository) AcceptTerms(ctx context.Context, cpf string) error {
 	now := time.Now()
-	result := r.db.WithContext(ctx).
-		Model(&empregabilidade.TermosUso{}).
-		Where("cpf = ?", cpf).
-		Updates(map[string]interface{}{
-			"user_consent": true,
-			"aceito_em":    now,
-		})
-	if result.Error != nil {
-		return fmt.Errorf("erro ao aceitar termos de uso: %w", result.Error)
+	entity := &empregabilidade.TermosUso{
+		CPF:         cpf,
+		UserConsent: true,
+		AceitoEm:    &now,
 	}
 
-	if result.RowsAffected == 0 {
-		entity := &empregabilidade.TermosUso{
-			CPF:         cpf,
-			UserConsent: true,
-			AceitoEm:    &now,
-		}
-		if err := r.db.WithContext(ctx).Create(entity).Error; err != nil {
-			return fmt.Errorf("erro ao criar registro de termos de uso: %w", err)
-		}
+	result := r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "cpf"}},
+			DoUpdates: clause.AssignmentColumns([]string{"user_consent", "aceito_em", "updated_at"}),
+		}).
+		Create(entity)
+
+	if result.Error != nil {
+		return fmt.Errorf("erro ao aceitar termos de uso: %w", result.Error)
 	}
 
 	return nil

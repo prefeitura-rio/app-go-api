@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
@@ -38,22 +39,20 @@ func (r *OnboardingRepository) GetByCPF(ctx context.Context, cpf string) (*empre
 }
 
 func (r *OnboardingRepository) MarkFirstLoginCompleted(ctx context.Context, cpf string) error {
-	result := r.db.WithContext(ctx).
-		Model(&empregabilidade.Onboarding{}).
-		Where("cpf = ?", cpf).
-		Update("is_empregabilidade_first_login", false)
-	if result.Error != nil {
-		return fmt.Errorf("erro ao marcar primeiro login como concluído: %w", result.Error)
+	entity := &empregabilidade.Onboarding{
+		CPF:                         cpf,
+		IsEmpregabilidadeFirstLogin: false,
 	}
 
-	if result.RowsAffected == 0 {
-		entity := &empregabilidade.Onboarding{
-			CPF:                         cpf,
-			IsEmpregabilidadeFirstLogin: false,
-		}
-		if err := r.db.WithContext(ctx).Create(entity).Error; err != nil {
-			return fmt.Errorf("erro ao criar registro de onboarding: %w", err)
-		}
+	result := r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "cpf"}},
+			DoUpdates: clause.AssignmentColumns([]string{"is_empregabilidade_first_login", "updated_at"}),
+		}).
+		Create(entity)
+
+	if result.Error != nil {
+		return fmt.Errorf("erro ao marcar primeiro login como concluído: %w", result.Error)
 	}
 
 	return nil

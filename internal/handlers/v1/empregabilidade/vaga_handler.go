@@ -3,12 +3,35 @@ package empregabilidade
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
+
+func handleVagaError(c *gin.Context, err error) {
+	msg := err.Error()
+
+	// Primeiro verifica erros de domínio conhecidos
+	switch {
+	case strings.Contains(msg, "não encontrada"):
+		c.JSON(http.StatusNotFound, gin.H{"error": msg})
+		return
+	case strings.Contains(msg, "não está em estado"):
+		c.JSON(http.StatusConflict, gin.H{"error": msg})
+		return
+	case strings.Contains(msg, "contratante não encontrada"):
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
+	}
+
+	// Para outros erros, usa ParseDatabaseError para normalizar
+	dbErr := utils.ParseDatabaseError(err)
+	c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
+}
 
 type VagaHandler struct {
 	service *services.VagaService
@@ -37,7 +60,7 @@ func (h *VagaHandler) Create(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleVagaError(c, err)
 		return
 	}
 
@@ -64,7 +87,7 @@ func (h *VagaHandler) CreateDraft(c *gin.Context) {
 
 	id, err := h.service.CreateDraft(c.Request.Context(), &entity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleVagaError(c, err)
 		return
 	}
 
@@ -104,7 +127,7 @@ func (h *VagaHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleVagaError(c, err)
 		return
 	}
 
@@ -137,7 +160,7 @@ func (h *VagaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleVagaError(c, err)
 		return
 	}
 
@@ -176,7 +199,7 @@ func (h *VagaHandler) Update(c *gin.Context) {
 	entity.ID = id
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleVagaError(c, err)
 		return
 	}
 
@@ -200,7 +223,7 @@ func (h *VagaHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleVagaError(c, err)
 		return
 	}
 
@@ -214,6 +237,8 @@ func (h *VagaHandler) Delete(c *gin.Context) {
 // @Param        id   path      string  true  "ID da vaga"
 // @Success      200  {object}  map[string]string
 // @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas/{id}/publish [put]
 func (h *VagaHandler) Publish(c *gin.Context) {
@@ -224,7 +249,7 @@ func (h *VagaHandler) Publish(c *gin.Context) {
 	}
 
 	if err := h.service.Publish(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleVagaError(c, err)
 		return
 	}
 
@@ -260,7 +285,7 @@ func (h *VagaHandler) UpdateTiposPCD(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateTiposPCD(c.Request.Context(), id, request.TiposPCDIDs); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleVagaError(c, err)
 		return
 	}
 

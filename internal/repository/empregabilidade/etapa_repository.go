@@ -39,7 +39,7 @@ func (r *EtapaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empregabi
 }
 
 func (r *EtapaRepository) Update(ctx context.Context, entity *empregabilidade.Etapa) error {
-	result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(entity)
+	result := r.db.WithContext(ctx).Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar etapa: %w", result.Error)
 	}

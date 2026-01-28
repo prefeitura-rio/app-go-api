@@ -48,7 +48,7 @@ func (r *VagaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empregabil
 }
 
 func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
-	result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(entity)
+	result := r.db.WithContext(ctx).Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar vaga: %w", result.Error)
 	}

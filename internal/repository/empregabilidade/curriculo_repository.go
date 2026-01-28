@@ -41,7 +41,7 @@ func (r *CurriculoRepository) GetFormacaoByID(ctx context.Context, id uuid.UUID)
 }
 
 func (r *CurriculoRepository) UpdateFormacao(ctx context.Context, entity *empregabilidade.CurriculoFormacao) error {
-	result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(entity)
+	result := r.db.WithContext(ctx).Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar formação: %w", result.Error)
 	}
@@ -88,7 +88,7 @@ func (r *CurriculoRepository) GetIdiomaByID(ctx context.Context, id uuid.UUID) (
 }
 
 func (r *CurriculoRepository) UpdateIdioma(ctx context.Context, entity *empregabilidade.CurriculoIdioma) error {
-	result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(entity)
+	result := r.db.WithContext(ctx).Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar idioma: %w", result.Error)
 	}
@@ -135,7 +135,7 @@ func (r *CurriculoRepository) GetCursoComplementarByID(ctx context.Context, id u
 }
 
 func (r *CurriculoRepository) UpdateCursoComplementar(ctx context.Context, entity *empregabilidade.CurriculoCursoComplementar) error {
-	result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(entity)
+	result := r.db.WithContext(ctx).Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar curso complementar: %w", result.Error)
 	}
@@ -182,7 +182,7 @@ func (r *CurriculoRepository) GetExperienciaByID(ctx context.Context, id uuid.UU
 }
 
 func (r *CurriculoRepository) UpdateExperiencia(ctx context.Context, entity *empregabilidade.CurriculoExperiencia) error {
-	result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(entity)
+	result := r.db.WithContext(ctx).Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar experiência: %w", result.Error)
 	}
@@ -229,7 +229,7 @@ func (r *CurriculoRepository) GetConquistaByID(ctx context.Context, id uuid.UUID
 }
 
 func (r *CurriculoRepository) UpdateConquista(ctx context.Context, entity *empregabilidade.CurriculoConquista) error {
-	result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(entity)
+	result := r.db.WithContext(ctx).Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar conquista: %w", result.Error)
 	}

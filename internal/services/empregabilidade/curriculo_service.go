@@ -19,6 +19,9 @@ func NewCurriculoService(repo *repository.CurriculoRepository) *CurriculoService
 // Formação Acadêmica
 
 func (s *CurriculoService) CreateFormacao(ctx context.Context, entity *empregabilidade.CurriculoFormacao) (uuid.UUID, error) {
+	if err := entity.Validate(); err != nil {
+		return uuid.Nil, err
+	}
 	return s.repo.CreateFormacao(ctx, entity)
 }
 
@@ -27,6 +30,9 @@ func (s *CurriculoService) GetFormacaoByID(ctx context.Context, id uuid.UUID) (*
 }
 
 func (s *CurriculoService) UpdateFormacao(ctx context.Context, entity *empregabilidade.CurriculoFormacao) error {
+	if err := entity.Validate(); err != nil {
+		return err
+	}
 	return s.repo.UpdateFormacao(ctx, entity)
 }
 

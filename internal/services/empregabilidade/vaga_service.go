@@ -9,10 +9,25 @@ import (
 	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
 
+type VagaRepoInterface interface {
+	Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Vaga, error)
+	Update(ctx context.Context, entity *empregabilidade.Vaga) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Vaga, int, error)
+	UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error
+	ListByContratante(ctx context.Context, cnpj string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
+	ListByOrgaoParceiro(ctx context.Context, orgaoID string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
+}
+
+type EmpresaRepoInterface interface {
+	GetByID(ctx context.Context, cnpj string) (*empregabilidade.Empresa, error)
+}
+
 type VagaService struct {
-	repo                      *repository.VagaRepository
-	empresaRepo               *repository.EmpresaRepository
-	etapaRepo                 *repository.EtapaRepository
+	repo                       VagaRepoInterface
+	empresaRepo                EmpresaRepoInterface
+	etapaRepo                  *repository.EtapaRepository
 	informacaoComplementarRepo *repository.InformacaoComplementarRepository
 }
 
@@ -23,26 +38,50 @@ func NewVagaService(
 	informacaoComplementarRepo *repository.InformacaoComplementarRepository,
 ) *VagaService {
 	return &VagaService{
-		repo:                      repo,
-		empresaRepo:               empresaRepo,
-		etapaRepo:                 etapaRepo,
+		repo:                       repo,
+		empresaRepo:                empresaRepo,
+		etapaRepo:                  etapaRepo,
 		informacaoComplementarRepo: informacaoComplementarRepo,
 	}
 }
 
-func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
-	empresa, err := s.empresaRepo.GetByID(ctx, entity.IDContratante)
+func NewVagaServiceWithInterfaces(
+	repo VagaRepoInterface,
+	empresaRepo EmpresaRepoInterface,
+) *VagaService {
+	return &VagaService{
+		repo:        repo,
+		empresaRepo: empresaRepo,
+	}
+}
+
+func (s *VagaService) validateContratante(ctx context.Context, cnpj string) error {
+	empresa, err := s.empresaRepo.GetByID(ctx, cnpj)
 	if err != nil {
-		return uuid.Nil, err
+		return err
 	}
 	if empresa == nil {
-		return uuid.Nil, errors.New("empresa contratante não encontrada")
+		return errors.New("empresa contratante não encontrada")
 	}
+	return nil
+}
+
+func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
+	if err := s.validateContratante(ctx, entity.IDContratante); err != nil {
+		return uuid.Nil, err
+	}
+
+	// Força status inicial para evitar bypass do fluxo de aprovação
+	entity.Status = empregabilidade.StatusVagaEmEdicao
 
 	return s.repo.Create(ctx, entity)
 }
 
 func (s *VagaService) CreateDraft(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
+	if err := s.validateContratante(ctx, entity.IDContratante); err != nil {
+		return uuid.Nil, err
+	}
+
 	entity.Status = empregabilidade.StatusVagaEmEdicao
 	return s.repo.Create(ctx, entity)
 }
@@ -59,6 +98,18 @@ func (s *VagaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilida
 }
 
 func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
+	// Busca vaga existente para preservar status (transições devem ser via métodos específicos)
+	existing, err := s.repo.GetByID(ctx, entity.ID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("vaga não encontrada")
+	}
+
+	// Preserva o status atual - transições devem ser via Publish/SendToApproval
+	entity.Status = existing.Status
+
 	return s.repo.Update(ctx, entity)
 }
 

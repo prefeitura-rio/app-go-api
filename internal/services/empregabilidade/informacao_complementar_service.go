@@ -2,34 +2,33 @@ package empregabilidade
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
-	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
 
 const MaxInformacoesComplementaresPorVaga = 5
 
-type InformacaoComplementarService struct {
-	repo *repository.InformacaoComplementarRepository
+type InformacaoComplementarRepositoryInterface interface {
+	Create(ctx context.Context, entity *empregabilidade.InformacaoComplementar) (uuid.UUID, error)
+	CreateWithLimitCheck(ctx context.Context, entity *empregabilidade.InformacaoComplementar, maxLimit int) (uuid.UUID, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.InformacaoComplementar, error)
+	Update(ctx context.Context, entity *empregabilidade.InformacaoComplementar) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	ListByVaga(ctx context.Context, vagaID uuid.UUID) ([]*empregabilidade.InformacaoComplementar, error)
+	DeleteByVaga(ctx context.Context, vagaID uuid.UUID) error
 }
 
-func NewInformacaoComplementarService(repo *repository.InformacaoComplementarRepository) *InformacaoComplementarService {
+type InformacaoComplementarService struct {
+	repo InformacaoComplementarRepositoryInterface
+}
+
+func NewInformacaoComplementarService(repo InformacaoComplementarRepositoryInterface) *InformacaoComplementarService {
 	return &InformacaoComplementarService{repo: repo}
 }
 
 func (s *InformacaoComplementarService) Create(ctx context.Context, entity *empregabilidade.InformacaoComplementar) (uuid.UUID, error) {
-	existing, err := s.repo.ListByVaga(ctx, entity.IDVaga)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	if len(existing) >= MaxInformacoesComplementaresPorVaga {
-		return uuid.Nil, errors.New("limite máximo de 5 informações complementares por vaga atingido")
-	}
-
-	return s.repo.Create(ctx, entity)
+	return s.repo.CreateWithLimitCheck(ctx, entity, MaxInformacoesComplementaresPorVaga)
 }
 
 func (s *InformacaoComplementarService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.InformacaoComplementar, error) {
