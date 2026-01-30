@@ -209,8 +209,8 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empEmpresaService := empServices.NewEmpresaService(empEmpresaRepo)
 	empVagaService := empServices.NewVagaService(empVagaRepo, empEmpresaRepo, empEtapaRepo, empInformacaoComplementarRepo)
 	empEtapaService := empServices.NewEtapaService(empEtapaRepo)
-	empCandidaturaService := empServices.NewCandidaturaService(empCandidaturaRepo, empVagaRepo)
 	empCurriculoService := empServices.NewCurriculoService(empCurriculoRepo)
+	empCandidaturaService := empServices.NewCandidaturaService(empCandidaturaRepo, empVagaRepo, empCurriculoService)
 	empOnboardingService := empServices.NewOnboardingService(empOnboardingRepo)
 	empTermosUsoService := empServices.NewTermosUsoService(empTermosUsoRepo)
 

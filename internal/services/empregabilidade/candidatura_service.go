@@ -25,18 +25,25 @@ type VagaRepositoryInterface interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Vaga, error)
 }
 
+type CurriculoServiceInterface interface {
+	GetCurriculoCompleto(ctx context.Context, cpf string) (*empregabilidade.CurriculoCompleto, error)
+}
+
 type CandidaturaService struct {
-	repo     CandidaturaRepositoryInterface
-	vagaRepo VagaRepositoryInterface
+	repo            CandidaturaRepositoryInterface
+	vagaRepo        VagaRepositoryInterface
+	curriculoService CurriculoServiceInterface
 }
 
 func NewCandidaturaService(
 	repo CandidaturaRepositoryInterface,
 	vagaRepo VagaRepositoryInterface,
+	curriculoService CurriculoServiceInterface,
 ) *CandidaturaService {
 	return &CandidaturaService{
-		repo:     repo,
-		vagaRepo: vagaRepo,
+		repo:            repo,
+		vagaRepo:        vagaRepo,
+		curriculoService: curriculoService,
 	}
 }
 
@@ -66,6 +73,12 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 	if exists {
 		return uuid.Nil, errors.New("candidatura já existe para esta vaga")
 	}
+
+	curriculo, err := s.curriculoService.GetCurriculoCompleto(ctx, entity.CPF)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	entity.CurriculoSnapshot = curriculo
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
 	return s.repo.Create(ctx, entity)
