@@ -3,13 +3,21 @@ package clients
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+)
+
+var (
+	ErrCNPJNotFound     = errors.New("CNPJ não encontrado")
+	ErrCNPJAccessDenied = errors.New("acesso negado ao CNPJ")
+	ErrInvalidCNPJ      = errors.New("CNPJ inválido")
 )
 
 const (
@@ -319,10 +327,9 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 		return nil, fmt.Errorf("RMI base URL not configured")
 	}
 
-	// Normalize CNPJ (remove formatting)
-	normalizedCNPJ := cnpj
-	for _, char := range []string{".", "/", "-"} {
-		normalizedCNPJ = strings.ReplaceAll(normalizedCNPJ, char, "")
+	normalizedCNPJ, err := NormalizeCNPJ(cnpj)
+	if err != nil {
+		return nil, err
 	}
 
 	legalEntityURL := fmt.Sprintf("%s/v1/legal-entity/%s", c.baseURL, normalizedCNPJ)
@@ -346,11 +353,11 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 	}()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("CNPJ não encontrado")
+		return nil, ErrCNPJNotFound
 	}
 
 	if resp.StatusCode == http.StatusForbidden {
-		return nil, fmt.Errorf("acesso negado ao CNPJ")
+		return nil, ErrCNPJAccessDenied
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -364,4 +371,21 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 	}
 
 	return &legalEntity, nil
+}
+
+// NormalizeCNPJ removes formatting and validates that the CNPJ has 14 digits
+func NormalizeCNPJ(cnpj string) (string, error) {
+	var digits strings.Builder
+	for _, r := range cnpj {
+		if unicode.IsDigit(r) {
+			digits.WriteRune(r)
+		}
+	}
+
+	normalized := digits.String()
+	if len(normalized) != 14 {
+		return "", ErrInvalidCNPJ
+	}
+
+	return normalized, nil
 }

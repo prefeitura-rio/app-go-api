@@ -9,9 +9,13 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 )
 
+type TokenManagerInterface interface {
+	GetToken(ctx context.Context) (string, error)
+}
+
 type CNPJConsultaService struct {
 	rmiClient    *clients.RMIClient
-	tokenManager *auth.ServiceAccountTokenManager
+	tokenManager TokenManagerInterface
 }
 
 func NewCNPJConsultaService(

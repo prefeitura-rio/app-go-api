@@ -1,11 +1,12 @@
 package empregabilidade
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
@@ -186,12 +187,16 @@ func (h *EmpresaHandler) ConsultaCNPJ(c *gin.Context) {
 
 	result, err := h.cnpjConsultaService.ConsultarCNPJ(c.Request.Context(), cnpj)
 	if err != nil {
-		if strings.Contains(err.Error(), "não encontrado") {
+		if errors.Is(err, clients.ErrCNPJNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "CNPJ não encontrado"})
 			return
 		}
-		if strings.Contains(err.Error(), "acesso negado") {
+		if errors.Is(err, clients.ErrCNPJAccessDenied) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado ao CNPJ"})
+			return
+		}
+		if errors.Is(err, clients.ErrInvalidCNPJ) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "CNPJ inválido: deve conter 14 dígitos"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
