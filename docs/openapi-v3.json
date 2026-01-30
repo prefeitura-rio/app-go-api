@@ -2856,6 +2856,82 @@
         ]
       }
     },
+    "/api/v1/empregabilidade/empresas/consulta-cnpj/{cnpj}": {
+      "get": {
+        "description": "Consulta dados de uma empresa pelo CNPJ no RMI (Registro Mercantil Integrado)",
+        "tags": [
+          "empregabilidade-empresas"
+        ],
+        "summary": "Consultar CNPJ",
+        "parameters": [
+          {
+            "description": "CNPJ da empresa (com ou sem formatação)",
+            "name": "cnpj",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.LegalEntityConsultaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/empregabilidade/empresas/{cnpj}": {
       "get": {
         "description": "Retorna uma empresa pelo CNPJ",
@@ -7027,6 +7103,9 @@
           "created_at": {
             "type": "string"
           },
+          "curriculo_snapshot": {
+            "$ref": "#/components/schemas/empregabilidade.CurriculoCompleto"
+          },
           "deleted_at": {
             "type": "string",
             "example": "2024-12-31T23:59:59Z"
@@ -7344,7 +7423,13 @@
           "nome_fantasia": {
             "type": "string"
           },
+          "porte": {
+            "type": "string"
+          },
           "razao_social": {
+            "type": "string"
+          },
+          "setor": {
             "type": "string"
           },
           "updated_at": {
@@ -8540,6 +8625,66 @@
           "JornadaEstagio",
           "JornadaHomeOffice"
         ]
+      },
+      "models.LegalEntityConsultaResponse": {
+        "type": "object",
+        "properties": {
+          "cnae_fiscal": {
+            "type": "string"
+          },
+          "cnpj": {
+            "type": "string"
+          },
+          "contato": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string"
+              },
+              "telefone": {
+                "type": "string"
+              }
+            }
+          },
+          "endereco": {
+            "type": "object",
+            "properties": {
+              "bairro": {
+                "type": "string"
+              },
+              "cep": {
+                "type": "string"
+              },
+              "complemento": {
+                "type": "string"
+              },
+              "logradouro": {
+                "type": "string"
+              },
+              "municipio": {
+                "type": "string"
+              },
+              "numero": {
+                "type": "string"
+              },
+              "uf": {
+                "type": "string"
+              }
+            }
+          },
+          "nome_fantasia": {
+            "type": "string"
+          },
+          "porte": {
+            "type": "string"
+          },
+          "razao_social": {
+            "type": "string"
+          },
+          "situacao_cadastral": {
+            "type": "string"
+          }
+        }
       },
       "models.Modalidade": {
         "type": "string",
