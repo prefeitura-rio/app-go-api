@@ -310,3 +310,58 @@ func (c *RMIClient) GetCitizenByCPF(ctx context.Context, serviceToken string, cp
 
 	return &citizenInfo, nil
 }
+
+// GetLegalEntityByCNPJ fetches complete legal entity data from RMI API by CNPJ
+// Endpoint: GET /v1/legal-entity/{cnpj}
+// Requires service account authentication token
+func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken string, cnpj string) (*models.LegalEntityFull, error) {
+	if c.baseURL == "" {
+		return nil, fmt.Errorf("RMI base URL not configured")
+	}
+
+	// Normalize CNPJ (remove formatting)
+	normalizedCNPJ := cnpj
+	for _, char := range []string{".", "/", "-"} {
+		normalizedCNPJ = strings.ReplaceAll(normalizedCNPJ, char, "")
+	}
+
+	legalEntityURL := fmt.Sprintf("%s/v1/legal-entity/%s", c.baseURL, normalizedCNPJ)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", legalEntityURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create legal entity request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceToken))
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute legal entity request: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Error closing legal entity response body: %v\n", err)
+		}
+	}()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("CNPJ não encontrado")
+	}
+
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("acesso negado ao CNPJ")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var legalEntity models.LegalEntityFull
+	if err := json.NewDecoder(resp.Body).Decode(&legalEntity); err != nil {
+		return nil, fmt.Errorf("failed to decode legal entity response: %w", err)
+	}
+
+	return &legalEntity, nil
+}

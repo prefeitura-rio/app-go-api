@@ -3,6 +3,7 @@ package empregabilidade
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
@@ -10,11 +11,17 @@ import (
 )
 
 type EmpresaHandler struct {
-	service *services.EmpresaService
+	service              *services.EmpresaService
+	cnpjConsultaService  *services.CNPJConsultaService
 }
 
 func NewEmpresaHandler(service *services.EmpresaService) *EmpresaHandler {
 	return &EmpresaHandler{service: service}
+}
+
+func (h *EmpresaHandler) WithCNPJConsulta(cnpjConsultaService *services.CNPJConsultaService) *EmpresaHandler {
+	h.cnpjConsultaService = cnpjConsultaService
+	return h
 }
 
 // @Summary      Criar empresa
@@ -153,4 +160,43 @@ func (h *EmpresaHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Empresa excluída com sucesso"})
+}
+
+// @Summary      Consultar CNPJ
+// @Description  Consulta dados de uma empresa pelo CNPJ no RMI (Registro Mercantil Integrado)
+// @Tags         empregabilidade-empresas
+// @Produce      json
+// @Param        cnpj   path      string  true  "CNPJ da empresa (com ou sem formatação)"
+// @Success      200    {object}  models.LegalEntityConsultaResponse
+// @Failure      400    {object}  map[string]string
+// @Failure      404    {object}  map[string]string
+// @Failure      500    {object}  map[string]string
+// @Router       /api/v1/empregabilidade/empresas/consulta-cnpj/{cnpj} [get]
+func (h *EmpresaHandler) ConsultaCNPJ(c *gin.Context) {
+	if h.cnpjConsultaService == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Serviço de consulta CNPJ não disponível"})
+		return
+	}
+
+	cnpj := c.Param("cnpj")
+	if cnpj == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "CNPJ é obrigatório"})
+		return
+	}
+
+	result, err := h.cnpjConsultaService.ConsultarCNPJ(c.Request.Context(), cnpj)
+	if err != nil {
+		if strings.Contains(err.Error(), "não encontrado") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "CNPJ não encontrado"})
+			return
+		}
+		if strings.Contains(err.Error(), "acesso negado") {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado ao CNPJ"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
