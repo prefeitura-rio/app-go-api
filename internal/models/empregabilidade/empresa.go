@@ -11,6 +11,8 @@ type Empresa struct {
 	Descricao    string    `json:"descricao" gorm:"type:text"`
 	URLLogo      string    `json:"url_logo" gorm:"type:varchar(1000)"`
 	Website      string    `json:"website" gorm:"type:varchar(1000)"`
+	Setor        string    `json:"setor" gorm:"type:varchar(500)"`
+	Porte        string    `json:"porte" gorm:"type:varchar(100)"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }

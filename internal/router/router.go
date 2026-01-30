@@ -209,10 +209,16 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empEmpresaService := empServices.NewEmpresaService(empEmpresaRepo)
 	empVagaService := empServices.NewVagaService(empVagaRepo, empEmpresaRepo, empEtapaRepo, empInformacaoComplementarRepo)
 	empEtapaService := empServices.NewEtapaService(empEtapaRepo)
-	empCandidaturaService := empServices.NewCandidaturaService(empCandidaturaRepo, empVagaRepo)
 	empCurriculoService := empServices.NewCurriculoService(empCurriculoRepo)
+	empCandidaturaService := empServices.NewCandidaturaService(empCandidaturaRepo, empVagaRepo, empCurriculoService)
 	empOnboardingService := empServices.NewOnboardingService(empOnboardingRepo)
 	empTermosUsoService := empServices.NewTermosUsoService(empTermosUsoRepo)
+
+	// Initialize CNPJ consulta service for empregabilidade (requires service account)
+	var empCNPJConsultaService *empServices.CNPJConsultaService
+	if tokenManager != nil {
+		empCNPJConsultaService = empServices.NewCNPJConsultaService(rmiClient, tokenManager)
+	}
 
 	// Initialize job processor
 	jobs.InitializeJobProcessor(db, jobRepo, inscricaoRepo, cursoRepo)
@@ -253,7 +259,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empTipoConquistaHandler := empHandlers.NewTipoConquistaHandler(empTipoConquistaService)
 	empSituacaoAtualHandler := empHandlers.NewSituacaoAtualHandler(empSituacaoAtualService)
 	empDisponibilidadeHandler := empHandlers.NewDisponibilidadeHandler(empDisponibilidadeService)
-	empEmpresaHandler := empHandlers.NewEmpresaHandler(empEmpresaService)
+	empEmpresaHandler := empHandlers.NewEmpresaHandler(empEmpresaService).WithCNPJConsulta(empCNPJConsultaService)
 	empVagaHandler := empHandlers.NewVagaHandler(empVagaService)
 	empEtapaHandler := empHandlers.NewEtapaHandler(empEtapaService)
 	empCandidaturaHandler := empHandlers.NewCandidaturaHandler(empCandidaturaService)
@@ -506,6 +512,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	{
 		empEmpresas.POST("", empEmpresaHandler.Create)
 		empEmpresas.GET("", empEmpresaHandler.List)
+		empEmpresas.GET("/consulta-cnpj/:cnpj", empEmpresaHandler.ConsultaCNPJ)
 		empEmpresas.GET("/:cnpj", empEmpresaHandler.GetByID)
 		empEmpresas.PUT("/:cnpj", empEmpresaHandler.Update)
 		empEmpresas.DELETE("/:cnpj", empEmpresaHandler.Delete)
