@@ -531,11 +531,11 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		empVagas.PUT("/:id/tipos-pcd", empVagaHandler.UpdateTiposPCD)
 
 		// Etapas (nested)
-		empVagas.POST("/:vagaId/etapas", empEtapaHandler.Create)
-		empVagas.GET("/:vagaId/etapas", empEtapaHandler.ListByVaga)
-		empVagas.GET("/:vagaId/etapas/:id", empEtapaHandler.GetByID)
-		empVagas.PUT("/:vagaId/etapas/:id", empEtapaHandler.Update)
-		empVagas.DELETE("/:vagaId/etapas/:id", empEtapaHandler.Delete)
+		empVagas.POST("/:id/etapas", empEtapaHandler.Create)
+		empVagas.GET("/:id/etapas", empEtapaHandler.ListByVaga)
+		empVagas.GET("/:id/etapas/:etapaId", empEtapaHandler.GetByID)
+		empVagas.PUT("/:id/etapas/:etapaId", empEtapaHandler.Update)
+		empVagas.DELETE("/:id/etapas/:etapaId", empEtapaHandler.Delete)
 	}
 
 	// Candidaturas

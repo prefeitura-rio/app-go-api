@@ -22,14 +22,14 @@ func NewEtapaHandler(service *services.EtapaService) *EtapaHandler {
 // @Tags         empregabilidade-etapas
 // @Accept       json
 // @Produce      json
-// @Param        vagaId   path      string                 true  "ID da vaga"
+// @Param        id       path      string                 true  "ID da vaga"
 // @Param        request  body      empregabilidade.Etapa  true  "Dados da etapa"
 // @Success      201      {object}  empregabilidade.Etapa
 // @Failure      400      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
-// @Router       /api/v1/empregabilidade/vagas/{vagaId}/etapas [post]
+// @Router       /api/v1/empregabilidade/vagas/{id}/etapas [post]
 func (h *EtapaHandler) Create(c *gin.Context) {
-	vagaID, err := uuid.Parse(c.Param("vagaId"))
+	vagaID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da vaga inválido"})
 		return
@@ -57,13 +57,13 @@ func (h *EtapaHandler) Create(c *gin.Context) {
 // @Description  Retorna todas as etapas de uma vaga
 // @Tags         empregabilidade-etapas
 // @Produce      json
-// @Param        vagaId   path      string  true  "ID da vaga"
+// @Param        id       path      string  true  "ID da vaga"
 // @Success      200      {object}  map[string]interface{}
 // @Failure      400      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
-// @Router       /api/v1/empregabilidade/vagas/{vagaId}/etapas [get]
+// @Router       /api/v1/empregabilidade/vagas/{id}/etapas [get]
 func (h *EtapaHandler) ListByVaga(c *gin.Context) {
-	vagaID, err := uuid.Parse(c.Param("vagaId"))
+	vagaID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da vaga inválido"})
 		return
@@ -82,15 +82,15 @@ func (h *EtapaHandler) ListByVaga(c *gin.Context) {
 // @Description  Retorna uma etapa pelo ID
 // @Tags         empregabilidade-etapas
 // @Produce      json
-// @Param        vagaId  path      string  true  "ID da vaga"
-// @Param        id      path      string  true  "ID da etapa"
-// @Success      200     {object}  empregabilidade.Etapa
-// @Failure      400     {object}  map[string]string
-// @Failure      404     {object}  map[string]string
-// @Failure      500     {object}  map[string]string
-// @Router       /api/v1/empregabilidade/vagas/{vagaId}/etapas/{id} [get]
+// @Param        id       path      string  true  "ID da vaga"
+// @Param        etapaId  path      string  true  "ID da etapa"
+// @Success      200      {object}  empregabilidade.Etapa
+// @Failure      400      {object}  map[string]string
+// @Failure      404      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/etapas/{etapaId} [get]
 func (h *EtapaHandler) GetByID(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := uuid.Parse(c.Param("etapaId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
 		return
@@ -115,21 +115,21 @@ func (h *EtapaHandler) GetByID(c *gin.Context) {
 // @Tags         empregabilidade-etapas
 // @Accept       json
 // @Produce      json
-// @Param        vagaId   path      string                 true  "ID da vaga"
-// @Param        id       path      string                 true  "ID da etapa"
+// @Param        id       path      string                 true  "ID da vaga"
+// @Param        etapaId  path      string                 true  "ID da etapa"
 // @Param        request  body      empregabilidade.Etapa  true  "Dados da etapa"
 // @Success      200      {object}  empregabilidade.Etapa
 // @Failure      400      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
-// @Router       /api/v1/empregabilidade/vagas/{vagaId}/etapas/{id} [put]
+// @Router       /api/v1/empregabilidade/vagas/{id}/etapas/{etapaId} [put]
 func (h *EtapaHandler) Update(c *gin.Context) {
-	vagaID, err := uuid.Parse(c.Param("vagaId"))
+	vagaID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da vaga inválido"})
 		return
 	}
 
-	id, err := uuid.Parse(c.Param("id"))
+	etapaID, err := uuid.Parse(c.Param("etapaId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
 		return
@@ -141,7 +141,7 @@ func (h *EtapaHandler) Update(c *gin.Context) {
 		return
 	}
 
-	entity.ID = id
+	entity.ID = etapaID
 	entity.IDVaga = vagaID
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
@@ -156,20 +156,20 @@ func (h *EtapaHandler) Update(c *gin.Context) {
 // @Description  Remove uma etapa pelo ID
 // @Tags         empregabilidade-etapas
 // @Produce      json
-// @Param        vagaId  path      string  true  "ID da vaga"
-// @Param        id      path      string  true  "ID da etapa"
-// @Success      200     {object}  map[string]string
-// @Failure      400     {object}  map[string]string
-// @Failure      500     {object}  map[string]string
-// @Router       /api/v1/empregabilidade/vagas/{vagaId}/etapas/{id} [delete]
+// @Param        id       path      string  true  "ID da vaga"
+// @Param        etapaId  path      string  true  "ID da etapa"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/etapas/{etapaId} [delete]
 func (h *EtapaHandler) Delete(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	etapaID, err := uuid.Parse(c.Param("etapaId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
 		return
 	}
 
-	if err := h.service.Delete(c.Request.Context(), id); err != nil {
+	if err := h.service.Delete(c.Request.Context(), etapaID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
