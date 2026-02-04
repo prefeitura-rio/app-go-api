@@ -32,6 +32,7 @@ func (r *VagaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empregabil
 		Preload("Contratante").
 		Preload("RegimeContratacao").
 		Preload("ModeloTrabalho").
+		Preload("OrgaoParceiro").
 		Preload("TiposPCD").
 		Preload("Etapas", func(db *gorm.DB) *gorm.DB {
 			return db.Order("ordem ASC")
@@ -48,16 +49,13 @@ func (r *VagaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empregabil
 }
 
 func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
-	// Use map to explicitly control which fields are updated
-	// This allows zero-values (e.g., VagaPCD=false) while preventing
-	// accidental overwrites from partial payloads
 	updates := map[string]interface{}{
 		"titulo":                entity.Titulo,
 		"descricao":             entity.Descricao,
 		"id_contratante":        entity.IDContratante,
 		"id_regime_contratacao": entity.IDRegimeContratacao,
 		"id_modelo_trabalho":    entity.IDModeloTrabalho,
-		"vaga_pcd":              entity.VagaPCD,
+		"acessibilidade_pcd":    entity.AcessibilidadePCD,
 		"valor_vaga":            entity.ValorVaga,
 		"bairro":                entity.Bairro,
 		"data_limite":           entity.DataLimite,
@@ -103,6 +101,7 @@ func (r *VagaRepository) List(ctx context.Context, filter map[string]interface{}
 		Preload("Contratante").
 		Preload("RegimeContratacao").
 		Preload("ModeloTrabalho").
+		Preload("OrgaoParceiro").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -141,6 +140,7 @@ func (r *VagaRepository) ListByContratante(ctx context.Context, cnpj string, lim
 	result := db.
 		Preload("RegimeContratacao").
 		Preload("ModeloTrabalho").
+		Preload("OrgaoParceiro").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -164,6 +164,7 @@ func (r *VagaRepository) ListByOrgaoParceiro(ctx context.Context, orgaoID string
 		Preload("Contratante").
 		Preload("RegimeContratacao").
 		Preload("ModeloTrabalho").
+		Preload("OrgaoParceiro").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
