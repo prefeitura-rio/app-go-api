@@ -46,7 +46,7 @@ func NewInscricaoService(
 
 func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscricao) error {
 	// Validate course exists and can accept enrollments (lightweight query)
-	status, enrollmentStart, enrollmentEnd, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)
+	status, enrollmentStart, enrollmentEnd, autoApprove, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)
 	if err != nil {
 		return err
 	}
@@ -110,8 +110,12 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		}
 	}
 
-	// Set default values
-	inscricao.Status = models.StatusInscricaoPending
+	// Set initial status based on auto-approve setting
+	if autoApprove {
+		inscricao.Status = models.StatusInscricaoApproved
+	} else {
+		inscricao.Status = models.StatusInscricaoPending
+	}
 	inscricao.EnrolledAt = time.Now()
 	inscricao.UpdatedAt = time.Now()
 
@@ -120,14 +124,19 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		return err
 	}
 
-	// Send "Em Análise" email (pending status)
+	// Send appropriate email based on status
 	if s.emailNotificationService != nil {
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err == nil && curso != nil {
-			// Send email asynchronously to avoid blocking the creation
 			go func() {
-				if err := s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso); err != nil {
-					fmt.Printf("Failed to send enrollment created email: %v\n", err)
+				var emailErr error
+				if autoApprove {
+					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), inscricao, curso)
+				} else {
+					emailErr = s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso)
+				}
+				if emailErr != nil {
+					fmt.Printf("Failed to send enrollment email: %v\n", emailErr)
 				}
 			}()
 		}
@@ -263,7 +272,7 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 
 func (s *InscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) {
 	// Validate course exists (lightweight query - only checks existence)
-	_, _, _, err := s.cursoRepo.ValidateForEnrollment(ctx, cursoID)
+	_, _, _, _, err := s.cursoRepo.ValidateForEnrollment(ctx, cursoID)
 	if err != nil {
 		return nil, err
 	}
@@ -350,13 +359,15 @@ func (s *InscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cu
 	return s.repo.Update(ctx, inscricao)
 }
 
-// validateScheduleID validates that the schedule exists and belongs to the course
+// validateScheduleID validates that the schedule exists, belongs to the course, and is accepting enrollments
 func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uuid.UUID, curso *models.Curso) error {
 	// Check all locations and schedules in the course
 	for _, location := range curso.LocationClasses {
 		for _, schedule := range location.Schedules {
 			if schedule.ID == scheduleID {
-				// Schedule found and belongs to this course
+				if schedule.AcceptingEnrollments != nil && !*schedule.AcceptingEnrollments {
+					return fmt.Errorf("esta turma não está aceitando inscrições no momento")
+				}
 				return nil
 			}
 		}
@@ -366,7 +377,9 @@ func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uu
 	if curso.RemoteClass != nil {
 		for _, schedule := range curso.RemoteClass.Schedules {
 			if schedule.ID == scheduleID {
-				// Schedule found and belongs to this course
+				if schedule.AcceptingEnrollments != nil && !*schedule.AcceptingEnrollments {
+					return fmt.Errorf("esta turma não está aceitando inscrições no momento")
+				}
 				return nil
 			}
 		}

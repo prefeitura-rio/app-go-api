@@ -38,8 +38,12 @@ func (r *CursoRepository) GetByID(ctx context.Context, id int) (*models.Curso, e
 		Preload("Acessibilidades").
 		Preload("Instituicao").
 		Preload("CustomFields").
-		Preload("LocationClasses.Schedules").
-		Preload("RemoteClass.Schedules").
+		Preload("LocationClasses.Schedules", func(db *gorm.DB) *gorm.DB {
+			return db.Order("display_order ASC")
+		}).
+		Preload("RemoteClass.Schedules", func(db *gorm.DB) *gorm.DB {
+			return db.Order("display_order ASC")
+		}).
 		First(&curso, id)
 
 	if result.Error != nil {
@@ -122,8 +126,12 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 	result := baseQuery.
 		Preload("Categorias").
 		Preload("Acessibilidades").
-		Preload("LocationClasses.Schedules").
-		Preload("RemoteClass.Schedules").
+		Preload("LocationClasses.Schedules", func(db *gorm.DB) *gorm.DB {
+			return db.Order("display_order ASC")
+		}).
+		Preload("RemoteClass.Schedules", func(db *gorm.DB) *gorm.DB {
+			return db.Order("display_order ASC")
+		}).
 		Order("id DESC").
 		Limit(limit).
 		Offset(offset).
@@ -228,6 +236,10 @@ func (r *CursoRepository) CreateRemoteClass(ctx context.Context, remoteClass *mo
 		return nil
 	}
 
+	for j := range remoteClass.Schedules {
+		remoteClass.Schedules[j].DisplayOrder = j + 1
+	}
+
 	result := r.db.WithContext(ctx).Create(remoteClass)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao criar remote class: %w", result.Error)
@@ -240,6 +252,12 @@ func (r *CursoRepository) CreateRemoteClass(ctx context.Context, remoteClass *mo
 func (r *CursoRepository) CreateLocationClasses(ctx context.Context, locationClasses []models.LocationClass) error {
 	if len(locationClasses) == 0 {
 		return nil
+	}
+
+	for i := range locationClasses {
+		for j := range locationClasses[i].Schedules {
+			locationClasses[i].Schedules[j].DisplayOrder = j + 1
+		}
 	}
 
 	result := r.db.WithContext(ctx).Create(&locationClasses)
@@ -314,11 +332,12 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 
 			for j := range curso.RemoteClass.Schedules {
 				curso.RemoteClass.Schedules[j].RemoteClassID = curso.RemoteClass.ID
+				curso.RemoteClass.Schedules[j].DisplayOrder = j + 1
 
 				if curso.RemoteClass.Schedules[j].ID.String() != "00000000-0000-0000-0000-000000000000" {
 					// Update existing schedule
 					tx.WithContext(ctx).Model(&curso.RemoteClass.Schedules[j]).
-						Select("vacancies", "class_start_date", "class_end_date", "class_time", "class_days", "updated_at").
+						Select("vacancies", "class_start_date", "class_end_date", "class_time", "class_days", "display_order", "accepting_enrollments", "updated_at").
 						Updates(&curso.RemoteClass.Schedules[j])
 				} else {
 					// Queue for batch creation
@@ -400,11 +419,12 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 
 			for j := range curso.LocationClasses[i].Schedules {
 				curso.LocationClasses[i].Schedules[j].LocationID = curso.LocationClasses[i].ID
+				curso.LocationClasses[i].Schedules[j].DisplayOrder = j + 1
 
 				if curso.LocationClasses[i].Schedules[j].ID.String() != "00000000-0000-0000-0000-000000000000" {
 					// Update existing schedule
 					tx.WithContext(ctx).Model(&curso.LocationClasses[i].Schedules[j]).
-						Select("vacancies", "class_start_date", "class_end_date", "class_time", "class_days", "updated_at").
+						Select("vacancies", "class_start_date", "class_end_date", "class_time", "class_days", "display_order", "accepting_enrollments", "updated_at").
 						Updates(&curso.LocationClasses[i].Schedules[j])
 				} else {
 					// Queue for batch creation
@@ -485,27 +505,30 @@ func (r *CursoRepository) CountEnrollmentsByScheduleIDs(ctx context.Context, sch
 // ValidateForEnrollment checks if a course exists and can accept enrollments
 // This is a lightweight query that only fetches the fields needed for validation,
 // avoiding the overhead of loading all relationships
-func (r *CursoRepository) ValidateForEnrollment(ctx context.Context, cursoID int) (status string, enrollmentStart, enrollmentEnd *time.Time, err error) {
+func (r *CursoRepository) ValidateForEnrollment(ctx context.Context, cursoID int) (status string, enrollmentStart, enrollmentEnd *time.Time, autoApprove bool, err error) {
 	var result struct {
-		Status              string     `gorm:"column:status"`
-		EnrollmentStartDate *time.Time `gorm:"column:enrollment_start_date"`
-		EnrollmentEndDate   *time.Time `gorm:"column:enrollment_end_date"`
+		Status                 string     `gorm:"column:status"`
+		EnrollmentStartDate    *time.Time `gorm:"column:enrollment_start_date"`
+		EnrollmentEndDate      *time.Time `gorm:"column:enrollment_end_date"`
+		AutoApproveEnrollments *bool      `gorm:"column:auto_approve_enrollments"`
 	}
 
 	err = r.db.WithContext(ctx).
 		Model(&models.Curso{}).
-		Select("status, enrollment_start_date, enrollment_end_date").
+		Select("status, enrollment_start_date, enrollment_end_date, auto_approve_enrollments").
 		Where("id = ?", cursoID).
 		First(&result).Error
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return "", nil, nil, fmt.Errorf("curso não encontrado")
+			return "", nil, nil, false, fmt.Errorf("curso não encontrado")
 		}
-		return "", nil, nil, fmt.Errorf("erro ao validar curso: %w", err)
+		return "", nil, nil, false, fmt.Errorf("erro ao validar curso: %w", err)
 	}
 
-	return result.Status, result.EnrollmentStartDate, result.EnrollmentEndDate, nil
+	autoApproveValue := result.AutoApproveEnrollments != nil && *result.AutoApproveEnrollments
+
+	return result.Status, result.EnrollmentStartDate, result.EnrollmentEndDate, autoApproveValue, nil
 }
 
 // GetCourseScheduleByID fetches a course schedule by its ID
