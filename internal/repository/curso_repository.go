@@ -336,9 +336,11 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 
 				if curso.RemoteClass.Schedules[j].ID.String() != "00000000-0000-0000-0000-000000000000" {
 					// Update existing schedule
-					tx.WithContext(ctx).Model(&curso.RemoteClass.Schedules[j]).
+					if err := tx.WithContext(ctx).Model(&curso.RemoteClass.Schedules[j]).
 						Select("vacancies", "class_start_date", "class_end_date", "class_time", "class_days", "display_order", "accepting_enrollments", "updated_at").
-						Updates(&curso.RemoteClass.Schedules[j])
+						Updates(&curso.RemoteClass.Schedules[j]).Error; err != nil {
+						return fmt.Errorf("erro ao atualizar remote schedule: %w", err)
+					}
 				} else {
 					// Queue for batch creation
 					schedulesToCreate = append(schedulesToCreate, curso.RemoteClass.Schedules[j])
@@ -423,9 +425,11 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 
 				if curso.LocationClasses[i].Schedules[j].ID.String() != "00000000-0000-0000-0000-000000000000" {
 					// Update existing schedule
-					tx.WithContext(ctx).Model(&curso.LocationClasses[i].Schedules[j]).
+					if err := tx.WithContext(ctx).Model(&curso.LocationClasses[i].Schedules[j]).
 						Select("vacancies", "class_start_date", "class_end_date", "class_time", "class_days", "display_order", "accepting_enrollments", "updated_at").
-						Updates(&curso.LocationClasses[i].Schedules[j])
+						Updates(&curso.LocationClasses[i].Schedules[j]).Error; err != nil {
+						return fmt.Errorf("erro ao atualizar course schedule: %w", err)
+					}
 				} else {
 					// Queue for batch creation
 					schedulesToCreate = append(schedulesToCreate, curso.LocationClasses[i].Schedules[j])

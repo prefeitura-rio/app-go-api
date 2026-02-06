@@ -254,25 +254,20 @@ func (s *CursoService) normalizeCurso(curso *models.Curso) {
 		curso.Status = models.StatusCursoDraft
 	}
 
-	// Default auto_approve_enrollments to false
-	if curso.AutoApproveEnrollments == nil {
-		defaultFalse := false
-		curso.AutoApproveEnrollments = &defaultFalse
-	}
-
 	// Default accepting_enrollments to true for all schedules
-	defaultTrue := true
 	for i := range curso.LocationClasses {
 		for j := range curso.LocationClasses[i].Schedules {
 			if curso.LocationClasses[i].Schedules[j].AcceptingEnrollments == nil {
-				curso.LocationClasses[i].Schedules[j].AcceptingEnrollments = &defaultTrue
+				v := true
+				curso.LocationClasses[i].Schedules[j].AcceptingEnrollments = &v
 			}
 		}
 	}
 	if curso.RemoteClass != nil {
 		for j := range curso.RemoteClass.Schedules {
 			if curso.RemoteClass.Schedules[j].AcceptingEnrollments == nil {
-				curso.RemoteClass.Schedules[j].AcceptingEnrollments = &defaultTrue
+				v := true
+				curso.RemoteClass.Schedules[j].AcceptingEnrollments = &v
 			}
 		}
 	}
