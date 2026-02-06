@@ -90,11 +90,16 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		}
 
 		// If auto-approve is enabled, check vacancy availability to prevent overbooking
+		// Note: This is an advisory check (COUNT then INSERT, no lock). In high-concurrency
+		// scenarios, multiple requests could pass the check and exceed vacancies. This matches
+		// the existing pattern used in ChangeSchedule and manual approval flows. For strict
+		// enforcement, consider adding DB constraints or SELECT FOR UPDATE locks.
 		if autoApprove {
 			vacancies := s.findScheduleVacancies(*inscricao.ScheduleID, curso)
 			if vacancies > 0 {
 				enrolledCount, err := s.cursoRepo.CountEnrollmentsByScheduleID(ctx, *inscricao.ScheduleID)
-				if err == nil && int(enrolledCount) >= vacancies {
+				// Fail-safe: if we cannot verify capacity or schedule is full, disable auto-approve
+				if err != nil || int(enrolledCount) >= vacancies {
 					autoApprove = false
 				}
 			}
