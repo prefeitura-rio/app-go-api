@@ -90,6 +90,7 @@ func transformCursoToResponse(curso *models.Curso) gin.H {
 		"acessibilidades":           curso.Acessibilidades,
 		"accessibility":             curso.Accessibility,
 		"is_visible":                curso.IsVisible,
+		"auto_approve_enrollments":  curso.AutoApproveEnrollments,
 		"custom_fields":             curso.CustomFields,
 		"locations":                 curso.LocationClasses,
 		"remote_class":              curso.RemoteClass,
@@ -385,6 +386,45 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	// Preserve is_visible if not provided in request
 	if curso.IsVisible == nil {
 		curso.IsVisible = existingCurso.IsVisible
+	}
+
+	// Preserve auto_approve_enrollments if not provided in request
+	if curso.AutoApproveEnrollments == nil {
+		curso.AutoApproveEnrollments = existingCurso.AutoApproveEnrollments
+	}
+
+	// Preserve accepting_enrollments for existing schedules if not provided in request
+	existingScheduleValues := make(map[string]*bool)
+	for _, loc := range existingCurso.LocationClasses {
+		for _, sched := range loc.Schedules {
+			existingScheduleValues[sched.ID.String()] = sched.AcceptingEnrollments
+		}
+	}
+	if existingCurso.RemoteClass != nil {
+		for _, sched := range existingCurso.RemoteClass.Schedules {
+			existingScheduleValues[sched.ID.String()] = sched.AcceptingEnrollments
+		}
+	}
+	zeroUUID := "00000000-0000-0000-0000-000000000000"
+	for i := range curso.LocationClasses {
+		for j := range curso.LocationClasses[i].Schedules {
+			sid := curso.LocationClasses[i].Schedules[j].ID.String()
+			if curso.LocationClasses[i].Schedules[j].AcceptingEnrollments == nil && sid != zeroUUID {
+				if existing, ok := existingScheduleValues[sid]; ok {
+					curso.LocationClasses[i].Schedules[j].AcceptingEnrollments = existing
+				}
+			}
+		}
+	}
+	if curso.RemoteClass != nil {
+		for j := range curso.RemoteClass.Schedules {
+			sid := curso.RemoteClass.Schedules[j].ID.String()
+			if curso.RemoteClass.Schedules[j].AcceptingEnrollments == nil && sid != zeroUUID {
+				if existing, ok := existingScheduleValues[sid]; ok {
+					curso.RemoteClass.Schedules[j].AcceptingEnrollments = existing
+				}
+			}
+		}
 	}
 
 	if err := h.cursoService.Update(c.Request.Context(), &curso); err != nil {

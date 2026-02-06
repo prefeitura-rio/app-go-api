@@ -103,6 +103,9 @@ type Curso struct {
 	// Used for in-person courses that require manual enrollment and should not appear in public course lists
 	IsVisible *bool `json:"is_visible,omitempty" gorm:"column:is_visible;default:true" example:"true"`
 
+	// Auto-approve enrollments - when true, new enrollments are automatically approved instead of pending
+	AutoApproveEnrollments *bool `json:"auto_approve_enrollments,omitempty" gorm:"column:auto_approve_enrollments;default:false" example:"false"`
+
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 

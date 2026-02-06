@@ -253,6 +253,31 @@ func (s *CursoService) normalizeCurso(curso *models.Curso) {
 	if curso.Status == "" {
 		curso.Status = models.StatusCursoDraft
 	}
+
+	// Default auto_approve_enrollments to false when nil (prevents NULL in DB on create;
+	// on update, the handler preserves the existing value before calling normalize)
+	if curso.AutoApproveEnrollments == nil {
+		v := false
+		curso.AutoApproveEnrollments = &v
+	}
+
+	// Default accepting_enrollments to true for all schedules
+	for i := range curso.LocationClasses {
+		for j := range curso.LocationClasses[i].Schedules {
+			if curso.LocationClasses[i].Schedules[j].AcceptingEnrollments == nil {
+				v := true
+				curso.LocationClasses[i].Schedules[j].AcceptingEnrollments = &v
+			}
+		}
+	}
+	if curso.RemoteClass != nil {
+		for j := range curso.RemoteClass.Schedules {
+			if curso.RemoteClass.Schedules[j].AcceptingEnrollments == nil {
+				v := true
+				curso.RemoteClass.Schedules[j].AcceptingEnrollments = &v
+			}
+		}
+	}
 }
 
 // validateLocationClasses validates location classes and their schedules
