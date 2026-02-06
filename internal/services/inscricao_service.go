@@ -88,6 +88,17 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
 			return err
 		}
+
+		// If auto-approve is enabled, check vacancy availability to prevent overbooking
+		if autoApprove {
+			vacancies := s.findScheduleVacancies(*inscricao.ScheduleID, curso)
+			if vacancies > 0 {
+				enrolledCount, err := s.cursoRepo.CountEnrollmentsByScheduleID(ctx, *inscricao.ScheduleID)
+				if err == nil && int(enrolledCount) >= vacancies {
+					autoApprove = false
+				}
+			}
+		}
 	}
 
 	// Fetch citizen data from RMI (on-demand sync) to populate Email and Phone
@@ -357,6 +368,25 @@ func (s *InscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cu
 	inscricao.UpdatedAt = time.Now()
 
 	return s.repo.Update(ctx, inscricao)
+}
+
+// findScheduleVacancies returns the vacancy limit for a schedule within a course
+func (s *InscricaoService) findScheduleVacancies(scheduleID uuid.UUID, curso *models.Curso) int {
+	for _, location := range curso.LocationClasses {
+		for _, schedule := range location.Schedules {
+			if schedule.ID == scheduleID {
+				return schedule.Vacancies
+			}
+		}
+	}
+	if curso.RemoteClass != nil {
+		for _, schedule := range curso.RemoteClass.Schedules {
+			if schedule.ID == scheduleID {
+				return schedule.Vacancies
+			}
+		}
+	}
+	return 0
 }
 
 // validateScheduleID validates that the schedule exists, belongs to the course, and is accepting enrollments
