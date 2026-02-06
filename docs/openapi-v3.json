@@ -12270,6 +12270,11 @@
             "description": "Accessibility field - free text field for frontend",
             "type": "string"
           },
+          "auto_approve_enrollments": {
+            "description": "Auto-approve enrollments - when true, new enrollments are automatically approved instead of pending",
+            "type": "boolean",
+            "example": false
+          },
           "carga_horaria": {
             "type": "integer"
           },
