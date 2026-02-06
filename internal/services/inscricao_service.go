@@ -611,12 +611,18 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 			if remoteSchedule == nil {
 				return nil, fmt.Errorf("turma não encontrada")
 			}
+			if remoteSchedule.AcceptingEnrollments != nil && !*remoteSchedule.AcceptingEnrollments {
+				return nil, fmt.Errorf("esta turma não está aceitando inscrições no momento")
+			}
 			// Check vacancies for remote schedule
 			enrolledCount := enrollmentCounts[*request.ScheduleID]
 			if int(enrolledCount) >= remoteSchedule.Vacancies {
 				return nil, fmt.Errorf("não há vagas disponíveis nesta turma")
 			}
 		} else {
+			if schedule.AcceptingEnrollments != nil && !*schedule.AcceptingEnrollments {
+				return nil, fmt.Errorf("esta turma não está aceitando inscrições no momento")
+			}
 			// Check vacancies for course schedule
 			enrolledCount := enrollmentCounts[*request.ScheduleID]
 			if int(enrolledCount) >= schedule.Vacancies {
