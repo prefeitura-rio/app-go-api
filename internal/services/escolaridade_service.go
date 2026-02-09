@@ -4,14 +4,13 @@ import (
 	"context"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
-	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
 type EscolaridadeService struct {
-	repo *repository.EscolaridadeRepository
+	repo EscolaridadeRepositoryInterface
 }
 
-func NewEscolaridadeService(repo *repository.EscolaridadeRepository) *EscolaridadeService {
+func NewEscolaridadeService(repo EscolaridadeRepositoryInterface) *EscolaridadeService {
 	return &EscolaridadeService{
 		repo: repo,
 	}
