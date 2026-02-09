@@ -4,14 +4,13 @@ import (
 	"context"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
-	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
 type CategoriaService struct {
-	repo *repository.CategoriaRepository
+	repo CategoriaRepositoryInterface
 }
 
-func NewCategoriaService(repo *repository.CategoriaRepository) *CategoriaService {
+func NewCategoriaService(repo CategoriaRepositoryInterface) *CategoriaService {
 	return &CategoriaService{
 		repo: repo,
 	}
