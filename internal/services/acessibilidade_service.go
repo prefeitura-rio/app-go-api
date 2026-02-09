@@ -4,14 +4,13 @@ import (
 	"context"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
-	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
 type AcessibilidadeService struct {
-	repo *repository.AcessibilidadeRepository
+	repo AcessibilidadeRepositoryInterface
 }
 
-func NewAcessibilidadeService(repo *repository.AcessibilidadeRepository) *AcessibilidadeService {
+func NewAcessibilidadeService(repo AcessibilidadeRepositoryInterface) *AcessibilidadeService {
 	return &AcessibilidadeService{
 		repo: repo,
 	}

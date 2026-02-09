@@ -36,6 +36,33 @@ type OportunidadeMEIRepositoryInterface interface {
 	GetByID(ctx context.Context, id int) (*models.OportunidadeMEI, error)
 }
 
+// CategoriaRepositoryInterface defines the interface for Categoria repository
+type CategoriaRepositoryInterface interface {
+	Create(ctx context.Context, categoria *models.Categoria) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Categoria, error)
+	Update(ctx context.Context, categoria *models.Categoria) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Categoria, int, error)
+}
+
+// AcessibilidadeRepositoryInterface defines the interface for Acessibilidade repository
+type AcessibilidadeRepositoryInterface interface {
+	Create(ctx context.Context, acessibilidade *models.Acessibilidade) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Acessibilidade, error)
+	Update(ctx context.Context, acessibilidade *models.Acessibilidade) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Acessibilidade, int, error)
+}
+
+// EscolaridadeRepositoryInterface defines the interface for Escolaridade repository
+type EscolaridadeRepositoryInterface interface {
+	Create(ctx context.Context, escolaridade *models.Escolaridade) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Escolaridade, error)
+	Update(ctx context.Context, escolaridade *models.Escolaridade) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Escolaridade, int, error)
+}
+
 // CNAEValidationServiceInterface defines the interface for CNAE validation service
 type CNAEValidationServiceInterface interface {
 	ValidatePropostaForCNAE(ctx context.Context, authToken string, cnpj string, opportunityCNAEIDs []string) error
