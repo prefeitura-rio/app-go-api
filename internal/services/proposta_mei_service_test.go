@@ -103,6 +103,10 @@ func NewMockOportunidadeRepo() *MockOportunidadeRepo {
 	}
 }
 
+func (m *MockOportunidadeRepo) Create(ctx context.Context, oportunidade *models.OportunidadeMEI) (int, error) {
+	return 0, nil
+}
+
 func (m *MockOportunidadeRepo) GetByID(ctx context.Context, id int) (*models.OportunidadeMEI, error) {
 	if m.getError != nil {
 		return nil, m.getError
@@ -112,6 +116,30 @@ func (m *MockOportunidadeRepo) GetByID(ctx context.Context, id int) (*models.Opo
 		return nil, nil
 	}
 	return oportunidade, nil
+}
+
+func (m *MockOportunidadeRepo) Update(ctx context.Context, oportunidade *models.OportunidadeMEI) error {
+	return nil
+}
+
+func (m *MockOportunidadeRepo) Delete(ctx context.Context, id int) error {
+	return nil
+}
+
+func (m *MockOportunidadeRepo) List(ctx context.Context, filters map[string]interface{}, titulo string, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+	return nil, 0, nil
+}
+
+func (m *MockOportunidadeRepo) ListByStatus(ctx context.Context, status models.StatusOportunidadeMEI, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+	return nil, 0, nil
+}
+
+func (m *MockOportunidadeRepo) ListByOrgao(ctx context.Context, orgaoID string, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+	return nil, 0, nil
+}
+
+func (m *MockOportunidadeRepo) UpdateExpiredOpportunities(ctx context.Context) error {
+	return nil
 }
 
 // Mock CNAE Validation Service

@@ -4,14 +4,13 @@ import (
 	"context"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
-	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
 type InstituicaoService struct {
-	repo *repository.InstituicaoRepository
+	repo InstituicaoRepositoryInterface
 }
 
-func NewInstituicaoService(repo *repository.InstituicaoRepository) *InstituicaoService {
+func NewInstituicaoService(repo InstituicaoRepositoryInterface) *InstituicaoService {
 	return &InstituicaoService{
 		repo: repo,
 	}

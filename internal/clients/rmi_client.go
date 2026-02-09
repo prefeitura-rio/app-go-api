@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/prefeitura-rio/app-go-api/internal/logger"
 	"time"
 	"unicode"
 
@@ -95,7 +97,7 @@ func (c *RMIClient) fetchPage(ctx context.Context, authToken string, cpf string,
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("Error closing RMI response body: %v\n", err)
+			logger.Warn("error closing RMI response body", "error", err)
 		}
 	}()
 
@@ -137,7 +139,7 @@ func (c *RMIClient) GetOrgao(ctx context.Context, orgaoID string) (*models.Orgao
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("Error closing RMI response body: %v\n", err)
+			logger.Warn("error closing RMI response body", "error", err)
 		}
 	}()
 
@@ -189,7 +191,7 @@ func (c *RMIClient) GetCNPJOwnerInfo(ctx context.Context, serviceToken string, c
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("Error closing legal entity response body: %v\n", err)
+			logger.Warn("error closing response body", "error", err)
 		}
 	}()
 
@@ -240,7 +242,7 @@ func (c *RMIClient) GetCNPJOwnerInfo(ctx context.Context, serviceToken string, c
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("Error closing citizen response body: %v\n", err)
+			logger.Warn("error closing response body", "error", err)
 		}
 	}()
 
@@ -298,7 +300,7 @@ func (c *RMIClient) GetCitizenByCPF(ctx context.Context, serviceToken string, cp
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("Error closing citizen response body: %v\n", err)
+			logger.Warn("error closing response body", "error", err)
 		}
 	}()
 
@@ -348,7 +350,7 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("Error closing legal entity response body: %v\n", err)
+			logger.Warn("error closing response body", "error", err)
 		}
 	}()
 

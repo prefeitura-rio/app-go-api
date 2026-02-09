@@ -211,7 +211,7 @@ func TestCRUDHandler_Delete_Success(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
 		t.Fatalf("Delete: unmarshal: %v", err)
 	}
-	if out["message"] != "Categoria excluída com sucesso" {
+	if out["message"] != "Categoria excluído(a) com sucesso" {
 		t.Errorf("Delete: unexpected message: %v", out["message"])
 	}
 }

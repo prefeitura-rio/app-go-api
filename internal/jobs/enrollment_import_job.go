@@ -16,6 +16,7 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
+	"github.com/prefeitura-rio/app-go-api/internal/logger"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -738,7 +739,7 @@ func (p *EnrollmentImportProcessor) parseCSV(filePath string, fieldMappings map[
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			fmt.Printf("Error closing CSV file: %v\n", err)
+			logger.Warn("error closing CSV file", "error", err)
 		}
 	}()
 
@@ -837,7 +838,7 @@ func (p *EnrollmentImportProcessor) parseXLSX(filePath string, fieldMappings map
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
-			fmt.Printf("Error closing XLSX file: %v\n", err)
+			logger.Warn("error closing XLSX file", "error", err)
 		}
 	}()
 

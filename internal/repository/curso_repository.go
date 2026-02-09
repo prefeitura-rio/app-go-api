@@ -22,12 +22,44 @@ func NewCursoRepository(db *gorm.DB) *CursoRepository {
 }
 
 func (r *CursoRepository) Create(ctx context.Context, curso *models.Curso) (int, error) {
-	result := r.db.WithContext(ctx).Omit("CustomFields", "LocationClasses", "RemoteClass", "Inscricoes").Create(curso)
-	if result.Error != nil {
-		return 0, fmt.Errorf("erro ao criar curso: %w", result.Error)
-	}
+	return curso.ID, r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Omit("CustomFields", "LocationClasses", "RemoteClass", "Inscricoes").Create(curso).Error; err != nil {
+			return fmt.Errorf("erro ao criar curso: %w", err)
+		}
 
-	return curso.ID, nil
+		if len(curso.CustomFields) > 0 {
+			for i := range curso.CustomFields {
+				curso.CustomFields[i].CursoID = curso.ID
+			}
+			if err := tx.Create(&curso.CustomFields).Error; err != nil {
+				return fmt.Errorf("erro ao criar custom fields: %w", err)
+			}
+		}
+
+		if curso.RemoteClass != nil {
+			curso.RemoteClass.CursoID = curso.ID
+			for j := range curso.RemoteClass.Schedules {
+				curso.RemoteClass.Schedules[j].DisplayOrder = j + 1
+			}
+			if err := tx.Create(curso.RemoteClass).Error; err != nil {
+				return fmt.Errorf("erro ao criar remote class: %w", err)
+			}
+		}
+
+		if len(curso.LocationClasses) > 0 {
+			for i := range curso.LocationClasses {
+				curso.LocationClasses[i].CursoID = curso.ID
+				for j := range curso.LocationClasses[i].Schedules {
+					curso.LocationClasses[i].Schedules[j].DisplayOrder = j + 1
+				}
+			}
+			if err := tx.Create(&curso.LocationClasses).Error; err != nil {
+				return fmt.Errorf("erro ao criar location classes: %w", err)
+			}
+		}
+
+		return nil
+	})
 }
 
 func (r *CursoRepository) GetByID(ctx context.Context, id int) (*models.Curso, error) {

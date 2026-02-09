@@ -16,6 +16,7 @@ import (
 	"gorm.io/datatypes"
 
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
+	"github.com/prefeitura-rio/app-go-api/internal/logger"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -652,7 +653,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 	defer func() {
 		if err := file.Close(); err != nil {
 			// Log error but don't fail the request
-			fmt.Printf("Error closing uploaded file: %v\n", err)
+			logger.Warn("error closing uploaded file", "error", err)
 		}
 	}()
 
@@ -679,14 +680,14 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 	}
 	defer func() {
 		if err := tempFile.Close(); err != nil {
-			fmt.Printf("Error closing temp file: %v\n", err)
+			logger.Warn("error closing temp file", "error", err)
 		}
 	}()
 
 	// Copy uploaded file to temp file
 	if _, err := io.Copy(tempFile, file); err != nil {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
-			fmt.Printf("Error removing temp file: %v\n", removeErr)
+			logger.Warn("error removing temp file", "error", removeErr)
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar arquivo: " + err.Error()})
 		return
@@ -701,7 +702,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 	metadataJSON, err := json.Marshal(metadata)
 	if err != nil {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
-			fmt.Printf("Error removing temp file: %v\n", removeErr)
+			logger.Warn("error removing temp file", "error", removeErr)
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar metadata do job: " + err.Error()})
 		return
@@ -715,7 +716,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 
 	if err := h.jobService.Create(c.Request.Context(), job); err != nil {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
-			fmt.Printf("Error removing temp file: %v\n", removeErr)
+			logger.Warn("error removing temp file", "error", removeErr)
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar job: " + err.Error()})
 		return
@@ -726,7 +727,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		jobs.GlobalJobProcessor.StartJob(job.ID)
 	} else {
 		if err := os.Remove(tempFile.Name()); err != nil {
-			fmt.Printf("Error removing temp file: %v\n", err)
+			logger.Warn("error removing temp file", "error", err)
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Processador de jobs não inicializado"})
 		return

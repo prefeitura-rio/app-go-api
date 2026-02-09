@@ -7,14 +7,13 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
-	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
 type JobService struct {
-	repo *repository.JobRepository
+	repo JobRepositoryInterface
 }
 
-func NewJobService(repo *repository.JobRepository) *JobService {
+func NewJobService(repo JobRepositoryInterface) *JobService {
 	return &JobService{
 		repo: repo,
 	}

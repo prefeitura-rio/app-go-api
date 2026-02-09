@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
-	"github.com/prefeitura-rio/app-go-api/internal/utils"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/httputil"
 )
 
 type CRUDService[T any] interface {
@@ -22,7 +22,7 @@ type CRUDService[T any] interface {
 type CRUDHandler[T any] struct {
 	service    CRUDService[T]
 	entityName string
-	cache      *cache.ReferenceDataCache // Optional cache for static reference data
+	cache      *cache.ReferenceDataCache
 }
 
 func NewCRUDHandler[T any](service CRUDService[T], entityName string) *CRUDHandler[T] {
@@ -33,8 +33,6 @@ func NewCRUDHandler[T any](service CRUDService[T], entityName string) *CRUDHandl
 	}
 }
 
-// WithCache adds cache support to the CRUD handler
-// Should be used for static reference data that rarely changes
 func (h *CRUDHandler[T]) WithCache(cache *cache.ReferenceDataCache) *CRUDHandler[T] {
 	h.cache = cache
 	return h
@@ -43,17 +41,13 @@ func (h *CRUDHandler[T]) WithCache(cache *cache.ReferenceDataCache) *CRUDHandler
 func (h *CRUDHandler[T]) Create(c *gin.Context) {
 	var entity T
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		httputil.BadRequest(c, "Dados inválidos: "+err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		httputil.Error(c, apperrors.FromDatabaseError(err))
 		return
 	}
 
@@ -64,67 +58,57 @@ func (h *CRUDHandler[T]) Create(c *gin.Context) {
 		setter.SetID(id)
 	}
 
-	// Invalidate cache after create (if caching is enabled)
 	if h.cache != nil {
 		_ = h.cache.Invalidate(c.Request.Context())
 	}
 
-	c.JSON(http.StatusCreated, entity)
+	httputil.Created(c, entity)
 }
 
 func (h *CRUDHandler[T]) GetByID(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+	id, ok := httputil.ParseIntID(c, "id")
+	if !ok {
 		return
 	}
 
-	// Try cache first (if caching is enabled)
 	if h.cache != nil {
 		cachedData, err := h.cache.GetByID(c.Request.Context(), id)
 		if err == nil && cachedData != nil {
 			var entity T
 			if err := json.Unmarshal(cachedData, &entity); err == nil {
-				c.JSON(http.StatusOK, entity)
+				httputil.Success(c, entity)
 				return
 			}
-			// If unmarshal fails, fall through to database query
 		}
 	}
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		httputil.Error(c, apperrors.FromDatabaseError(err))
 		return
 	}
 
 	if entity == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": h.entityName + " não encontrada"})
+		httputil.NotFound(c, h.entityName+" não encontrado(a)")
 		return
 	}
 
-	// Cache the result (if caching is enabled)
 	if h.cache != nil {
 		_ = h.cache.SetByID(c.Request.Context(), id, entity)
 	}
 
-	c.JSON(http.StatusOK, entity)
+	httputil.Success(c, entity)
 }
 
 func (h *CRUDHandler[T]) Update(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+	id, ok := httputil.ParseIntID(c, "id")
+	if !ok {
 		return
 	}
 
 	var entity T
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		httputil.BadRequest(c, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -136,67 +120,44 @@ func (h *CRUDHandler[T]) Update(c *gin.Context) {
 	}
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		httputil.Error(c, apperrors.FromDatabaseError(err))
 		return
 	}
 
-	// Invalidate cache after update (if caching is enabled)
 	if h.cache != nil {
 		_ = h.cache.InvalidateByID(c.Request.Context(), id)
 	}
 
-	c.JSON(http.StatusOK, entity)
+	httputil.Success(c, entity)
 }
 
 func (h *CRUDHandler[T]) Delete(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+	id, ok := httputil.ParseIntID(c, "id")
+	if !ok {
 		return
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		httputil.Error(c, apperrors.FromDatabaseError(err))
 		return
 	}
 
-	// Invalidate cache after delete (if caching is enabled)
 	if h.cache != nil {
 		_ = h.cache.InvalidateByID(c.Request.Context(), id)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": h.entityName + " excluída com sucesso"})
+	httputil.Deleted(c, h.entityName)
 }
 
 func (h *CRUDHandler[T]) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	page, pageSize := httputil.Pagination(c)
 
-	if page < 1 {
-		page = 1
-	}
-
-	if pageSize < 1 || pageSize > 1000 {
-		pageSize = 10
-	}
-
-	// For static reference data with caching, only cache the default listing (page 1, no filters)
-	// This covers the most common use case (getting all categorias/acessibilidades/escolaridades)
 	if h.cache != nil && page == 1 && pageSize == 10 {
 		cachedData, err := h.cache.GetList(c.Request.Context())
 		if err == nil && cachedData != nil {
-			// Cache returns the full response structure
 			type cachedResponse struct {
-				Data []*T  `json:"data"`
-				Meta gin.H `json:"meta"`
+				Data []*T   `json:"data"`
+				Meta gin.H  `json:"meta"`
 			}
 			var cached cachedResponse
 			if err := json.Unmarshal(cachedData, &cached); err == nil {
@@ -206,7 +167,6 @@ func (h *CRUDHandler[T]) List(c *gin.Context) {
 				})
 				return
 			}
-			// If unmarshal fails, fall through to database query
 		}
 	}
 
@@ -214,11 +174,7 @@ func (h *CRUDHandler[T]) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		httputil.Error(c, apperrors.FromDatabaseError(err))
 		return
 	}
 
@@ -231,7 +187,6 @@ func (h *CRUDHandler[T]) List(c *gin.Context) {
 		},
 	}
 
-	// Cache the result for default listing (if caching is enabled)
 	if h.cache != nil && page == 1 && pageSize == 10 {
 		_ = h.cache.SetList(c.Request.Context(), response)
 	}

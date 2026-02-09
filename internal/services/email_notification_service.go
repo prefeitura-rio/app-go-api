@@ -3,40 +3,81 @@ package services
 import (
 	"context"
 	"fmt"
-	"log"
+	"sync"
 
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
+	"github.com/prefeitura-rio/app-go-api/internal/logger"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
-	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
-// EmailNotificationService handles enrollment email notifications
-type EmailNotificationService struct {
-	dataRelayClient   *clients.DataRelayClient
-	cursoRepo         *repository.CursoRepository
-	orgaoSnapshotRepo *repository.OrgaoSnapshotRepository
-	enabled           bool
-	prefrioDomain     string
+type emailTask struct {
+	fn func()
 }
 
-// NewEmailNotificationService creates a new email notification service
+type EmailNotificationService struct {
+	dataRelayClient   *clients.DataRelayClient
+	cursoRepo         CursoRepositoryInterface
+	orgaoSnapshotRepo OrgaoSnapshotRepositoryInterface
+	enabled           bool
+	prefrioDomain     string
+	taskCh            chan emailTask
+	wg                sync.WaitGroup
+}
+
+const emailWorkerCount = 5
+const emailQueueSize = 200
+
 func NewEmailNotificationService(
 	dataRelayClient *clients.DataRelayClient,
-	cursoRepo *repository.CursoRepository,
-	orgaoSnapshotRepo *repository.OrgaoSnapshotRepository,
+	cursoRepo CursoRepositoryInterface,
+	orgaoSnapshotRepo OrgaoSnapshotRepositoryInterface,
 	enabled bool,
 	prefrioDomain string,
 ) *EmailNotificationService {
-	return &EmailNotificationService{
+	s := &EmailNotificationService{
 		dataRelayClient:   dataRelayClient,
 		cursoRepo:         cursoRepo,
 		orgaoSnapshotRepo: orgaoSnapshotRepo,
 		enabled:           enabled,
 		prefrioDomain:     prefrioDomain,
+		taskCh:            make(chan emailTask, emailQueueSize),
+	}
+
+	for i := 0; i < emailWorkerCount; i++ {
+		s.wg.Add(1)
+		go s.worker()
+	}
+
+	return s
+}
+
+func (s *EmailNotificationService) worker() {
+	defer s.wg.Done()
+	for task := range s.taskCh {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.Error("panic in email worker recovered", "panic", r)
+				}
+			}()
+			task.fn()
+		}()
 	}
 }
 
-// getOrgaoName fetches the organization name from orgao_snapshots or falls back to curso.Organization
+func (s *EmailNotificationService) Enqueue(fn func()) {
+	select {
+	case s.taskCh <- emailTask{fn: fn}:
+	default:
+		logger.Warn("email queue full, dropping task")
+	}
+}
+
+func (s *EmailNotificationService) Shutdown() {
+	close(s.taskCh)
+	s.wg.Wait()
+}
+
 func (s *EmailNotificationService) getOrgaoName(ctx context.Context, curso *models.Curso) string {
 	if curso.OrgaoID != "" && s.orgaoSnapshotRepo != nil {
 		snapshot, err := s.orgaoSnapshotRepo.GetByOrgaoID(ctx, curso.OrgaoID)
@@ -50,7 +91,6 @@ func (s *EmailNotificationService) getOrgaoName(ctx context.Context, curso *mode
 	return "órgão responsável"
 }
 
-// ScheduleInfo contains the schedule information for email templates
 type ScheduleInfo struct {
 	ClassTime      string
 	ClassStartDate string
@@ -58,13 +98,11 @@ type ScheduleInfo struct {
 	Address        string
 }
 
-// getScheduleInfo fetches schedule information from the enrollment's schedule_id
 func (s *EmailNotificationService) getScheduleInfo(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) *ScheduleInfo {
 	if inscricao.ScheduleID == nil || s.cursoRepo == nil {
 		return nil
 	}
 
-	// Try to find in course schedules first
 	courseSchedule, err := s.cursoRepo.GetCourseScheduleByID(ctx, *inscricao.ScheduleID)
 	if err == nil && courseSchedule != nil {
 		info := &ScheduleInfo{
@@ -78,7 +116,6 @@ func (s *EmailNotificationService) getScheduleInfo(ctx context.Context, inscrica
 		return info
 	}
 
-	// Try remote schedule
 	remoteSchedule, err := s.cursoRepo.GetRemoteScheduleByID(ctx, *inscricao.ScheduleID)
 	if err == nil && remoteSchedule != nil {
 		info := &ScheduleInfo{
@@ -99,15 +136,14 @@ func (s *EmailNotificationService) getScheduleInfo(ctx context.Context, inscrica
 	return nil
 }
 
-// SendEnrollmentCreatedEmail sends "Em Análise" email when enrollment is created
 func (s *EmailNotificationService) SendEnrollmentCreatedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
 	if !s.enabled {
-		log.Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment created email for %s", inscricao.Email)
+		logger.Debug("email notifications disabled, skipping enrollment created email", "email", inscricao.Email)
 		return nil
 	}
 
 	if inscricao.Email == "" {
-		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		logger.Debug("no email address for enrollment, skipping", "enrollment_id", inscricao.ID)
 		return nil
 	}
 
@@ -125,19 +161,18 @@ func (s *EmailNotificationService) SendEnrollmentCreatedEmail(ctx context.Contex
 		return fmt.Errorf("failed to send enrollment created email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent enrollment created email to %s for course '%s'", inscricao.Email, curso.Titulo)
+	logger.Info("sent enrollment created email", "email", inscricao.Email, "course", curso.Titulo)
 	return nil
 }
 
-// SendEnrollmentApprovedEmail sends "Inscrito" email when enrollment is approved
 func (s *EmailNotificationService) SendEnrollmentApprovedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
 	if !s.enabled {
-		log.Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment approved email for %s", inscricao.Email)
+		logger.Debug("email notifications disabled, skipping enrollment approved email", "email", inscricao.Email)
 		return nil
 	}
 
 	if inscricao.Email == "" {
-		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		logger.Debug("no email address for enrollment, skipping", "enrollment_id", inscricao.ID)
 		return nil
 	}
 
@@ -156,19 +191,18 @@ func (s *EmailNotificationService) SendEnrollmentApprovedEmail(ctx context.Conte
 		return fmt.Errorf("failed to send enrollment approved email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent enrollment approved email to %s for course '%s'", inscricao.Email, curso.Titulo)
+	logger.Info("sent enrollment approved email", "email", inscricao.Email, "course", curso.Titulo)
 	return nil
 }
 
-// SendEnrollmentRejectedEmail sends "Recusado" email when enrollment is rejected
 func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
 	if !s.enabled {
-		log.Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment rejected email for %s", inscricao.Email)
+		logger.Debug("email notifications disabled, skipping enrollment rejected email", "email", inscricao.Email)
 		return nil
 	}
 
 	if inscricao.Email == "" {
-		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		logger.Debug("no email address for enrollment, skipping", "enrollment_id", inscricao.ID)
 		return nil
 	}
 
@@ -185,6 +219,6 @@ func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Conte
 		return fmt.Errorf("failed to send enrollment rejected email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent enrollment rejected email to %s for course '%s'", inscricao.Email, curso.Titulo)
+	logger.Info("sent enrollment rejected email", "email", inscricao.Email, "course", curso.Titulo)
 	return nil
 }

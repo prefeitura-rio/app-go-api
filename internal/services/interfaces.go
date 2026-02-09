@@ -2,23 +2,78 @@ package services
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 )
 
-// RMIClientInterface defines the interface for RMI API client
-type RMIClientInterface interface {
-	GetUserLegalEntities(ctx context.Context, authToken string, cpf string) ([]models.LegalEntity, error)
+// --- Repository Interfaces ---
+
+type CursoRepositoryInterface interface {
+	Create(ctx context.Context, curso *models.Curso) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Curso, error)
+	Update(ctx context.Context, curso *models.Curso) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error)
+	CreateCustomFields(ctx context.Context, customFields []models.CustomField) error
+	CreateRemoteClass(ctx context.Context, remoteClass *models.RemoteClass) error
+	CreateLocationClasses(ctx context.Context, locationClasses []models.LocationClass) error
+	ValidateForEnrollment(ctx context.Context, cursoID int) (status string, enrollmentStart, enrollmentEnd *time.Time, autoApprove bool, err error)
+	CountEnrollmentsByScheduleID(ctx context.Context, scheduleID uuid.UUID) (int64, error)
+	CountEnrollmentsByScheduleIDs(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error)
+	GetCourseScheduleByID(ctx context.Context, scheduleID uuid.UUID) (*models.CourseSchedule, error)
+	GetRemoteScheduleByID(ctx context.Context, scheduleID uuid.UUID) (*models.RemoteSchedule, error)
 }
 
-// LegalEntitiesCacheInterface defines the interface for legal entities cache
-type LegalEntitiesCacheInterface interface {
-	Get(ctx context.Context, cpf string) ([]models.LegalEntity, error)
-	Set(ctx context.Context, cpf string, entities []models.LegalEntity) error
+type InscricaoRepositoryInterface interface {
+	Create(ctx context.Context, inscricao *models.Inscricao) error
+	GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error)
+	GetByCursoID(ctx context.Context, cursoID int, filter map[string]interface{}, limit, offset int) ([]*models.Inscricao, int, error)
+	UpdateStatus(ctx context.Context, inscricaoID uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error
+	UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error)
+	GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	ExistsByCPFAndCurso(ctx context.Context, cpf string, cursoID int) (bool, error)
+	ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error)
+	UpdateCertificate(ctx context.Context, inscricaoID uuid.UUID, certificateURL string) error
+	Update(ctx context.Context, inscricao *models.Inscricao) error
 }
 
-// PropostaMEIRepositoryInterface defines the interface for PropostaMEI repository
+type JobRepositoryInterface interface {
+	Create(ctx context.Context, job *models.Job) error
+	GetByID(ctx context.Context, id uuid.UUID) (*models.Job, error)
+	Update(ctx context.Context, job *models.Job) error
+	UpdateStatus(ctx context.Context, id uuid.UUID, status models.JobStatus) error
+	UpdateProgress(ctx context.Context, id uuid.UUID, progress, successCount, errorCount int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Job, int, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type EmpregoRepositoryInterface interface {
+	Create(ctx context.Context, emprego *models.Emprego) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Emprego, error)
+	Update(ctx context.Context, emprego *models.Emprego) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Emprego, int, error)
+}
+
+type EmpresaRepositoryInterface interface {
+	Create(ctx context.Context, empresa *models.Empresa) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Empresa, error)
+	Update(ctx context.Context, empresa *models.Empresa) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Empresa, int, error)
+}
+
+type InstituicaoRepositoryInterface interface {
+	Create(ctx context.Context, instituicao *models.InstituicaoEnsino) (int, error)
+	GetByID(ctx context.Context, id int) (*models.InstituicaoEnsino, error)
+	Update(ctx context.Context, instituicao *models.InstituicaoEnsino) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.InstituicaoEnsino, int, error)
+}
+
 type PropostaMEIRepositoryInterface interface {
 	Create(ctx context.Context, proposta *models.PropostaMEI) (uuid.UUID, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.PropostaMEI, error)
@@ -31,12 +86,17 @@ type PropostaMEIRepositoryInterface interface {
 	UpdateMultipleStatus(ctx context.Context, propostaIDs []uuid.UUID, status models.StatusPropostaCidadao) (int, error)
 }
 
-// OportunidadeMEIRepositoryInterface defines the interface for OportunidadeMEI repository
 type OportunidadeMEIRepositoryInterface interface {
+	Create(ctx context.Context, oportunidade *models.OportunidadeMEI) (int, error)
 	GetByID(ctx context.Context, id int) (*models.OportunidadeMEI, error)
+	Update(ctx context.Context, oportunidade *models.OportunidadeMEI) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filters map[string]interface{}, titulo string, limit, offset int) ([]*models.OportunidadeMEI, int, error)
+	ListByStatus(ctx context.Context, status models.StatusOportunidadeMEI, limit, offset int) ([]*models.OportunidadeMEI, int, error)
+	ListByOrgao(ctx context.Context, orgaoID string, limit, offset int) ([]*models.OportunidadeMEI, int, error)
+	UpdateExpiredOpportunities(ctx context.Context) error
 }
 
-// CategoriaRepositoryInterface defines the interface for Categoria repository
 type CategoriaRepositoryInterface interface {
 	Create(ctx context.Context, categoria *models.Categoria) (int, error)
 	GetByID(ctx context.Context, id int) (*models.Categoria, error)
@@ -45,7 +105,6 @@ type CategoriaRepositoryInterface interface {
 	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Categoria, int, error)
 }
 
-// AcessibilidadeRepositoryInterface defines the interface for Acessibilidade repository
 type AcessibilidadeRepositoryInterface interface {
 	Create(ctx context.Context, acessibilidade *models.Acessibilidade) (int, error)
 	GetByID(ctx context.Context, id int) (*models.Acessibilidade, error)
@@ -54,7 +113,6 @@ type AcessibilidadeRepositoryInterface interface {
 	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Acessibilidade, int, error)
 }
 
-// EscolaridadeRepositoryInterface defines the interface for Escolaridade repository
 type EscolaridadeRepositoryInterface interface {
 	Create(ctx context.Context, escolaridade *models.Escolaridade) (int, error)
 	GetByID(ctx context.Context, id int) (*models.Escolaridade, error)
@@ -63,13 +121,49 @@ type EscolaridadeRepositoryInterface interface {
 	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Escolaridade, int, error)
 }
 
-// CNAEValidationServiceInterface defines the interface for CNAE validation service
+type CitizenSnapshotRepositoryInterface interface {
+	GetByCPF(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+	GetByCPFs(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error)
+	Upsert(ctx context.Context, snapshot *models.CitizenSnapshot) error
+	BatchUpsert(ctx context.Context, snapshots []*models.CitizenSnapshot) error
+	GetStaleSnapshots(ctx context.Context, staleThreshold time.Duration, limit int) ([]*models.CitizenSnapshot, error)
+	GetCPFsWithEnrollments(ctx context.Context, staleThreshold time.Duration, limit int) ([]string, error)
+	Delete(ctx context.Context, cpf string) error
+	Count(ctx context.Context) (int64, error)
+}
+
+type OrgaoSnapshotRepositoryInterface interface {
+	Create(ctx context.Context, snapshot *models.OrgaoSnapshot) error
+	GetByOrgaoID(ctx context.Context, orgaoID string) (*models.OrgaoSnapshot, error)
+	Update(ctx context.Context, snapshot *models.OrgaoSnapshot) error
+	Upsert(ctx context.Context, snapshot *models.OrgaoSnapshot) error
+	BatchUpsert(ctx context.Context, snapshots []*models.OrgaoSnapshot) error
+	GetStaleSnapshots(ctx context.Context, staleThreshold time.Duration) ([]*models.OrgaoSnapshot, error)
+	GetFailedSnapshots(ctx context.Context) ([]*models.OrgaoSnapshot, error)
+	GetPendingSnapshots(ctx context.Context) ([]*models.OrgaoSnapshot, error)
+	CountByStatus(ctx context.Context) (map[string]int64, error)
+}
+
+// --- Service Interfaces ---
+
+type RMIClientInterface interface {
+	GetUserLegalEntities(ctx context.Context, authToken string, cpf string) ([]models.LegalEntity, error)
+}
+
+type LegalEntitiesCacheInterface interface {
+	Get(ctx context.Context, cpf string) ([]models.LegalEntity, error)
+	Set(ctx context.Context, cpf string, entities []models.LegalEntity) error
+}
+
 type CNAEValidationServiceInterface interface {
 	ValidatePropostaForCNAE(ctx context.Context, authToken string, cnpj string, opportunityCNAEIDs []string) error
 	CheckCNPJOwnership(ctx context.Context, authToken string, cpf string, cnpj string) (bool, error)
 }
 
-// PropostaMEIServiceInterface defines the interface for PropostaMEI service
+type CitizenDataFetcher interface {
+	SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+}
+
 type PropostaMEIServiceInterface interface {
 	Create(ctx context.Context, proposta *models.PropostaMEI, authToken string) (uuid.UUID, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.PropostaMEI, error)

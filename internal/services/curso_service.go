@@ -6,14 +6,13 @@ import (
 	"strings"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
-	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
 type CursoService struct {
-	repo *repository.CursoRepository
+	repo CursoRepositoryInterface
 }
 
-func NewCursoService(repo *repository.CursoRepository) *CursoService {
+func NewCursoService(repo CursoRepositoryInterface) *CursoService {
 	return &CursoService{
 		repo: repo,
 	}
@@ -26,43 +25,7 @@ func (s *CursoService) Create(ctx context.Context, curso *models.Curso) (int, er
 
 	s.normalizeCurso(curso)
 
-	// Criar o curso primeiro
-	id, err := s.repo.Create(ctx, curso)
-	if err != nil {
-		return 0, err
-	}
-
-	// Associar o ID aos relacionamentos
-	for i := range curso.CustomFields {
-		curso.CustomFields[i].CursoID = id
-	}
-	if curso.RemoteClass != nil {
-		curso.RemoteClass.CursoID = id
-	}
-	for i := range curso.LocationClasses {
-		curso.LocationClasses[i].CursoID = id
-	}
-
-	// Salvar relacionamentos se existirem
-	if len(curso.CustomFields) > 0 {
-		if err := s.repo.CreateCustomFields(ctx, curso.CustomFields); err != nil {
-			return 0, fmt.Errorf("erro ao criar custom fields: %w", err)
-		}
-	}
-
-	if curso.RemoteClass != nil {
-		if err := s.repo.CreateRemoteClass(ctx, curso.RemoteClass); err != nil {
-			return 0, fmt.Errorf("erro ao criar remote class: %w", err)
-		}
-	}
-
-	if len(curso.LocationClasses) > 0 {
-		if err := s.repo.CreateLocationClasses(ctx, curso.LocationClasses); err != nil {
-			return 0, fmt.Errorf("erro ao criar location classes: %w", err)
-		}
-	}
-
-	return id, nil
+	return s.repo.Create(ctx, curso)
 }
 
 func (s *CursoService) GetByID(ctx context.Context, id int) (*models.Curso, error) {

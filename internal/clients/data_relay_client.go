@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/prefeitura-rio/app-go-api/internal/logger"
 )
 
 // DataRelayClient handles communication with the Data Relay API for email sending
@@ -73,7 +75,7 @@ func (c *DataRelayClient) SendEmail(ctx context.Context, req *EmailRequest) erro
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("Error closing Data Relay response body: %v\n", err)
+			logger.Warn("error closing Data Relay response body", "error", err)
 		}
 	}()
 
