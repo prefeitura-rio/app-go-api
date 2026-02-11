@@ -548,23 +548,29 @@ func TestCandidaturaService_Update(t *testing.T) {
 		originalCPF := "12345678901"
 		originalStatus := empregabilidade.StatusCandidaturaAprovada
 
+		originalSnapshot := &empregabilidade.CurriculoCompleto{
+			Formacoes: []*empregabilidade.CurriculoFormacao{
+				{NomeInstituicao: "UFRJ"},
+			},
+		}
+
 		mockCandidaturaRepo.candidaturas[id] = &empregabilidade.Candidatura{
-			ID:           id,
-			CPF:          originalCPF,
-			IDVaga:       vagaID,
-			Status:       originalStatus,
-			IDEtapaAtual: &etapaID,
+			ID:                id,
+			CPF:               originalCPF,
+			IDVaga:            vagaID,
+			Status:            originalStatus,
+			IDEtapaAtual:      &etapaID,
+			CurriculoSnapshot: originalSnapshot,
 		}
 
 		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
 
-		// Try to update with different controlled values
 		differentVagaID := uuid.New()
 		updated := &empregabilidade.Candidatura{
 			ID:     id,
-			CPF:    "99999999999",                               // Should be preserved
-			IDVaga: differentVagaID,                             // Should be preserved
-			Status: empregabilidade.StatusCandidaturaReprovada,  // Should be preserved
+			CPF:    "99999999999",
+			IDVaga: differentVagaID,
+			Status: empregabilidade.StatusCandidaturaReprovada,
 		}
 
 		ctx := context.Background()
@@ -576,7 +582,6 @@ func TestCandidaturaService_Update(t *testing.T) {
 
 		result := mockCandidaturaRepo.candidaturas[id]
 
-		// Verify controlled fields are preserved
 		if result.CPF != originalCPF {
 			t.Errorf("Expected CPF to be preserved as '%s', got '%s'", originalCPF, result.CPF)
 		}
@@ -591,6 +596,10 @@ func TestCandidaturaService_Update(t *testing.T) {
 
 		if result.IDEtapaAtual == nil || *result.IDEtapaAtual != etapaID {
 			t.Error("Expected IDEtapaAtual to be preserved")
+		}
+
+		if result.CurriculoSnapshot == nil || len(result.CurriculoSnapshot.Formacoes) != 1 {
+			t.Error("Expected CurriculoSnapshot to be preserved")
 		}
 	})
 
@@ -686,7 +695,7 @@ func TestCandidaturaService_Create_CurriculoSnapshot(t *testing.T) {
 		}
 	})
 
-	t.Run("Error when curriculo service fails", func(t *testing.T) {
+	t.Run("Candidatura created without snapshot when curriculo service fails", func(t *testing.T) {
 		mockCandidaturaRepo := NewMockCandidaturaRepo()
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
@@ -706,15 +715,19 @@ func TestCandidaturaService_Create_CurriculoSnapshot(t *testing.T) {
 		}
 
 		ctx := context.Background()
-		_, err := service.Create(ctx, candidatura)
+		id, err := service.Create(ctx, candidatura)
 
-		if err == nil {
-			t.Error("Expected error when curriculo service fails")
+		if err != nil {
+			t.Errorf("Expected candidatura to be created even when curriculo fails, got error: %v", err)
 		}
 
-		expectedMsg := "curriculo service error"
-		if err.Error() != expectedMsg {
-			t.Errorf("Expected error '%s', got '%s'", expectedMsg, err.Error())
+		if id == uuid.Nil {
+			t.Error("Expected non-nil UUID")
+		}
+
+		created := mockCandidaturaRepo.candidaturas[id]
+		if created.CurriculoSnapshot != nil {
+			t.Error("Expected curriculo snapshot to be nil when curriculo service fails")
 		}
 	})
 }

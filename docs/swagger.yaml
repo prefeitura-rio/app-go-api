@@ -21,6 +21,8 @@ definitions:
       deleted_at:
         example: "2024-12-31T23:59:59Z"
         type: string
+      email:
+        type: string
       etapa_atual:
         $ref: '#/definitions/empregabilidade.Etapa'
       id:
@@ -28,6 +30,8 @@ definitions:
       id_etapa_atual:
         type: string
       id_vaga:
+        type: string
+      nome:
         type: string
       respostas_info_complementares:
         items:
@@ -608,6 +612,11 @@ definitions:
       accessibility:
         description: Accessibility field - free text field for frontend
         type: string
+      auto_approve_enrollments:
+        description: Auto-approve enrollments - when true, new enrollments are automatically
+          approved instead of pending
+        example: false
+        type: boolean
       carga_horaria:
         type: integer
       certificacao_oferecida:

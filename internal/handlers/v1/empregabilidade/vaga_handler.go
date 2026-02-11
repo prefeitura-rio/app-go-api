@@ -203,7 +203,13 @@ func (h *VagaHandler) Update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, entity)
+	updated, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, updated)
 }
 
 // @Summary      Excluir vaga

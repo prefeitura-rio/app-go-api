@@ -13,6 +13,7 @@ type VagaRepoInterface interface {
 	Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Vaga, error)
 	Update(ctx context.Context, entity *empregabilidade.Vaga) error
+	UpdateWithAssociations(ctx context.Context, entity *empregabilidade.Vaga) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error
@@ -98,7 +99,6 @@ func (s *VagaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilida
 }
 
 func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
-	// Busca vaga existente para preservar status (transições devem ser via métodos específicos)
 	existing, err := s.repo.GetByID(ctx, entity.ID)
 	if err != nil {
 		return err
@@ -107,10 +107,9 @@ func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) 
 		return errors.New("vaga não encontrada")
 	}
 
-	// Preserva o status atual - transições devem ser via Publish/SendToApproval
 	entity.Status = existing.Status
 
-	return s.repo.Update(ctx, entity)
+	return s.repo.UpdateWithAssociations(ctx, entity)
 }
 
 func (s *VagaService) Delete(ctx context.Context, id uuid.UUID) error {

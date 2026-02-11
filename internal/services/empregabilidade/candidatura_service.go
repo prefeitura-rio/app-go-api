@@ -75,10 +75,9 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 	}
 
 	curriculo, err := s.curriculoService.GetCurriculoCompleto(ctx, entity.CPF)
-	if err != nil {
-		return uuid.Nil, err
+	if err == nil {
+		entity.CurriculoSnapshot = curriculo
 	}
-	entity.CurriculoSnapshot = curriculo
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
 	return s.repo.Create(ctx, entity)
@@ -98,13 +97,11 @@ func (s *CandidaturaService) Update(ctx context.Context, entity *empregabilidade
 		return errors.New("candidatura não encontrada")
 	}
 
-	// Preserve controlled fields - these must not be changed via Update
-	// Status changes should go through UpdateStatus/Approve/Reject
-	// CPF and IDVaga are immutable after creation
 	entity.Status = existing.Status
 	entity.CPF = existing.CPF
 	entity.IDVaga = existing.IDVaga
 	entity.IDEtapaAtual = existing.IDEtapaAtual
+	entity.CurriculoSnapshot = existing.CurriculoSnapshot
 
 	return s.repo.Update(ctx, entity)
 }

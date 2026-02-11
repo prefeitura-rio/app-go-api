@@ -55,6 +55,14 @@ func (m *MockVagaRepoForService) Update(ctx context.Context, entity *empregabili
 	return nil
 }
 
+func (m *MockVagaRepoForService) UpdateWithAssociations(ctx context.Context, entity *empregabilidade.Vaga) error {
+	if m.updateError != nil {
+		return m.updateError
+	}
+	m.vagas[entity.ID] = entity
+	return nil
+}
+
 func (m *MockVagaRepoForService) Delete(ctx context.Context, id uuid.UUID) error {
 	if m.deleteError != nil {
 		return m.deleteError

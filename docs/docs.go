@@ -8771,6 +8771,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2024-12-31T23:59:59Z"
                 },
+                "email": {
+                    "type": "string"
+                },
                 "etapa_atual": {
                     "$ref": "#/definitions/empregabilidade.Etapa"
                 },
@@ -8781,6 +8784,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id_vaga": {
+                    "type": "string"
+                },
+                "nome": {
                     "type": "string"
                 },
                 "respostas_info_complementares": {
@@ -9666,6 +9672,11 @@ const docTemplate = `{
                 "accessibility": {
                     "description": "Accessibility field - free text field for frontend",
                     "type": "string"
+                },
+                "auto_approve_enrollments": {
+                    "description": "Auto-approve enrollments - when true, new enrollments are automatically approved instead of pending",
+                    "type": "boolean",
+                    "example": false
                 },
                 "carga_horaria": {
                     "type": "integer"

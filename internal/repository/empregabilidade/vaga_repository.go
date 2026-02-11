@@ -77,6 +77,76 @@ func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vag
 	return nil
 }
 
+func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *empregabilidade.Vaga) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		updates := map[string]interface{}{
+			"titulo":                entity.Titulo,
+			"descricao":             entity.Descricao,
+			"id_contratante":        entity.IDContratante,
+			"id_regime_contratacao": entity.IDRegimeContratacao,
+			"id_modelo_trabalho":    entity.IDModeloTrabalho,
+			"acessibilidade_pcd":    entity.AcessibilidadePCD,
+			"valor_vaga":            entity.ValorVaga,
+			"bairro":                entity.Bairro,
+			"data_limite":           entity.DataLimite,
+			"requisitos":            entity.Requisitos,
+			"diferenciais":          entity.Diferenciais,
+			"responsabilidades":     entity.Responsabilidades,
+			"beneficios":            entity.Beneficios,
+			"id_orgao_parceiro":     entity.IDOrgaoParceiro,
+			"status":                entity.Status,
+		}
+
+		if err := tx.Model(&empregabilidade.Vaga{}).Where("id = ?", entity.ID).Updates(updates).Error; err != nil {
+			return fmt.Errorf("erro ao atualizar vaga: %w", err)
+		}
+
+		if entity.Etapas != nil {
+			if err := tx.Model(&empregabilidade.Candidatura{}).
+				Where("id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)", entity.ID).
+				Update("id_etapa_atual", nil).Error; err != nil {
+				return fmt.Errorf("erro ao desvincular etapas das candidaturas: %w", err)
+			}
+
+			if err := tx.Where("id_vaga = ?", entity.ID).Delete(&empregabilidade.Etapa{}).Error; err != nil {
+				return fmt.Errorf("erro ao remover etapas existentes: %w", err)
+			}
+
+			for i := range entity.Etapas {
+				entity.Etapas[i].ID = uuid.Nil
+				entity.Etapas[i].IDVaga = entity.ID
+				entity.Etapas[i].Vaga = nil
+			}
+
+			if len(entity.Etapas) > 0 {
+				if err := tx.Create(&entity.Etapas).Error; err != nil {
+					return fmt.Errorf("erro ao criar etapas: %w", err)
+				}
+			}
+		}
+
+		if entity.InformacoesComplementares != nil {
+			if err := tx.Where("id_vaga = ?", entity.ID).Delete(&empregabilidade.InformacaoComplementar{}).Error; err != nil {
+				return fmt.Errorf("erro ao remover informações complementares existentes: %w", err)
+			}
+
+			for i := range entity.InformacoesComplementares {
+				entity.InformacoesComplementares[i].ID = uuid.Nil
+				entity.InformacoesComplementares[i].IDVaga = entity.ID
+				entity.InformacoesComplementares[i].Vaga = nil
+			}
+
+			if len(entity.InformacoesComplementares) > 0 {
+				if err := tx.Create(&entity.InformacoesComplementares).Error; err != nil {
+					return fmt.Errorf("erro ao criar informações complementares: %w", err)
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
 func (r *VagaRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	result := r.db.WithContext(ctx).Delete(&empregabilidade.Vaga{}, "id = ?", id)
 	if result.Error != nil {
