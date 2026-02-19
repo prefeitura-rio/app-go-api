@@ -562,6 +562,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		empCurriculo.PUT("/formacoes/:id", empCurriculoHandler.UpdateFormacao)
 		empCurriculo.DELETE("/formacoes/:id", empCurriculoHandler.DeleteFormacao)
 		empCurriculo.GET("/:cpf/formacoes", empCurriculoHandler.ListFormacoesByCPF)
+		empCurriculo.PUT("/:cpf/formacoes", empCurriculoHandler.ReplaceAllFormacoesByCPF)
 
 		// Idiomas
 		empCurriculo.POST("/idiomas", empCurriculoHandler.CreateIdioma)
@@ -569,6 +570,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		empCurriculo.PUT("/idiomas/:id", empCurriculoHandler.UpdateIdioma)
 		empCurriculo.DELETE("/idiomas/:id", empCurriculoHandler.DeleteIdioma)
 		empCurriculo.GET("/:cpf/idiomas", empCurriculoHandler.ListIdiomasByCPF)
+		empCurriculo.PUT("/:cpf/idiomas", empCurriculoHandler.ReplaceAllIdiomasByCPF)
 
 		// Cursos Complementares
 		empCurriculo.POST("/cursos-complementares", empCurriculoHandler.CreateCursoComplementar)
@@ -576,6 +578,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		empCurriculo.PUT("/cursos-complementares/:id", empCurriculoHandler.UpdateCursoComplementar)
 		empCurriculo.DELETE("/cursos-complementares/:id", empCurriculoHandler.DeleteCursoComplementar)
 		empCurriculo.GET("/:cpf/cursos-complementares", empCurriculoHandler.ListCursosComplementaresByCPF)
+		empCurriculo.PUT("/:cpf/cursos-complementares", empCurriculoHandler.ReplaceAllCursosComplementaresByCPF)
 
 		// Experiências
 		empCurriculo.POST("/experiencias", empCurriculoHandler.CreateExperiencia)
@@ -583,6 +586,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		empCurriculo.PUT("/experiencias/:id", empCurriculoHandler.UpdateExperiencia)
 		empCurriculo.DELETE("/experiencias/:id", empCurriculoHandler.DeleteExperiencia)
 		empCurriculo.GET("/:cpf/experiencias", empCurriculoHandler.ListExperienciasByCPF)
+		empCurriculo.PUT("/:cpf/experiencias", empCurriculoHandler.ReplaceAllExperienciasByCPF)
 
 		// Conquistas
 		empCurriculo.POST("/conquistas", empCurriculoHandler.CreateConquista)
@@ -590,6 +594,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		empCurriculo.PUT("/conquistas/:id", empCurriculoHandler.UpdateConquista)
 		empCurriculo.DELETE("/conquistas/:id", empCurriculoHandler.DeleteConquista)
 		empCurriculo.GET("/:cpf/conquistas", empCurriculoHandler.ListConquistasByCPF)
+		empCurriculo.PUT("/:cpf/conquistas", empCurriculoHandler.ReplaceAllConquistasByCPF)
 
 		// Situação e Interesses
 		empCurriculo.PUT("/situacao-interesses", empCurriculoHandler.UpsertSituacaoInteresses)

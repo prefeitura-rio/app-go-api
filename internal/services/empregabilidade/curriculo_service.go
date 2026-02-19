@@ -132,6 +132,28 @@ func (s *CurriculoService) ListConquistasByCPF(ctx context.Context, cpf string) 
 	return s.repo.ListConquistasByCPF(ctx, cpf)
 }
 
+// ReplaceAll methods (bulk section save)
+
+func (s *CurriculoService) ReplaceAllFormacoesByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoFormacao) error {
+	return s.repo.ReplaceAllFormacoesByCPF(ctx, cpf, items)
+}
+
+func (s *CurriculoService) ReplaceAllExperienciasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoExperiencia) error {
+	return s.repo.ReplaceAllExperienciasByCPF(ctx, cpf, items)
+}
+
+func (s *CurriculoService) ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error {
+	return s.repo.ReplaceAllConquistasByCPF(ctx, cpf, items)
+}
+
+func (s *CurriculoService) ReplaceAllIdiomasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoIdioma) error {
+	return s.repo.ReplaceAllIdiomasByCPF(ctx, cpf, items)
+}
+
+func (s *CurriculoService) ReplaceAllCursosComplementaresByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoCursoComplementar) error {
+	return s.repo.ReplaceAllCursosComplementaresByCPF(ctx, cpf, items)
+}
+
 // Situação e Interesses
 
 func (s *CurriculoService) UpsertSituacaoInteresses(ctx context.Context, entity *empregabilidade.CurriculoSituacaoInteresses) error {

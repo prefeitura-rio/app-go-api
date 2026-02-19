@@ -987,10 +987,9 @@ definitions:
         description: Resultado final do processamento
         type: object
       status:
-        allOf:
-        - $ref: '#/definitions/models.JobStatus'
         description: 'Status: pending, processing, completed, failed'
         example: completed
+        type: string
       success_count:
         description: Quantidade de registros processados com sucesso
         example: 8
@@ -1000,32 +999,13 @@ definitions:
         example: 10
         type: integer
       type:
-        allOf:
-        - $ref: '#/definitions/models.JobType'
         description: Tipo de job (enrollment_import, etc)
         example: enrollment_import
+        type: string
       updated_at:
         description: Data/hora da última atualização
         type: string
     type: object
-  models.JobStatus:
-    enum:
-    - pending
-    - processing
-    - completed
-    - failed
-    type: string
-    x-enum-varnames:
-    - JobStatusPending
-    - JobStatusProcessing
-    - JobStatusCompleted
-    - JobStatusFailed
-  models.JobType:
-    enum:
-    - enrollment_import
-    type: string
-    x-enum-varnames:
-    - JobTypeEnrollmentImport
   models.JornadaTrabalho:
     enum:
     - INTEGRAL
@@ -2933,6 +2913,47 @@ paths:
       summary: Listar conquistas por CPF
       tags:
       - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Remove todas as conquistas do CPF e insere as novas em uma transação
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Lista de conquistas
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/empregabilidade.CurriculoConquista'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Substituir conquistas por CPF
+      tags:
+      - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/cursos-complementares:
     get:
       description: Retorna todos os cursos complementares de um usuário
@@ -2957,6 +2978,48 @@ paths:
               type: string
             type: object
       summary: Listar cursos complementares por CPF
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Remove todos os cursos complementares do CPF e insere os novos
+        em uma transação
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Lista de cursos complementares
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/empregabilidade.CurriculoCursoComplementar'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Substituir cursos complementares por CPF
       tags:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/experiencias:
@@ -2985,6 +3048,47 @@ paths:
       summary: Listar experiências por CPF
       tags:
       - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Remove todas as experiências do CPF e insere as novas em uma transação
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Lista de experiências
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Substituir experiências por CPF
+      tags:
+      - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/formacoes:
     get:
       description: Retorna todas as formações de um usuário
@@ -3011,6 +3115,47 @@ paths:
       summary: Listar formações por CPF
       tags:
       - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Remove todas as formações do CPF e insere as novas em uma transação
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Lista de formações
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/empregabilidade.CurriculoFormacao'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Substituir formações por CPF
+      tags:
+      - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/idiomas:
     get:
       description: Retorna todos os idiomas de um usuário
@@ -3035,6 +3180,47 @@ paths:
               type: string
             type: object
       summary: Listar idiomas por CPF
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Remove todos os idiomas do CPF e insere os novos em uma transação
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Lista de idiomas
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/empregabilidade.CurriculoIdioma'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Substituir idiomas por CPF
       tags:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/situacao-interesses:

@@ -22,8 +22,8 @@ const (
 // Job representa um trabalho assíncrono (ex: importação de inscrições)
 type Job struct {
 	ID           uuid.UUID      `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`                     // ID único do job
-	Type         JobType        `json:"type" gorm:"type:varchar(50);not null" example:"enrollment_import"`             // Tipo de job (enrollment_import, etc)
-	Status       JobStatus      `json:"status" gorm:"type:varchar(50);default:'pending';not null" example:"completed"` // Status: pending, processing, completed, failed
+	Type         JobType        `json:"type" gorm:"type:varchar(50);not null" swaggertype:"string" example:"enrollment_import"`             // Tipo de job (enrollment_import, etc)
+	Status       JobStatus      `json:"status" gorm:"type:varchar(50);default:'pending';not null" swaggertype:"string" example:"completed"` // Status: pending, processing, completed, failed
 	Progress     int            `json:"progress" gorm:"default:0" example:"100"`                                       // Progresso em porcentagem (0-100)
 	TotalRecords int            `json:"total_records" gorm:"column:total_records;default:0" example:"10"`              // Total de registros a processar
 	SuccessCount int            `json:"success_count" gorm:"column:success_count;default:0" example:"8"`               // Quantidade de registros processados com sucesso
