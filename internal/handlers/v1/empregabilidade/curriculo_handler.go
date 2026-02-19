@@ -724,13 +724,13 @@ func (h *CurriculoHandler) ListConquistasByCPF(c *gin.Context) {
 
 // Bulk replace-all (accordion save)
 
-// @Summary      Substituir formações por CPF
-// @Description  Remove todas as formações do CPF e insere as novas em uma transação
+// @Summary      Substituir formações e idiomas por CPF
+// @Description  Remove todas as formações e idiomas do CPF e insere os novos em uma única transação
 // @Tags         empregabilidade-curriculo
 // @Accept       json
 // @Produce      json
-// @Param        cpf   path      string                               true  "CPF do usuário"
-// @Param        body  body      []empregabilidade.CurriculoFormacao  true  "Lista de formações"
+// @Param        cpf   path      string                                      true  "CPF do usuário"
+// @Param        body  body      empregabilidade.FormacaoAccordionRequest    true  "Formações e idiomas"
 // @Success      200   {object}  map[string]interface{}
 // @Failure      400   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
@@ -738,18 +738,18 @@ func (h *CurriculoHandler) ListConquistasByCPF(c *gin.Context) {
 func (h *CurriculoHandler) ReplaceAllFormacoesByCPF(c *gin.Context) {
 	cpf := c.Param("cpf")
 
-	var items []*empregabilidade.CurriculoFormacao
-	if err := c.ShouldBindJSON(&items); err != nil {
+	var req empregabilidade.FormacaoAccordionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.service.ReplaceAllFormacoesByCPF(c.Request.Context(), cpf, items); err != nil {
+	if err := h.service.ReplaceAllFormacaoAccordionByCPF(c.Request.Context(), cpf, req.Formacoes, req.Idiomas); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	c.JSON(http.StatusOK, gin.H{"formacoes": req.Formacoes, "idiomas": req.Idiomas})
 }
 
 // @Summary      Substituir experiências por CPF

@@ -138,6 +138,10 @@ func (s *CurriculoService) ReplaceAllFormacoesByCPF(ctx context.Context, cpf str
 	return s.repo.ReplaceAllFormacoesByCPF(ctx, cpf, items)
 }
 
+func (s *CurriculoService) ReplaceAllFormacaoAccordionByCPF(ctx context.Context, cpf string, formacoes []*empregabilidade.CurriculoFormacao, idiomas []*empregabilidade.CurriculoIdioma) error {
+	return s.repo.ReplaceAllFormacaoAccordionByCPF(ctx, cpf, formacoes, idiomas)
+}
+
 func (s *CurriculoService) ReplaceAllExperienciasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoExperiencia) error {
 	return s.repo.ReplaceAllExperienciasByCPF(ctx, cpf, items)
 }

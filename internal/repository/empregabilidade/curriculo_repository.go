@@ -272,6 +272,34 @@ func (r *CurriculoRepository) ReplaceAllFormacoesByCPF(ctx context.Context, cpf 
 	})
 }
 
+func (r *CurriculoRepository) ReplaceAllFormacaoAccordionByCPF(ctx context.Context, cpf string, formacoes []*empregabilidade.CurriculoFormacao, idiomas []*empregabilidade.CurriculoIdioma) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoFormacao{}).Error; err != nil {
+			return fmt.Errorf("erro ao remover formações: %w", err)
+		}
+		if len(formacoes) > 0 {
+			for _, item := range formacoes {
+				item.CPF = cpf
+			}
+			if err := tx.Create(&formacoes).Error; err != nil {
+				return fmt.Errorf("erro ao inserir formações: %w", err)
+			}
+		}
+		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoIdioma{}).Error; err != nil {
+			return fmt.Errorf("erro ao remover idiomas: %w", err)
+		}
+		if len(idiomas) > 0 {
+			for _, item := range idiomas {
+				item.CPF = cpf
+			}
+			if err := tx.Create(&idiomas).Error; err != nil {
+				return fmt.Errorf("erro ao inserir idiomas: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
 func (r *CurriculoRepository) ReplaceAllExperienciasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoExperiencia) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoExperiencia{}).Error; err != nil {

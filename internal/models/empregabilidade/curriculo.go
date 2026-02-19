@@ -114,6 +114,11 @@ func (CurriculoConquista) TableName() string {
 	return "emp_curriculo_conquistas"
 }
 
+type FormacaoAccordionRequest struct {
+	Formacoes []*CurriculoFormacao `json:"formacoes"`
+	Idiomas   []*CurriculoIdioma  `json:"idiomas"`
+}
+
 type CurriculoSituacaoInteresses struct {
 	CPF                       string      `json:"cpf" gorm:"type:varchar(14);primaryKey"`
 	IDSituacao                *uuid.UUID  `json:"id_situacao" gorm:"type:uuid"`
