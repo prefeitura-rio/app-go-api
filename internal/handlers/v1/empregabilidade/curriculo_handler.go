@@ -722,6 +722,148 @@ func (h *CurriculoHandler) ListConquistasByCPF(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": entities})
 }
 
+// Bulk replace-all (accordion save)
+
+// @Summary      Substituir formações por CPF
+// @Description  Remove todas as formações do CPF e insere as novas em uma transação
+// @Tags         empregabilidade-curriculo
+// @Accept       json
+// @Produce      json
+// @Param        cpf   path      string                               true  "CPF do usuário"
+// @Param        body  body      []empregabilidade.CurriculoFormacao  true  "Lista de formações"
+// @Success      200   {object}  map[string]interface{}
+// @Failure      400   {object}  map[string]string
+// @Failure      500   {object}  map[string]string
+// @Router       /api/v1/empregabilidade/curriculo/{cpf}/formacoes [put]
+func (h *CurriculoHandler) ReplaceAllFormacoesByCPF(c *gin.Context) {
+	cpf := c.Param("cpf")
+
+	var items []*empregabilidade.CurriculoFormacao
+	if err := c.ShouldBindJSON(&items); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.ReplaceAllFormacoesByCPF(c.Request.Context(), cpf, items); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+// @Summary      Substituir experiências por CPF
+// @Description  Remove todas as experiências do CPF e insere as novas em uma transação
+// @Tags         empregabilidade-curriculo
+// @Accept       json
+// @Produce      json
+// @Param        cpf   path      string                                  true  "CPF do usuário"
+// @Param        body  body      []empregabilidade.CurriculoExperiencia  true  "Lista de experiências"
+// @Success      200   {object}  map[string]interface{}
+// @Failure      400   {object}  map[string]string
+// @Failure      500   {object}  map[string]string
+// @Router       /api/v1/empregabilidade/curriculo/{cpf}/experiencias [put]
+func (h *CurriculoHandler) ReplaceAllExperienciasByCPF(c *gin.Context) {
+	cpf := c.Param("cpf")
+
+	var items []*empregabilidade.CurriculoExperiencia
+	if err := c.ShouldBindJSON(&items); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.ReplaceAllExperienciasByCPF(c.Request.Context(), cpf, items); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+// @Summary      Substituir conquistas por CPF
+// @Description  Remove todas as conquistas do CPF e insere as novas em uma transação
+// @Tags         empregabilidade-curriculo
+// @Accept       json
+// @Produce      json
+// @Param        cpf   path      string                               true  "CPF do usuário"
+// @Param        body  body      []empregabilidade.CurriculoConquista true  "Lista de conquistas"
+// @Success      200   {object}  map[string]interface{}
+// @Failure      400   {object}  map[string]string
+// @Failure      500   {object}  map[string]string
+// @Router       /api/v1/empregabilidade/curriculo/{cpf}/conquistas [put]
+func (h *CurriculoHandler) ReplaceAllConquistasByCPF(c *gin.Context) {
+	cpf := c.Param("cpf")
+
+	var items []*empregabilidade.CurriculoConquista
+	if err := c.ShouldBindJSON(&items); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.ReplaceAllConquistasByCPF(c.Request.Context(), cpf, items); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+// @Summary      Substituir idiomas por CPF
+// @Description  Remove todos os idiomas do CPF e insere os novos em uma transação
+// @Tags         empregabilidade-curriculo
+// @Accept       json
+// @Produce      json
+// @Param        cpf   path      string                             true  "CPF do usuário"
+// @Param        body  body      []empregabilidade.CurriculoIdioma  true  "Lista de idiomas"
+// @Success      200   {object}  map[string]interface{}
+// @Failure      400   {object}  map[string]string
+// @Failure      500   {object}  map[string]string
+// @Router       /api/v1/empregabilidade/curriculo/{cpf}/idiomas [put]
+func (h *CurriculoHandler) ReplaceAllIdiomasByCPF(c *gin.Context) {
+	cpf := c.Param("cpf")
+
+	var items []*empregabilidade.CurriculoIdioma
+	if err := c.ShouldBindJSON(&items); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.ReplaceAllIdiomasByCPF(c.Request.Context(), cpf, items); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+// @Summary      Substituir cursos complementares por CPF
+// @Description  Remove todos os cursos complementares do CPF e insere os novos em uma transação
+// @Tags         empregabilidade-curriculo
+// @Accept       json
+// @Produce      json
+// @Param        cpf   path      string                                          true  "CPF do usuário"
+// @Param        body  body      []empregabilidade.CurriculoCursoComplementar    true  "Lista de cursos complementares"
+// @Success      200   {object}  map[string]interface{}
+// @Failure      400   {object}  map[string]string
+// @Failure      500   {object}  map[string]string
+// @Router       /api/v1/empregabilidade/curriculo/{cpf}/cursos-complementares [put]
+func (h *CurriculoHandler) ReplaceAllCursosComplementaresByCPF(c *gin.Context) {
+	cpf := c.Param("cpf")
+
+	var items []*empregabilidade.CurriculoCursoComplementar
+	if err := c.ShouldBindJSON(&items); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.ReplaceAllCursosComplementaresByCPF(c.Request.Context(), cpf, items); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
 // Situação e Interesses
 
 // @Summary      Criar ou atualizar situação e interesses

@@ -253,6 +253,93 @@ func (r *CurriculoRepository) ListConquistasByCPF(ctx context.Context, cpf strin
 	return entities, nil
 }
 
+// ReplaceAll methods (bulk section save)
+
+func (r *CurriculoRepository) ReplaceAllFormacoesByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoFormacao) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoFormacao{}).Error; err != nil {
+			return fmt.Errorf("erro ao remover formações: %w", err)
+		}
+		if len(items) > 0 {
+			for _, item := range items {
+				item.CPF = cpf
+			}
+			if err := tx.Create(&items).Error; err != nil {
+				return fmt.Errorf("erro ao inserir formações: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+func (r *CurriculoRepository) ReplaceAllExperienciasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoExperiencia) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoExperiencia{}).Error; err != nil {
+			return fmt.Errorf("erro ao remover experiências: %w", err)
+		}
+		if len(items) > 0 {
+			for _, item := range items {
+				item.CPF = cpf
+			}
+			if err := tx.Create(&items).Error; err != nil {
+				return fmt.Errorf("erro ao inserir experiências: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+func (r *CurriculoRepository) ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoConquista{}).Error; err != nil {
+			return fmt.Errorf("erro ao remover conquistas: %w", err)
+		}
+		if len(items) > 0 {
+			for _, item := range items {
+				item.CPF = cpf
+			}
+			if err := tx.Create(&items).Error; err != nil {
+				return fmt.Errorf("erro ao inserir conquistas: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+func (r *CurriculoRepository) ReplaceAllIdiomasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoIdioma) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoIdioma{}).Error; err != nil {
+			return fmt.Errorf("erro ao remover idiomas: %w", err)
+		}
+		if len(items) > 0 {
+			for _, item := range items {
+				item.CPF = cpf
+			}
+			if err := tx.Create(&items).Error; err != nil {
+				return fmt.Errorf("erro ao inserir idiomas: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+func (r *CurriculoRepository) ReplaceAllCursosComplementaresByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoCursoComplementar) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoCursoComplementar{}).Error; err != nil {
+			return fmt.Errorf("erro ao remover cursos complementares: %w", err)
+		}
+		if len(items) > 0 {
+			for _, item := range items {
+				item.CPF = cpf
+			}
+			if err := tx.Create(&items).Error; err != nil {
+				return fmt.Errorf("erro ao inserir cursos complementares: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
 // Situação e Interesses
 
 func (r *CurriculoRepository) UpsertSituacaoInteresses(ctx context.Context, entity *empregabilidade.CurriculoSituacaoInteresses) error {
