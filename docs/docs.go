@@ -3487,7 +3487,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Remove todas as experiências do CPF e insere as novas em uma transação",
+                "description": "Remove todas as experiências e conquistas do CPF e insere as novas em uma transação",
                 "consumes": [
                     "application/json"
                 ],
@@ -3497,7 +3497,7 @@ const docTemplate = `{
                 "tags": [
                     "empregabilidade-curriculo"
                 ],
-                "summary": "Substituir experiências por CPF",
+                "summary": "Substituir experiências e conquistas por CPF",
                 "parameters": [
                     {
                         "type": "string",
@@ -3507,15 +3507,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Lista de experiências",
+                        "description": "Experiências e conquistas",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/empregabilidade.CurriculoExperiencia"
-                            }
+                            "$ref": "#/definitions/empregabilidade.ExperienciaProfissionalAccordionRequest"
                         }
                     }
                 ],
@@ -3587,7 +3584,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Remove todas as formações do CPF e insere as novas em uma transação",
+                "description": "Remove todas as formações e idiomas do CPF e insere os novos em uma única transação",
                 "consumes": [
                     "application/json"
                 ],
@@ -3597,7 +3594,7 @@ const docTemplate = `{
                 "tags": [
                     "empregabilidade-curriculo"
                 ],
-                "summary": "Substituir formações por CPF",
+                "summary": "Substituir formações e idiomas por CPF",
                 "parameters": [
                     {
                         "type": "string",
@@ -3607,15 +3604,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Lista de formações",
+                        "description": "Formações e idiomas",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/empregabilidade.CurriculoFormacao"
-                            }
+                            "$ref": "#/definitions/empregabilidade.FormacaoAccordionRequest"
                         }
                     }
                 ],
@@ -9463,6 +9457,40 @@ const docTemplate = `{
                             "$ref": "#/definitions/empregabilidade.Vaga"
                         }
                     ]
+                }
+            }
+        },
+        "empregabilidade.ExperienciaProfissionalAccordionRequest": {
+            "type": "object",
+            "properties": {
+                "conquistas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CurriculoConquista"
+                    }
+                },
+                "experiencias": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CurriculoExperiencia"
+                    }
+                }
+            }
+        },
+        "empregabilidade.FormacaoAccordionRequest": {
+            "type": "object",
+            "properties": {
+                "formacoes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CurriculoFormacao"
+                    }
+                },
+                "idiomas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CurriculoIdioma"
+                    }
                 }
             }
         },

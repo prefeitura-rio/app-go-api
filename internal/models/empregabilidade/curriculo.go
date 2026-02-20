@@ -119,6 +119,11 @@ type FormacaoAccordionRequest struct {
 	Idiomas   []*CurriculoIdioma  `json:"idiomas"`
 }
 
+type ExperienciaProfissionalAccordionRequest struct {
+	Experiencias []*CurriculoExperiencia `json:"experiencias"`
+	Conquistas   []*CurriculoConquista   `json:"conquistas"`
+}
+
 type CurriculoSituacaoInteresses struct {
 	CPF                       string      `json:"cpf" gorm:"type:varchar(14);primaryKey"`
 	IDSituacao                *uuid.UUID  `json:"id_situacao" gorm:"type:uuid"`

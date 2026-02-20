@@ -317,6 +317,34 @@ func (r *CurriculoRepository) ReplaceAllExperienciasByCPF(ctx context.Context, c
 	})
 }
 
+func (r *CurriculoRepository) ReplaceAllExperienciaProfissionalAccordionByCPF(ctx context.Context, cpf string, experiencias []*empregabilidade.CurriculoExperiencia, conquistas []*empregabilidade.CurriculoConquista) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoExperiencia{}).Error; err != nil {
+			return fmt.Errorf("erro ao remover experiências: %w", err)
+		}
+		if len(experiencias) > 0 {
+			for _, item := range experiencias {
+				item.CPF = cpf
+			}
+			if err := tx.Create(&experiencias).Error; err != nil {
+				return fmt.Errorf("erro ao inserir experiências: %w", err)
+			}
+		}
+		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoConquista{}).Error; err != nil {
+			return fmt.Errorf("erro ao remover conquistas: %w", err)
+		}
+		if len(conquistas) > 0 {
+			for _, item := range conquistas {
+				item.CPF = cpf
+			}
+			if err := tx.Create(&conquistas).Error; err != nil {
+				return fmt.Errorf("erro ao inserir conquistas: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
 func (r *CurriculoRepository) ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoConquista{}).Error; err != nil {

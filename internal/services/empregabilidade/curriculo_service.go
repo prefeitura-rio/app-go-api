@@ -146,6 +146,10 @@ func (s *CurriculoService) ReplaceAllExperienciasByCPF(ctx context.Context, cpf 
 	return s.repo.ReplaceAllExperienciasByCPF(ctx, cpf, items)
 }
 
+func (s *CurriculoService) ReplaceAllExperienciaProfissionalAccordionByCPF(ctx context.Context, cpf string, experiencias []*empregabilidade.CurriculoExperiencia, conquistas []*empregabilidade.CurriculoConquista) error {
+	return s.repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas)
+}
+
 func (s *CurriculoService) ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error {
 	return s.repo.ReplaceAllConquistasByCPF(ctx, cpf, items)
 }

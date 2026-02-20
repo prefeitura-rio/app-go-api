@@ -269,6 +269,28 @@ definitions:
         - $ref: '#/definitions/empregabilidade.Vaga'
         description: Relationships
     type: object
+  empregabilidade.ExperienciaProfissionalAccordionRequest:
+    properties:
+      conquistas:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoConquista'
+        type: array
+      experiencias:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
+        type: array
+    type: object
+  empregabilidade.FormacaoAccordionRequest:
+    properties:
+      formacoes:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoFormacao'
+        type: array
+      idiomas:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoIdioma'
+        type: array
+    type: object
   empregabilidade.Idioma:
     properties:
       created_at:
@@ -3051,21 +3073,20 @@ paths:
     put:
       consumes:
       - application/json
-      description: Remove todas as experiências do CPF e insere as novas em uma transação
+      description: Remove todas as experiências e conquistas do CPF e insere as novas
+        em uma transação
       parameters:
       - description: CPF do usuário
         in: path
         name: cpf
         required: true
         type: string
-      - description: Lista de experiências
+      - description: Experiências e conquistas
         in: body
         name: body
         required: true
         schema:
-          items:
-            $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
-          type: array
+          $ref: '#/definitions/empregabilidade.ExperienciaProfissionalAccordionRequest'
       produces:
       - application/json
       responses:
@@ -3086,7 +3107,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Substituir experiências por CPF
+      summary: Substituir experiências e conquistas por CPF
       tags:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/formacoes:
@@ -3118,21 +3139,20 @@ paths:
     put:
       consumes:
       - application/json
-      description: Remove todas as formações do CPF e insere as novas em uma transação
+      description: Remove todas as formações e idiomas do CPF e insere os novos em
+        uma única transação
       parameters:
       - description: CPF do usuário
         in: path
         name: cpf
         required: true
         type: string
-      - description: Lista de formações
+      - description: Formações e idiomas
         in: body
         name: body
         required: true
         schema:
-          items:
-            $ref: '#/definitions/empregabilidade.CurriculoFormacao'
-          type: array
+          $ref: '#/definitions/empregabilidade.FormacaoAccordionRequest'
       produces:
       - application/json
       responses:
@@ -3153,7 +3173,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Substituir formações por CPF
+      summary: Substituir formações e idiomas por CPF
       tags:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/idiomas:

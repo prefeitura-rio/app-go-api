@@ -752,13 +752,13 @@ func (h *CurriculoHandler) ReplaceAllFormacoesByCPF(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"formacoes": req.Formacoes, "idiomas": req.Idiomas})
 }
 
-// @Summary      Substituir experiências por CPF
-// @Description  Remove todas as experiências do CPF e insere as novas em uma transação
+// @Summary      Substituir experiências e conquistas por CPF
+// @Description  Remove todas as experiências e conquistas do CPF e insere as novas em uma transação
 // @Tags         empregabilidade-curriculo
 // @Accept       json
 // @Produce      json
-// @Param        cpf   path      string                                  true  "CPF do usuário"
-// @Param        body  body      []empregabilidade.CurriculoExperiencia  true  "Lista de experiências"
+// @Param        cpf   path      string                                                          true  "CPF do usuário"
+// @Param        body  body      empregabilidade.ExperienciaProfissionalAccordionRequest         true  "Experiências e conquistas"
 // @Success      200   {object}  map[string]interface{}
 // @Failure      400   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
@@ -766,18 +766,18 @@ func (h *CurriculoHandler) ReplaceAllFormacoesByCPF(c *gin.Context) {
 func (h *CurriculoHandler) ReplaceAllExperienciasByCPF(c *gin.Context) {
 	cpf := c.Param("cpf")
 
-	var items []*empregabilidade.CurriculoExperiencia
-	if err := c.ShouldBindJSON(&items); err != nil {
+	var req empregabilidade.ExperienciaProfissionalAccordionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.service.ReplaceAllExperienciasByCPF(c.Request.Context(), cpf, items); err != nil {
+	if err := h.service.ReplaceAllExperienciaProfissionalAccordionByCPF(c.Request.Context(), cpf, req.Experiencias, req.Conquistas); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	c.JSON(http.StatusOK, gin.H{"experiencias": req.Experiencias, "conquistas": req.Conquistas})
 }
 
 // @Summary      Substituir conquistas por CPF
