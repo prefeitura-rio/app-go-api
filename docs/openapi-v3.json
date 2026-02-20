@@ -4408,11 +4408,11 @@
         ]
       },
       "put": {
-        "description": "Remove todas as experiências do CPF e insere as novas em uma transação",
+        "description": "Remove todas as experiências e conquistas do CPF e insere as novas em uma transação",
         "tags": [
           "empregabilidade-curriculo"
         ],
-        "summary": "Substituir experiências por CPF",
+        "summary": "Substituir experiências e conquistas por CPF",
         "parameters": [
           {
             "description": "CPF do usuário",
@@ -4428,14 +4428,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/empregabilidade.CurriculoExperiencia"
-                }
+                "$ref": "#/components/schemas/empregabilidade.ExperienciaProfissionalAccordionRequest"
               }
             }
           },
-          "description": "Lista de experiências",
+          "description": "Experiências e conquistas",
           "required": true
         },
         "responses": {
@@ -12138,6 +12135,23 @@
                 "$ref": "#/components/schemas/empregabilidade.Vaga"
               }
             ]
+          }
+        }
+      },
+      "empregabilidade.ExperienciaProfissionalAccordionRequest": {
+        "type": "object",
+        "properties": {
+          "conquistas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/empregabilidade.CurriculoConquista"
+            }
+          },
+          "experiencias": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/empregabilidade.CurriculoExperiencia"
+            }
           }
         }
       },
