@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
@@ -57,6 +58,13 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	cpf := middlewares.GetUserCPF(c)
+	if cpf == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "CPF não encontrado no token de autenticação"})
+		return
+	}
+	entity.CPF = cpf
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
