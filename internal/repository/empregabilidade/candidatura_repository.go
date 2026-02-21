@@ -58,14 +58,20 @@ func (r *CandidaturaRepository) Delete(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
-func (r *CandidaturaRepository) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Candidatura, int, error) {
+func (r *CandidaturaRepository) List(ctx context.Context, filter empregabilidade.CandidaturaFilter, limit, offset int) ([]*empregabilidade.Candidatura, int, error) {
 	var entities []*empregabilidade.Candidatura
 	var total int64
 
 	db := r.db.WithContext(ctx).Model(&empregabilidade.Candidatura{})
 
-	for key, value := range filter {
-		db = db.Where(key+" = ?", value)
+	if filter.CPF != "" {
+		db = db.Where("cpf = ?", filter.CPF)
+	}
+	if filter.VagaID != nil {
+		db = db.Where("id_vaga = ?", *filter.VagaID)
+	}
+	if filter.Status != "" {
+		db = db.Where("status = ?", filter.Status)
 	}
 
 	db.Count(&total)
@@ -80,54 +86,6 @@ func (r *CandidaturaRepository) List(ctx context.Context, filter map[string]inte
 		Find(&entities)
 	if result.Error != nil {
 		return nil, 0, fmt.Errorf("erro ao listar candidaturas: %w", result.Error)
-	}
-
-	return entities, int(total), nil
-}
-
-func (r *CandidaturaRepository) ListByCPF(ctx context.Context, cpf string, limit, offset int) ([]*empregabilidade.Candidatura, int, error) {
-	var entities []*empregabilidade.Candidatura
-	var total int64
-
-	db := r.db.WithContext(ctx).Model(&empregabilidade.Candidatura{}).Where("cpf = ?", cpf)
-
-	db.Count(&total)
-
-	result := db.
-		Preload("Vaga").
-		Preload("Vaga.Contratante").
-		Preload("EtapaAtual").
-		Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&entities)
-	if result.Error != nil {
-		return nil, 0, fmt.Errorf("erro ao listar candidaturas por CPF: %w", result.Error)
-	}
-
-	return entities, int(total), nil
-}
-
-func (r *CandidaturaRepository) ListByVaga(ctx context.Context, vagaID uuid.UUID, status string, limit, offset int) ([]*empregabilidade.Candidatura, int, error) {
-	var entities []*empregabilidade.Candidatura
-	var total int64
-
-	db := r.db.WithContext(ctx).Model(&empregabilidade.Candidatura{}).Where("id_vaga = ?", vagaID)
-
-	if status != "" {
-		db = db.Where("status = ?", status)
-	}
-
-	db.Count(&total)
-
-	result := db.
-		Preload("EtapaAtual").
-		Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&entities)
-	if result.Error != nil {
-		return nil, 0, fmt.Errorf("erro ao listar candidaturas por vaga: %w", result.Error)
 	}
 
 	return entities, int(total), nil

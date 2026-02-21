@@ -67,18 +67,10 @@ func (m *MockCandidaturaRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (m *MockCandidaturaRepo) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Candidatura, int, error) {
+func (m *MockCandidaturaRepo) List(ctx context.Context, filter empregabilidade.CandidaturaFilter, limit, offset int) ([]*empregabilidade.Candidatura, int, error) {
 	if m.listError != nil {
 		return nil, 0, m.listError
 	}
-	return []*empregabilidade.Candidatura{}, 0, nil
-}
-
-func (m *MockCandidaturaRepo) ListByCPF(ctx context.Context, cpf string, limit, offset int) ([]*empregabilidade.Candidatura, int, error) {
-	return []*empregabilidade.Candidatura{}, 0, nil
-}
-
-func (m *MockCandidaturaRepo) ListByVaga(ctx context.Context, vagaID uuid.UUID, status string, limit, offset int) ([]*empregabilidade.Candidatura, int, error) {
 	return []*empregabilidade.Candidatura{}, 0, nil
 }
 

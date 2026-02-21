@@ -13,9 +13,7 @@ type CandidaturaRepositoryInterface interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Candidatura, error)
 	Update(ctx context.Context, entity *empregabilidade.Candidatura) error
 	Delete(ctx context.Context, id uuid.UUID) error
-	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Candidatura, int, error)
-	ListByCPF(ctx context.Context, cpf string, limit, offset int) ([]*empregabilidade.Candidatura, int, error)
-	ListByVaga(ctx context.Context, vagaID uuid.UUID, status string, limit, offset int) ([]*empregabilidade.Candidatura, int, error)
+	List(ctx context.Context, filter empregabilidade.CandidaturaFilter, limit, offset int) ([]*empregabilidade.Candidatura, int, error)
 	CheckExistingCandidatura(ctx context.Context, cpf string, vagaID uuid.UUID) (bool, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error
 	UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error
@@ -110,19 +108,9 @@ func (s *CandidaturaService) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *CandidaturaService) List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*empregabilidade.Candidatura, int, error) {
+func (s *CandidaturaService) List(ctx context.Context, filter empregabilidade.CandidaturaFilter, page, pageSize int) ([]*empregabilidade.Candidatura, int, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.List(ctx, filter, pageSize, offset)
-}
-
-func (s *CandidaturaService) ListByCPF(ctx context.Context, cpf string, page, pageSize int) ([]*empregabilidade.Candidatura, int, error) {
-	offset := (page - 1) * pageSize
-	return s.repo.ListByCPF(ctx, cpf, pageSize, offset)
-}
-
-func (s *CandidaturaService) ListByVaga(ctx context.Context, vagaID uuid.UUID, status string, page, pageSize int) ([]*empregabilidade.Candidatura, int, error) {
-	offset := (page - 1) * pageSize
-	return s.repo.ListByVaga(ctx, vagaID, status, pageSize, offset)
 }
 
 func (s *CandidaturaService) UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error {

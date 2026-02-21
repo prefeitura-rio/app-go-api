@@ -52,3 +52,9 @@ type Candidatura struct {
 func (Candidatura) TableName() string {
 	return "emp_candidaturas"
 }
+
+type CandidaturaFilter struct {
+	CPF    string
+	VagaID *uuid.UUID
+	Status string
+}

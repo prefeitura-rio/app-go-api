@@ -99,35 +99,18 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 		pageSize = 10
 	}
 
-	if cpf := c.Query("cpf"); cpf != "" {
-		entities, total, err := h.service.ListByCPF(c.Request.Context(), cpf, page, pageSize)
-		if err != nil {
-			handleCandidaturaError(c, err)
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"data": entities, "meta": gin.H{"page": page, "page_size": pageSize, "total": total}})
-		return
+	filter := empregabilidade.CandidaturaFilter{
+		CPF:    c.Query("cpf"),
+		Status: c.Query("status"),
 	}
 
-	if vagaID := c.Query("vagaId"); vagaID != "" {
-		id, err := uuid.Parse(vagaID)
+	if raw := c.Query("vagaId"); raw != "" {
+		id, err := uuid.Parse(raw)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ID da vaga inválido"})
 			return
 		}
-		status := c.Query("status")
-		entities, total, err := h.service.ListByVaga(c.Request.Context(), id, status, page, pageSize)
-		if err != nil {
-			handleCandidaturaError(c, err)
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"data": entities, "meta": gin.H{"page": page, "page_size": pageSize, "total": total}})
-		return
-	}
-
-	filter := make(map[string]interface{})
-	if status := c.Query("status"); status != "" {
-		filter["status"] = status
+		filter.VagaID = &id
 	}
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
