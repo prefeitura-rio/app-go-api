@@ -549,6 +549,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		empCandidaturas.PUT("/:id/status", empCandidaturaHandler.UpdateStatus)
 		empCandidaturas.PUT("/:id/approve", empCandidaturaHandler.Approve)
 		empCandidaturas.PUT("/:id/reject", empCandidaturaHandler.Reject)
+		empCandidaturas.PUT("/:id/etapa", empCandidaturaHandler.UpdateEtapa)
 	}
 
 	// Currículo

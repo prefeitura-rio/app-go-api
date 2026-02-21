@@ -1981,6 +1981,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/empregabilidade/candidaturas/{id}/etapa": {
+            "put": {
+                "description": "Atualiza a etapa atual de uma candidatura",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Avançar etapa da candidatura",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da candidatura",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Nova etapa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.UpdateEtapaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/empregabilidade/candidaturas/{id}/reject": {
             "put": {
                 "description": "Reprova uma candidatura",
@@ -9746,6 +9808,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.UpdateEtapaRequest": {
+            "type": "object",
+            "properties": {
+                "id_etapa_atual": {
                     "type": "string"
                 }
             }

@@ -465,6 +465,11 @@ definitions:
       updated_at:
         type: string
     type: object
+  empregabilidade.UpdateEtapaRequest:
+    properties:
+      id_etapa_atual:
+        type: string
+    type: object
   empregabilidade.UpdateStatusRequest:
     properties:
       status:
@@ -2808,6 +2813,47 @@ paths:
               type: string
             type: object
       summary: Aprovar candidatura
+      tags:
+      - empregabilidade-candidaturas
+  /api/v1/empregabilidade/candidaturas/{id}/etapa:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza a etapa atual de uma candidatura
+      parameters:
+      - description: ID da candidatura
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Nova etapa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.UpdateEtapaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Avançar etapa da candidatura
       tags:
       - empregabilidade-candidaturas
   /api/v1/empregabilidade/candidaturas/{id}/reject:

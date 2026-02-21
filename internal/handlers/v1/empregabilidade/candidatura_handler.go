@@ -301,3 +301,39 @@ func (h *CandidaturaHandler) Reject(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Candidatura reprovada com sucesso"})
 }
+
+type UpdateEtapaRequest struct {
+	EtapaID uuid.UUID `json:"id_etapa_atual"`
+}
+
+// @Summary      Avançar etapa da candidatura
+// @Description  Atualiza a etapa atual de uma candidatura
+// @Tags         empregabilidade-candidaturas
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string             true  "ID da candidatura"
+// @Param        request  body      UpdateEtapaRequest true  "Nova etapa"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /api/v1/empregabilidade/candidaturas/{id}/etapa [put]
+func (h *CandidaturaHandler) UpdateEtapa(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	var request UpdateEtapaRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.UpdateEtapa(c.Request.Context(), id, request.EtapaID); err != nil {
+		handleCandidaturaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Etapa atualizada com sucesso"})
+}
