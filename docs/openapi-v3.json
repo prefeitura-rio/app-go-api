@@ -2774,7 +2774,7 @@
     },
     "/api/v1/empregabilidade/curriculo/conquistas": {
       "post": {
-        "description": "Adiciona uma nova conquista ao currículo",
+        "description": "Adiciona uma nova conquista ao currículo do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -2795,6 +2795,19 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -2903,7 +2916,7 @@
         ]
       },
       "put": {
-        "description": "Atualiza uma conquista existente no currículo",
+        "description": "Atualiza uma conquista existente do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -2946,6 +2959,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -2967,7 +3006,7 @@
         ]
       },
       "delete": {
-        "description": "Remove uma conquista do currículo",
+        "description": "Remove uma conquista do currículo do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3010,6 +3049,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -3033,7 +3098,7 @@
     },
     "/api/v1/empregabilidade/curriculo/cursos-complementares": {
       "post": {
-        "description": "Adiciona um novo curso complementar ao currículo",
+        "description": "Adiciona um novo curso complementar ao currículo do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3054,6 +3119,19 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -3162,7 +3240,7 @@
         ]
       },
       "put": {
-        "description": "Atualiza um curso complementar existente no currículo",
+        "description": "Atualiza um curso complementar existente do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3205,6 +3283,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -3226,7 +3330,7 @@
         ]
       },
       "delete": {
-        "description": "Remove um curso complementar do currículo",
+        "description": "Remove um curso complementar do currículo do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3269,6 +3373,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -3292,7 +3422,7 @@
     },
     "/api/v1/empregabilidade/curriculo/experiencias": {
       "post": {
-        "description": "Adiciona uma nova experiência profissional ao currículo",
+        "description": "Adiciona uma nova experiência profissional ao currículo do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3313,6 +3443,19 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -3421,7 +3564,7 @@
         ]
       },
       "put": {
-        "description": "Atualiza uma experiência existente no currículo",
+        "description": "Atualiza uma experiência existente do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3464,6 +3607,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -3485,7 +3654,7 @@
         ]
       },
       "delete": {
-        "description": "Remove uma experiência do currículo",
+        "description": "Remove uma experiência do currículo do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3528,6 +3697,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -3551,7 +3746,7 @@
     },
     "/api/v1/empregabilidade/curriculo/formacoes": {
       "post": {
-        "description": "Cria uma nova formação no currículo",
+        "description": "Cria uma nova formação no currículo do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3572,6 +3767,19 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -3680,7 +3888,7 @@
         ]
       },
       "put": {
-        "description": "Atualiza uma formação existente",
+        "description": "Atualiza uma formação existente do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3723,6 +3931,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -3744,7 +3978,7 @@
         ]
       },
       "delete": {
-        "description": "Remove uma formação do currículo",
+        "description": "Remove uma formação do currículo do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3787,6 +4021,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -3810,7 +4070,7 @@
     },
     "/api/v1/empregabilidade/curriculo/idiomas": {
       "post": {
-        "description": "Adiciona um novo idioma ao currículo",
+        "description": "Adiciona um novo idioma ao currículo do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3831,6 +4091,19 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -3939,7 +4212,7 @@
         ]
       },
       "put": {
-        "description": "Atualiza um idioma existente no currículo",
+        "description": "Atualiza um idioma existente do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -3982,6 +4255,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -4003,7 +4302,7 @@
         ]
       },
       "delete": {
-        "description": "Remove um idioma do currículo",
+        "description": "Remove um idioma do currículo do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -4046,6 +4345,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -4069,7 +4394,7 @@
     },
     "/api/v1/empregabilidade/curriculo/situacao-interesses": {
       "put": {
-        "description": "Cria ou atualiza a situação atual e interesses do usuário",
+        "description": "Cria ou atualiza a situação atual e interesses do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -4098,6 +4423,19 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -4159,6 +4497,19 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -4182,7 +4533,7 @@
     },
     "/api/v1/empregabilidade/curriculo/{cpf}/conquistas": {
       "get": {
-        "description": "Retorna todas as conquistas de um usuário",
+        "description": "Retorna todas as conquistas do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -4206,6 +4557,19 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -4286,6 +4650,19 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -4309,7 +4686,7 @@
     },
     "/api/v1/empregabilidade/curriculo/{cpf}/cursos-complementares": {
       "get": {
-        "description": "Retorna todos os cursos complementares de um usuário",
+        "description": "Retorna todos os cursos complementares do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -4333,6 +4710,19 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -4413,6 +4803,19 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -4436,7 +4839,7 @@
     },
     "/api/v1/empregabilidade/curriculo/{cpf}/experiencias": {
       "get": {
-        "description": "Retorna todas as experiências profissionais de um usuário",
+        "description": "Retorna todas as experiências profissionais do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -4460,6 +4863,19 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -4537,6 +4953,19 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -4560,7 +4989,7 @@
     },
     "/api/v1/empregabilidade/curriculo/{cpf}/formacoes": {
       "get": {
-        "description": "Retorna todas as formações de um usuário",
+        "description": "Retorna todas as formações do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -4584,6 +5013,19 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -4661,6 +5103,19 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -4684,7 +5139,7 @@
     },
     "/api/v1/empregabilidade/curriculo/{cpf}/idiomas": {
       "get": {
-        "description": "Retorna todos os idiomas de um usuário",
+        "description": "Retorna todos os idiomas do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -4708,6 +5163,19 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -4788,6 +5256,19 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -4811,7 +5292,7 @@
     },
     "/api/v1/empregabilidade/curriculo/{cpf}/situacao-interesses": {
       "get": {
-        "description": "Retorna a situação atual e interesses de um usuário",
+        "description": "Retorna a situação atual e interesses do usuário autenticado",
         "tags": [
           "empregabilidade-curriculo"
         ],
@@ -4834,6 +5315,19 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/empregabilidade.CurriculoSituacaoInteresses"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -6789,6 +7283,19 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -6831,6 +7338,19 @@
         "responses": {
           "200": {
             "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -7527,6 +8047,19 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -7550,7 +8083,7 @@
     },
     "/api/v1/empregabilidade/termos-uso/{cpf}/accept": {
       "put": {
-        "description": "Registra o aceite dos termos de uso pelo usuário",
+        "description": "Registra o aceite dos termos de uso pelo usuário autenticado",
         "tags": [
           "empregabilidade-termos-uso"
         ],
@@ -7569,6 +8102,19 @@
         "responses": {
           "200": {
             "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -7626,6 +8172,19 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/empregabilidade.TermosUso"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -8399,61 +8958,6 @@
         ]
       }
     },
-    "/api/v1/empregabilidade/vagas/draft": {
-      "post": {
-        "description": "Cria um rascunho de vaga",
-        "tags": [
-          "empregabilidade-vagas"
-        ],
-        "summary": "Criar rascunho de vaga",
-        "requestBody": {
-          "$ref": "#/components/requestBodies/empregabilidade.Vaga"
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/empregabilidade.Vaga"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
     "/api/v1/empregabilidade/vagas/{id}": {
       "get": {
         "description": "Retorna uma vaga pelo ID",
@@ -9024,6 +9528,98 @@
           "empregabilidade-vagas"
         ],
         "summary": "Publicar vaga",
+        "parameters": [
+          {
+            "description": "ID da vaga",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/empregabilidade/vagas/{id}/send-to-approval": {
+      "put": {
+        "description": "Envia uma vaga em edição para o fluxo de aprovação",
+        "tags": [
+          "empregabilidade-vagas"
+        ],
+        "summary": "Enviar vaga para aprovação",
         "parameters": [
           {
             "description": "ID da vaga",
