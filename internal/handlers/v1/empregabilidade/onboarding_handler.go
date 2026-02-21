@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
@@ -21,10 +22,23 @@ func NewOnboardingHandler(service *services.OnboardingService) *OnboardingHandle
 // @Produce      json
 // @Param        cpf   path      string  true  "CPF do usuário"
 // @Success      200   {object}  map[string]bool
+// @Failure      403   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
 // @Router       /api/v1/empregabilidade/onboarding/{cpf} [get]
 func (h *OnboardingHandler) IsFirstLogin(c *gin.Context) {
 	cpf := c.Param("cpf")
+
+	if !middlewares.IsAdmin(c) {
+		userCPF := middlewares.GetUserCPF(c)
+		if userCPF == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não identificado"})
+			return
+		}
+		if userCPF != cpf {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode acessar seus próprios dados"})
+			return
+		}
+	}
 
 	isFirstLogin, err := h.service.IsFirstLogin(c.Request.Context(), cpf)
 	if err != nil {
@@ -41,10 +55,23 @@ func (h *OnboardingHandler) IsFirstLogin(c *gin.Context) {
 // @Produce      json
 // @Param        cpf   path      string  true  "CPF do usuário"
 // @Success      200   {object}  map[string]string
+// @Failure      403   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
 // @Router       /api/v1/empregabilidade/onboarding/{cpf}/complete [put]
 func (h *OnboardingHandler) MarkFirstLoginCompleted(c *gin.Context) {
 	cpf := c.Param("cpf")
+
+	if !middlewares.IsAdmin(c) {
+		userCPF := middlewares.GetUserCPF(c)
+		if userCPF == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não identificado"})
+			return
+		}
+		if userCPF != cpf {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode modificar seus próprios dados"})
+			return
+		}
+	}
 
 	if err := h.service.MarkFirstLoginCompleted(c.Request.Context(), cpf); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

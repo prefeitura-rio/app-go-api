@@ -102,8 +102,14 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 		}
 
 		if entity.Etapas != nil {
+			// Only clear etapa from candidaturas that are still in progress (enviada or congelada)
+			// Preserves etapa history for finalized candidaturas (aprovada, reprovada, descontinuada)
+			activeStatuses := []string{
+				string(empregabilidade.StatusCandidaturaEnviada),
+				string(empregabilidade.StatusCandidaturaVagaCongelada),
+			}
 			if err := tx.Model(&empregabilidade.Candidatura{}).
-				Where("id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)", entity.ID).
+				Where("id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?) AND status IN ?", entity.ID, activeStatuses).
 				Update("id_etapa_atual", nil).Error; err != nil {
 				return fmt.Errorf("erro ao desvincular etapas das candidaturas: %w", err)
 			}
@@ -152,6 +158,9 @@ func (r *VagaRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	if result.Error != nil {
 		return fmt.Errorf("erro ao excluir vaga: %w", result.Error)
 	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("vaga não encontrada")
+	}
 	return nil
 }
 
@@ -165,7 +174,9 @@ func (r *VagaRepository) List(ctx context.Context, filter map[string]interface{}
 		db = db.Where(key+" = ?", value)
 	}
 
-	db.Count(&total)
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar vagas: %w", err)
+	}
 
 	result := db.
 		Preload("Contratante").
@@ -178,6 +189,33 @@ func (r *VagaRepository) List(ctx context.Context, filter map[string]interface{}
 		Find(&entities)
 	if result.Error != nil {
 		return nil, 0, fmt.Errorf("erro ao listar vagas: %w", result.Error)
+	}
+
+	return entities, int(total), nil
+}
+
+func (r *VagaRepository) ListPublicActive(ctx context.Context, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+	var entities []*empregabilidade.Vaga
+	var total int64
+
+	db := r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}).
+		Where("status = ? AND (data_limite IS NULL OR data_limite > NOW())", empregabilidade.StatusVagaPublicadoAtivo)
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar vagas: %w", err)
+	}
+
+	result := db.
+		Preload("Contratante").
+		Preload("RegimeContratacao").
+		Preload("ModeloTrabalho").
+		Preload("OrgaoParceiro").
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&entities)
+	if result.Error != nil {
+		return nil, 0, fmt.Errorf("erro ao listar vagas públicas ativas: %w", result.Error)
 	}
 
 	return entities, int(total), nil
@@ -205,7 +243,9 @@ func (r *VagaRepository) ListByContratante(ctx context.Context, cnpj string, lim
 
 	db := r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}).Where("id_contratante = ?", cnpj)
 
-	db.Count(&total)
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar vagas por contratante: %w", err)
+	}
 
 	result := db.
 		Preload("RegimeContratacao").
@@ -228,7 +268,9 @@ func (r *VagaRepository) ListByOrgaoParceiro(ctx context.Context, orgaoID string
 
 	db := r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}).Where("id_orgao_parceiro = ?", orgaoID)
 
-	db.Count(&total)
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar vagas por órgão parceiro: %w", err)
+	}
 
 	result := db.
 		Preload("Contratante").

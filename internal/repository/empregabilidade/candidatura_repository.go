@@ -56,6 +56,9 @@ func (r *CandidaturaRepository) Delete(ctx context.Context, id uuid.UUID) error 
 	if result.Error != nil {
 		return fmt.Errorf("erro ao excluir candidatura: %w", result.Error)
 	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("candidatura não encontrada")
+	}
 	return nil
 }
 
@@ -75,7 +78,9 @@ func (r *CandidaturaRepository) List(ctx context.Context, filter empregabilidade
 		db = db.Where("status = ?", filter.Status)
 	}
 
-	db.Count(&total)
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar candidaturas: %w", err)
+	}
 
 	result := db.
 		Preload("Vaga").

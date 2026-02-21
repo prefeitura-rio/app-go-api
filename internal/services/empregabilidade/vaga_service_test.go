@@ -94,6 +94,10 @@ func (m *MockVagaRepoForService) ListByOrgaoParceiro(ctx context.Context, orgaoI
 	return nil, 0, nil
 }
 
+func (m *MockVagaRepoForService) ListPublicActive(ctx context.Context, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+	return nil, 0, nil
+}
+
 // Mock Empresa Repository for VagaService tests
 type MockEmpresaRepoForService struct {
 	empresas map[string]*empregabilidade.Empresa

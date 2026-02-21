@@ -3,6 +3,7 @@ package empregabilidade
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
@@ -27,9 +28,45 @@ type CurriculoServiceInterface interface {
 	GetCurriculoCompleto(ctx context.Context, cpf string) (*empregabilidade.CurriculoCompleto, error)
 }
 
+var validStatusTransitions = map[empregabilidade.StatusCandidatura][]empregabilidade.StatusCandidatura{
+	empregabilidade.StatusCandidaturaEnviada: {
+		empregabilidade.StatusCandidaturaAprovada,
+		empregabilidade.StatusCandidaturaReprovada,
+		empregabilidade.StatusCandidaturaVagaCongelada,
+		empregabilidade.StatusCandidaturaDescontinuada,
+	},
+	empregabilidade.StatusCandidaturaAprovada: {
+		empregabilidade.StatusCandidaturaVagaCongelada,
+		empregabilidade.StatusCandidaturaDescontinuada,
+	},
+	empregabilidade.StatusCandidaturaReprovada: {
+		empregabilidade.StatusCandidaturaDescontinuada,
+	},
+	empregabilidade.StatusCandidaturaVagaCongelada: {
+		empregabilidade.StatusCandidaturaEnviada,
+		empregabilidade.StatusCandidaturaAprovada,
+		empregabilidade.StatusCandidaturaReprovada,
+		empregabilidade.StatusCandidaturaDescontinuada,
+	},
+	empregabilidade.StatusCandidaturaDescontinuada: {},
+}
+
+func canTransitionCandidatura(from, to empregabilidade.StatusCandidatura) bool {
+	allowed, ok := validStatusTransitions[from]
+	if !ok {
+		return false
+	}
+	for _, s := range allowed {
+		if s == to {
+			return true
+		}
+	}
+	return false
+}
+
 type CandidaturaService struct {
-	repo            CandidaturaRepositoryInterface
-	vagaRepo        VagaRepositoryInterface
+	repo             CandidaturaRepositoryInterface
+	vagaRepo         VagaRepositoryInterface
 	curriculoService CurriculoServiceInterface
 }
 
@@ -39,8 +76,8 @@ func NewCandidaturaService(
 	curriculoService CurriculoServiceInterface,
 ) *CandidaturaService {
 	return &CandidaturaService{
-		repo:            repo,
-		vagaRepo:        vagaRepo,
+		repo:             repo,
+		vagaRepo:         vagaRepo,
 		curriculoService: curriculoService,
 	}
 }
@@ -54,7 +91,6 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 		return uuid.Nil, errors.New("vaga não encontrada")
 	}
 
-	// Recalcula status baseado na data de expiração
 	vaga.UpdateStatusBasedOnExpiration()
 
 	if vaga.Status != empregabilidade.StatusVagaPublicadoAtivo {
@@ -86,7 +122,6 @@ func (s *CandidaturaService) GetByID(ctx context.Context, id uuid.UUID) (*empreg
 }
 
 func (s *CandidaturaService) Update(ctx context.Context, entity *empregabilidade.Candidatura) error {
-	// Fetch existing candidatura to preserve controlled fields
 	existing, err := s.repo.GetByID(ctx, entity.ID)
 	if err != nil {
 		return err
@@ -117,17 +152,74 @@ func (s *CandidaturaService) UpdateStatus(ctx context.Context, id uuid.UUID, sta
 	if !status.IsValid() {
 		return errors.New("status inválido")
 	}
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("candidatura não encontrada")
+	}
+	if !canTransitionCandidatura(existing.Status, status) {
+		return fmt.Errorf("transição de status inválida: %s → %s", existing.Status, status)
+	}
 	return s.repo.UpdateStatus(ctx, id, status)
 }
 
 func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error {
+	candidatura, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if candidatura == nil {
+		return errors.New("candidatura não encontrada")
+	}
+
+	vaga, err := s.vagaRepo.GetByID(ctx, candidatura.IDVaga)
+	if err != nil {
+		return err
+	}
+	if vaga == nil {
+		return errors.New("vaga não encontrada")
+	}
+
+	etapaValida := false
+	for _, etapa := range vaga.Etapas {
+		if etapa.ID == etapaID {
+			etapaValida = true
+			break
+		}
+	}
+	if !etapaValida {
+		return errors.New("etapa não pertence à vaga desta candidatura")
+	}
+
 	return s.repo.UpdateEtapa(ctx, id, etapaID)
 }
 
 func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("candidatura não encontrada")
+	}
+	if !canTransitionCandidatura(existing.Status, empregabilidade.StatusCandidaturaAprovada) {
+		return fmt.Errorf("candidatura não pode ser aprovada no status atual: %s", existing.Status)
+	}
 	return s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
 }
 
 func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("candidatura não encontrada")
+	}
+	if !canTransitionCandidatura(existing.Status, empregabilidade.StatusCandidaturaReprovada) {
+		return fmt.Errorf("candidatura não pode ser reprovada no status atual: %s", existing.Status)
+	}
 	return s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaReprovada)
 }

@@ -445,10 +445,16 @@ func TestCandidaturaService_UpdateStatus(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
+		id := uuid.New()
+		mockCandidaturaRepo.candidaturas[id] = &empregabilidade.Candidatura{
+			ID:     id,
+			Status: empregabilidade.StatusCandidaturaEnviada,
+		}
+
 		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
 
 		ctx := context.Background()
-		err := service.UpdateStatus(ctx, uuid.New(), empregabilidade.StatusCandidaturaAprovada)
+		err := service.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
 
 		if err != nil {
 			t.Errorf("Expected successful status update, got error: %v", err)

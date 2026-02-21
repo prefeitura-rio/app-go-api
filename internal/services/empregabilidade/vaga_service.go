@@ -16,6 +16,7 @@ type VagaRepoInterface interface {
 	UpdateWithAssociations(ctx context.Context, entity *empregabilidade.Vaga) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Vaga, int, error)
+	ListPublicActive(ctx context.Context, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error
 	ListByContratante(ctx context.Context, cnpj string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	ListByOrgaoParceiro(ctx context.Context, orgaoID string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
@@ -26,23 +27,17 @@ type EmpresaRepoInterface interface {
 }
 
 type VagaService struct {
-	repo                       VagaRepoInterface
-	empresaRepo                EmpresaRepoInterface
-	etapaRepo                  *repository.EtapaRepository
-	informacaoComplementarRepo *repository.InformacaoComplementarRepository
+	repo        VagaRepoInterface
+	empresaRepo EmpresaRepoInterface
 }
 
 func NewVagaService(
 	repo *repository.VagaRepository,
 	empresaRepo *repository.EmpresaRepository,
-	etapaRepo *repository.EtapaRepository,
-	informacaoComplementarRepo *repository.InformacaoComplementarRepository,
 ) *VagaService {
 	return &VagaService{
-		repo:                       repo,
-		empresaRepo:                empresaRepo,
-		etapaRepo:                  etapaRepo,
-		informacaoComplementarRepo: informacaoComplementarRepo,
+		repo:        repo,
+		empresaRepo: empresaRepo,
 	}
 }
 
@@ -54,6 +49,11 @@ func NewVagaServiceWithInterfaces(
 		repo:        repo,
 		empresaRepo: empresaRepo,
 	}
+}
+
+// CreateDraft is an alias for Create (both create a vaga in em_edicao status).
+func (s *VagaService) CreateDraft(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
+	return s.Create(ctx, entity)
 }
 
 func (s *VagaService) validateContratante(ctx context.Context, cnpj string) error {
@@ -72,18 +72,8 @@ func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) 
 		return uuid.Nil, err
 	}
 
-	// Força status inicial para evitar bypass do fluxo de aprovação
 	entity.Status = empregabilidade.StatusVagaEmEdicao
 
-	return s.repo.Create(ctx, entity)
-}
-
-func (s *VagaService) CreateDraft(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
-	if err := s.validateContratante(ctx, entity.IDContratante); err != nil {
-		return uuid.Nil, err
-	}
-
-	entity.Status = empregabilidade.StatusVagaEmEdicao
 	return s.repo.Create(ctx, entity)
 }
 
@@ -128,6 +118,11 @@ func (s *VagaService) List(ctx context.Context, filter map[string]interface{}, p
 	}
 
 	return vagas, total, nil
+}
+
+func (s *VagaService) ListPublicActive(ctx context.Context, page, pageSize int) ([]*empregabilidade.Vaga, int, error) {
+	offset := (page - 1) * pageSize
+	return s.repo.ListPublicActive(ctx, pageSize, offset)
 }
 
 func (s *VagaService) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error {

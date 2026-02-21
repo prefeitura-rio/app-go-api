@@ -23,9 +23,15 @@ func handleCandidaturaError(c *gin.Context, err error) {
 	case strings.Contains(msg, "já existe"), strings.Contains(msg, "já se candidatou"):
 		c.JSON(http.StatusConflict, gin.H{"error": msg})
 		return
+	case strings.Contains(msg, "transição de status inválida"),
+		strings.Contains(msg, "não pode ser aprovada"),
+		strings.Contains(msg, "não pode ser reprovada"):
+		c.JSON(http.StatusConflict, gin.H{"error": msg})
+		return
 	case strings.Contains(msg, "expirada"),
 		strings.Contains(msg, "não está ativa"),
-		strings.Contains(msg, "status inválido"):
+		strings.Contains(msg, "status inválido"),
+		strings.Contains(msg, "etapa não pertence"):
 		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
 		return
 	}
@@ -66,6 +72,13 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 	}
 	entity.CPF = cpf
 
+	if nome := middlewares.GetUserName(c); nome != "" {
+		entity.Nome = &nome
+	}
+	if email := middlewares.GetUserEmail(c); email != "" {
+		entity.Email = &email
+	}
+
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
 		handleCandidaturaError(c, err)
@@ -100,8 +113,18 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 	}
 
 	filter := empregabilidade.CandidaturaFilter{
-		CPF:    c.Query("cpf"),
 		Status: c.Query("status"),
+	}
+
+	if middlewares.IsAdmin(c) {
+		filter.CPF = c.Query("cpf")
+	} else {
+		userCPF := middlewares.GetUserCPF(c)
+		if userCPF == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não identificado"})
+			return
+		}
+		filter.CPF = userCPF
 	}
 
 	if raw := c.Query("vagaId"); raw != "" {
