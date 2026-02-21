@@ -1,5 +1,551 @@
 basePath: /
 definitions:
+  empregabilidade.AcessibilidadePCD:
+    enum:
+    - para_pcd
+    - preferencial_pcd
+    - exclusivo_pcd
+    type: string
+    x-enum-varnames:
+    - AcessibilidadeParaPCD
+    - AcessibilidadePreferencialPCD
+    - AcessibilidadeExclusivoPCD
+  empregabilidade.Candidatura:
+    properties:
+      cpf:
+        type: string
+      created_at:
+        type: string
+      curriculo_snapshot:
+        $ref: '#/definitions/empregabilidade.CurriculoCompleto'
+      deleted_at:
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      email:
+        type: string
+      etapa_atual:
+        $ref: '#/definitions/empregabilidade.Etapa'
+      id:
+        type: string
+      id_etapa_atual:
+        type: string
+      id_vaga:
+        type: string
+      nome:
+        type: string
+      respostas_info_complementares:
+        items:
+          $ref: '#/definitions/empregabilidade.RespostaInfoComplementar'
+        type: array
+      status:
+        $ref: '#/definitions/empregabilidade.StatusCandidatura'
+      updated_at:
+        type: string
+      vaga:
+        allOf:
+        - $ref: '#/definitions/empregabilidade.Vaga'
+        description: Relationships
+    type: object
+  empregabilidade.CurriculoCompleto:
+    properties:
+      conquistas:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoConquista'
+        type: array
+      cursos_complementares:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoCursoComplementar'
+        type: array
+      experiencias:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
+        type: array
+      formacoes:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoFormacao'
+        type: array
+      idiomas:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoIdioma'
+        type: array
+      situacao_interesses:
+        $ref: '#/definitions/empregabilidade.CurriculoSituacaoInteresses'
+    type: object
+  empregabilidade.CurriculoConquista:
+    properties:
+      cpf:
+        type: string
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      id_tipo_conquista:
+        type: string
+      tipo_conquista:
+        allOf:
+        - $ref: '#/definitions/empregabilidade.TipoConquista'
+        description: Relationships
+      titulo:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.CurriculoCursoComplementar:
+    properties:
+      ano_conclusao:
+        type: string
+      cpf:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      nome_curso:
+        type: string
+      nome_instituicao:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.CurriculoExperiencia:
+    properties:
+      cargo:
+        type: string
+      cpf:
+        type: string
+      created_at:
+        type: string
+      descricao_atividades:
+        type: string
+      eh_trabalho_atual:
+        type: boolean
+      empresa:
+        type: string
+      experiencia_comprovada_ct:
+        type: boolean
+      id:
+        type: string
+      tempo_experiencia_meses:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.CurriculoFormacao:
+    properties:
+      ano_conclusao:
+        type: string
+      cpf:
+        type: string
+      created_at:
+        type: string
+      escolaridade:
+        allOf:
+        - $ref: '#/definitions/empregabilidade.Escolaridade'
+        description: Relationships
+      id:
+        type: string
+      id_escolaridade:
+        type: string
+      nome_curso:
+        type: string
+      nome_instituicao:
+        type: string
+      status:
+        $ref: '#/definitions/empregabilidade.StatusFormacao'
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.CurriculoIdioma:
+    properties:
+      cpf:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      id_idioma:
+        type: string
+      id_nivel:
+        type: string
+      idioma:
+        allOf:
+        - $ref: '#/definitions/empregabilidade.Idioma'
+        description: Relationships
+      nivel:
+        $ref: '#/definitions/empregabilidade.NivelIdioma'
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.CurriculoSituacaoInteresses:
+    properties:
+      cpf:
+        type: string
+      created_at:
+        type: string
+      disponibilidade:
+        $ref: '#/definitions/empregabilidade.Disponibilidade'
+      id_disponibilidade:
+        type: string
+      id_situacao:
+        type: string
+      ids_tipos_vinculo_preferencia:
+        items:
+          type: string
+        type: array
+      situacao:
+        allOf:
+        - $ref: '#/definitions/empregabilidade.SituacaoAtual'
+        description: Relationships
+      tempo_procurando_emprego:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.Disponibilidade:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.Empresa:
+    properties:
+      cnpj:
+        type: string
+      created_at:
+        type: string
+      descricao:
+        type: string
+      nome_fantasia:
+        type: string
+      porte:
+        type: string
+      razao_social:
+        type: string
+      setor:
+        type: string
+      updated_at:
+        type: string
+      url_logo:
+        type: string
+      website:
+        type: string
+    type: object
+  empregabilidade.Escolaridade:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.Etapa:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      id_vaga:
+        type: string
+      ordem:
+        type: integer
+      titulo:
+        type: string
+      updated_at:
+        type: string
+      vaga:
+        allOf:
+        - $ref: '#/definitions/empregabilidade.Vaga'
+        description: Relationships
+    type: object
+  empregabilidade.ExperienciaProfissionalAccordionRequest:
+    properties:
+      conquistas:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoConquista'
+        type: array
+      experiencias:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
+        type: array
+    type: object
+  empregabilidade.FormacaoAccordionRequest:
+    properties:
+      formacoes:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoFormacao'
+        type: array
+      idiomas:
+        items:
+          $ref: '#/definitions/empregabilidade.CurriculoIdioma'
+        type: array
+    type: object
+  empregabilidade.Idioma:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.InformacaoComplementar:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      id_vaga:
+        type: string
+      obrigatorio:
+        type: boolean
+      opcoes:
+        items:
+          type: string
+        type: array
+      tipo_campo:
+        $ref: '#/definitions/empregabilidade.TipoCampo'
+      titulo:
+        type: string
+      updated_at:
+        type: string
+      vaga:
+        allOf:
+        - $ref: '#/definitions/empregabilidade.Vaga'
+        description: Relationships
+      valor_maximo:
+        type: integer
+      valor_minimo:
+        type: integer
+    type: object
+  empregabilidade.ModeloTrabalho:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.NivelIdioma:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.RegimeContratacao:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.RespostaInfoComplementar:
+    properties:
+      id_info:
+        type: string
+      resposta:
+        type: string
+    type: object
+  empregabilidade.SituacaoAtual:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.StatusCandidatura:
+    enum:
+    - candidatura_enviada
+    - aprovada
+    - reprovada
+    - vaga_congelada
+    - vaga_descontinuada
+    type: string
+    x-enum-varnames:
+    - StatusCandidaturaEnviada
+    - StatusCandidaturaAprovada
+    - StatusCandidaturaReprovada
+    - StatusCandidaturaVagaCongelada
+    - StatusCandidaturaDescontinuada
+  empregabilidade.StatusFormacao:
+    enum:
+    - Completo
+    - Em andamento
+    - Incompleto
+    type: string
+    x-enum-varnames:
+    - StatusFormacaoCompleto
+    - StatusFormacaoEmAndamento
+    - StatusFormacaoIncompleto
+  empregabilidade.StatusVaga:
+    enum:
+    - em_edicao
+    - em_aprovacao
+    - publicado_ativo
+    - publicado_expirado
+    type: string
+    x-enum-varnames:
+    - StatusVagaEmEdicao
+    - StatusVagaEmAprovacao
+    - StatusVagaPublicadoAtivo
+    - StatusVagaPublicadoExpirado
+  empregabilidade.TermosUso:
+    properties:
+      aceito_em:
+        type: string
+      cpf:
+        type: string
+      created_at:
+        type: string
+      updated_at:
+        type: string
+      user_consent:
+        type: boolean
+    type: object
+  empregabilidade.TipoCampo:
+    enum:
+    - resposta_curta
+    - resposta_numerica
+    - selecao_unica
+    - selecao_multipla
+    type: string
+    x-enum-varnames:
+    - TipoCampoRespostaCurta
+    - TipoCampoRespostaNumerica
+    - TipoCampoSelecaoUnica
+    - TipoCampoSelecaoMultipla
+  empregabilidade.TipoConquista:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.TipoPCD:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  empregabilidade.UpdateEtapaRequest:
+    properties:
+      id_etapa_atual:
+        type: string
+    type: object
+  empregabilidade.UpdateStatusRequest:
+    properties:
+      status:
+        $ref: '#/definitions/empregabilidade.StatusCandidatura'
+    type: object
+  empregabilidade.UpdateTiposPCDRequest:
+    properties:
+      tipos_pcd_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  empregabilidade.Vaga:
+    properties:
+      acessibilidade_pcd:
+        $ref: '#/definitions/empregabilidade.AcessibilidadePCD'
+      bairro:
+        type: string
+      beneficios:
+        type: string
+      contratante:
+        allOf:
+        - $ref: '#/definitions/empregabilidade.Empresa'
+        description: Relationships
+      created_at:
+        type: string
+      data_limite:
+        type: string
+      deleted_at:
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      descricao:
+        type: string
+      diferenciais:
+        type: string
+      etapas:
+        items:
+          $ref: '#/definitions/empregabilidade.Etapa'
+        type: array
+      id:
+        type: string
+      id_contratante:
+        type: string
+      id_modelo_trabalho:
+        type: string
+      id_orgao_parceiro:
+        type: string
+      id_regime_contratacao:
+        type: string
+      informacoes_complementares:
+        items:
+          $ref: '#/definitions/empregabilidade.InformacaoComplementar'
+        type: array
+      modelo_trabalho:
+        $ref: '#/definitions/empregabilidade.ModeloTrabalho'
+      orgao_parceiro:
+        $ref: '#/definitions/models.OrgaoSnapshot'
+      regime_contratacao:
+        $ref: '#/definitions/empregabilidade.RegimeContratacao'
+      requisitos:
+        type: string
+      responsabilidades:
+        type: string
+      status:
+        $ref: '#/definitions/empregabilidade.StatusVaga'
+      tipos_pcd:
+        items:
+          $ref: '#/definitions/empregabilidade.TipoPCD'
+        type: array
+      titulo:
+        type: string
+      updated_at:
+        type: string
+      valor_vaga:
+        type: number
+    type: object
   models.Acessibilidade:
     properties:
       cursos:
@@ -93,6 +639,11 @@ definitions:
       accessibility:
         description: Accessibility field - free text field for frontend
         type: string
+      auto_approve_enrollments:
+        description: Auto-approve enrollments - when true, new enrollments are automatically
+          approved instead of pending
+        example: false
+        type: boolean
       carga_horaria:
         type: integer
       certificacao_oferecida:
@@ -463,10 +1014,9 @@ definitions:
         description: Resultado final do processamento
         type: object
       status:
-        allOf:
-        - $ref: '#/definitions/models.JobStatus'
         description: 'Status: pending, processing, completed, failed'
         example: completed
+        type: string
       success_count:
         description: Quantidade de registros processados com sucesso
         example: 8
@@ -476,32 +1026,13 @@ definitions:
         example: 10
         type: integer
       type:
-        allOf:
-        - $ref: '#/definitions/models.JobType'
         description: Tipo de job (enrollment_import, etc)
         example: enrollment_import
+        type: string
       updated_at:
         description: Data/hora da última atualização
         type: string
     type: object
-  models.JobStatus:
-    enum:
-    - pending
-    - processing
-    - completed
-    - failed
-    type: string
-    x-enum-varnames:
-    - JobStatusPending
-    - JobStatusProcessing
-    - JobStatusCompleted
-    - JobStatusFailed
-  models.JobType:
-    enum:
-    - enrollment_import
-    type: string
-    x-enum-varnames:
-    - JobTypeEnrollmentImport
   models.JornadaTrabalho:
     enum:
     - INTEGRAL
@@ -516,6 +1047,45 @@ definitions:
     - JornadaFlexivel
     - JornadaEstagio
     - JornadaHomeOffice
+  models.LegalEntityConsultaResponse:
+    properties:
+      cnae_fiscal:
+        type: string
+      cnpj:
+        type: string
+      contato:
+        properties:
+          email:
+            type: string
+          telefone:
+            type: string
+        type: object
+      endereco:
+        properties:
+          bairro:
+            type: string
+          cep:
+            type: string
+          complemento:
+            type: string
+          logradouro:
+            type: string
+          municipio:
+            type: string
+          numero:
+            type: string
+          uf:
+            type: string
+        type: object
+      nome_fantasia:
+        type: string
+      porte:
+        type: string
+      razao_social:
+        type: string
+      situacao_cadastral:
+        type: string
+    type: object
   models.Modalidade:
     enum:
     - Presencial
@@ -650,6 +1220,32 @@ definitions:
         example: "2024-01-01T10:00:00Z"
         type: string
     type: object
+  models.OrgaoMetadata:
+    additionalProperties: true
+    type: object
+  models.OrgaoSnapshot:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_synced_at:
+        type: string
+      metadata:
+        $ref: '#/definitions/models.OrgaoMetadata'
+      name:
+        type: string
+      orgao_id:
+        type: string
+      sigla:
+        type: string
+      sync_error:
+        type: string
+      sync_status:
+        type: string
+      updated_at:
+        type: string
+    type: object
   models.PropostaMEI:
     properties:
       aceita_custos_integrais:
@@ -740,6 +1336,15 @@ definitions:
       updated_count:
         example: 2
         type: integer
+    type: object
+  models.ScheduleChangeRequest:
+    properties:
+      enrolled_unit:
+        $ref: '#/definitions/models.EnrolledUnit'
+      schedule_id:
+        type: string
+    required:
+    - enrolled_unit
     type: object
   models.SearchDocumentsResponse:
     properties:
@@ -905,6 +1510,72 @@ info:
   title: API Go
   version: "1.0"
 paths:
+  /api/public/empregabilidade/vagas:
+    get:
+      description: Retorna lista paginada de vagas publicadas (apenas vagas ativas)
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar vagas públicas
+      tags:
+      - empregabilidade-vagas-public
+  /api/public/empregabilidade/vagas/{id}:
+    get:
+      description: Retorna uma vaga publicada pelo ID (apenas se estiver ativa)
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Vaga'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar vaga pública
+      tags:
+      - empregabilidade-vagas-public
   /api/v1/acessibilidades:
     get:
       description: Retorna lista paginada de opções de acessibilidade
@@ -1930,6 +2601,3782 @@ paths:
       summary: Listar cursos rascunho
       tags:
       - courses
+  /api/v1/empregabilidade/candidaturas:
+    get:
+      description: Retorna lista paginada de candidaturas
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filtrar por CPF
+        in: query
+        name: cpf
+        type: string
+      - description: Filtrar por ID da vaga
+        in: query
+        name: vagaId
+        type: string
+      - description: Filtrar por status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar candidaturas
+      tags:
+      - empregabilidade-candidaturas
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova candidatura para uma vaga
+      parameters:
+      - description: Dados da candidatura
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Candidatura'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.Candidatura'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar candidatura
+      tags:
+      - empregabilidade-candidaturas
+  /api/v1/empregabilidade/candidaturas/{id}:
+    delete:
+      description: Remove uma candidatura pelo ID
+      parameters:
+      - description: ID da candidatura
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir candidatura
+      tags:
+      - empregabilidade-candidaturas
+    get:
+      description: Retorna uma candidatura pelo ID
+      parameters:
+      - description: ID da candidatura
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Candidatura'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar candidatura
+      tags:
+      - empregabilidade-candidaturas
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma candidatura existente
+      parameters:
+      - description: ID da candidatura
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados da candidatura
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Candidatura'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Candidatura'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar candidatura
+      tags:
+      - empregabilidade-candidaturas
+  /api/v1/empregabilidade/candidaturas/{id}/approve:
+    put:
+      description: Aprova uma candidatura
+      parameters:
+      - description: ID da candidatura
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Aprovar candidatura
+      tags:
+      - empregabilidade-candidaturas
+  /api/v1/empregabilidade/candidaturas/{id}/etapa:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza a etapa atual de uma candidatura
+      parameters:
+      - description: ID da candidatura
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Nova etapa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.UpdateEtapaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Avançar etapa da candidatura
+      tags:
+      - empregabilidade-candidaturas
+  /api/v1/empregabilidade/candidaturas/{id}/reject:
+    put:
+      description: Reprova uma candidatura
+      parameters:
+      - description: ID da candidatura
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Reprovar candidatura
+      tags:
+      - empregabilidade-candidaturas
+  /api/v1/empregabilidade/candidaturas/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza o status de uma candidatura
+      parameters:
+      - description: ID da candidatura
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Novo status
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.UpdateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar status da candidatura
+      tags:
+      - empregabilidade-candidaturas
+  /api/v1/empregabilidade/curriculo/{cpf}:
+    get:
+      description: Retorna o currículo completo de um usuário
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoCompleto'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar currículo completo
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/{cpf}/conquistas:
+    get:
+      description: Retorna todas as conquistas de um usuário
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar conquistas por CPF
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Remove todas as conquistas do CPF e insere as novas em uma transação
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Lista de conquistas
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/empregabilidade.CurriculoConquista'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Substituir conquistas por CPF
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/{cpf}/cursos-complementares:
+    get:
+      description: Retorna todos os cursos complementares de um usuário
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar cursos complementares por CPF
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Remove todos os cursos complementares do CPF e insere os novos
+        em uma transação
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Lista de cursos complementares
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/empregabilidade.CurriculoCursoComplementar'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Substituir cursos complementares por CPF
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/{cpf}/experiencias:
+    get:
+      description: Retorna todas as experiências profissionais de um usuário
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar experiências por CPF
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Remove todas as experiências e conquistas do CPF e insere as novas
+        em uma transação
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Experiências e conquistas
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.ExperienciaProfissionalAccordionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Substituir experiências e conquistas por CPF
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/{cpf}/formacoes:
+    get:
+      description: Retorna todas as formações de um usuário
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar formações por CPF
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Remove todas as formações e idiomas do CPF e insere os novos em
+        uma única transação
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Formações e idiomas
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.FormacaoAccordionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Substituir formações e idiomas por CPF
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/{cpf}/idiomas:
+    get:
+      description: Retorna todos os idiomas de um usuário
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar idiomas por CPF
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Remove todos os idiomas do CPF e insere os novos em uma transação
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Lista de idiomas
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/empregabilidade.CurriculoIdioma'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Substituir idiomas por CPF
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/{cpf}/situacao-interesses:
+    get:
+      description: Retorna a situação atual e interesses de um usuário
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoSituacaoInteresses'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar situação e interesses por CPF
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/conquistas:
+    post:
+      consumes:
+      - application/json
+      description: Adiciona uma nova conquista ao currículo
+      parameters:
+      - description: Dados da conquista
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoConquista'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoConquista'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar conquista
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/conquistas/{id}:
+    delete:
+      description: Remove uma conquista do currículo
+      parameters:
+      - description: ID da conquista
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir conquista
+      tags:
+      - empregabilidade-curriculo
+    get:
+      description: Retorna uma conquista específica do currículo
+      parameters:
+      - description: ID da conquista
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoConquista'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar conquista por ID
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma conquista existente no currículo
+      parameters:
+      - description: ID da conquista
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados da conquista
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoConquista'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoConquista'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar conquista
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/cursos-complementares:
+    post:
+      consumes:
+      - application/json
+      description: Adiciona um novo curso complementar ao currículo
+      parameters:
+      - description: Dados do curso complementar
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoCursoComplementar'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoCursoComplementar'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar curso complementar
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/cursos-complementares/{id}:
+    delete:
+      description: Remove um curso complementar do currículo
+      parameters:
+      - description: ID do curso complementar
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir curso complementar
+      tags:
+      - empregabilidade-curriculo
+    get:
+      description: Retorna um curso complementar específico do currículo
+      parameters:
+      - description: ID do curso complementar
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoCursoComplementar'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar curso complementar por ID
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um curso complementar existente no currículo
+      parameters:
+      - description: ID do curso complementar
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados do curso complementar
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoCursoComplementar'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoCursoComplementar'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar curso complementar
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/experiencias:
+    post:
+      consumes:
+      - application/json
+      description: Adiciona uma nova experiência profissional ao currículo
+      parameters:
+      - description: Dados da experiência
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar experiência
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/experiencias/{id}:
+    delete:
+      description: Remove uma experiência do currículo
+      parameters:
+      - description: ID da experiência
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir experiência
+      tags:
+      - empregabilidade-curriculo
+    get:
+      description: Retorna uma experiência específica do currículo
+      parameters:
+      - description: ID da experiência
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar experiência por ID
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma experiência existente no currículo
+      parameters:
+      - description: ID da experiência
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados da experiência
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar experiência
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/formacoes:
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova formação no currículo
+      parameters:
+      - description: Dados da formação
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoFormacao'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoFormacao'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar formação
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/formacoes/{id}:
+    delete:
+      description: Remove uma formação do currículo
+      parameters:
+      - description: ID da formação
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir formação
+      tags:
+      - empregabilidade-curriculo
+    get:
+      description: Retorna uma formação específica
+      parameters:
+      - description: ID da formação
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoFormacao'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar formação por ID
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma formação existente
+      parameters:
+      - description: ID da formação
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados da formação
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoFormacao'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoFormacao'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar formação
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/idiomas:
+    post:
+      consumes:
+      - application/json
+      description: Adiciona um novo idioma ao currículo
+      parameters:
+      - description: Dados do idioma
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoIdioma'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoIdioma'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar idioma no currículo
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/idiomas/{id}:
+    delete:
+      description: Remove um idioma do currículo
+      parameters:
+      - description: ID do idioma
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir idioma do currículo
+      tags:
+      - empregabilidade-curriculo
+    get:
+      description: Retorna um idioma específico do currículo
+      parameters:
+      - description: ID do idioma
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoIdioma'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar idioma por ID
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um idioma existente no currículo
+      parameters:
+      - description: ID do idioma
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados do idioma
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoIdioma'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoIdioma'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar idioma no currículo
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/situacao-interesses:
+    put:
+      consumes:
+      - application/json
+      description: Cria ou atualiza a situação atual e interesses do usuário
+      parameters:
+      - description: Dados da situação e interesses
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CurriculoSituacaoInteresses'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.CurriculoSituacaoInteresses'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar ou atualizar situação e interesses
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/disponibilidades:
+    get:
+      description: Retorna uma lista paginada de disponibilidades
+      parameters:
+      - default: 1
+        description: Número da página
+        in: query
+        name: page
+        type: integer
+      - default: 100
+        description: Tamanho da página
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar disponibilidades
+      tags:
+      - empregabilidade-disponibilidades
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova disponibilidade
+      parameters:
+      - description: Dados da disponibilidade
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Disponibilidade'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.Disponibilidade'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar disponibilidade
+      tags:
+      - empregabilidade-disponibilidades
+  /api/v1/empregabilidade/disponibilidades/{id}:
+    delete:
+      description: Remove uma disponibilidade
+      parameters:
+      - description: ID da disponibilidade
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir disponibilidade
+      tags:
+      - empregabilidade-disponibilidades
+    get:
+      description: Retorna uma disponibilidade específica
+      parameters:
+      - description: ID da disponibilidade
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Disponibilidade'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar disponibilidade por ID
+      tags:
+      - empregabilidade-disponibilidades
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma disponibilidade existente
+      parameters:
+      - description: ID da disponibilidade
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados da disponibilidade
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Disponibilidade'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Disponibilidade'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar disponibilidade
+      tags:
+      - empregabilidade-disponibilidades
+  /api/v1/empregabilidade/empresas:
+    get:
+      description: Retorna lista paginada de empresas
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar empresas
+      tags:
+      - empregabilidade-empresas
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova empresa
+      parameters:
+      - description: Dados da empresa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Empresa'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.Empresa'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar empresa
+      tags:
+      - empregabilidade-empresas
+  /api/v1/empregabilidade/empresas/{cnpj}:
+    delete:
+      description: Remove uma empresa pelo CNPJ
+      parameters:
+      - description: CNPJ da empresa
+        in: path
+        name: cnpj
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir empresa
+      tags:
+      - empregabilidade-empresas
+    get:
+      description: Retorna uma empresa pelo CNPJ
+      parameters:
+      - description: CNPJ da empresa
+        in: path
+        name: cnpj
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Empresa'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar empresa
+      tags:
+      - empregabilidade-empresas
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma empresa existente
+      parameters:
+      - description: CNPJ da empresa
+        in: path
+        name: cnpj
+        required: true
+        type: string
+      - description: Dados da empresa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Empresa'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Empresa'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar empresa
+      tags:
+      - empregabilidade-empresas
+  /api/v1/empregabilidade/empresas/consulta-cnpj/{cnpj}:
+    get:
+      description: Consulta dados de uma empresa pelo CNPJ no RMI (Registro Mercantil
+        Integrado)
+      parameters:
+      - description: CNPJ da empresa (com ou sem formatação)
+        in: path
+        name: cnpj
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LegalEntityConsultaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Consultar CNPJ
+      tags:
+      - empregabilidade-empresas
+  /api/v1/empregabilidade/escolaridades:
+    get:
+      description: Retorna uma lista paginada de escolaridades
+      parameters:
+      - default: 1
+        description: Número da página
+        in: query
+        name: page
+        type: integer
+      - default: 100
+        description: Tamanho da página
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar escolaridades
+      tags:
+      - empregabilidade-escolaridades
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova escolaridade
+      parameters:
+      - description: Dados da escolaridade
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Escolaridade'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.Escolaridade'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar escolaridade
+      tags:
+      - empregabilidade-escolaridades
+  /api/v1/empregabilidade/escolaridades/{id}:
+    delete:
+      description: Remove uma escolaridade
+      parameters:
+      - description: ID da escolaridade
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir escolaridade
+      tags:
+      - empregabilidade-escolaridades
+    get:
+      description: Retorna uma escolaridade específica
+      parameters:
+      - description: ID da escolaridade
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Escolaridade'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar escolaridade por ID
+      tags:
+      - empregabilidade-escolaridades
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma escolaridade existente
+      parameters:
+      - description: ID da escolaridade
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados da escolaridade
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Escolaridade'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Escolaridade'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar escolaridade
+      tags:
+      - empregabilidade-escolaridades
+  /api/v1/empregabilidade/idiomas:
+    get:
+      description: Retorna uma lista paginada de idiomas
+      parameters:
+      - default: 1
+        description: Número da página
+        in: query
+        name: page
+        type: integer
+      - default: 100
+        description: Tamanho da página
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar idiomas
+      tags:
+      - empregabilidade-idiomas
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo idioma
+      parameters:
+      - description: Dados do idioma
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Idioma'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.Idioma'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar idioma
+      tags:
+      - empregabilidade-idiomas
+  /api/v1/empregabilidade/idiomas/{id}:
+    delete:
+      description: Remove um idioma
+      parameters:
+      - description: ID do idioma
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir idioma
+      tags:
+      - empregabilidade-idiomas
+    get:
+      description: Retorna um idioma específico
+      parameters:
+      - description: ID do idioma
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Idioma'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar idioma por ID
+      tags:
+      - empregabilidade-idiomas
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um idioma existente
+      parameters:
+      - description: ID do idioma
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados do idioma
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Idioma'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Idioma'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar idioma
+      tags:
+      - empregabilidade-idiomas
+  /api/v1/empregabilidade/modelos-trabalho:
+    get:
+      description: Retorna uma lista paginada de modelos de trabalho
+      parameters:
+      - default: 1
+        description: Número da página
+        in: query
+        name: page
+        type: integer
+      - default: 100
+        description: Tamanho da página
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar modelos de trabalho
+      tags:
+      - empregabilidade-modelos-trabalho
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo modelo de trabalho
+      parameters:
+      - description: Dados do modelo de trabalho
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.ModeloTrabalho'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.ModeloTrabalho'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar modelo de trabalho
+      tags:
+      - empregabilidade-modelos-trabalho
+  /api/v1/empregabilidade/modelos-trabalho/{id}:
+    delete:
+      description: Remove um modelo de trabalho
+      parameters:
+      - description: ID do modelo de trabalho
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir modelo de trabalho
+      tags:
+      - empregabilidade-modelos-trabalho
+    get:
+      description: Retorna um modelo de trabalho específico
+      parameters:
+      - description: ID do modelo de trabalho
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.ModeloTrabalho'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar modelo de trabalho por ID
+      tags:
+      - empregabilidade-modelos-trabalho
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um modelo de trabalho existente
+      parameters:
+      - description: ID do modelo de trabalho
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados do modelo de trabalho
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.ModeloTrabalho'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.ModeloTrabalho'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar modelo de trabalho
+      tags:
+      - empregabilidade-modelos-trabalho
+  /api/v1/empregabilidade/niveis-idioma:
+    get:
+      description: Retorna uma lista paginada de níveis de idioma
+      parameters:
+      - default: 1
+        description: Número da página
+        in: query
+        name: page
+        type: integer
+      - default: 100
+        description: Tamanho da página
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar níveis de idioma
+      tags:
+      - empregabilidade-niveis-idioma
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo nível de idioma
+      parameters:
+      - description: Dados do nível de idioma
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.NivelIdioma'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.NivelIdioma'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar nível de idioma
+      tags:
+      - empregabilidade-niveis-idioma
+  /api/v1/empregabilidade/niveis-idioma/{id}:
+    delete:
+      description: Remove um nível de idioma
+      parameters:
+      - description: ID do nível de idioma
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir nível de idioma
+      tags:
+      - empregabilidade-niveis-idioma
+    get:
+      description: Retorna um nível de idioma específico
+      parameters:
+      - description: ID do nível de idioma
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.NivelIdioma'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar nível de idioma por ID
+      tags:
+      - empregabilidade-niveis-idioma
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um nível de idioma existente
+      parameters:
+      - description: ID do nível de idioma
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados do nível de idioma
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.NivelIdioma'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.NivelIdioma'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar nível de idioma
+      tags:
+      - empregabilidade-niveis-idioma
+  /api/v1/empregabilidade/onboarding/{cpf}:
+    get:
+      description: Verifica se é o primeiro login do usuário no módulo de empregabilidade
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Verificar primeiro login
+      tags:
+      - empregabilidade-onboarding
+  /api/v1/empregabilidade/onboarding/{cpf}/complete:
+    put:
+      description: Marca o primeiro login do usuário como concluído
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Marcar primeiro login como concluído
+      tags:
+      - empregabilidade-onboarding
+  /api/v1/empregabilidade/regimes-contratacao:
+    get:
+      description: Retorna lista paginada de regimes de contratação
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 100)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar regimes de contratação
+      tags:
+      - empregabilidade-regimes-contratacao
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo regime de contratação
+      parameters:
+      - description: Dados do regime
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.RegimeContratacao'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.RegimeContratacao'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar regime de contratação
+      tags:
+      - empregabilidade-regimes-contratacao
+  /api/v1/empregabilidade/regimes-contratacao/{id}:
+    delete:
+      description: Remove um regime de contratação pelo ID
+      parameters:
+      - description: ID do regime
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir regime de contratação
+      tags:
+      - empregabilidade-regimes-contratacao
+    get:
+      description: Retorna um regime de contratação pelo ID
+      parameters:
+      - description: ID do regime
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.RegimeContratacao'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar regime de contratação
+      tags:
+      - empregabilidade-regimes-contratacao
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um regime de contratação existente
+      parameters:
+      - description: ID do regime
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados do regime
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.RegimeContratacao'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.RegimeContratacao'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar regime de contratação
+      tags:
+      - empregabilidade-regimes-contratacao
+  /api/v1/empregabilidade/situacoes-atual:
+    get:
+      description: Retorna uma lista paginada de situações atuais
+      parameters:
+      - default: 1
+        description: Número da página
+        in: query
+        name: page
+        type: integer
+      - default: 100
+        description: Tamanho da página
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar situações atuais
+      tags:
+      - empregabilidade-situacoes-atual
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova situação atual
+      parameters:
+      - description: Dados da situação atual
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.SituacaoAtual'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.SituacaoAtual'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar situação atual
+      tags:
+      - empregabilidade-situacoes-atual
+  /api/v1/empregabilidade/situacoes-atual/{id}:
+    delete:
+      description: Remove uma situação atual
+      parameters:
+      - description: ID da situação atual
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir situação atual
+      tags:
+      - empregabilidade-situacoes-atual
+    get:
+      description: Retorna uma situação atual específica
+      parameters:
+      - description: ID da situação atual
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.SituacaoAtual'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar situação atual por ID
+      tags:
+      - empregabilidade-situacoes-atual
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma situação atual existente
+      parameters:
+      - description: ID da situação atual
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados da situação atual
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.SituacaoAtual'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.SituacaoAtual'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar situação atual
+      tags:
+      - empregabilidade-situacoes-atual
+  /api/v1/empregabilidade/termos-uso/{cpf}:
+    get:
+      description: Verifica se o usuário aceitou os termos de uso
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Verificar aceite dos termos
+      tags:
+      - empregabilidade-termos-uso
+  /api/v1/empregabilidade/termos-uso/{cpf}/accept:
+    put:
+      description: Registra o aceite dos termos de uso pelo usuário
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Aceitar termos de uso
+      tags:
+      - empregabilidade-termos-uso
+  /api/v1/empregabilidade/termos-uso/{cpf}/details:
+    get:
+      description: Retorna os detalhes do aceite dos termos de uso
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.TermosUso'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar detalhes dos termos
+      tags:
+      - empregabilidade-termos-uso
+  /api/v1/empregabilidade/tipos-conquista:
+    get:
+      description: Retorna uma lista paginada de tipos de conquista
+      parameters:
+      - default: 1
+        description: Número da página
+        in: query
+        name: page
+        type: integer
+      - default: 100
+        description: Tamanho da página
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar tipos de conquista
+      tags:
+      - empregabilidade-tipos-conquista
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo tipo de conquista
+      parameters:
+      - description: Dados do tipo de conquista
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.TipoConquista'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.TipoConquista'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar tipo de conquista
+      tags:
+      - empregabilidade-tipos-conquista
+  /api/v1/empregabilidade/tipos-conquista/{id}:
+    delete:
+      description: Remove um tipo de conquista
+      parameters:
+      - description: ID do tipo de conquista
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir tipo de conquista
+      tags:
+      - empregabilidade-tipos-conquista
+    get:
+      description: Retorna um tipo de conquista específico
+      parameters:
+      - description: ID do tipo de conquista
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.TipoConquista'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar tipo de conquista por ID
+      tags:
+      - empregabilidade-tipos-conquista
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um tipo de conquista existente
+      parameters:
+      - description: ID do tipo de conquista
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados do tipo de conquista
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.TipoConquista'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.TipoConquista'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar tipo de conquista
+      tags:
+      - empregabilidade-tipos-conquista
+  /api/v1/empregabilidade/tipos-pcd:
+    get:
+      description: Retorna uma lista paginada de tipos de PCD
+      parameters:
+      - default: 1
+        description: Número da página
+        in: query
+        name: page
+        type: integer
+      - default: 100
+        description: Tamanho da página
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar tipos de PCD
+      tags:
+      - empregabilidade-tipos-pcd
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo tipo de PCD
+      parameters:
+      - description: Dados do tipo de PCD
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.TipoPCD'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.TipoPCD'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar tipo de PCD
+      tags:
+      - empregabilidade-tipos-pcd
+  /api/v1/empregabilidade/tipos-pcd/{id}:
+    delete:
+      description: Remove um tipo de PCD
+      parameters:
+      - description: ID do tipo de PCD
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir tipo de PCD
+      tags:
+      - empregabilidade-tipos-pcd
+    get:
+      description: Retorna um tipo de PCD específico
+      parameters:
+      - description: ID do tipo de PCD
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.TipoPCD'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar tipo de PCD por ID
+      tags:
+      - empregabilidade-tipos-pcd
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um tipo de PCD existente
+      parameters:
+      - description: ID do tipo de PCD
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados do tipo de PCD
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.TipoPCD'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.TipoPCD'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar tipo de PCD
+      tags:
+      - empregabilidade-tipos-pcd
+  /api/v1/empregabilidade/vagas:
+    get:
+      description: Retorna lista paginada de vagas
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filtrar por status
+        in: query
+        name: status
+        type: string
+      - description: Filtrar por CNPJ do contratante
+        in: query
+        name: contratante
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar vagas
+      tags:
+      - empregabilidade-vagas
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova vaga
+      parameters:
+      - description: Dados da vaga
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Vaga'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.Vaga'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar vaga
+      tags:
+      - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/{id}:
+    delete:
+      description: Remove uma vaga pelo ID
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir vaga
+      tags:
+      - empregabilidade-vagas
+    get:
+      description: Retorna uma vaga pelo ID
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Vaga'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar vaga
+      tags:
+      - empregabilidade-vagas
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma vaga existente
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados da vaga
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Vaga'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Vaga'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar vaga
+      tags:
+      - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/{id}/etapas:
+    get:
+      description: Retorna todas as etapas de uma vaga
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar etapas da vaga
+      tags:
+      - empregabilidade-etapas
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova etapa para uma vaga
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados da etapa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Etapa'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.Etapa'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar etapa
+      tags:
+      - empregabilidade-etapas
+  /api/v1/empregabilidade/vagas/{id}/etapas/{etapaId}:
+    delete:
+      description: Remove uma etapa pelo ID
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ID da etapa
+        in: path
+        name: etapaId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir etapa
+      tags:
+      - empregabilidade-etapas
+    get:
+      description: Retorna uma etapa pelo ID
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ID da etapa
+        in: path
+        name: etapaId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Etapa'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar etapa
+      tags:
+      - empregabilidade-etapas
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma etapa existente
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ID da etapa
+        in: path
+        name: etapaId
+        required: true
+        type: string
+      - description: Dados da etapa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Etapa'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Etapa'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar etapa
+      tags:
+      - empregabilidade-etapas
+  /api/v1/empregabilidade/vagas/{id}/publish:
+    put:
+      description: Publica uma vaga em edição
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Publicar vaga
+      tags:
+      - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/{id}/tipos-pcd:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os tipos de PCD aceitos na vaga
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: IDs dos tipos PCD
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.UpdateTiposPCDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar tipos PCD da vaga
+      tags:
+      - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/draft:
+    post:
+      consumes:
+      - application/json
+      description: Cria um rascunho de vaga
+      parameters:
+      - description: Dados da vaga
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Vaga'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.Vaga'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar rascunho de vaga
+      tags:
+      - empregabilidade-vagas
   /api/v1/empregos:
     get:
       description: Retorna uma lista paginada de empregos com filtros opcionais
@@ -2100,6 +6547,51 @@ paths:
       summary: Atualizar emprego
       tags:
       - empregos
+  /api/v1/enrollments/{enrollmentId}/schedule:
+    put:
+      consumes:
+      - application/json
+      description: Permite ao cidadão trocar de turma em uma inscrição existente.
+        Deve ser feito com pelo menos 72h de antecedência do início da aula. Se a
+        inscrição estava aprovada, volta para status pendente.
+      parameters:
+      - description: UUID da inscrição
+        in: path
+        name: enrollmentId
+        required: true
+        type: string
+      - description: Dados da nova turma
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScheduleChangeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Inscricao'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Trocar turma/horário de inscrição
+      tags:
+      - enrollments
   /api/v1/enrollments/user/{cpf}:
     get:
       description: Retorna lista paginada de inscrições realizadas por um usuário

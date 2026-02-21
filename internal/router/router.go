@@ -18,10 +18,13 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
+	empHandlers "github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
+	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	empServices "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/workers"
 
 	_ "github.com/prefeitura-rio/app-go-api/docs"
@@ -74,6 +77,25 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	propostaMEIRepo := repository.NewPropostaMEIRepository(db)
 	orgaoSnapshotRepo := repository.NewOrgaoSnapshotRepository(db)
 	citizenSnapshotRepo := repository.NewCitizenSnapshotRepository(db)
+
+	// Empregabilidade repositories
+	empRegimeContratacaoRepo := empRepository.NewRegimeContratacaoRepository(db)
+	empModeloTrabalhoRepo := empRepository.NewModeloTrabalhoRepository(db)
+	empTipoPCDRepo := empRepository.NewTipoPCDRepository(db)
+	empIdiomaRepo := empRepository.NewIdiomaRepository(db)
+	empNivelIdiomaRepo := empRepository.NewNivelIdiomaRepository(db)
+	empEscolaridadeRepo := empRepository.NewEscolaridadeRepository(db)
+	empTipoConquistaRepo := empRepository.NewTipoConquistaRepository(db)
+	empSituacaoAtualRepo := empRepository.NewSituacaoAtualRepository(db)
+	empDisponibilidadeRepo := empRepository.NewDisponibilidadeRepository(db)
+	empEmpresaRepo := empRepository.NewEmpresaRepository(db)
+	empVagaRepo := empRepository.NewVagaRepository(db)
+	empEtapaRepo := empRepository.NewEtapaRepository(db)
+	empInformacaoComplementarRepo := empRepository.NewInformacaoComplementarRepository(db)
+	empCandidaturaRepo := empRepository.NewCandidaturaRepository(db)
+	empCurriculoRepo := empRepository.NewCurriculoRepository(db)
+	empOnboardingRepo := empRepository.NewOnboardingRepository(db)
+	empTermosUsoRepo := empRepository.NewTermosUsoRepository(db)
 
 	// Initialize Redis client with connection pool
 	redisClient := redis.NewClient(&redis.Options{
@@ -169,10 +191,34 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empresaService := services.NewEmpresaService(empresaRepo)
 	escolaridadeService := services.NewEscolaridadeService(escolaridadeRepo)
 	instituicaoService := services.NewInstituicaoService(instituicaoRepo)
-	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, citizenSnapshotRepo, citizenDataFetcher, emailNotificationService)
+	inscricaoService := services.NewInscricaoService(inscricaoRepo, cursoRepo, citizenSnapshotRepo, citizenDataFetcher, emailNotificationService, cfg)
 	jobService := services.NewJobService(jobRepo)
 	oportunidadeMEIService := services.NewOportunidadeMEIService(oportunidadeMEIRepo)
 	propostaMEIService := services.NewPropostaMEIService(propostaMEIRepo, oportunidadeMEIRepo, cnaeValidationService, contactInfoService)
+
+	// Empregabilidade services
+	empRegimeContratacaoService := empServices.NewRegimeContratacaoService(empRegimeContratacaoRepo)
+	empModeloTrabalhoService := empServices.NewModeloTrabalhoService(empModeloTrabalhoRepo)
+	empTipoPCDService := empServices.NewTipoPCDService(empTipoPCDRepo)
+	empIdiomaService := empServices.NewIdiomaService(empIdiomaRepo)
+	empNivelIdiomaService := empServices.NewNivelIdiomaService(empNivelIdiomaRepo)
+	empEscolaridadeService := empServices.NewEscolaridadeService(empEscolaridadeRepo)
+	empTipoConquistaService := empServices.NewTipoConquistaService(empTipoConquistaRepo)
+	empSituacaoAtualService := empServices.NewSituacaoAtualService(empSituacaoAtualRepo)
+	empDisponibilidadeService := empServices.NewDisponibilidadeService(empDisponibilidadeRepo)
+	empEmpresaService := empServices.NewEmpresaService(empEmpresaRepo)
+	empVagaService := empServices.NewVagaService(empVagaRepo, empEmpresaRepo, empEtapaRepo, empInformacaoComplementarRepo)
+	empEtapaService := empServices.NewEtapaService(empEtapaRepo)
+	empCurriculoService := empServices.NewCurriculoService(empCurriculoRepo)
+	empCandidaturaService := empServices.NewCandidaturaService(empCandidaturaRepo, empVagaRepo, empCurriculoService)
+	empOnboardingService := empServices.NewOnboardingService(empOnboardingRepo)
+	empTermosUsoService := empServices.NewTermosUsoService(empTermosUsoRepo)
+
+	// Initialize CNPJ consulta service for empregabilidade (requires service account)
+	var empCNPJConsultaService *empServices.CNPJConsultaService
+	if tokenManager != nil {
+		empCNPJConsultaService = empServices.NewCNPJConsultaService(rmiClient, tokenManager)
+	}
 
 	// Initialize job processor
 	jobs.InitializeJobProcessor(db, jobRepo, inscricaoRepo, cursoRepo)
@@ -202,6 +248,24 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	if err != nil {
 		fmt.Printf("Erro ao inicializar o Typesense: %v\n", err)
 	}
+
+	// Empregabilidade handlers
+	empRegimeContratacaoHandler := empHandlers.NewRegimeContratacaoHandler(empRegimeContratacaoService)
+	empModeloTrabalhoHandler := empHandlers.NewModeloTrabalhoHandler(empModeloTrabalhoService)
+	empTipoPCDHandler := empHandlers.NewTipoPCDHandler(empTipoPCDService)
+	empIdiomaHandler := empHandlers.NewIdiomaHandler(empIdiomaService)
+	empNivelIdiomaHandler := empHandlers.NewNivelIdiomaHandler(empNivelIdiomaService)
+	empEscolaridadeHandler := empHandlers.NewEscolaridadeHandler(empEscolaridadeService)
+	empTipoConquistaHandler := empHandlers.NewTipoConquistaHandler(empTipoConquistaService)
+	empSituacaoAtualHandler := empHandlers.NewSituacaoAtualHandler(empSituacaoAtualService)
+	empDisponibilidadeHandler := empHandlers.NewDisponibilidadeHandler(empDisponibilidadeService)
+	empEmpresaHandler := empHandlers.NewEmpresaHandler(empEmpresaService).WithCNPJConsulta(empCNPJConsultaService)
+	empVagaHandler := empHandlers.NewVagaHandler(empVagaService)
+	empEtapaHandler := empHandlers.NewEtapaHandler(empEtapaService)
+	empCandidaturaHandler := empHandlers.NewCandidaturaHandler(empCandidaturaService)
+	empCurriculoHandler := empHandlers.NewCurriculoHandler(empCurriculoService)
+	empOnboardingHandler := empHandlers.NewOnboardingHandler(empOnboardingService)
+	empTermosUsoHandler := empHandlers.NewTermosUsoHandler(empTermosUsoService)
 
 	// Rotas de empregos
 	empregos := apiV1.Group("/empregos")
@@ -320,6 +384,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	enrollments := apiV1.Group("/enrollments")
 	{
 		enrollments.GET("/user/:cpf", inscricaoHandler.ListByUser)
+		enrollments.PUT("/:enrollmentId/schedule", inscricaoHandler.ChangeSchedule)
 	}
 
 	// Rotas de Oportunidades MEI
@@ -353,6 +418,211 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	// Endpoints públicos para oportunidades MEI
 	apiPublic.GET("/oportunidades-mei", oportunidadeMEIHandler.List)
 	apiPublic.GET("/oportunidades-mei/:id", oportunidadeMEIHandler.GetByID)
+
+	// ==========================================
+	// Rotas de Empregabilidade
+	// ==========================================
+
+	empregabilidade := apiV1.Group("/empregabilidade")
+
+	// Tabelas auxiliares (lookup tables)
+	empRegimesContratacao := empregabilidade.Group("/regimes-contratacao")
+	{
+		empRegimesContratacao.POST("", empRegimeContratacaoHandler.Create)
+		empRegimesContratacao.GET("", empRegimeContratacaoHandler.List)
+		empRegimesContratacao.GET("/:id", empRegimeContratacaoHandler.GetByID)
+		empRegimesContratacao.PUT("/:id", empRegimeContratacaoHandler.Update)
+		empRegimesContratacao.DELETE("/:id", empRegimeContratacaoHandler.Delete)
+	}
+
+	empModelosTrabalho := empregabilidade.Group("/modelos-trabalho")
+	{
+		empModelosTrabalho.POST("", empModeloTrabalhoHandler.Create)
+		empModelosTrabalho.GET("", empModeloTrabalhoHandler.List)
+		empModelosTrabalho.GET("/:id", empModeloTrabalhoHandler.GetByID)
+		empModelosTrabalho.PUT("/:id", empModeloTrabalhoHandler.Update)
+		empModelosTrabalho.DELETE("/:id", empModeloTrabalhoHandler.Delete)
+	}
+
+	empTiposPCD := empregabilidade.Group("/tipos-pcd")
+	{
+		empTiposPCD.POST("", empTipoPCDHandler.Create)
+		empTiposPCD.GET("", empTipoPCDHandler.List)
+		empTiposPCD.GET("/:id", empTipoPCDHandler.GetByID)
+		empTiposPCD.PUT("/:id", empTipoPCDHandler.Update)
+		empTiposPCD.DELETE("/:id", empTipoPCDHandler.Delete)
+	}
+
+	empIdiomas := empregabilidade.Group("/idiomas")
+	{
+		empIdiomas.POST("", empIdiomaHandler.Create)
+		empIdiomas.GET("", empIdiomaHandler.List)
+		empIdiomas.GET("/:id", empIdiomaHandler.GetByID)
+		empIdiomas.PUT("/:id", empIdiomaHandler.Update)
+		empIdiomas.DELETE("/:id", empIdiomaHandler.Delete)
+	}
+
+	empNiveisIdioma := empregabilidade.Group("/niveis-idioma")
+	{
+		empNiveisIdioma.POST("", empNivelIdiomaHandler.Create)
+		empNiveisIdioma.GET("", empNivelIdiomaHandler.List)
+		empNiveisIdioma.GET("/:id", empNivelIdiomaHandler.GetByID)
+		empNiveisIdioma.PUT("/:id", empNivelIdiomaHandler.Update)
+		empNiveisIdioma.DELETE("/:id", empNivelIdiomaHandler.Delete)
+	}
+
+	empEscolaridades := empregabilidade.Group("/escolaridades")
+	{
+		empEscolaridades.POST("", empEscolaridadeHandler.Create)
+		empEscolaridades.GET("", empEscolaridadeHandler.List)
+		empEscolaridades.GET("/:id", empEscolaridadeHandler.GetByID)
+		empEscolaridades.PUT("/:id", empEscolaridadeHandler.Update)
+		empEscolaridades.DELETE("/:id", empEscolaridadeHandler.Delete)
+	}
+
+	empTiposConquista := empregabilidade.Group("/tipos-conquista")
+	{
+		empTiposConquista.POST("", empTipoConquistaHandler.Create)
+		empTiposConquista.GET("", empTipoConquistaHandler.List)
+		empTiposConquista.GET("/:id", empTipoConquistaHandler.GetByID)
+		empTiposConquista.PUT("/:id", empTipoConquistaHandler.Update)
+		empTiposConquista.DELETE("/:id", empTipoConquistaHandler.Delete)
+	}
+
+	empSituacoesAtual := empregabilidade.Group("/situacoes-atual")
+	{
+		empSituacoesAtual.POST("", empSituacaoAtualHandler.Create)
+		empSituacoesAtual.GET("", empSituacaoAtualHandler.List)
+		empSituacoesAtual.GET("/:id", empSituacaoAtualHandler.GetByID)
+		empSituacoesAtual.PUT("/:id", empSituacaoAtualHandler.Update)
+		empSituacoesAtual.DELETE("/:id", empSituacaoAtualHandler.Delete)
+	}
+
+	empDisponibilidades := empregabilidade.Group("/disponibilidades")
+	{
+		empDisponibilidades.POST("", empDisponibilidadeHandler.Create)
+		empDisponibilidades.GET("", empDisponibilidadeHandler.List)
+		empDisponibilidades.GET("/:id", empDisponibilidadeHandler.GetByID)
+		empDisponibilidades.PUT("/:id", empDisponibilidadeHandler.Update)
+		empDisponibilidades.DELETE("/:id", empDisponibilidadeHandler.Delete)
+	}
+
+	// Empresas
+	empEmpresas := empregabilidade.Group("/empresas")
+	{
+		empEmpresas.POST("", empEmpresaHandler.Create)
+		empEmpresas.GET("", empEmpresaHandler.List)
+		empEmpresas.GET("/consulta-cnpj/:cnpj", empEmpresaHandler.ConsultaCNPJ)
+		empEmpresas.GET("/:cnpj", empEmpresaHandler.GetByID)
+		empEmpresas.PUT("/:cnpj", empEmpresaHandler.Update)
+		empEmpresas.DELETE("/:cnpj", empEmpresaHandler.Delete)
+	}
+
+	// Vagas
+	empVagas := empregabilidade.Group("/vagas")
+	{
+		empVagas.POST("", empVagaHandler.Create)
+		empVagas.POST("/draft", empVagaHandler.CreateDraft)
+		empVagas.GET("", empVagaHandler.List)
+		empVagas.GET("/:id", empVagaHandler.GetByID)
+		empVagas.PUT("/:id", empVagaHandler.Update)
+		empVagas.DELETE("/:id", empVagaHandler.Delete)
+		empVagas.PUT("/:id/publish", empVagaHandler.Publish)
+		empVagas.PUT("/:id/tipos-pcd", empVagaHandler.UpdateTiposPCD)
+
+		// Etapas (nested)
+		empVagas.POST("/:id/etapas", empEtapaHandler.Create)
+		empVagas.GET("/:id/etapas", empEtapaHandler.ListByVaga)
+		empVagas.GET("/:id/etapas/:etapaId", empEtapaHandler.GetByID)
+		empVagas.PUT("/:id/etapas/:etapaId", empEtapaHandler.Update)
+		empVagas.DELETE("/:id/etapas/:etapaId", empEtapaHandler.Delete)
+	}
+
+	// Candidaturas
+	empCandidaturas := empregabilidade.Group("/candidaturas")
+	{
+		empCandidaturas.POST("", empCandidaturaHandler.Create)
+		empCandidaturas.GET("", empCandidaturaHandler.List)
+		empCandidaturas.GET("/:id", empCandidaturaHandler.GetByID)
+		empCandidaturas.PUT("/:id", empCandidaturaHandler.Update)
+		empCandidaturas.DELETE("/:id", empCandidaturaHandler.Delete)
+		empCandidaturas.PUT("/:id/status", empCandidaturaHandler.UpdateStatus)
+		empCandidaturas.PUT("/:id/approve", empCandidaturaHandler.Approve)
+		empCandidaturas.PUT("/:id/reject", empCandidaturaHandler.Reject)
+		empCandidaturas.PUT("/:id/etapa", empCandidaturaHandler.UpdateEtapa)
+	}
+
+	// Currículo
+	empCurriculo := empregabilidade.Group("/curriculo")
+	{
+		empCurriculo.GET("/:cpf", empCurriculoHandler.GetCurriculoCompleto)
+
+		// Formações
+		empCurriculo.POST("/formacoes", empCurriculoHandler.CreateFormacao)
+		empCurriculo.GET("/formacoes/:id", empCurriculoHandler.GetFormacaoByID)
+		empCurriculo.PUT("/formacoes/:id", empCurriculoHandler.UpdateFormacao)
+		empCurriculo.DELETE("/formacoes/:id", empCurriculoHandler.DeleteFormacao)
+		empCurriculo.GET("/:cpf/formacoes", empCurriculoHandler.ListFormacoesByCPF)
+		empCurriculo.PUT("/:cpf/formacoes", empCurriculoHandler.ReplaceAllFormacoesByCPF)
+
+		// Idiomas
+		empCurriculo.POST("/idiomas", empCurriculoHandler.CreateIdioma)
+		empCurriculo.GET("/idiomas/:id", empCurriculoHandler.GetIdiomaByID)
+		empCurriculo.PUT("/idiomas/:id", empCurriculoHandler.UpdateIdioma)
+		empCurriculo.DELETE("/idiomas/:id", empCurriculoHandler.DeleteIdioma)
+		empCurriculo.GET("/:cpf/idiomas", empCurriculoHandler.ListIdiomasByCPF)
+		empCurriculo.PUT("/:cpf/idiomas", empCurriculoHandler.ReplaceAllIdiomasByCPF)
+
+		// Cursos Complementares
+		empCurriculo.POST("/cursos-complementares", empCurriculoHandler.CreateCursoComplementar)
+		empCurriculo.GET("/cursos-complementares/:id", empCurriculoHandler.GetCursoComplementarByID)
+		empCurriculo.PUT("/cursos-complementares/:id", empCurriculoHandler.UpdateCursoComplementar)
+		empCurriculo.DELETE("/cursos-complementares/:id", empCurriculoHandler.DeleteCursoComplementar)
+		empCurriculo.GET("/:cpf/cursos-complementares", empCurriculoHandler.ListCursosComplementaresByCPF)
+		empCurriculo.PUT("/:cpf/cursos-complementares", empCurriculoHandler.ReplaceAllCursosComplementaresByCPF)
+
+		// Experiências
+		empCurriculo.POST("/experiencias", empCurriculoHandler.CreateExperiencia)
+		empCurriculo.GET("/experiencias/:id", empCurriculoHandler.GetExperienciaByID)
+		empCurriculo.PUT("/experiencias/:id", empCurriculoHandler.UpdateExperiencia)
+		empCurriculo.DELETE("/experiencias/:id", empCurriculoHandler.DeleteExperiencia)
+		empCurriculo.GET("/:cpf/experiencias", empCurriculoHandler.ListExperienciasByCPF)
+		empCurriculo.PUT("/:cpf/experiencias", empCurriculoHandler.ReplaceAllExperienciasByCPF)
+
+		// Conquistas
+		empCurriculo.POST("/conquistas", empCurriculoHandler.CreateConquista)
+		empCurriculo.GET("/conquistas/:id", empCurriculoHandler.GetConquistaByID)
+		empCurriculo.PUT("/conquistas/:id", empCurriculoHandler.UpdateConquista)
+		empCurriculo.DELETE("/conquistas/:id", empCurriculoHandler.DeleteConquista)
+		empCurriculo.GET("/:cpf/conquistas", empCurriculoHandler.ListConquistasByCPF)
+		empCurriculo.PUT("/:cpf/conquistas", empCurriculoHandler.ReplaceAllConquistasByCPF)
+
+		// Situação e Interesses
+		empCurriculo.PUT("/situacao-interesses", empCurriculoHandler.UpsertSituacaoInteresses)
+		empCurriculo.GET("/:cpf/situacao-interesses", empCurriculoHandler.GetSituacaoInteressesByCPF)
+	}
+
+	// Onboarding
+	empOnboarding := empregabilidade.Group("/onboarding")
+	{
+		empOnboarding.GET("/:cpf", empOnboardingHandler.IsFirstLogin)
+		empOnboarding.PUT("/:cpf/complete", empOnboardingHandler.MarkFirstLoginCompleted)
+	}
+
+	// Termos de Uso
+	empTermosUso := empregabilidade.Group("/termos-uso")
+	{
+		empTermosUso.GET("/:cpf", empTermosUsoHandler.HasAcceptedTerms)
+		empTermosUso.PUT("/:cpf/accept", empTermosUsoHandler.AcceptTerms)
+		empTermosUso.GET("/:cpf/details", empTermosUsoHandler.GetDetails)
+	}
+
+	// Endpoints públicos para empregabilidade (apenas vagas publicadas)
+	apiPublicEmpregabilidade := apiPublic.Group("/empregabilidade")
+	{
+		apiPublicEmpregabilidade.GET("/vagas", empVagaHandler.PublicList)
+		apiPublicEmpregabilidade.GET("/vagas/:id", empVagaHandler.PublicGetByID)
+	}
 
 	return r
 }

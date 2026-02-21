@@ -74,6 +74,188 @@ type LegalEntityDetails struct {
 	} `json:"socios"`
 }
 
+// LegalEntityFull represents complete information about a CNPJ from RMI API
+// Response from GET /v1/legal-entity/{cnpj} with all fields
+type LegalEntityFull struct {
+	CNPJ            string   `json:"cnpj"`
+	RazaoSocial     string   `json:"razao_social"`
+	NomeFantasia    *string  `json:"nome_fantasia"`
+	CapitalSocial   float64  `json:"capital_social"`
+	CNAEFiscal      *string  `json:"cnae_fiscal"`
+	CNAESecundarias []string `json:"cnae_secundarias"`
+	Nire            *string  `json:"nire"`
+
+	NaturezaJuridica *struct {
+		ID        string `json:"id"`
+		Descricao string `json:"descricao"`
+	} `json:"natureza_juridica"`
+
+	Porte *struct {
+		ID        string `json:"id"`
+		Descricao string `json:"descricao"`
+	} `json:"porte"`
+
+	MatrizFilial *struct {
+		ID        string `json:"id"`
+		Descricao string `json:"descricao"`
+	} `json:"matriz_filial"`
+
+	OrgaoRegistro *struct {
+		ID        string `json:"id"`
+		Descricao string `json:"descricao"`
+	} `json:"orgao_registro"`
+
+	InicioAtividadeData string `json:"inicio_atividade_data"`
+
+	SituacaoCadastral *struct {
+		ID        string `json:"id"`
+		Descricao string `json:"descricao"`
+		Data      string `json:"data"`
+		Motivo    string `json:"motivo"`
+	} `json:"situacao_cadastral"`
+
+	SituacaoEspecial *struct {
+		ID        string `json:"id"`
+		Descricao string `json:"descricao"`
+		Data      string `json:"data"`
+	} `json:"situacao_especial"`
+
+	EnteFederativo *struct {
+		ID        string `json:"id"`
+		Descricao string `json:"descricao"`
+	} `json:"ente_federativo"`
+
+	Contato *struct {
+		Telefone1 string `json:"telefone_1"`
+		Telefone2 string `json:"telefone_2"`
+		Fax       string `json:"fax"`
+		Email     string `json:"email"`
+	} `json:"contato"`
+
+	Endereco *struct {
+		CEP            string `json:"cep"`
+		UF             string `json:"uf"`
+		Municipio      string `json:"municipio"`
+		MunicipioID    string `json:"municipio_id"`
+		Bairro         string `json:"bairro"`
+		TipoLogradouro string `json:"tipo_logradouro"`
+		Logradouro     string `json:"logradouro"`
+		Numero         string `json:"numero"`
+		Complemento    string `json:"complemento"`
+	} `json:"endereco"`
+
+	Contador *struct {
+		PessoaFisica *struct {
+			CPF  string `json:"cpf"`
+			CRC  string `json:"crc"`
+			Nome string `json:"nome"`
+		} `json:"pessoa_fisica"`
+		PessoaJuridica *struct {
+			CNPJ string `json:"cnpj"`
+			CRC  string `json:"crc"`
+			Nome string `json:"nome"`
+		} `json:"pessoa_juridica"`
+	} `json:"contador"`
+
+	Responsavel *struct {
+		CPF          string `json:"cpf"`
+		Qualificacao string `json:"qualificacao"`
+	} `json:"responsavel"`
+
+	TiposUnidade  []string `json:"tipos_unidade"`
+	FormasAtuacao []string `json:"formas_atuacao"`
+
+	SociosQuantidade int `json:"socios_quantidade"`
+	Socios           []struct {
+		CPFSocio           string `json:"cpf_socio"`
+		CNPJSocio          string `json:"cnpj_socio"`
+		NomeSocio          string `json:"nome_socio_estrangeiro"`
+		Qualificacao       string `json:"qualificacao"`
+		RepresentanteLegal *struct {
+			CPF          string `json:"cpf"`
+			Nome         string `json:"nome"`
+			Qualificacao string `json:"qualificacao"`
+		} `json:"representante_legal"`
+	} `json:"socios"`
+}
+
+// LegalEntityConsultaResponse represents the response for CNPJ lookup endpoint
+type LegalEntityConsultaResponse struct {
+	CNPJ              string  `json:"cnpj"`
+	RazaoSocial       string  `json:"razao_social"`
+	NomeFantasia      *string `json:"nome_fantasia"`
+	Porte             *string `json:"porte"`
+	CNAEFiscal        *string `json:"cnae_fiscal"`
+	SituacaoCadastral *string `json:"situacao_cadastral"`
+	Endereco          *struct {
+		CEP         string `json:"cep"`
+		UF          string `json:"uf"`
+		Municipio   string `json:"municipio"`
+		Bairro      string `json:"bairro"`
+		Logradouro  string `json:"logradouro"`
+		Numero      string `json:"numero"`
+		Complemento string `json:"complemento"`
+	} `json:"endereco"`
+	Contato *struct {
+		Telefone string `json:"telefone"`
+		Email    string `json:"email"`
+	} `json:"contato"`
+}
+
+// ToConsultaResponse converts LegalEntityFull to a simplified response for the frontend
+func (l *LegalEntityFull) ToConsultaResponse() *LegalEntityConsultaResponse {
+	resp := &LegalEntityConsultaResponse{
+		CNPJ:         l.CNPJ,
+		RazaoSocial:  l.RazaoSocial,
+		NomeFantasia: l.NomeFantasia,
+		CNAEFiscal:   l.CNAEFiscal,
+	}
+
+	if l.Porte != nil {
+		resp.Porte = &l.Porte.Descricao
+	}
+
+	if l.SituacaoCadastral != nil {
+		resp.SituacaoCadastral = &l.SituacaoCadastral.Descricao
+	}
+
+	if l.Endereco != nil {
+		resp.Endereco = &struct {
+			CEP         string `json:"cep"`
+			UF          string `json:"uf"`
+			Municipio   string `json:"municipio"`
+			Bairro      string `json:"bairro"`
+			Logradouro  string `json:"logradouro"`
+			Numero      string `json:"numero"`
+			Complemento string `json:"complemento"`
+		}{
+			CEP:         l.Endereco.CEP,
+			UF:          l.Endereco.UF,
+			Municipio:   l.Endereco.Municipio,
+			Bairro:      l.Endereco.Bairro,
+			Logradouro:  l.Endereco.Logradouro,
+			Numero:      l.Endereco.Numero,
+			Complemento: l.Endereco.Complemento,
+		}
+	}
+
+	if l.Contato != nil {
+		telefone := l.Contato.Telefone1
+		if telefone == "" {
+			telefone = l.Contato.Telefone2
+		}
+		resp.Contato = &struct {
+			Telefone string `json:"telefone"`
+			Email    string `json:"email"`
+		}{
+			Telefone: telefone,
+			Email:    l.Contato.Email,
+		}
+	}
+
+	return resp
+}
+
 // GetSocioCPFs returns all CPFs from socios list
 func (l *LegalEntityDetails) GetSocioCPFs() []string {
 	cpfs := []string{}
