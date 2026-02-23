@@ -2149,7 +2149,7 @@
     },
     "/api/v1/empregabilidade/candidaturas": {
       "get": {
-        "description": "Retorna lista paginada de candidaturas",
+        "description": "Retorna lista paginada de candidaturas com filtros e busca universal",
         "tags": [
           "empregabilidade-candidaturas"
         ],
@@ -2172,7 +2172,7 @@
             }
           },
           {
-            "description": "Filtrar por CPF",
+            "description": "Filtrar por CPF (apenas admin)",
             "name": "cpf",
             "in": "query",
             "schema": {
@@ -2190,6 +2190,22 @@
           {
             "description": "Filtrar por status",
             "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Busca parcial por CPF, nome ou email (apenas admin)",
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por ID da etapa atual",
+            "name": "etapa_id",
             "in": "query",
             "schema": {
               "type": "string"
@@ -2244,6 +2260,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/empregabilidade.Candidatura"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/empregabilidade/candidaturas/bulk-status": {
+      "put": {
+        "description": "Atualiza o status de múltiplas candidaturas de uma vaga identificadas por lista de CPFs",
+        "tags": [
+          "empregabilidade-candidaturas"
+        ],
+        "summary": "Atualizar status de candidaturas em lote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/empregabilidade.BulkUpdateStatusRequest"
+              }
+            }
+          },
+          "description": "Lista de CPFs, ID da vaga e novo status",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
                 }
               }
             }
@@ -5672,7 +5752,7 @@
     },
     "/api/v1/empregabilidade/empresas": {
       "get": {
-        "description": "Retorna lista paginada de empresas",
+        "description": "Retorna lista paginada de empresas com filtros opcionais",
         "tags": [
           "empregabilidade-empresas"
         ],
@@ -5692,6 +5772,22 @@
             "in": "query",
             "schema": {
               "type": "integer"
+            }
+          },
+          {
+            "description": "Busca parcial em razão social ou nome fantasia",
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por CNPJ exato",
+            "name": "cnpj",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -8833,7 +8929,7 @@
     },
     "/api/v1/empregabilidade/vagas": {
       "get": {
-        "description": "Retorna lista paginada de vagas",
+        "description": "Retorna lista paginada de vagas com filtros opcionais",
         "tags": [
           "empregabilidade-vagas"
         ],
@@ -8856,7 +8952,7 @@
             }
           },
           {
-            "description": "Filtrar por status",
+            "description": "Filtrar por status (em_edicao, em_aprovacao, publicado_ativo, publicado_expirado)",
             "name": "status",
             "in": "query",
             "schema": {
@@ -8866,6 +8962,22 @@
           {
             "description": "Filtrar por CNPJ do contratante",
             "name": "contratante",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por ID do órgão parceiro",
+            "name": "orgao_parceiro_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Busca parcial no título da vaga",
+            "name": "search",
             "in": "query",
             "schema": {
               "type": "string"
@@ -12404,6 +12516,23 @@
           "AcessibilidadePreferencialPCD",
           "AcessibilidadeExclusivoPCD"
         ]
+      },
+      "empregabilidade.BulkUpdateStatusRequest": {
+        "type": "object",
+        "properties": {
+          "cpfs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/empregabilidade.StatusCandidatura"
+          },
+          "vaga_id": {
+            "type": "string"
+          }
+        }
       },
       "empregabilidade.Candidatura": {
         "type": "object",
