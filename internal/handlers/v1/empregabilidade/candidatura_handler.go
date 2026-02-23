@@ -337,24 +337,30 @@ func (h *CandidaturaHandler) Reject(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Candidatura reprovada com sucesso"})
 }
 
+type BulkUpdateStatusRequest struct {
+	CPFs   []string                              `json:"cpfs"`
+	VagaID uuid.UUID                             `json:"vaga_id"`
+	Status empregabilidade.StatusCandidatura     `json:"status"`
+}
+
 // @Summary      Atualizar status de candidaturas em lote
 // @Description  Atualiza o status de múltiplas candidaturas de uma vaga identificadas por lista de CPFs
 // @Tags         empregabilidade-candidaturas
 // @Accept       json
 // @Produce      json
-// @Param        request  body      services.BulkUpdateStatusRequest  true  "Lista de CPFs, ID da vaga e novo status"
+// @Param        request  body      BulkUpdateStatusRequest  true  "Lista de CPFs, ID da vaga e novo status"
 // @Success      200      {object}  map[string]interface{}
 // @Failure      400      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/bulk-status [put]
 func (h *CandidaturaHandler) BulkUpdateStatus(c *gin.Context) {
-	var request services.BulkUpdateStatusRequest
+	var request BulkUpdateStatusRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	result, err := h.service.BulkUpdateStatus(c.Request.Context(), request)
+	result, err := h.service.BulkUpdateStatus(c.Request.Context(), request.VagaID, request.CPFs, request.Status)
 	if err != nil {
 		handleCandidaturaError(c, err)
 		return

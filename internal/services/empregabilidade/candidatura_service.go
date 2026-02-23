@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
-	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
+	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
 
 type CandidaturaRepositoryInterface interface {
@@ -19,7 +19,7 @@ type CandidaturaRepositoryInterface interface {
 	CheckExistingCandidatura(ctx context.Context, cpf string, vagaID uuid.UUID) (bool, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error
 	UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error
-	BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (repository.BulkUpdateResult, error)
+	BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (empRepository.BulkUpdateResult, error)
 }
 
 type VagaRepositoryInterface interface {
@@ -217,26 +217,20 @@ func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
 	return s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
 }
 
-type BulkUpdateStatusRequest struct {
-	CPFs   []string                        `json:"cpfs"`
-	VagaID uuid.UUID                       `json:"vaga_id"`
-	Status empregabilidade.StatusCandidatura `json:"status"`
-}
-
 type BulkUpdateStatusResult struct {
-	Updated    int      `json:"updated"`
-	FailedCPFs []string `json:"failed_cpfs"`
+	Updated    int
+	FailedCPFs []string
 }
 
-func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, req BulkUpdateStatusRequest) (BulkUpdateStatusResult, error) {
-	if !req.Status.IsValid() {
+func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (BulkUpdateStatusResult, error) {
+	if !status.IsValid() {
 		return BulkUpdateStatusResult{}, errors.New("status inválido")
 	}
-	if len(req.CPFs) == 0 {
+	if len(cpfs) == 0 {
 		return BulkUpdateStatusResult{}, errors.New("lista de CPFs não pode ser vazia")
 	}
 
-	repoResult, err := s.repo.BulkUpdateStatus(ctx, req.VagaID, req.CPFs, req.Status)
+	repoResult, err := s.repo.BulkUpdateStatus(ctx, vagaID, cpfs, status)
 	if err != nil {
 		return BulkUpdateStatusResult{}, err
 	}
