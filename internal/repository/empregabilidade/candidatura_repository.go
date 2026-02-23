@@ -10,6 +10,11 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
 
+type BulkUpdateResult struct {
+	Updated    int
+	FailedCPFs []string
+}
+
 type CandidaturaRepository struct {
 	db *gorm.DB
 }
@@ -66,23 +71,33 @@ func (r *CandidaturaRepository) List(ctx context.Context, filter empregabilidade
 	var entities []*empregabilidade.Candidatura
 	var total int64
 
-	db := r.db.WithContext(ctx).Model(&empregabilidade.Candidatura{})
+	applyFilters := func(db *gorm.DB) *gorm.DB {
+		if filter.CPF != "" {
+			db = db.Where("cpf = ?", filter.CPF)
+		}
+		if filter.VagaID != nil {
+			db = db.Where("id_vaga = ?", *filter.VagaID)
+		}
+		if filter.Status != "" {
+			db = db.Where("status = ?", filter.Status)
+		}
+		if filter.EtapaID != nil {
+			db = db.Where("id_etapa_atual = ?", *filter.EtapaID)
+		}
+		if filter.Search != "" {
+			searchTerm := fmt.Sprintf("%%%s%%", filter.Search)
+			db = db.Where("cpf ILIKE ? OR nome ILIKE ? OR email ILIKE ?", searchTerm, searchTerm, searchTerm)
+		}
+		return db
+	}
 
-	if filter.CPF != "" {
-		db = db.Where("cpf = ?", filter.CPF)
-	}
-	if filter.VagaID != nil {
-		db = db.Where("id_vaga = ?", *filter.VagaID)
-	}
-	if filter.Status != "" {
-		db = db.Where("status = ?", filter.Status)
-	}
-
-	if err := db.Count(&total).Error; err != nil {
+	countDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Candidatura{}))
+	if err := countDB.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("erro ao contar candidaturas: %w", err)
 	}
 
-	result := db.
+	findDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Candidatura{}))
+	result := findDB.
 		Preload("Vaga").
 		Preload("Vaga.Contratante").
 		Preload("Vaga.Etapas").
@@ -96,6 +111,50 @@ func (r *CandidaturaRepository) List(ctx context.Context, filter empregabilidade
 	}
 
 	return entities, int(total), nil
+}
+
+func (r *CandidaturaRepository) BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (BulkUpdateResult, error) {
+	var result BulkUpdateResult
+
+	// Fetch all candidaturas for this vaga and CPF list
+	var candidaturas []*empregabilidade.Candidatura
+	if err := r.db.WithContext(ctx).
+		Model(&empregabilidade.Candidatura{}).
+		Where("id_vaga = ? AND cpf IN ?", vagaID, cpfs).
+		Find(&candidaturas).Error; err != nil {
+		return result, fmt.Errorf("erro ao buscar candidaturas: %w", err)
+	}
+
+	foundCPFs := make(map[string]*empregabilidade.Candidatura, len(candidaturas))
+	for _, c := range candidaturas {
+		foundCPFs[c.CPF] = c
+	}
+
+	// Identify CPFs that cannot transition
+	var updateIDs []uuid.UUID
+	for _, cpf := range cpfs {
+		c, found := foundCPFs[cpf]
+		if !found {
+			result.FailedCPFs = append(result.FailedCPFs, cpf)
+			continue
+		}
+		updateIDs = append(updateIDs, c.ID)
+	}
+
+	if len(updateIDs) == 0 {
+		return result, nil
+	}
+
+	res := r.db.WithContext(ctx).
+		Model(&empregabilidade.Candidatura{}).
+		Where("id IN ?", updateIDs).
+		Update("status", status)
+	if res.Error != nil {
+		return result, fmt.Errorf("erro ao atualizar status em lote: %w", res.Error)
+	}
+
+	result.Updated = int(res.RowsAffected)
+	return result, nil
 }
 
 func (r *CandidaturaRepository) CheckExistingCandidatura(ctx context.Context, cpf string, vagaID uuid.UUID) (bool, error) {

@@ -54,7 +54,9 @@ func (Candidatura) TableName() string {
 }
 
 type CandidaturaFilter struct {
-	CPF    string
-	VagaID *uuid.UUID
-	Status string
+	CPF     string
+	VagaID  *uuid.UUID
+	Status  string
+	Search  string     // ILIKE em cpf, nome, email
+	EtapaID *uuid.UUID // filtro por etapa atual
 }

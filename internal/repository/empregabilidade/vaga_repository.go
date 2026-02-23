@@ -164,21 +164,41 @@ func (r *VagaRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *VagaRepository) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+func (r *VagaRepository) List(ctx context.Context, filter empregabilidade.VagaFilter, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
 	var entities []*empregabilidade.Vaga
 	var total int64
 
-	db := r.db.WithContext(ctx).Model(&empregabilidade.Vaga{})
-
-	for key, value := range filter {
-		db = db.Where(key+" = ?", value)
+	applyFilters := func(db *gorm.DB) *gorm.DB {
+		if filter.Contratante != "" {
+			db = db.Where("id_contratante = ?", filter.Contratante)
+		}
+		if filter.OrgaoParceiroID != "" {
+			db = db.Where("id_orgao_parceiro = ?", filter.OrgaoParceiroID)
+		}
+		if filter.Search != "" {
+			searchTerm := fmt.Sprintf("%%%s%%", filter.Search)
+			db = db.Where("titulo ILIKE ?", searchTerm)
+		}
+		if filter.Status != "" {
+			switch filter.Status {
+			case string(empregabilidade.StatusVagaPublicadoAtivo):
+				db = db.Where("status = ? AND (data_limite IS NULL OR data_limite > NOW())", empregabilidade.StatusVagaPublicadoAtivo)
+			case string(empregabilidade.StatusVagaPublicadoExpirado):
+				db = db.Where("status = ? AND data_limite IS NOT NULL AND data_limite <= NOW()", empregabilidade.StatusVagaPublicadoAtivo)
+			default:
+				db = db.Where("status = ?", filter.Status)
+			}
+		}
+		return db
 	}
 
-	if err := db.Count(&total).Error; err != nil {
+	countDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}))
+	if err := countDB.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("erro ao contar vagas: %w", err)
 	}
 
-	result := db.
+	findDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}))
+	result := findDB.
 		Preload("Contratante").
 		Preload("RegimeContratacao").
 		Preload("ModeloTrabalho").

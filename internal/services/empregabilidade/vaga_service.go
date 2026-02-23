@@ -15,7 +15,7 @@ type VagaRepoInterface interface {
 	Update(ctx context.Context, entity *empregabilidade.Vaga) error
 	UpdateWithAssociations(ctx context.Context, entity *empregabilidade.Vaga) error
 	Delete(ctx context.Context, id uuid.UUID) error
-	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Vaga, int, error)
+	List(ctx context.Context, filter empregabilidade.VagaFilter, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	ListPublicActive(ctx context.Context, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error
 	ListByContratante(ctx context.Context, cnpj string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
@@ -106,7 +106,7 @@ func (s *VagaService) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *VagaService) List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*empregabilidade.Vaga, int, error) {
+func (s *VagaService) List(ctx context.Context, filter empregabilidade.VagaFilter, page, pageSize int) ([]*empregabilidade.Vaga, int, error) {
 	offset := (page - 1) * pageSize
 	vagas, total, err := s.repo.List(ctx, filter, pageSize, offset)
 	if err != nil {

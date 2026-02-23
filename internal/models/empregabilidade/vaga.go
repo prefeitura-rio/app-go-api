@@ -76,6 +76,13 @@ func (Vaga) TableName() string {
 	return "emp_vagas"
 }
 
+type VagaFilter struct {
+	Status          string
+	Contratante     string
+	OrgaoParceiroID string
+	Search          string // ILIKE em titulo
+}
+
 func (v *Vaga) UpdateStatusBasedOnExpiration() {
 	if v.DataLimite == nil {
 		return

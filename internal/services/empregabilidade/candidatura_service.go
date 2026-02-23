@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
 
 type CandidaturaRepositoryInterface interface {
@@ -18,6 +19,7 @@ type CandidaturaRepositoryInterface interface {
 	CheckExistingCandidatura(ctx context.Context, cpf string, vagaID uuid.UUID) (bool, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error
 	UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error
+	BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (repository.BulkUpdateResult, error)
 }
 
 type VagaRepositoryInterface interface {
@@ -36,10 +38,15 @@ var validStatusTransitions = map[empregabilidade.StatusCandidatura][]empregabili
 		empregabilidade.StatusCandidaturaDescontinuada,
 	},
 	empregabilidade.StatusCandidaturaAprovada: {
+		empregabilidade.StatusCandidaturaEnviada,
+		empregabilidade.StatusCandidaturaReprovada,
 		empregabilidade.StatusCandidaturaVagaCongelada,
 		empregabilidade.StatusCandidaturaDescontinuada,
 	},
 	empregabilidade.StatusCandidaturaReprovada: {
+		empregabilidade.StatusCandidaturaEnviada,
+		empregabilidade.StatusCandidaturaAprovada,
+		empregabilidade.StatusCandidaturaVagaCongelada,
 		empregabilidade.StatusCandidaturaDescontinuada,
 	},
 	empregabilidade.StatusCandidaturaVagaCongelada: {
@@ -208,6 +215,36 @@ func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("candidatura não pode ser aprovada no status atual: %s", existing.Status)
 	}
 	return s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
+}
+
+type BulkUpdateStatusRequest struct {
+	CPFs   []string                        `json:"cpfs"`
+	VagaID uuid.UUID                       `json:"vaga_id"`
+	Status empregabilidade.StatusCandidatura `json:"status"`
+}
+
+type BulkUpdateStatusResult struct {
+	Updated    int      `json:"updated"`
+	FailedCPFs []string `json:"failed_cpfs"`
+}
+
+func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, req BulkUpdateStatusRequest) (BulkUpdateStatusResult, error) {
+	if !req.Status.IsValid() {
+		return BulkUpdateStatusResult{}, errors.New("status inválido")
+	}
+	if len(req.CPFs) == 0 {
+		return BulkUpdateStatusResult{}, errors.New("lista de CPFs não pode ser vazia")
+	}
+
+	repoResult, err := s.repo.BulkUpdateStatus(ctx, req.VagaID, req.CPFs, req.Status)
+	if err != nil {
+		return BulkUpdateStatusResult{}, err
+	}
+
+	return BulkUpdateStatusResult{
+		Updated:    repoResult.Updated,
+		FailedCPFs: repoResult.FailedCPFs,
+	}, nil
 }
 
 func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {

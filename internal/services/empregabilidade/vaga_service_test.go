@@ -71,7 +71,7 @@ func (m *MockVagaRepoForService) Delete(ctx context.Context, id uuid.UUID) error
 	return nil
 }
 
-func (m *MockVagaRepoForService) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+func (m *MockVagaRepoForService) List(ctx context.Context, filter empregabilidade.VagaFilter, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
 	if m.listError != nil {
 		return nil, 0, m.listError
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
@@ -93,6 +94,10 @@ func (m *MockCandidaturaRepo) UpdateStatus(ctx context.Context, id uuid.UUID, st
 
 func (m *MockCandidaturaRepo) UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error {
 	return nil
+}
+
+func (m *MockCandidaturaRepo) BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (repository.BulkUpdateResult, error) {
+	return repository.BulkUpdateResult{Updated: len(cpfs)}, nil
 }
 
 // Mock Vaga Repository

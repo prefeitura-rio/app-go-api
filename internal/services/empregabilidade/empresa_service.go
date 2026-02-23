@@ -31,7 +31,7 @@ func (s *EmpresaService) Delete(ctx context.Context, cnpj string) error {
 	return s.repo.Delete(ctx, cnpj)
 }
 
-func (s *EmpresaService) List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*empregabilidade.Empresa, int, error) {
+func (s *EmpresaService) List(ctx context.Context, filter empregabilidade.EmpresaFilter, page, pageSize int) ([]*empregabilidade.Empresa, int, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.List(ctx, filter, pageSize, offset)
 }

@@ -90,14 +90,16 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Listar candidaturas
-// @Description  Retorna lista paginada de candidaturas
+// @Description  Retorna lista paginada de candidaturas com filtros e busca universal
 // @Tags         empregabilidade-candidaturas
 // @Produce      json
 // @Param        page      query     int     false  "Número da página (default: 1)"
 // @Param        pageSize  query     int     false  "Tamanho da página (default: 10)"
-// @Param        cpf       query     string  false  "Filtrar por CPF"
+// @Param        cpf       query     string  false  "Filtrar por CPF (apenas admin)"
 // @Param        vagaId    query     string  false  "Filtrar por ID da vaga"
 // @Param        status    query     string  false  "Filtrar por status"
+// @Param        search    query     string  false  "Busca parcial por CPF, nome ou email (apenas admin)"
+// @Param        etapa_id  query     string  false  "Filtrar por ID da etapa atual"
 // @Success      200       {object}  map[string]interface{}
 // @Failure      500       {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas [get]
@@ -118,6 +120,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 
 	if middlewares.IsAdmin(c) {
 		filter.CPF = c.Query("cpf")
+		filter.Search = c.Query("search")
 	} else {
 		userCPF := middlewares.GetUserCPF(c)
 		if userCPF == "" {
@@ -134,6 +137,15 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 			return
 		}
 		filter.VagaID = &id
+	}
+
+	if raw := c.Query("etapa_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ID da etapa inválido"})
+			return
+		}
+		filter.EtapaID = &id
 	}
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
@@ -323,6 +335,35 @@ func (h *CandidaturaHandler) Reject(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Candidatura reprovada com sucesso"})
+}
+
+// @Summary      Atualizar status de candidaturas em lote
+// @Description  Atualiza o status de múltiplas candidaturas de uma vaga identificadas por lista de CPFs
+// @Tags         empregabilidade-candidaturas
+// @Accept       json
+// @Produce      json
+// @Param        request  body      services.BulkUpdateStatusRequest  true  "Lista de CPFs, ID da vaga e novo status"
+// @Success      200      {object}  map[string]interface{}
+// @Failure      400      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /api/v1/empregabilidade/candidaturas/bulk-status [put]
+func (h *CandidaturaHandler) BulkUpdateStatus(c *gin.Context) {
+	var request services.BulkUpdateStatusRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.BulkUpdateStatus(c.Request.Context(), request)
+	if err != nil {
+		handleCandidaturaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"updated":     result.Updated,
+		"failed_cpfs": result.FailedCPFs,
+	})
 }
 
 type UpdateEtapaRequest struct {

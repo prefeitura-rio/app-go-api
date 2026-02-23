@@ -69,15 +69,17 @@ func (h *VagaHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Listar vagas
-// @Description  Retorna lista paginada de vagas
+// @Description  Retorna lista paginada de vagas com filtros opcionais
 // @Tags         empregabilidade-vagas
 // @Produce      json
-// @Param        page       query     int     false  "Número da página (default: 1)"
-// @Param        pageSize   query     int     false  "Tamanho da página (default: 10)"
-// @Param        status     query     string  false  "Filtrar por status"
-// @Param        contratante query    string  false  "Filtrar por CNPJ do contratante"
-// @Success      200        {object}  map[string]interface{}
-// @Failure      500        {object}  map[string]string
+// @Param        page              query     int     false  "Número da página (default: 1)"
+// @Param        pageSize          query     int     false  "Tamanho da página (default: 10)"
+// @Param        status            query     string  false  "Filtrar por status (em_edicao, em_aprovacao, publicado_ativo, publicado_expirado)"
+// @Param        contratante       query     string  false  "Filtrar por CNPJ do contratante"
+// @Param        orgao_parceiro_id query     string  false  "Filtrar por ID do órgão parceiro"
+// @Param        search            query     string  false  "Busca parcial no título da vaga"
+// @Success      200               {object}  map[string]interface{}
+// @Failure      500               {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas [get]
 func (h *VagaHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -90,12 +92,11 @@ func (h *VagaHandler) List(c *gin.Context) {
 		pageSize = 10
 	}
 
-	filter := make(map[string]interface{})
-	if status := c.Query("status"); status != "" {
-		filter["status"] = status
-	}
-	if contratante := c.Query("contratante"); contratante != "" {
-		filter["id_contratante"] = contratante
+	filter := empregabilidade.VagaFilter{
+		Status:          c.Query("status"),
+		Contratante:     c.Query("contratante"),
+		OrgaoParceiroID: c.Query("orgao_parceiro_id"),
+		Search:          c.Query("search"),
 	}
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
