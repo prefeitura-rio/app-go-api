@@ -32,7 +32,8 @@ func handleCandidaturaError(c *gin.Context, err error) {
 	case strings.Contains(msg, "expirada"),
 		strings.Contains(msg, "não está ativa"),
 		strings.Contains(msg, "status inválido"),
-		strings.Contains(msg, "etapa não pertence"):
+		strings.Contains(msg, "etapa não pertence"),
+		strings.Contains(msg, "lista de CPFs não pode ser vazia"):
 		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
 		return
 	}
