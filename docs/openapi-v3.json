@@ -2298,6 +2298,83 @@
         ]
       }
     },
+    "/api/v1/empregabilidade/candidaturas/bulk-etapa": {
+      "put": {
+        "description": "Atualiza a etapa atual de múltiplas candidaturas de uma vaga. Todos os candidatos devem estar na mesma etapa atual.",
+        "tags": [
+          "empregabilidade-candidaturas"
+        ],
+        "summary": "Atualizar etapa de candidaturas em lote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/empregabilidade.BulkUpdateEtapaRequest"
+              }
+            }
+          },
+          "description": "Lista de CPFs, ID da vaga e nova etapa",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/empregabilidade/candidaturas/bulk-status": {
       "put": {
         "description": "Atualiza o status de múltiplas candidaturas de uma vaga identificadas por lista de CPFs",
@@ -9817,6 +9894,98 @@
         ]
       }
     },
+    "/api/v1/empregabilidade/vagas/{id}/send-to-draft": {
+      "put": {
+        "description": "Retorna uma vaga em aprovação para o estado de edição (rascunho)",
+        "tags": [
+          "empregabilidade-vagas"
+        ],
+        "summary": "Retornar vaga para rascunho",
+        "parameters": [
+          {
+            "description": "ID da vaga",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/empregabilidade/vagas/{id}/tipos-pcd": {
       "put": {
         "description": "Atualiza os tipos de PCD aceitos na vaga",
@@ -12516,6 +12685,23 @@
           "AcessibilidadePreferencialPCD",
           "AcessibilidadeExclusivoPCD"
         ]
+      },
+      "empregabilidade.BulkUpdateEtapaRequest": {
+        "type": "object",
+        "properties": {
+          "cpfs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id_etapa": {
+            "type": "string"
+          },
+          "vaga_id": {
+            "type": "string"
+          }
+        }
       },
       "empregabilidade.BulkUpdateStatusRequest": {
         "type": "object",
