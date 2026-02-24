@@ -100,6 +100,31 @@ func (m *MockCandidaturaRepo) BulkUpdateStatus(ctx context.Context, vagaID uuid.
 	return repository.BulkUpdateResult{Updated: len(cpfs)}, nil
 }
 
+func (m *MockCandidaturaRepo) BulkGetByCPFs(ctx context.Context, vagaID uuid.UUID, cpfs []string) ([]*empregabilidade.Candidatura, error) {
+	var result []*empregabilidade.Candidatura
+	for _, c := range m.candidaturas {
+		if c.IDVaga != vagaID {
+			continue
+		}
+		for _, cpf := range cpfs {
+			if c.CPF == cpf {
+				result = append(result, c)
+				break
+			}
+		}
+	}
+	return result, nil
+}
+
+func (m *MockCandidaturaRepo) BulkUpdateEtapa(ctx context.Context, ids []uuid.UUID, etapaID uuid.UUID) error {
+	for _, id := range ids {
+		if c, exists := m.candidaturas[id]; exists {
+			c.IDEtapaAtual = &etapaID
+		}
+	}
+	return nil
+}
+
 // Mock Vaga Repository
 type MockVagaRepo struct {
 	vagas    map[uuid.UUID]*empregabilidade.Vaga

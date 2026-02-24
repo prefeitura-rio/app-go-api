@@ -210,6 +210,32 @@ func (h *VagaHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Vaga excluída com sucesso"})
 }
 
+// @Summary      Retornar vaga para rascunho
+// @Description  Retorna uma vaga em aprovação para o estado de edição (rascunho)
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/send-to-draft [put]
+func (h *VagaHandler) SendToDraft(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.SendToDraft(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga retornada para rascunho com sucesso"})
+}
+
 // @Summary      Enviar vaga para aprovação
 // @Description  Envia uma vaga em edição para o fluxo de aprovação
 // @Tags         empregabilidade-vagas

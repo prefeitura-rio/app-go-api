@@ -180,6 +180,28 @@ func (r *CandidaturaRepository) UpdateStatus(ctx context.Context, id uuid.UUID, 
 	return nil
 }
 
+func (r *CandidaturaRepository) BulkGetByCPFs(ctx context.Context, vagaID uuid.UUID, cpfs []string) ([]*empregabilidade.Candidatura, error) {
+	var candidaturas []*empregabilidade.Candidatura
+	if err := r.db.WithContext(ctx).
+		Model(&empregabilidade.Candidatura{}).
+		Where("id_vaga = ? AND cpf IN ?", vagaID, cpfs).
+		Find(&candidaturas).Error; err != nil {
+		return nil, fmt.Errorf("erro ao buscar candidaturas: %w", err)
+	}
+	return candidaturas, nil
+}
+
+func (r *CandidaturaRepository) BulkUpdateEtapa(ctx context.Context, ids []uuid.UUID, etapaID uuid.UUID) error {
+	result := r.db.WithContext(ctx).
+		Model(&empregabilidade.Candidatura{}).
+		Where("id IN ?", ids).
+		Update("id_etapa_atual", etapaID)
+	if result.Error != nil {
+		return fmt.Errorf("erro ao atualizar etapa em lote: %w", result.Error)
+	}
+	return nil
+}
+
 func (r *CandidaturaRepository) UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error {
 	result := r.db.WithContext(ctx).
 		Model(&empregabilidade.Candidatura{}).

@@ -20,6 +20,8 @@ type CandidaturaRepositoryInterface interface {
 	UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error
 	UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error
 	BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (empRepository.BulkUpdateResult, error)
+	BulkGetByCPFs(ctx context.Context, vagaID uuid.UUID, cpfs []string) ([]*empregabilidade.Candidatura, error)
+	BulkUpdateEtapa(ctx context.Context, ids []uuid.UUID, etapaID uuid.UUID) error
 }
 
 type VagaRepositoryInterface interface {
@@ -239,6 +241,84 @@ func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, vagaID uuid.U
 		Updated:    repoResult.Updated,
 		FailedCPFs: repoResult.FailedCPFs,
 	}, nil
+}
+
+type BulkUpdateEtapaResult struct {
+	Updated    int
+	FailedCPFs []string
+}
+
+func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UUID, cpfs []string, etapaID uuid.UUID) (BulkUpdateEtapaResult, error) {
+	if len(cpfs) == 0 {
+		return BulkUpdateEtapaResult{}, errors.New("lista de CPFs não pode ser vazia")
+	}
+
+	vaga, err := s.vagaRepo.GetByID(ctx, vagaID)
+	if err != nil {
+		return BulkUpdateEtapaResult{}, err
+	}
+	if vaga == nil {
+		return BulkUpdateEtapaResult{}, errors.New("vaga não encontrada")
+	}
+
+	etapaValida := false
+	for _, etapa := range vaga.Etapas {
+		if etapa.ID == etapaID {
+			etapaValida = true
+			break
+		}
+	}
+	if !etapaValida {
+		return BulkUpdateEtapaResult{}, errors.New("etapa não pertence à vaga")
+	}
+
+	candidaturas, err := s.repo.BulkGetByCPFs(ctx, vagaID, cpfs)
+	if err != nil {
+		return BulkUpdateEtapaResult{}, err
+	}
+
+	foundCPFs := make(map[string]*empregabilidade.Candidatura, len(candidaturas))
+	for _, c := range candidaturas {
+		foundCPFs[c.CPF] = c
+	}
+
+	var result BulkUpdateEtapaResult
+	var updateIDs []uuid.UUID
+
+	// Coletar CPFs não encontrados
+	for _, cpf := range cpfs {
+		if _, found := foundCPFs[cpf]; !found {
+			result.FailedCPFs = append(result.FailedCPFs, cpf)
+		}
+	}
+
+	// Verificar que todos os candidatos encontrados estão na mesma etapa atual
+	if len(candidaturas) > 0 {
+		primeiraEtapa := candidaturas[0].IDEtapaAtual
+		for _, c := range candidaturas {
+			mesmaEtapa := false
+			if primeiraEtapa == nil && c.IDEtapaAtual == nil {
+				mesmaEtapa = true
+			} else if primeiraEtapa != nil && c.IDEtapaAtual != nil && *primeiraEtapa == *c.IDEtapaAtual {
+				mesmaEtapa = true
+			}
+			if !mesmaEtapa {
+				return BulkUpdateEtapaResult{}, errors.New("todos os candidatos precisam estar na mesma etapa para atualização em massa")
+			}
+			updateIDs = append(updateIDs, c.ID)
+		}
+	}
+
+	if len(updateIDs) == 0 {
+		return result, nil
+	}
+
+	if err := s.repo.BulkUpdateEtapa(ctx, updateIDs, etapaID); err != nil {
+		return BulkUpdateEtapaResult{}, err
+	}
+
+	result.Updated = len(updateIDs)
+	return result, nil
 }
 
 func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {

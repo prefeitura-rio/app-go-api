@@ -25,7 +25,8 @@ func handleCandidaturaError(c *gin.Context, err error) {
 		return
 	case strings.Contains(msg, "transição de status inválida"),
 		strings.Contains(msg, "não pode ser aprovada"),
-		strings.Contains(msg, "não pode ser reprovada"):
+		strings.Contains(msg, "não pode ser reprovada"),
+		strings.Contains(msg, "mesma etapa"):
 		c.JSON(http.StatusConflict, gin.H{"error": msg})
 		return
 	case strings.Contains(msg, "expirada"),
@@ -361,6 +362,42 @@ func (h *CandidaturaHandler) BulkUpdateStatus(c *gin.Context) {
 	}
 
 	result, err := h.service.BulkUpdateStatus(c.Request.Context(), request.VagaID, request.CPFs, request.Status)
+	if err != nil {
+		handleCandidaturaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"updated":     result.Updated,
+		"failed_cpfs": result.FailedCPFs,
+	})
+}
+
+type BulkUpdateEtapaRequest struct {
+	CPFs    []string  `json:"cpfs"`
+	VagaID  uuid.UUID `json:"vaga_id"`
+	EtapaID uuid.UUID `json:"id_etapa"`
+}
+
+// @Summary      Atualizar etapa de candidaturas em lote
+// @Description  Atualiza a etapa atual de múltiplas candidaturas de uma vaga. Todos os candidatos devem estar na mesma etapa atual.
+// @Tags         empregabilidade-candidaturas
+// @Accept       json
+// @Produce      json
+// @Param        request  body      BulkUpdateEtapaRequest  true  "Lista de CPFs, ID da vaga e nova etapa"
+// @Success      200      {object}  map[string]interface{}
+// @Failure      400      {object}  map[string]string
+// @Failure      409      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /api/v1/empregabilidade/candidaturas/bulk-etapa [put]
+func (h *CandidaturaHandler) BulkUpdateEtapa(c *gin.Context) {
+	var request BulkUpdateEtapaRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.BulkUpdateEtapa(c.Request.Context(), request.VagaID, request.CPFs, request.EtapaID)
 	if err != nil {
 		handleCandidaturaError(c, err)
 		return

@@ -99,6 +99,17 @@ func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) 
 
 	entity.Status = existing.Status
 
+	// Preserve required FK fields when not provided in the request body
+	if entity.IDContratante == "" {
+		entity.IDContratante = existing.IDContratante
+	}
+	if entity.IDRegimeContratacao == uuid.Nil {
+		entity.IDRegimeContratacao = existing.IDRegimeContratacao
+	}
+	if entity.IDModeloTrabalho == uuid.Nil {
+		entity.IDModeloTrabalho = existing.IDModeloTrabalho
+	}
+
 	return s.repo.UpdateWithAssociations(ctx, entity)
 }
 
@@ -153,6 +164,23 @@ func (s *VagaService) Publish(ctx context.Context, id uuid.UUID) error {
 	}
 
 	vaga.Status = empregabilidade.StatusVagaPublicadoAtivo
+	return s.repo.Update(ctx, vaga)
+}
+
+func (s *VagaService) SendToDraft(ctx context.Context, id uuid.UUID) error {
+	vaga, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if vaga == nil {
+		return errors.New("vaga não encontrada")
+	}
+
+	if vaga.Status != empregabilidade.StatusVagaEmAprovacao {
+		return errors.New("vaga não está em estado de aprovação")
+	}
+
+	vaga.Status = empregabilidade.StatusVagaEmEdicao
 	return s.repo.Update(ctx, vaga)
 }
 

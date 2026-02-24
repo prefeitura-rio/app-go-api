@@ -421,6 +421,92 @@ func TestVagaService_SendToApproval_RepositoryErrors(t *testing.T) {
 	})
 }
 
+// ==================== SendToDraft Tests ====================
+
+func TestVagaService_SendToDraft_Success(t *testing.T) {
+	t.Run("SendToDraft from em_aprovacao status", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Titulo: "Desenvolvedor Go",
+			Status: empregabilidade.StatusVagaEmAprovacao,
+		}
+
+		ctx := context.Background()
+		err := service.SendToDraft(ctx, vagaID)
+
+		if err != nil {
+			t.Errorf("Expected successful send to draft, got error: %v", err)
+		}
+
+		if mockVagaRepo.vagas[vagaID].Status != empregabilidade.StatusVagaEmEdicao {
+			t.Errorf("Expected status to be em_edicao, got %s", mockVagaRepo.vagas[vagaID].Status)
+		}
+	})
+}
+
+func TestVagaService_SendToDraft_VagaNotFound(t *testing.T) {
+	t.Run("Error when vaga not found", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+
+		ctx := context.Background()
+		err := service.SendToDraft(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when vaga not found")
+		}
+
+		expectedMsg := "vaga não encontrada"
+		if err.Error() != expectedMsg {
+			t.Errorf("Expected error '%s', got '%s'", expectedMsg, err.Error())
+		}
+	})
+}
+
+func TestVagaService_SendToDraft_InvalidStatus(t *testing.T) {
+	testCases := []struct {
+		name   string
+		status empregabilidade.StatusVaga
+	}{
+		{"Error when vaga is in editing", empregabilidade.StatusVagaEmEdicao},
+		{"Error when vaga is published active", empregabilidade.StatusVagaPublicadoAtivo},
+		{"Error when vaga is published expired", empregabilidade.StatusVagaPublicadoExpirado},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockVagaRepo := NewMockVagaRepoForService()
+			mockEmpresaRepo := NewMockEmpresaRepoForService()
+			service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+
+			vagaID := uuid.New()
+			mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+				ID:     vagaID,
+				Titulo: "Desenvolvedor Go",
+				Status: tc.status,
+			}
+
+			ctx := context.Background()
+			err := service.SendToDraft(ctx, vagaID)
+
+			if err == nil {
+				t.Errorf("Expected error for status %s", tc.status)
+			}
+
+			expectedMsg := "vaga não está em estado de aprovação"
+			if err.Error() != expectedMsg {
+				t.Errorf("Expected error '%s', got '%s'", expectedMsg, err.Error())
+			}
+		})
+	}
+}
+
 // ==================== Create Tests ====================
 
 func TestVagaService_Create_Success(t *testing.T) {
