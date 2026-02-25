@@ -636,13 +636,6 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		}
 	}
 
-	// If status was approved, change to pending
-	statusChanged := false
-	if inscricao.Status == models.StatusInscricaoApproved {
-		inscricao.Status = models.StatusInscricaoPending
-		statusChanged = true
-	}
-
 	// Update schedule information
 	if request.ScheduleID != nil {
 		inscricao.ScheduleID = request.ScheduleID
@@ -655,8 +648,8 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		return nil, fmt.Errorf("erro ao atualizar inscrição: %w", err)
 	}
 
-	// If status changed from approved to pending, send email notification
-	if statusChanged && s.emailNotificationService != nil {
+	// Send email notification on schedule change
+	if s.emailNotificationService != nil {
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err == nil && curso != nil {
 			go func() {
