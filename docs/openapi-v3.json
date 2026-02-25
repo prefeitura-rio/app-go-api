@@ -9351,6 +9351,98 @@
         ]
       }
     },
+    "/api/v1/empregabilidade/vagas/{id}/discontinue": {
+      "put": {
+        "description": "Descontinua uma vaga publicada ou congelada e atualiza o status de todas as candidaturas para vaga_descontinuada",
+        "tags": [
+          "empregabilidade-vagas"
+        ],
+        "summary": "Descontinuar vaga",
+        "parameters": [
+          {
+            "description": "ID da vaga",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/empregabilidade/vagas/{id}/etapas": {
       "get": {
         "description": "Retorna todas as etapas de uma vaga",
@@ -9710,6 +9802,98 @@
         ]
       }
     },
+    "/api/v1/empregabilidade/vagas/{id}/freeze": {
+      "put": {
+        "description": "Congela uma vaga publicada e atualiza o status de todas as candidaturas vinculadas para vaga_congelada",
+        "tags": [
+          "empregabilidade-vagas"
+        ],
+        "summary": "Congelar vaga",
+        "parameters": [
+          {
+            "description": "ID da vaga",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/empregabilidade/vagas/{id}/publish": {
       "put": {
         "description": "Publica uma vaga em edição",
@@ -9717,6 +9901,98 @@
           "empregabilidade-vagas"
         ],
         "summary": "Publicar vaga",
+        "parameters": [
+          {
+            "description": "ID da vaga",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/empregabilidade/vagas/{id}/reactivate": {
+      "put": {
+        "description": "Reativa uma vaga descontinuada e restaura o status anterior das candidaturas",
+        "tags": [
+          "empregabilidade-vagas"
+        ],
+        "summary": "Reativar vaga",
         "parameters": [
           {
             "description": "ID da vaga",
@@ -10031,6 +10307,98 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/empregabilidade/vagas/{id}/unfreeze": {
+      "put": {
+        "description": "Descongela uma vaga congelada e restaura o status anterior das candidaturas",
+        "tags": [
+          "empregabilidade-vagas"
+        ],
+        "summary": "Descongelar vaga",
+        "parameters": [
+          {
+            "description": "ID da vaga",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -12754,6 +13122,14 @@
           "nome": {
             "type": "string"
           },
+          "personal_info": {
+            "description": "Computed field (not stored in DB) - populated from CitizenSnapshot",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.CitizenPersonalInfo"
+              }
+            ]
+          },
           "respostas_info_complementares": {
             "type": "array",
             "items": {
@@ -12761,6 +13137,9 @@
             }
           },
           "status": {
+            "$ref": "#/components/schemas/empregabilidade.StatusCandidatura"
+          },
+          "status_anterior": {
             "$ref": "#/components/schemas/empregabilidade.StatusCandidatura"
           },
           "updated_at": {
@@ -13338,13 +13717,17 @@
           "em_edicao",
           "em_aprovacao",
           "publicado_ativo",
-          "publicado_expirado"
+          "publicado_expirado",
+          "vaga_congelada",
+          "vaga_descontinuada"
         ],
         "x-enum-varnames": [
           "StatusVagaEmEdicao",
           "StatusVagaEmAprovacao",
           "StatusVagaPublicadoAtivo",
-          "StatusVagaPublicadoExpirado"
+          "StatusVagaPublicadoExpirado",
+          "StatusVagaCongelada",
+          "StatusVagaDescontinuada"
         ]
       },
       "empregabilidade.TermosUso": {
