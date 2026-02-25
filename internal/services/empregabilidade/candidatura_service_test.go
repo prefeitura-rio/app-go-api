@@ -125,6 +125,14 @@ func (m *MockCandidaturaRepo) BulkUpdateEtapa(ctx context.Context, ids []uuid.UU
 	return nil
 }
 
+func (m *MockCandidaturaRepo) BulkSaveAndUpdateStatusByVagaID(ctx context.Context, vagaID uuid.UUID, status empregabilidade.StatusCandidatura) error {
+	return nil
+}
+
+func (m *MockCandidaturaRepo) BulkRestoreStatusByVagaID(ctx context.Context, vagaID uuid.UUID) error {
+	return nil
+}
+
 // Mock Vaga Repository
 type MockVagaRepo struct {
 	vagas    map[uuid.UUID]*empregabilidade.Vaga
@@ -179,7 +187,7 @@ func TestCandidaturaService_Create_Success(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoAtivo,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -211,7 +219,7 @@ func TestCandidaturaService_Create_VagaNotFound(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -248,7 +256,7 @@ func TestCandidaturaService_Create_VagaNotActive(t *testing.T) {
 			Status: empregabilidade.StatusVagaEmEdicao,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -283,7 +291,7 @@ func TestCandidaturaService_Create_VagaNotActive(t *testing.T) {
 			Status: empregabilidade.StatusVagaEmAprovacao,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -318,7 +326,7 @@ func TestCandidaturaService_Create_VagaExpired(t *testing.T) {
 			DataLimite: &pastDate,                                // But expired by date
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -353,7 +361,7 @@ func TestCandidaturaService_Create_VagaExpired(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoExpirado,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -388,7 +396,7 @@ func TestCandidaturaService_Create_DuplicateCandidatura(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoAtivo,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -420,7 +428,7 @@ func TestCandidaturaService_Create_RepositoryErrors(t *testing.T) {
 		mockCurriculoService := NewMockCurriculoService()
 		mockVagaRepo.getError = errors.New("database connection error")
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -453,7 +461,7 @@ func TestCandidaturaService_Create_RepositoryErrors(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoAtivo,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -481,7 +489,7 @@ func TestCandidaturaService_UpdateStatus(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaEnviada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		ctx := context.Background()
 		err := service.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
@@ -496,7 +504,7 @@ func TestCandidaturaService_UpdateStatus(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		ctx := context.Background()
 		err := service.UpdateStatus(ctx, uuid.New(), empregabilidade.StatusCandidatura("invalid_status"))
@@ -524,7 +532,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaEnviada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		ctx := context.Background()
 		err := service.Approve(ctx, id)
@@ -549,7 +557,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaEnviada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		ctx := context.Background()
 		err := service.Reject(ctx, id)
@@ -591,7 +599,7 @@ func TestCandidaturaService_Update(t *testing.T) {
 			CurriculoSnapshot: originalSnapshot,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		differentVagaID := uuid.New()
 		updated := &empregabilidade.Candidatura{
@@ -636,7 +644,7 @@ func TestCandidaturaService_Update(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		updated := &empregabilidade.Candidatura{
 			ID: uuid.New(),
@@ -661,7 +669,7 @@ func TestCandidaturaService_Update(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		updated := &empregabilidade.Candidatura{
 			ID: uuid.New(),
@@ -699,7 +707,7 @@ func TestCandidaturaService_Create_CurriculoSnapshot(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoAtivo,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -735,7 +743,7 @@ func TestCandidaturaService_Create_CurriculoSnapshot(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoAtivo,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
