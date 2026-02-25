@@ -61,7 +61,8 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	apiV1 := r.Group("/api/v1")
 
 	// Middleware para extrair contexto do usuário dos headers injetados pelo Istio
-	apiV1.Use(middlewares.ExtractUserContext())
+	// Consulta o Heimdall para obter as roles reais do usuário quando configurado
+	apiV1.Use(middlewares.ExtractUserContext(cfg.Heimdall.BaseURL))
 
 	// Inicializando repositórios
 	cursoRepo := repository.NewCursoRepository(db)

@@ -1,10 +1,14 @@
 package middlewares
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,6 +30,56 @@ type JWTClaims struct {
 	ResourceAccess    map[string]struct {
 		Roles []string `json:"roles"`
 	} `json:"resource_access"` // Roles
+}
+
+// HeimdallUserInfo representa a resposta do Heimdall para /api/v1/users/me
+type HeimdallUserInfo struct {
+	ID          int      `json:"id"`
+	CPF         string   `json:"cpf"`
+	DisplayName string   `json:"display_name"`
+	Groups      []string `json:"groups"`
+	Roles       []string `json:"roles"`
+}
+
+var heimdallHTTPClient = &http.Client{Timeout: 3 * time.Second}
+
+// fetchHeimdallUserInfo consulta o Heimdall para obter as roles do usuário
+func fetchHeimdallUserInfo(baseURL, authHeader string) (*HeimdallUserInfo, error) {
+	// Garante que o header tem o prefixo "Bearer "
+	if !strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+		authHeader = "Bearer " + authHeader
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/users/me", nil)
+	if err != nil {
+		return nil, fmt.Errorf("heimdall: failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", authHeader)
+
+	resp, err := heimdallHTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("heimdall: request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("heimdall: returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("heimdall: failed to read response: %w", err)
+	}
+
+	var userInfo HeimdallUserInfo
+	if err := json.Unmarshal(body, &userInfo); err != nil {
+		return nil, fmt.Errorf("heimdall: failed to decode response: %w", err)
+	}
+
+	return &userInfo, nil
 }
 
 // decodeJWT decodifica o payload do JWT (sem validar assinatura - já validado pelo Istio/Keycloak)
@@ -60,14 +114,10 @@ func decodeJWT(token string) (*JWTClaims, error) {
 	return &claims, nil
 }
 
-// ExtractUserContext extrai informações do usuário do JWT no header Authorization
-// O JWT deve conter as seguintes claims:
-// - preferred_username: CPF do usuário
-// - sub: ID do usuário
-// - name: Nome completo
-// - email: Email do usuário
-// - resource_access.superapp.roles: Lista de roles (se contém "go:admin", usuário é ADMIN)
-func ExtractUserContext() gin.HandlerFunc {
+// ExtractUserContext extrai informações do usuário do JWT no header Authorization.
+// Quando heimdallBaseURL é fornecido, consulta o Heimdall para obter as roles reais do usuário.
+// Caso contrário, lê as roles diretamente do JWT (resource_access.superapp.roles).
+func ExtractUserContext(heimdallBaseURL string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Try X-Auth-Request-Token first (Istio), then Authorization header
 		authHeader := c.GetHeader("X-Auth-Request-Token")
@@ -108,13 +158,28 @@ func ExtractUserContext() gin.HandlerFunc {
 			c.Set(UserEmailKey, claims.Email)
 		}
 
-		// Determine role based on resource_access.superapp.roles
+		// Determine role
 		role := "USER"
-		if superappAccess, ok := claims.ResourceAccess["superapp"]; ok {
-			for _, r := range superappAccess.Roles {
-				if r == "go:admin" {
-					role = "ADMIN"
-					break
+		if heimdallBaseURL != "" {
+			// Consulta Heimdall para obter as roles reais
+			userInfo, err := fetchHeimdallUserInfo(heimdallBaseURL, authHeader)
+			if err == nil && userInfo != nil {
+				for _, r := range userInfo.Roles {
+					if r == "go:admin" {
+						role = "ADMIN"
+						break
+					}
+				}
+			}
+			// Em caso de erro, mantém role USER (fail-safe)
+		} else {
+			// Fallback: lê roles diretamente do JWT (para dev local sem Heimdall configurado)
+			if superappAccess, ok := claims.ResourceAccess["superapp"]; ok {
+				for _, r := range superappAccess.Roles {
+					if r == "go:admin" {
+						role = "ADMIN"
+						break
+					}
 				}
 			}
 		}
