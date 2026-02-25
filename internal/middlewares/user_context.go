@@ -165,7 +165,7 @@ func ExtractUserContext(heimdallBaseURL string) gin.HandlerFunc {
 			userInfo, err := fetchHeimdallUserInfo(heimdallBaseURL, authHeader)
 			if err == nil && userInfo != nil {
 				for _, r := range userInfo.Roles {
-					if r == "go:admin" {
+					if r == "go:admin" || r == "admin" || r == "superadmin" {
 						role = "ADMIN"
 						break
 					}
