@@ -206,10 +206,10 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empSituacaoAtualService := empServices.NewSituacaoAtualService(empSituacaoAtualRepo)
 	empDisponibilidadeService := empServices.NewDisponibilidadeService(empDisponibilidadeRepo)
 	empEmpresaService := empServices.NewEmpresaService(empEmpresaRepo)
-	empVagaService := empServices.NewVagaService(empVagaRepo, empEmpresaRepo)
+	empVagaService := empServices.NewVagaService(empVagaRepo, empEmpresaRepo, empCandidaturaRepo)
 	empEtapaService := empServices.NewEtapaService(empEtapaRepo)
 	empCurriculoService := empServices.NewCurriculoService(empCurriculoRepo)
-	empCandidaturaService := empServices.NewCandidaturaService(empCandidaturaRepo, empVagaRepo, empCurriculoService)
+	empCandidaturaService := empServices.NewCandidaturaService(empCandidaturaRepo, empVagaRepo, empCurriculoService, citizenSnapshotRepo, citizenDataFetcher)
 	empOnboardingService := empServices.NewOnboardingService(empOnboardingRepo)
 	empTermosUsoService := empServices.NewTermosUsoService(empTermosUsoRepo)
 
@@ -529,6 +529,10 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		empVagas.PUT("/:id/send-to-draft", empVagaHandler.SendToDraft)
 		empVagas.PUT("/:id/send-to-approval", empVagaHandler.SendToApproval)
 		empVagas.PUT("/:id/publish", empVagaHandler.Publish)
+		empVagas.PUT("/:id/freeze", empVagaHandler.Freeze)
+		empVagas.PUT("/:id/unfreeze", empVagaHandler.Unfreeze)
+		empVagas.PUT("/:id/discontinue", empVagaHandler.Discontinue)
+		empVagas.PUT("/:id/reactivate", empVagaHandler.Reactivate)
 		empVagas.PUT("/:id/tipos-pcd", empVagaHandler.UpdateTiposPCD)
 
 		// Etapas (nested)

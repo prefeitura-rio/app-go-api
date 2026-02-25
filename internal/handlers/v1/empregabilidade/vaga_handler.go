@@ -7,10 +7,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
+
+func isPublishedStatus(status empregabilidade.StatusVaga) bool {
+	switch status {
+	case empregabilidade.StatusVagaPublicadoAtivo,
+		empregabilidade.StatusVagaPublicadoExpirado,
+		empregabilidade.StatusVagaCongelada,
+		empregabilidade.StatusVagaDescontinuada:
+		return true
+	}
+	return false
+}
 
 func handleVagaError(c *gin.Context, err error) {
 	msg := err.Error()
@@ -161,6 +173,21 @@ func (h *VagaHandler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	existing, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		handleVagaError(c, err)
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
+		return
+	}
+
+	if isPublishedStatus(existing.Status) && !middlewares.IsAdmin(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores podem editar vagas publicadas"})
 		return
 	}
 
@@ -322,6 +349,110 @@ func (h *VagaHandler) UpdateTiposPCD(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Tipos PCD atualizados com sucesso"})
+}
+
+// @Summary      Congelar vaga
+// @Description  Congela uma vaga publicada e atualiza o status de todas as candidaturas vinculadas para vaga_congelada
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/freeze [put]
+func (h *VagaHandler) Freeze(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.FreezeVaga(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga congelada com sucesso"})
+}
+
+// @Summary      Descongelar vaga
+// @Description  Descongela uma vaga congelada e restaura o status anterior das candidaturas
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/unfreeze [put]
+func (h *VagaHandler) Unfreeze(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.UnfreezeVaga(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga descongelada com sucesso"})
+}
+
+// @Summary      Descontinuar vaga
+// @Description  Descontinua uma vaga publicada ou congelada e atualiza o status de todas as candidaturas para vaga_descontinuada
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/discontinue [put]
+func (h *VagaHandler) Discontinue(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.DiscontinueVaga(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga descontinuada com sucesso"})
+}
+
+// @Summary      Reativar vaga
+// @Description  Reativa uma vaga descontinuada e restaura o status anterior das candidaturas
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/reactivate [put]
+func (h *VagaHandler) Reactivate(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.ReactivateVaga(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga reativada com sucesso"})
 }
 
 // ==================== Public Endpoints ====================

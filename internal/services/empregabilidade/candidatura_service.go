@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
@@ -22,6 +23,8 @@ type CandidaturaRepositoryInterface interface {
 	BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (empRepository.BulkUpdateResult, error)
 	BulkGetByCPFs(ctx context.Context, vagaID uuid.UUID, cpfs []string) ([]*empregabilidade.Candidatura, error)
 	BulkUpdateEtapa(ctx context.Context, ids []uuid.UUID, etapaID uuid.UUID) error
+	BulkSaveAndUpdateStatusByVagaID(ctx context.Context, vagaID uuid.UUID, newStatus empregabilidade.StatusCandidatura) error
+	BulkRestoreStatusByVagaID(ctx context.Context, vagaID uuid.UUID) error
 }
 
 type VagaRepositoryInterface interface {
@@ -30,6 +33,15 @@ type VagaRepositoryInterface interface {
 
 type CurriculoServiceInterface interface {
 	GetCurriculoCompleto(ctx context.Context, cpf string) (*empregabilidade.CurriculoCompleto, error)
+}
+
+type CitizenSnapshotRepoForCandidaturaInterface interface {
+	GetByCPF(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+	GetByCPFs(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error)
+}
+
+type CitizenDataFetcherForCandidaturaInterface interface {
+	SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
 }
 
 var validStatusTransitions = map[empregabilidade.StatusCandidatura][]empregabilidade.StatusCandidatura{
@@ -74,20 +86,26 @@ func canTransitionCandidatura(from, to empregabilidade.StatusCandidatura) bool {
 }
 
 type CandidaturaService struct {
-	repo             CandidaturaRepositoryInterface
-	vagaRepo         VagaRepositoryInterface
-	curriculoService CurriculoServiceInterface
+	repo                CandidaturaRepositoryInterface
+	vagaRepo            VagaRepositoryInterface
+	curriculoService    CurriculoServiceInterface
+	citizenSnapshotRepo CitizenSnapshotRepoForCandidaturaInterface // pode ser nil
+	citizenDataFetcher  CitizenDataFetcherForCandidaturaInterface  // pode ser nil
 }
 
 func NewCandidaturaService(
 	repo CandidaturaRepositoryInterface,
 	vagaRepo VagaRepositoryInterface,
 	curriculoService CurriculoServiceInterface,
+	citizenSnapshotRepo CitizenSnapshotRepoForCandidaturaInterface,
+	citizenDataFetcher CitizenDataFetcherForCandidaturaInterface,
 ) *CandidaturaService {
 	return &CandidaturaService{
-		repo:             repo,
-		vagaRepo:         vagaRepo,
-		curriculoService: curriculoService,
+		repo:                repo,
+		vagaRepo:            vagaRepo,
+		curriculoService:    curriculoService,
+		citizenSnapshotRepo: citizenSnapshotRepo,
+		citizenDataFetcher:  citizenDataFetcher,
 	}
 }
 
@@ -333,4 +351,81 @@ func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("candidatura não pode ser reprovada no status atual: %s", existing.Status)
 	}
 	return s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaReprovada)
+}
+
+// EnrichWithPersonalInfo popula PersonalInfo de uma candidatura a partir do citizen_snapshot.
+func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empregabilidade.Candidatura) {
+	if s.citizenSnapshotRepo == nil || c == nil || c.CPF == "" {
+		return
+	}
+
+	snapshot, err := s.citizenSnapshotRepo.GetByCPF(ctx, c.CPF)
+	if err != nil {
+		fmt.Printf("[CandidaturaService] Failed to get citizen snapshot for CPF %s: %v\n", c.CPF, err)
+		return
+	}
+
+	if snapshot == nil && s.citizenDataFetcher != nil {
+		snapshot, err = s.citizenDataFetcher.SyncCitizenOnDemand(ctx, c.CPF)
+		if err != nil {
+			fmt.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v\n", c.CPF, err)
+			return
+		}
+	}
+
+	if snapshot != nil {
+		c.PersonalInfo = snapshot.ToPersonalInfo()
+	}
+}
+
+// EnrichMultipleWithPersonalInfo popula PersonalInfo de múltiplas candidaturas em batch.
+func (s *CandidaturaService) EnrichMultipleWithPersonalInfo(ctx context.Context, candidaturas []*empregabilidade.Candidatura) {
+	if s.citizenSnapshotRepo == nil || len(candidaturas) == 0 {
+		return
+	}
+
+	// Collect unique CPFs
+	cpfSet := make(map[string]struct{})
+	for _, c := range candidaturas {
+		if c.CPF != "" {
+			cpfSet[c.CPF] = struct{}{}
+		}
+	}
+
+	cpfs := make([]string, 0, len(cpfSet))
+	for cpf := range cpfSet {
+		cpfs = append(cpfs, cpf)
+	}
+
+	if len(cpfs) == 0 {
+		return
+	}
+
+	snapshotMap, err := s.citizenSnapshotRepo.GetByCPFs(ctx, cpfs)
+	if err != nil {
+		fmt.Printf("[CandidaturaService] Failed to get citizen snapshots: %v\n", err)
+		return
+	}
+
+	// Sync CPFs missing from cache on-demand if fetcher is available
+	if s.citizenDataFetcher != nil {
+		for _, cpf := range cpfs {
+			if _, ok := snapshotMap[cpf]; !ok {
+				snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
+				if err != nil {
+					fmt.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v\n", cpf, err)
+					continue
+				}
+				if snapshot != nil {
+					snapshotMap[cpf] = snapshot
+				}
+			}
+		}
+	}
+
+	for _, c := range candidaturas {
+		if snapshot, ok := snapshotMap[c.CPF]; ok && snapshot != nil {
+			c.PersonalInfo = snapshot.ToPersonalInfo()
+		}
+	}
 }

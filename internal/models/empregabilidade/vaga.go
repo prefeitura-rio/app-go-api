@@ -15,11 +15,14 @@ const (
 	StatusVagaEmAprovacao       StatusVaga = "em_aprovacao"
 	StatusVagaPublicadoAtivo    StatusVaga = "publicado_ativo"
 	StatusVagaPublicadoExpirado StatusVaga = "publicado_expirado"
+	StatusVagaCongelada         StatusVaga = "vaga_congelada"
+	StatusVagaDescontinuada     StatusVaga = "vaga_descontinuada"
 )
 
 func (s StatusVaga) IsValid() bool {
 	switch s {
-	case StatusVagaEmEdicao, StatusVagaEmAprovacao, StatusVagaPublicadoAtivo, StatusVagaPublicadoExpirado:
+	case StatusVagaEmEdicao, StatusVagaEmAprovacao, StatusVagaPublicadoAtivo, StatusVagaPublicadoExpirado,
+		StatusVagaCongelada, StatusVagaDescontinuada:
 		return true
 	}
 	return false

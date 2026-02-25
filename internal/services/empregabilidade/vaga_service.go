@@ -26,28 +26,38 @@ type EmpresaRepoInterface interface {
 	GetByID(ctx context.Context, cnpj string) (*empregabilidade.Empresa, error)
 }
 
+type CandidaturaRepoForVagaInterface interface {
+	BulkSaveAndUpdateStatusByVagaID(ctx context.Context, vagaID uuid.UUID, status empregabilidade.StatusCandidatura) error
+	BulkRestoreStatusByVagaID(ctx context.Context, vagaID uuid.UUID) error
+}
+
 type VagaService struct {
-	repo        VagaRepoInterface
-	empresaRepo EmpresaRepoInterface
+	repo            VagaRepoInterface
+	empresaRepo     EmpresaRepoInterface
+	candidaturaRepo CandidaturaRepoForVagaInterface
 }
 
 func NewVagaService(
 	repo *repository.VagaRepository,
 	empresaRepo *repository.EmpresaRepository,
+	candidaturaRepo *repository.CandidaturaRepository,
 ) *VagaService {
 	return &VagaService{
-		repo:        repo,
-		empresaRepo: empresaRepo,
+		repo:            repo,
+		empresaRepo:     empresaRepo,
+		candidaturaRepo: candidaturaRepo,
 	}
 }
 
 func NewVagaServiceWithInterfaces(
 	repo VagaRepoInterface,
 	empresaRepo EmpresaRepoInterface,
+	candidaturaRepo CandidaturaRepoForVagaInterface,
 ) *VagaService {
 	return &VagaService{
-		repo:        repo,
-		empresaRepo: empresaRepo,
+		repo:            repo,
+		empresaRepo:     empresaRepo,
+		candidaturaRepo: candidaturaRepo,
 	}
 }
 
@@ -198,5 +208,95 @@ func (s *VagaService) SendToApproval(ctx context.Context, id uuid.UUID) error {
 	}
 
 	vaga.Status = empregabilidade.StatusVagaEmAprovacao
+	return s.repo.Update(ctx, vaga)
+}
+
+func (s *VagaService) FreezeVaga(ctx context.Context, id uuid.UUID) error {
+	vaga, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if vaga == nil {
+		return errors.New("vaga não encontrada")
+	}
+
+	vaga.UpdateStatusBasedOnExpiration()
+	if vaga.Status != empregabilidade.StatusVagaPublicadoAtivo {
+		return errors.New("vaga não está em estado publicado_ativo para ser congelada")
+	}
+
+	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(ctx, id, empregabilidade.StatusCandidaturaVagaCongelada); err != nil {
+		return err
+	}
+
+	vaga.Status = empregabilidade.StatusVagaCongelada
+	return s.repo.Update(ctx, vaga)
+}
+
+func (s *VagaService) UnfreezeVaga(ctx context.Context, id uuid.UUID) error {
+	vaga, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if vaga == nil {
+		return errors.New("vaga não encontrada")
+	}
+
+	if vaga.Status != empregabilidade.StatusVagaCongelada {
+		return errors.New("vaga não está em estado vaga_congelada para ser descongelada")
+	}
+
+	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(ctx, id); err != nil {
+		return err
+	}
+
+	vaga.Status = empregabilidade.StatusVagaPublicadoAtivo
+	vaga.UpdateStatusBasedOnExpiration()
+	return s.repo.Update(ctx, vaga)
+}
+
+func (s *VagaService) DiscontinueVaga(ctx context.Context, id uuid.UUID) error {
+	vaga, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if vaga == nil {
+		return errors.New("vaga não encontrada")
+	}
+
+	vaga.UpdateStatusBasedOnExpiration()
+	if vaga.Status != empregabilidade.StatusVagaPublicadoAtivo &&
+		vaga.Status != empregabilidade.StatusVagaPublicadoExpirado &&
+		vaga.Status != empregabilidade.StatusVagaCongelada {
+		return errors.New("vaga não está em estado publicado ou congelado para ser descontinuada")
+	}
+
+	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(ctx, id, empregabilidade.StatusCandidaturaDescontinuada); err != nil {
+		return err
+	}
+
+	vaga.Status = empregabilidade.StatusVagaDescontinuada
+	return s.repo.Update(ctx, vaga)
+}
+
+func (s *VagaService) ReactivateVaga(ctx context.Context, id uuid.UUID) error {
+	vaga, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if vaga == nil {
+		return errors.New("vaga não encontrada")
+	}
+
+	if vaga.Status != empregabilidade.StatusVagaDescontinuada {
+		return errors.New("vaga não está em estado vaga_descontinuada para ser reativada")
+	}
+
+	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(ctx, id); err != nil {
+		return err
+	}
+
+	vaga.Status = empregabilidade.StatusVagaPublicadoAtivo
+	vaga.UpdateStatusBasedOnExpiration()
 	return s.repo.Update(ctx, vaga)
 }

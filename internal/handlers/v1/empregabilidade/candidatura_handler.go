@@ -42,6 +42,14 @@ func handleCandidaturaError(c *gin.Context, err error) {
 	c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
 }
 
+func requireAdmin(c *gin.Context) bool {
+	if middlewares.IsAdmin(c) {
+		return true
+	}
+	c.JSON(http.StatusForbidden, gin.H{"error": "Acesso restrito a administradores"})
+	return false
+}
+
 type CandidaturaHandler struct {
 	service *services.CandidaturaService
 }
@@ -156,6 +164,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 		return
 	}
 
+	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), entities)
 	c.JSON(http.StatusOK, gin.H{
 		"data": entities,
 		"meta": gin.H{
@@ -194,6 +203,11 @@ func (h *CandidaturaHandler) GetByID(c *gin.Context) {
 		return
 	}
 
+	if !requireOwnership(c, entity.CPF) {
+		return
+	}
+
+	h.service.EnrichWithPersonalInfo(c.Request.Context(), entity)
 	c.JSON(http.StatusOK, entity)
 }
 
@@ -212,6 +226,20 @@ func (h *CandidaturaHandler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	existing, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		handleCandidaturaError(c, err)
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Candidatura não encontrada"})
+		return
+	}
+
+	if !requireOwnership(c, existing.CPF) {
 		return
 	}
 
@@ -247,6 +275,20 @@ func (h *CandidaturaHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	existing, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		handleCandidaturaError(c, err)
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Candidatura não encontrada"})
+		return
+	}
+
+	if !requireOwnership(c, existing.CPF) {
+		return
+	}
+
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
 		handleCandidaturaError(c, err)
 		return
@@ -271,6 +313,10 @@ type UpdateStatusRequest struct {
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/status [put]
 func (h *CandidaturaHandler) UpdateStatus(c *gin.Context) {
+	if !requireAdmin(c) {
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
@@ -301,6 +347,10 @@ func (h *CandidaturaHandler) UpdateStatus(c *gin.Context) {
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/approve [put]
 func (h *CandidaturaHandler) Approve(c *gin.Context) {
+	if !requireAdmin(c) {
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
@@ -325,6 +375,10 @@ func (h *CandidaturaHandler) Approve(c *gin.Context) {
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/reject [put]
 func (h *CandidaturaHandler) Reject(c *gin.Context) {
+	if !requireAdmin(c) {
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
@@ -356,6 +410,10 @@ type BulkUpdateStatusRequest struct {
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/bulk-status [put]
 func (h *CandidaturaHandler) BulkUpdateStatus(c *gin.Context) {
+	if !requireAdmin(c) {
+		return
+	}
+
 	var request BulkUpdateStatusRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -392,6 +450,10 @@ type BulkUpdateEtapaRequest struct {
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/bulk-etapa [put]
 func (h *CandidaturaHandler) BulkUpdateEtapa(c *gin.Context) {
+	if !requireAdmin(c) {
+		return
+	}
+
 	var request BulkUpdateEtapaRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

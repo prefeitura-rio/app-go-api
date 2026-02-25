@@ -212,3 +212,30 @@ func (r *CandidaturaRepository) UpdateEtapa(ctx context.Context, id uuid.UUID, e
 	}
 	return nil
 }
+
+func (r *CandidaturaRepository) BulkSaveAndUpdateStatusByVagaID(ctx context.Context, vagaID uuid.UUID, newStatus empregabilidade.StatusCandidatura) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Save current status into status_anterior, then set new status
+		result := tx.Exec(
+			`UPDATE emp_candidaturas SET status_anterior = status, status = ?, updated_at = NOW() WHERE id_vaga = ? AND deleted_at IS NULL`,
+			string(newStatus), vagaID,
+		)
+		if result.Error != nil {
+			return fmt.Errorf("erro ao congelar/descontinuar candidaturas: %w", result.Error)
+		}
+		return nil
+	})
+}
+
+func (r *CandidaturaRepository) BulkRestoreStatusByVagaID(ctx context.Context, vagaID uuid.UUID) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Exec(
+			`UPDATE emp_candidaturas SET status = status_anterior, status_anterior = NULL, updated_at = NOW() WHERE id_vaga = ? AND deleted_at IS NULL AND status_anterior IS NOT NULL`,
+			vagaID,
+		)
+		if result.Error != nil {
+			return fmt.Errorf("erro ao restaurar status das candidaturas: %w", result.Error)
+		}
+		return nil
+	})
+}
