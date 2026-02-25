@@ -75,18 +75,21 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 		return
 	}
 
-	cpf := middlewares.GetUserCPF(c)
-	if cpf == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "CPF não encontrado no token de autenticação"})
-		return
-	}
-	entity.CPF = cpf
-
-	if nome := middlewares.GetUserName(c); nome != "" {
-		entity.Nome = &nome
-	}
-	if email := middlewares.GetUserEmail(c); email != "" {
-		entity.Email = &email
+	if middlewares.IsAdmin(c) && entity.CPF != "" {
+		// Admin criando candidatura para outro usuário — usa CPF do body, sem sobrescrever nome/email
+	} else {
+		cpf := middlewares.GetUserCPF(c)
+		if cpf == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "CPF não encontrado no token de autenticação"})
+			return
+		}
+		entity.CPF = cpf
+		if nome := middlewares.GetUserName(c); nome != "" {
+			entity.Nome = &nome
+		}
+		if email := middlewares.GetUserEmail(c); email != "" {
+			entity.Email = &email
+		}
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
@@ -488,6 +491,10 @@ type UpdateEtapaRequest struct {
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/etapa [put]
 func (h *CandidaturaHandler) UpdateEtapa(c *gin.Context) {
+	if !requireAdmin(c) {
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
