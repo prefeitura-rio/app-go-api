@@ -133,6 +133,10 @@ func (m *MockCandidaturaRepo) BulkRestoreStatusByVagaID(ctx context.Context, vag
 	return nil
 }
 
+func (m *MockCandidaturaRepo) CountByStatus(ctx context.Context, filter empregabilidade.CandidaturaFilter) (map[empregabilidade.StatusCandidatura]int64, error) {
+	return map[empregabilidade.StatusCandidatura]int64{}, nil
+}
+
 // Mock Vaga Repository
 type MockVagaRepo struct {
 	vagas    map[uuid.UUID]*empregabilidade.Vaga

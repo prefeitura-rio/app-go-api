@@ -167,6 +167,14 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 		return
 	}
 
+	resumoFilter := filter
+	resumoFilter.Status = ""
+	resumo, err := h.service.CountByStatus(c.Request.Context(), resumoFilter)
+	if err != nil {
+		handleCandidaturaError(c, err)
+		return
+	}
+
 	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), entities)
 	c.JSON(http.StatusOK, gin.H{
 		"data": entities,
@@ -175,6 +183,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 			"page_size": pageSize,
 			"total":     total,
 		},
+		"resumo": resumo,
 	})
 }
 

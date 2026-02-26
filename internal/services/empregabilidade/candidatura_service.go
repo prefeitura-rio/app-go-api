@@ -25,6 +25,7 @@ type CandidaturaRepositoryInterface interface {
 	BulkUpdateEtapa(ctx context.Context, ids []uuid.UUID, etapaID uuid.UUID) error
 	BulkSaveAndUpdateStatusByVagaID(ctx context.Context, vagaID uuid.UUID, newStatus empregabilidade.StatusCandidatura) error
 	BulkRestoreStatusByVagaID(ctx context.Context, vagaID uuid.UUID) error
+	CountByStatus(ctx context.Context, filter empregabilidade.CandidaturaFilter) (map[empregabilidade.StatusCandidatura]int64, error)
 }
 
 type VagaRepositoryInterface interface {
@@ -173,6 +174,10 @@ func (s *CandidaturaService) Delete(ctx context.Context, id uuid.UUID) error {
 func (s *CandidaturaService) List(ctx context.Context, filter empregabilidade.CandidaturaFilter, page, pageSize int) ([]*empregabilidade.Candidatura, int, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.List(ctx, filter, pageSize, offset)
+}
+
+func (s *CandidaturaService) CountByStatus(ctx context.Context, filter empregabilidade.CandidaturaFilter) (map[empregabilidade.StatusCandidatura]int64, error) {
+	return s.repo.CountByStatus(ctx, filter)
 }
 
 func (s *CandidaturaService) UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error {

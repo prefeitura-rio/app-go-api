@@ -102,14 +102,10 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 		}
 
 		if entity.Etapas != nil {
-			// Only clear etapa from candidaturas that are still in progress (enviada or congelada)
-			// Preserves etapa history for finalized candidaturas (aprovada, reprovada, descontinuada)
-			activeStatuses := []string{
-				string(empregabilidade.StatusCandidaturaEnviada),
-				string(empregabilidade.StatusCandidaturaVagaCongelada),
-			}
+			// Clear id_etapa_atual from all candidaturas of this vaga before deleting the steps.
+			// We must clear all statuses (not only active ones) because the FK has no ON DELETE SET NULL.
 			if err := tx.Model(&empregabilidade.Candidatura{}).
-				Where("id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?) AND status IN ?", entity.ID, activeStatuses).
+				Where("id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)", entity.ID).
 				Update("id_etapa_atual", nil).Error; err != nil {
 				return fmt.Errorf("erro ao desvincular etapas das candidaturas: %w", err)
 			}
@@ -145,6 +141,17 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			if len(entity.InformacoesComplementares) > 0 {
 				if err := tx.Create(&entity.InformacoesComplementares).Error; err != nil {
 					return fmt.Errorf("erro ao criar informações complementares: %w", err)
+				}
+			}
+		}
+
+		if entity.TiposPCD != nil {
+			if err := tx.Exec("DELETE FROM emp_vagas_tipos_pcd WHERE id_vaga = ?", entity.ID).Error; err != nil {
+				return fmt.Errorf("erro ao remover tipos PCD: %w", err)
+			}
+			for _, tipo := range entity.TiposPCD {
+				if err := tx.Exec("INSERT INTO emp_vagas_tipos_pcd (id_vaga, id_tipo_pcd) VALUES (?, ?)", entity.ID, tipo.ID).Error; err != nil {
+					return fmt.Errorf("erro ao inserir tipo PCD: %w", err)
 				}
 			}
 		}

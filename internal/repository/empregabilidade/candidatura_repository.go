@@ -227,6 +227,48 @@ func (r *CandidaturaRepository) BulkSaveAndUpdateStatusByVagaID(ctx context.Cont
 	})
 }
 
+func (r *CandidaturaRepository) CountByStatus(ctx context.Context, filter empregabilidade.CandidaturaFilter) (map[empregabilidade.StatusCandidatura]int64, error) {
+	type statusCount struct {
+		Status empregabilidade.StatusCandidatura
+		Count  int64
+	}
+	var results []statusCount
+
+	db := r.db.WithContext(ctx).Model(&empregabilidade.Candidatura{})
+
+	if filter.CPF != "" {
+		db = db.Where("cpf = ?", filter.CPF)
+	}
+	if filter.VagaID != nil {
+		db = db.Where("id_vaga = ?", *filter.VagaID)
+	}
+	if filter.EtapaID != nil {
+		db = db.Where("id_etapa_atual = ?", *filter.EtapaID)
+	}
+	if filter.Search != "" {
+		searchTerm := fmt.Sprintf("%%%s%%", filter.Search)
+		db = db.Where("cpf ILIKE ? OR nome ILIKE ? OR email ILIKE ?", searchTerm, searchTerm, searchTerm)
+	}
+	// Status filter is intentionally ignored to count all statuses
+
+	if err := db.Select("status, COUNT(*) as count").Group("status").Scan(&results).Error; err != nil {
+		return nil, fmt.Errorf("erro ao contar candidaturas por status: %w", err)
+	}
+
+	counts := map[empregabilidade.StatusCandidatura]int64{
+		empregabilidade.StatusCandidaturaEnviada:       0,
+		empregabilidade.StatusCandidaturaAprovada:      0,
+		empregabilidade.StatusCandidaturaReprovada:     0,
+		empregabilidade.StatusCandidaturaVagaCongelada: 0,
+		empregabilidade.StatusCandidaturaDescontinuada: 0,
+	}
+	for _, r := range results {
+		counts[r.Status] = r.Count
+	}
+
+	return counts, nil
+}
+
 func (r *CandidaturaRepository) BulkRestoreStatusByVagaID(ctx context.Context, vagaID uuid.UUID) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Exec(
