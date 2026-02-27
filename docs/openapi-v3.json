@@ -2149,11 +2149,11 @@
     },
     "/api/v1/empregabilidade/candidaturas": {
       "get": {
-        "description": "Retorna lista paginada de candidaturas com filtros e busca universal",
+        "description": "Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores.",
         "tags": [
           "empregabilidade-candidaturas"
         ],
-        "summary": "Listar candidaturas",
+        "summary": "Listar candidaturas (admin)",
         "parameters": [
           {
             "description": "Número da página (default: 1)",
@@ -2172,7 +2172,7 @@
             }
           },
           {
-            "description": "Filtrar por CPF (apenas admin)",
+            "description": "Filtrar por CPF",
             "name": "cpf",
             "in": "query",
             "schema": {
@@ -2196,7 +2196,7 @@
             }
           },
           {
-            "description": "Busca parcial por CPF, nome ou email (apenas admin)",
+            "description": "Busca parcial por CPF, nome ou email",
             "name": "search",
             "in": "query",
             "schema": {
@@ -2220,6 +2220,19 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -2407,6 +2420,123 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/empregabilidade/candidaturas/usuario/{cpf}": {
+      "get": {
+        "description": "Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF.",
+        "tags": [
+          "empregabilidade-candidaturas"
+        ],
+        "summary": "Listar candidaturas por CPF",
+        "parameters": [
+          {
+            "description": "CPF do usuário",
+            "name": "cpf",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Número da página (default: 1)",
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Tamanho da página (default: 10)",
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filtrar por ID da vaga",
+            "name": "vagaId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por status",
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por ID da etapa atual",
+            "name": "etapa_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
