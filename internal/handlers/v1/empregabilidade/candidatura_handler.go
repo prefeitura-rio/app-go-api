@@ -102,21 +102,26 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, entity)
 }
 
-// @Summary      Listar candidaturas
-// @Description  Retorna lista paginada de candidaturas com filtros e busca universal
+// @Summary      Listar candidaturas (admin)
+// @Description  Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores.
 // @Tags         empregabilidade-candidaturas
 // @Produce      json
 // @Param        page      query     int     false  "Número da página (default: 1)"
 // @Param        pageSize  query     int     false  "Tamanho da página (default: 10)"
-// @Param        cpf       query     string  false  "Filtrar por CPF (apenas admin)"
+// @Param        cpf       query     string  false  "Filtrar por CPF"
 // @Param        vagaId    query     string  false  "Filtrar por ID da vaga"
 // @Param        status    query     string  false  "Filtrar por status"
-// @Param        search    query     string  false  "Busca parcial por CPF, nome ou email (apenas admin)"
+// @Param        search    query     string  false  "Busca parcial por CPF, nome ou email"
 // @Param        etapa_id  query     string  false  "Filtrar por ID da etapa atual"
 // @Success      200       {object}  map[string]interface{}
+// @Failure      403       {object}  map[string]string
 // @Failure      500       {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas [get]
 func (h *CandidaturaHandler) List(c *gin.Context) {
+	if !requireAdmin(c) {
+		return
+	}
+
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
@@ -129,18 +134,96 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 
 	filter := empregabilidade.CandidaturaFilter{
 		Status: c.Query("status"),
+		CPF:    c.Query("cpf"),
+		Search: c.Query("search"),
 	}
 
-	if middlewares.IsAdmin(c) {
-		filter.CPF = c.Query("cpf")
-		filter.Search = c.Query("search")
-	} else {
+	if raw := c.Query("vagaId"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ID da vaga inválido"})
+			return
+		}
+		filter.VagaID = &id
+	}
+
+	if raw := c.Query("etapa_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ID da etapa inválido"})
+			return
+		}
+		filter.EtapaID = &id
+	}
+
+	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
+	if err != nil {
+		handleCandidaturaError(c, err)
+		return
+	}
+
+	resumoFilter := filter
+	resumoFilter.Status = ""
+	resumo, err := h.service.CountByStatus(c.Request.Context(), resumoFilter)
+	if err != nil {
+		handleCandidaturaError(c, err)
+		return
+	}
+
+	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), entities)
+	c.JSON(http.StatusOK, gin.H{
+		"data": entities,
+		"meta": gin.H{
+			"page":      page,
+			"page_size": pageSize,
+			"total":     total,
+		},
+		"resumo": resumo,
+	})
+}
+
+// @Summary      Listar candidaturas por CPF
+// @Description  Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF.
+// @Tags         empregabilidade-candidaturas
+// @Produce      json
+// @Param        cpf       path      string  true   "CPF do usuário"
+// @Param        page      query     int     false  "Número da página (default: 1)"
+// @Param        pageSize  query     int     false  "Tamanho da página (default: 10)"
+// @Param        vagaId    query     string  false  "Filtrar por ID da vaga"
+// @Param        status    query     string  false  "Filtrar por status"
+// @Param        etapa_id  query     string  false  "Filtrar por ID da etapa atual"
+// @Success      200       {object}  map[string]interface{}
+// @Failure      401       {object}  map[string]string
+// @Failure      403       {object}  map[string]string
+// @Failure      500       {object}  map[string]string
+// @Router       /api/v1/empregabilidade/candidaturas/usuario/{cpf} [get]
+func (h *CandidaturaHandler) ListByCPF(c *gin.Context) {
+	cpf := c.Param("cpf")
+
+	if !middlewares.IsAdmin(c) {
 		userCPF := middlewares.GetUserCPF(c)
 		if userCPF == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não identificado"})
 			return
 		}
-		filter.CPF = userCPF
+		if userCPF != cpf {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado"})
+			return
+		}
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 1000 {
+		pageSize = 10
+	}
+
+	filter := empregabilidade.CandidaturaFilter{
+		CPF:    cpf,
+		Status: c.Query("status"),
 	}
 
 	if raw := c.Query("vagaId"); raw != "" {

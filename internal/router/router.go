@@ -551,6 +551,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 		empCandidaturas.GET("", empCandidaturaHandler.List)
 		empCandidaturas.PUT("/bulk-status", empCandidaturaHandler.BulkUpdateStatus)
 		empCandidaturas.PUT("/bulk-etapa", empCandidaturaHandler.BulkUpdateEtapa)
+		empCandidaturas.GET("/usuario/:cpf", empCandidaturaHandler.ListByCPF)
 		empCandidaturas.GET("/:id", empCandidaturaHandler.GetByID)
 		empCandidaturas.PUT("/:id", empCandidaturaHandler.Update)
 		empCandidaturas.DELETE("/:id", empCandidaturaHandler.Delete)
