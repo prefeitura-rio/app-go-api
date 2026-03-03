@@ -63,6 +63,7 @@ func NewVagaHandler(service *services.VagaService) *VagaHandler {
 // @Failure      400      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas [post]
+// @Router       /api/v1/empregabilidade/vagas/draft [post]
 func (h *VagaHandler) Create(c *gin.Context) {
 	var entity empregabilidade.Vaga
 	if err := c.ShouldBindJSON(&entity); err != nil {
@@ -86,7 +87,7 @@ func (h *VagaHandler) Create(c *gin.Context) {
 // @Produce      json
 // @Param        page              query     int     false  "Número da página (default: 1)"
 // @Param        pageSize          query     int     false  "Tamanho da página (default: 10)"
-// @Param        status            query     string  false  "Filtrar por status (em_edicao, em_aprovacao, publicado_ativo, publicado_expirado)"
+// @Param        status            query     string  false  "Filtrar por status (em_edicao, em_aprovacao, publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)"
 // @Param        contratante       query     string  false  "Filtrar por CNPJ do contratante"
 // @Param        orgao_parceiro_id query     string  false  "Filtrar por ID do órgão parceiro"
 // @Param        search            query     string  false  "Busca parcial no título da vaga"

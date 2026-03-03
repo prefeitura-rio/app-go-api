@@ -130,7 +130,7 @@ func (r *CandidaturaRepository) BulkUpdateStatus(ctx context.Context, vagaID uui
 		foundCPFs[c.CPF] = c
 	}
 
-	// Identify CPFs that cannot transition
+	// Identify CPFs not found in the database
 	var updateIDs []uuid.UUID
 	for _, cpf := range cpfs {
 		c, found := foundCPFs[cpf]

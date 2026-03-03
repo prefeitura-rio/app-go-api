@@ -46,14 +46,11 @@ type HeimdallUserInfo struct {
 var heimdallHTTPClient = &http.Client{Timeout: 3 * time.Second}
 
 // fetchHeimdallUserInfo consulta o Heimdall para obter as roles do usuário
-func fetchHeimdallUserInfo(baseURL, authHeader string) (*HeimdallUserInfo, error) {
+func fetchHeimdallUserInfo(ctx context.Context, baseURL, authHeader string) (*HeimdallUserInfo, error) {
 	// Garante que o header tem o prefixo "Bearer "
 	if !strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
 		authHeader = "Bearer " + authHeader
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/users/me", nil)
 	if err != nil {
@@ -164,7 +161,7 @@ func ExtractUserContext(heimdallBaseURL string) gin.HandlerFunc {
 		role := "USER"
 		if heimdallBaseURL != "" {
 			// Consulta Heimdall para obter as roles reais
-			userInfo, err := fetchHeimdallUserInfo(heimdallBaseURL, authHeader)
+			userInfo, err := fetchHeimdallUserInfo(c.Request.Context(), heimdallBaseURL, authHeader)
 			if err == nil && userInfo != nil {
 				c.Set(UserRolesKey, userInfo.Roles)
 				for _, r := range userInfo.Roles {

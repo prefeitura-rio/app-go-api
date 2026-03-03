@@ -1660,14 +1660,14 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/candidaturas": {
             "get": {
-                "description": "Retorna lista paginada de candidaturas",
+                "description": "Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "empregabilidade-candidaturas"
                 ],
-                "summary": "Listar candidaturas",
+                "summary": "Listar candidaturas (admin)",
                 "parameters": [
                     {
                         "type": "integer",
@@ -1698,6 +1698,18 @@ const docTemplate = `{
                         "description": "Filtrar por status",
                         "name": "status",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Busca parcial por CPF, nome ou email",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por ID da etapa atual",
+                        "name": "etapa_id",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1706,6 +1718,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -1751,6 +1772,208 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/candidaturas/bulk-etapa": {
+            "put": {
+                "description": "Atualiza a etapa atual de múltiplas candidaturas de uma vaga. Todos os candidatos devem estar na mesma etapa atual.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Atualizar etapa de candidaturas em lote",
+                "parameters": [
+                    {
+                        "description": "Lista de CPFs, ID da vaga e nova etapa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.BulkUpdateEtapaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/candidaturas/bulk-status": {
+            "put": {
+                "description": "Atualiza o status de múltiplas candidaturas de uma vaga identificadas por lista de CPFs",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Atualizar status de candidaturas em lote",
+                "parameters": [
+                    {
+                        "description": "Lista de CPFs, ID da vaga e novo status",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.BulkUpdateStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/candidaturas/usuario/{cpf}": {
+            "get": {
+                "description": "Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Listar candidaturas por CPF",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por ID da vaga",
+                        "name": "vagaId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por ID da etapa atual",
+                        "name": "etapa_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2157,7 +2380,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/conquistas": {
             "post": {
-                "description": "Adiciona uma nova conquista ao currículo",
+                "description": "Adiciona uma nova conquista ao currículo do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -2188,6 +2411,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2263,7 +2495,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza uma conquista existente no currículo",
+                "description": "Atualiza uma conquista existente do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -2308,6 +2540,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2320,7 +2570,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Remove uma conquista do currículo",
+                "description": "Remove uma conquista do currículo do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -2356,6 +2606,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2370,7 +2638,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/cursos-complementares": {
             "post": {
-                "description": "Adiciona um novo curso complementar ao currículo",
+                "description": "Adiciona um novo curso complementar ao currículo do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -2401,6 +2669,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2476,7 +2753,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza um curso complementar existente no currículo",
+                "description": "Atualiza um curso complementar existente do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -2521,6 +2798,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2533,7 +2828,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Remove um curso complementar do currículo",
+                "description": "Remove um curso complementar do currículo do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -2569,6 +2864,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2583,7 +2896,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/experiencias": {
             "post": {
-                "description": "Adiciona uma nova experiência profissional ao currículo",
+                "description": "Adiciona uma nova experiência profissional ao currículo do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -2614,6 +2927,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2689,7 +3011,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza uma experiência existente no currículo",
+                "description": "Atualiza uma experiência existente do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -2734,6 +3056,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2746,7 +3086,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Remove uma experiência do currículo",
+                "description": "Remove uma experiência do currículo do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -2782,6 +3122,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2796,7 +3154,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/formacoes": {
             "post": {
-                "description": "Cria uma nova formação no currículo",
+                "description": "Cria uma nova formação no currículo do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -2827,6 +3185,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2902,7 +3269,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza uma formação existente",
+                "description": "Atualiza uma formação existente do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -2947,6 +3314,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2959,7 +3344,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Remove uma formação do currículo",
+                "description": "Remove uma formação do currículo do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -2995,6 +3380,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3009,7 +3412,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/idiomas": {
             "post": {
-                "description": "Adiciona um novo idioma ao currículo",
+                "description": "Adiciona um novo idioma ao currículo do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -3040,6 +3443,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -3115,7 +3527,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza um idioma existente no currículo",
+                "description": "Atualiza um idioma existente do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -3160,6 +3572,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3172,7 +3602,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Remove um idioma do currículo",
+                "description": "Remove um idioma do currículo do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -3208,6 +3638,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3222,7 +3670,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/situacao-interesses": {
             "put": {
-                "description": "Cria ou atualiza a situação atual e interesses do usuário",
+                "description": "Cria ou atualiza a situação atual e interesses do usuário autenticado",
                 "consumes": [
                     "application/json"
                 ],
@@ -3253,6 +3701,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -3298,6 +3755,15 @@ const docTemplate = `{
                             "$ref": "#/definitions/empregabilidade.CurriculoCompleto"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3312,7 +3778,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/{cpf}/conquistas": {
             "get": {
-                "description": "Retorna todas as conquistas de um usuário",
+                "description": "Retorna todas as conquistas do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -3335,6 +3801,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -3398,6 +3873,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3412,7 +3896,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/{cpf}/cursos-complementares": {
             "get": {
-                "description": "Retorna todos os cursos complementares de um usuário",
+                "description": "Retorna todos os cursos complementares do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -3435,6 +3919,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -3498,6 +3991,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3512,7 +4014,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/{cpf}/experiencias": {
             "get": {
-                "description": "Retorna todas as experiências profissionais de um usuário",
+                "description": "Retorna todas as experiências profissionais do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -3535,6 +4037,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -3595,6 +4106,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3609,7 +4129,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/{cpf}/formacoes": {
             "get": {
-                "description": "Retorna todas as formações de um usuário",
+                "description": "Retorna todas as formações do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -3632,6 +4152,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -3692,6 +4221,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3706,7 +4244,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/{cpf}/idiomas": {
             "get": {
-                "description": "Retorna todos os idiomas de um usuário",
+                "description": "Retorna todos os idiomas do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -3729,6 +4267,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -3792,6 +4339,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3806,7 +4362,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/curriculo/{cpf}/situacao-interesses": {
             "get": {
-                "description": "Retorna a situação atual e interesses de um usuário",
+                "description": "Retorna a situação atual e interesses do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -3828,6 +4384,15 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/empregabilidade.CurriculoSituacaoInteresses"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "404": {
@@ -4101,7 +4666,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/empresas": {
             "get": {
-                "description": "Retorna lista paginada de empresas",
+                "description": "Retorna lista paginada de empresas com filtros opcionais",
                 "produces": [
                     "application/json"
                 ],
@@ -4120,6 +4685,18 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Tamanho da página (default: 10)",
                         "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Busca parcial em razão social ou nome fantasia",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por CNPJ exato",
+                        "name": "cnpj",
                         "in": "query"
                     }
                 ],
@@ -5413,6 +5990,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -5447,6 +6033,15 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -6007,6 +6602,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -6021,7 +6625,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/termos-uso/{cpf}/accept": {
             "put": {
-                "description": "Registra o aceite dos termos de uso pelo usuário",
+                "description": "Registra o aceite dos termos de uso pelo usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -6041,6 +6645,15 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -6084,6 +6697,15 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/empregabilidade.TermosUso"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "404": {
@@ -6605,7 +7227,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas": {
             "get": {
-                "description": "Retorna lista paginada de vagas",
+                "description": "Retorna lista paginada de vagas com filtros opcionais",
                 "produces": [
                     "application/json"
                 ],
@@ -6628,7 +7250,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filtrar por status",
+                        "description": "Filtrar por status (em_edicao, em_aprovacao, publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)",
                         "name": "status",
                         "in": "query"
                     },
@@ -6636,6 +7258,18 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filtrar por CNPJ do contratante",
                         "name": "contratante",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por ID do órgão parceiro",
+                        "name": "orgao_parceiro_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Busca parcial no título da vaga",
+                        "name": "search",
                         "in": "query"
                     }
                 ],
@@ -6711,7 +7345,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/draft": {
             "post": {
-                "description": "Cria um rascunho de vaga",
+                "description": "Cria uma nova vaga",
                 "consumes": [
                     "application/json"
                 ],
@@ -6721,7 +7355,7 @@ const docTemplate = `{
                 "tags": [
                     "empregabilidade-vagas"
                 ],
-                "summary": "Criar rascunho de vaga",
+                "summary": "Criar vaga",
                 "parameters": [
                     {
                         "description": "Dados da vaga",
@@ -6903,6 +7537,74 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{id}/discontinue": {
+            "put": {
+                "description": "Descontinua uma vaga publicada ou congelada e atualiza o status de todas as candidaturas para vaga_descontinuada",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Descontinuar vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -7209,6 +7911,74 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/empregabilidade/vagas/{id}/freeze": {
+            "put": {
+                "description": "Congela uma vaga publicada e atualiza o status de todas as candidaturas vinculadas para vaga_congelada",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Congelar vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/empregabilidade/vagas/{id}/publish": {
             "put": {
                 "description": "Publica uma vaga em edição",
@@ -7219,6 +7989,210 @@ const docTemplate = `{
                     "empregabilidade-vagas"
                 ],
                 "summary": "Publicar vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{id}/reactivate": {
+            "put": {
+                "description": "Reativa uma vaga descontinuada e restaura o status anterior das candidaturas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Reativar vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{id}/send-to-approval": {
+            "put": {
+                "description": "Envia uma vaga em edição para o fluxo de aprovação",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Enviar vaga para aprovação",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{id}/send-to-draft": {
+            "put": {
+                "description": "Retorna uma vaga em aprovação para o estado de edição (rascunho)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Retornar vaga para rascunho",
                 "parameters": [
                     {
                         "type": "string",
@@ -7320,6 +8294,74 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{id}/unfreeze": {
+            "put": {
+                "description": "Descongela uma vaga congelada e restaura o status anterior das candidaturas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Descongelar vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -9116,6 +10158,40 @@ const docTemplate = `{
                 "AcessibilidadeExclusivoPCD"
             ]
         },
+        "empregabilidade.BulkUpdateEtapaRequest": {
+            "type": "object",
+            "properties": {
+                "cpfs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id_etapa": {
+                    "type": "string"
+                },
+                "vaga_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.BulkUpdateStatusRequest": {
+            "type": "object",
+            "properties": {
+                "cpfs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "$ref": "#/definitions/empregabilidade.StatusCandidatura"
+                },
+                "vaga_id": {
+                    "type": "string"
+                }
+            }
+        },
         "empregabilidade.Candidatura": {
             "type": "object",
             "properties": {
@@ -9150,6 +10226,14 @@ const docTemplate = `{
                 "nome": {
                     "type": "string"
                 },
+                "personal_info": {
+                    "description": "Computed field (not stored in DB) - populated from CitizenSnapshot",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.CitizenPersonalInfo"
+                        }
+                    ]
+                },
                 "respostas_info_complementares": {
                     "type": "array",
                     "items": {
@@ -9157,6 +10241,9 @@ const docTemplate = `{
                     }
                 },
                 "status": {
+                    "$ref": "#/definitions/empregabilidade.StatusCandidatura"
+                },
+                "status_anterior": {
                     "$ref": "#/definitions/empregabilidade.StatusCandidatura"
                 },
                 "updated_at": {
@@ -9734,13 +10821,17 @@ const docTemplate = `{
                 "em_edicao",
                 "em_aprovacao",
                 "publicado_ativo",
-                "publicado_expirado"
+                "publicado_expirado",
+                "vaga_congelada",
+                "vaga_descontinuada"
             ],
             "x-enum-varnames": [
                 "StatusVagaEmEdicao",
                 "StatusVagaEmAprovacao",
                 "StatusVagaPublicadoAtivo",
-                "StatusVagaPublicadoExpirado"
+                "StatusVagaPublicadoExpirado",
+                "StatusVagaCongelada",
+                "StatusVagaDescontinuada"
             ]
         },
         "empregabilidade.TermosUso": {

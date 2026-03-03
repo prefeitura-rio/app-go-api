@@ -255,14 +255,39 @@ func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, vagaID uuid.U
 		return BulkUpdateStatusResult{}, errors.New("lista de CPFs não pode ser vazia")
 	}
 
-	repoResult, err := s.repo.BulkUpdateStatus(ctx, vagaID, cpfs, status)
+	candidaturas, err := s.repo.BulkGetByCPFs(ctx, vagaID, cpfs)
+	if err != nil {
+		return BulkUpdateStatusResult{}, err
+	}
+
+	existingByCPF := make(map[string]*empregabilidade.Candidatura, len(candidaturas))
+	for _, c := range candidaturas {
+		existingByCPF[c.CPF] = c
+	}
+
+	var allowedCPFs []string
+	var failedCPFs []string
+	for _, cpf := range cpfs {
+		c, found := existingByCPF[cpf]
+		if !found || !canTransitionCandidatura(c.Status, status) {
+			failedCPFs = append(failedCPFs, cpf)
+			continue
+		}
+		allowedCPFs = append(allowedCPFs, cpf)
+	}
+
+	if len(allowedCPFs) == 0 {
+		return BulkUpdateStatusResult{FailedCPFs: failedCPFs}, nil
+	}
+
+	repoResult, err := s.repo.BulkUpdateStatus(ctx, vagaID, allowedCPFs, status)
 	if err != nil {
 		return BulkUpdateStatusResult{}, err
 	}
 
 	return BulkUpdateStatusResult{
 		Updated:    repoResult.Updated,
-		FailedCPFs: repoResult.FailedCPFs,
+		FailedCPFs: append(failedCPFs, repoResult.FailedCPFs...),
 	}, nil
 }
 
