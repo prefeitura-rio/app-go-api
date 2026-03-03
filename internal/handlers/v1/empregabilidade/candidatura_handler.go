@@ -42,13 +42,6 @@ func handleCandidaturaError(c *gin.Context, err error) {
 	c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
 }
 
-func requireAdmin(c *gin.Context) bool {
-	if middlewares.IsAdmin(c) {
-		return true
-	}
-	c.JSON(http.StatusForbidden, gin.H{"error": "Acesso restrito a administradores"})
-	return false
-}
 
 type CandidaturaHandler struct {
 	service *services.CandidaturaService
@@ -118,10 +111,6 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 // @Failure      500       {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas [get]
 func (h *CandidaturaHandler) List(c *gin.Context) {
-	if !requireAdmin(c) {
-		return
-	}
-
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
@@ -200,7 +189,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 func (h *CandidaturaHandler) ListByCPF(c *gin.Context) {
 	cpf := c.Param("cpf")
 
-	if !middlewares.IsAdmin(c) {
+	if !middlewares.IsAdmin(c) && !middlewares.IsEmpregabilidadeRole(c) {
 		userCPF := middlewares.GetUserCPF(c)
 		if userCPF == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não identificado"})
@@ -408,10 +397,6 @@ type UpdateStatusRequest struct {
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/status [put]
 func (h *CandidaturaHandler) UpdateStatus(c *gin.Context) {
-	if !requireAdmin(c) {
-		return
-	}
-
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
@@ -442,10 +427,6 @@ func (h *CandidaturaHandler) UpdateStatus(c *gin.Context) {
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/approve [put]
 func (h *CandidaturaHandler) Approve(c *gin.Context) {
-	if !requireAdmin(c) {
-		return
-	}
-
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
@@ -470,10 +451,6 @@ func (h *CandidaturaHandler) Approve(c *gin.Context) {
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/reject [put]
 func (h *CandidaturaHandler) Reject(c *gin.Context) {
-	if !requireAdmin(c) {
-		return
-	}
-
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
@@ -505,10 +482,6 @@ type BulkUpdateStatusRequest struct {
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/bulk-status [put]
 func (h *CandidaturaHandler) BulkUpdateStatus(c *gin.Context) {
-	if !requireAdmin(c) {
-		return
-	}
-
 	var request BulkUpdateStatusRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -545,10 +518,6 @@ type BulkUpdateEtapaRequest struct {
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/bulk-etapa [put]
 func (h *CandidaturaHandler) BulkUpdateEtapa(c *gin.Context) {
-	if !requireAdmin(c) {
-		return
-	}
-
 	var request BulkUpdateEtapaRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -583,10 +552,6 @@ type UpdateEtapaRequest struct {
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/etapa [put]
 func (h *CandidaturaHandler) UpdateEtapa(c *gin.Context) {
-	if !requireAdmin(c) {
-		return
-	}
-
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})

@@ -16,10 +16,12 @@ import (
 const (
 	UserCPFKey   = "user_cpf"
 	UserRoleKey  = "user_role"
+	UserRolesKey = "user_roles"
 	UserIDKey    = "user_id"
 	UserNameKey  = "user_name"
 	UserEmailKey = "user_email"
 )
+
 
 // JWTClaims representa as claims do JWT que nos interessam
 type JWTClaims struct {
@@ -164,6 +166,7 @@ func ExtractUserContext(heimdallBaseURL string) gin.HandlerFunc {
 			// Consulta Heimdall para obter as roles reais
 			userInfo, err := fetchHeimdallUserInfo(heimdallBaseURL, authHeader)
 			if err == nil && userInfo != nil {
+				c.Set(UserRolesKey, userInfo.Roles)
 				for _, r := range userInfo.Roles {
 					if r == "go:admin" || r == "admin" || r == "superadmin" {
 						role = "ADMIN"
@@ -175,6 +178,7 @@ func ExtractUserContext(heimdallBaseURL string) gin.HandlerFunc {
 		} else {
 			// Fallback: lê roles diretamente do JWT (para dev local sem Heimdall configurado)
 			if superappAccess, ok := claims.ResourceAccess["superapp"]; ok {
+				c.Set(UserRolesKey, superappAccess.Roles)
 				for _, r := range superappAccess.Roles {
 					if r == "go:admin" {
 						role = "ADMIN"
@@ -243,6 +247,36 @@ func GetUserEmail(c *gin.Context) string {
 func IsAdmin(c *gin.Context) bool {
 	role := GetUserRole(c)
 	return role == "ADMIN"
+}
+
+// GetAllRoles retorna todas as roles do usuário autenticado
+func GetAllRoles(c *gin.Context) []string {
+	if roles, exists := c.Get(UserRolesKey); exists {
+		if rolesSlice, ok := roles.([]string); ok {
+			return rolesSlice
+		}
+	}
+	return nil
+}
+
+// HasRole verifica se o usuário possui uma role específica
+func HasRole(c *gin.Context, role string) bool {
+	for _, r := range GetAllRoles(c) {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}
+
+// IsEmpregabilidadeRole verifica se o usuário possui qualquer role de empregabilidade (prefixo go:empregabilidade:)
+func IsEmpregabilidadeRole(c *gin.Context) bool {
+	for _, r := range GetAllRoles(c) {
+		if strings.HasPrefix(r, "go:empregabilidade:") {
+			return true
+		}
+	}
+	return false
 }
 
 // RequireOwnershipOrAdmin middleware que verifica se o usuário é owner ou admin
