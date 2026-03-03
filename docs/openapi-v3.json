@@ -9159,7 +9159,7 @@
             }
           },
           {
-            "description": "Filtrar por status (em_edicao, em_aprovacao, publicado_ativo, publicado_expirado)",
+            "description": "Filtrar por status (em_edicao, em_aprovacao, publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)",
             "name": "status",
             "in": "query",
             "schema": {
@@ -9223,6 +9223,61 @@
           }
         ]
       },
+      "post": {
+        "description": "Cria uma nova vaga",
+        "tags": [
+          "empregabilidade-vagas"
+        ],
+        "summary": "Criar vaga",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/empregabilidade.Vaga"
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/empregabilidade.Vaga"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/empregabilidade/vagas/draft": {
       "post": {
         "description": "Cria uma nova vaga",
         "tags": [
