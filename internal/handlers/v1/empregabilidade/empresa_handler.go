@@ -53,11 +53,13 @@ func (h *EmpresaHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Listar empresas
-// @Description  Retorna lista paginada de empresas
+// @Description  Retorna lista paginada de empresas com filtros opcionais
 // @Tags         empregabilidade-empresas
 // @Produce      json
-// @Param        page      query     int  false  "Número da página (default: 1)"
-// @Param        pageSize  query     int  false  "Tamanho da página (default: 10)"
+// @Param        page      query     int     false  "Número da página (default: 1)"
+// @Param        pageSize  query     int     false  "Tamanho da página (default: 10)"
+// @Param        search    query     string  false  "Busca parcial em razão social ou nome fantasia"
+// @Param        cnpj      query     string  false  "Filtrar por CNPJ exato"
 // @Success      200       {object}  map[string]interface{}
 // @Failure      500       {object}  map[string]string
 // @Router       /api/v1/empregabilidade/empresas [get]
@@ -72,7 +74,12 @@ func (h *EmpresaHandler) List(c *gin.Context) {
 		pageSize = 10
 	}
 
-	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
+	filter := empregabilidade.EmpresaFilter{
+		Search: c.Query("search"),
+		CNPJ:   c.Query("cnpj"),
+	}
+
+	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

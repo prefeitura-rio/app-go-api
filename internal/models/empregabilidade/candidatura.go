@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -38,11 +39,15 @@ type Candidatura struct {
 	IDVaga                      uuid.UUID                  `json:"id_vaga" gorm:"type:uuid;not null"`
 	Status                      StatusCandidatura          `json:"status" gorm:"type:varchar(100);not null;default:'candidatura_enviada'"`
 	IDEtapaAtual                *uuid.UUID                 `json:"id_etapa_atual" gorm:"type:uuid"`
+	StatusAnterior              *StatusCandidatura         `json:"status_anterior,omitempty" gorm:"type:varchar(100)"`
 	RespostasInfoComplementares []RespostaInfoComplementar `json:"respostas_info_complementares" gorm:"type:jsonb;serializer:json"`
 	CurriculoSnapshot           *CurriculoCompleto         `json:"curriculo_snapshot,omitempty" gorm:"type:jsonb;serializer:json"`
 	DeletedAt                   gorm.DeletedAt             `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
 	CreatedAt                   time.Time                  `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt                   time.Time                  `json:"updated_at" gorm:"autoUpdateTime"`
+
+	// Computed field (not stored in DB) - populated from CitizenSnapshot
+	PersonalInfo *models.CitizenPersonalInfo `json:"personal_info,omitempty" gorm:"-"`
 
 	// Relationships
 	Vaga       *Vaga  `json:"vaga,omitempty" gorm:"foreignKey:IDVaga"`
@@ -54,7 +59,9 @@ func (Candidatura) TableName() string {
 }
 
 type CandidaturaFilter struct {
-	CPF    string
-	VagaID *uuid.UUID
-	Status string
+	CPF     string
+	VagaID  *uuid.UUID
+	Status  string
+	Search  string     // ILIKE em cpf, nome, email
+	EtapaID *uuid.UUID // filtro por etapa atual
 }

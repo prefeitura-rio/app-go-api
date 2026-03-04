@@ -71,7 +71,7 @@ func (m *MockVagaRepoForService) Delete(ctx context.Context, id uuid.UUID) error
 	return nil
 }
 
-func (m *MockVagaRepoForService) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+func (m *MockVagaRepoForService) List(ctx context.Context, filter empregabilidade.VagaFilter, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
 	if m.listError != nil {
 		return nil, 0, m.listError
 	}
@@ -91,6 +91,10 @@ func (m *MockVagaRepoForService) ListByContratante(ctx context.Context, cnpj str
 }
 
 func (m *MockVagaRepoForService) ListByOrgaoParceiro(ctx context.Context, orgaoID string, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+	return nil, 0, nil
+}
+
+func (m *MockVagaRepoForService) ListPublicActive(ctx context.Context, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
 	return nil, 0, nil
 }
 
@@ -123,7 +127,7 @@ func TestVagaService_Publish_Success(t *testing.T) {
 	t.Run("Publish from em_edicao status", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vagaID := uuid.New()
 		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
@@ -147,7 +151,7 @@ func TestVagaService_Publish_Success(t *testing.T) {
 	t.Run("Publish from em_aprovacao status", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vagaID := uuid.New()
 		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
@@ -173,7 +177,7 @@ func TestVagaService_Publish_VagaNotFound(t *testing.T) {
 	t.Run("Error when vaga not found", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		ctx := context.Background()
 		err := service.Publish(ctx, uuid.New())
@@ -193,7 +197,7 @@ func TestVagaService_Publish_InvalidStatus(t *testing.T) {
 	t.Run("Error when vaga is already published", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vagaID := uuid.New()
 		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
@@ -218,7 +222,7 @@ func TestVagaService_Publish_InvalidStatus(t *testing.T) {
 	t.Run("Error when vaga is expired", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vagaID := uuid.New()
 		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
@@ -246,7 +250,7 @@ func TestVagaService_Publish_RepositoryErrors(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockVagaRepo.getError = errors.New("database connection error")
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		ctx := context.Background()
 		err := service.Publish(ctx, uuid.New())
@@ -263,7 +267,7 @@ func TestVagaService_Publish_RepositoryErrors(t *testing.T) {
 	t.Run("Error when Update fails", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vagaID := uuid.New()
 		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
@@ -292,7 +296,7 @@ func TestVagaService_SendToApproval_Success(t *testing.T) {
 	t.Run("SendToApproval from em_edicao status", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vagaID := uuid.New()
 		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
@@ -318,7 +322,7 @@ func TestVagaService_SendToApproval_VagaNotFound(t *testing.T) {
 	t.Run("Error when vaga not found", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		ctx := context.Background()
 		err := service.SendToApproval(ctx, uuid.New())
@@ -348,7 +352,7 @@ func TestVagaService_SendToApproval_InvalidStatus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockVagaRepo := NewMockVagaRepoForService()
 			mockEmpresaRepo := NewMockEmpresaRepoForService()
-			service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+			service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 			vagaID := uuid.New()
 			mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
@@ -377,7 +381,7 @@ func TestVagaService_SendToApproval_RepositoryErrors(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockVagaRepo.getError = errors.New("database connection error")
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		ctx := context.Background()
 		err := service.SendToApproval(ctx, uuid.New())
@@ -394,7 +398,7 @@ func TestVagaService_SendToApproval_RepositoryErrors(t *testing.T) {
 	t.Run("Error when Update fails", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vagaID := uuid.New()
 		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
@@ -417,13 +421,99 @@ func TestVagaService_SendToApproval_RepositoryErrors(t *testing.T) {
 	})
 }
 
+// ==================== SendToDraft Tests ====================
+
+func TestVagaService_SendToDraft_Success(t *testing.T) {
+	t.Run("SendToDraft from em_aprovacao status", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Titulo: "Desenvolvedor Go",
+			Status: empregabilidade.StatusVagaEmAprovacao,
+		}
+
+		ctx := context.Background()
+		err := service.SendToDraft(ctx, vagaID)
+
+		if err != nil {
+			t.Errorf("Expected successful send to draft, got error: %v", err)
+		}
+
+		if mockVagaRepo.vagas[vagaID].Status != empregabilidade.StatusVagaEmEdicao {
+			t.Errorf("Expected status to be em_edicao, got %s", mockVagaRepo.vagas[vagaID].Status)
+		}
+	})
+}
+
+func TestVagaService_SendToDraft_VagaNotFound(t *testing.T) {
+	t.Run("Error when vaga not found", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		ctx := context.Background()
+		err := service.SendToDraft(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when vaga not found")
+		}
+
+		expectedMsg := "vaga não encontrada"
+		if err.Error() != expectedMsg {
+			t.Errorf("Expected error '%s', got '%s'", expectedMsg, err.Error())
+		}
+	})
+}
+
+func TestVagaService_SendToDraft_InvalidStatus(t *testing.T) {
+	testCases := []struct {
+		name   string
+		status empregabilidade.StatusVaga
+	}{
+		{"Error when vaga is in editing", empregabilidade.StatusVagaEmEdicao},
+		{"Error when vaga is published active", empregabilidade.StatusVagaPublicadoAtivo},
+		{"Error when vaga is published expired", empregabilidade.StatusVagaPublicadoExpirado},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockVagaRepo := NewMockVagaRepoForService()
+			mockEmpresaRepo := NewMockEmpresaRepoForService()
+			service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+			vagaID := uuid.New()
+			mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+				ID:     vagaID,
+				Titulo: "Desenvolvedor Go",
+				Status: tc.status,
+			}
+
+			ctx := context.Background()
+			err := service.SendToDraft(ctx, vagaID)
+
+			if err == nil {
+				t.Errorf("Expected error for status %s", tc.status)
+			}
+
+			expectedMsg := "vaga não está em estado de aprovação"
+			if err.Error() != expectedMsg {
+				t.Errorf("Expected error '%s', got '%s'", expectedMsg, err.Error())
+			}
+		})
+	}
+}
+
 // ==================== Create Tests ====================
 
 func TestVagaService_Create_Success(t *testing.T) {
 	t.Run("Successful creation with valid contratante", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		cnpj := "12.345.678/0001-90"
 		mockEmpresaRepo.empresas[cnpj] = &empregabilidade.Empresa{
@@ -460,7 +550,7 @@ func TestVagaService_Create_ContratanteNotFound(t *testing.T) {
 	t.Run("Error when contratante not found", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vaga := &empregabilidade.Vaga{
 			Titulo:        "Desenvolvedor Go",
@@ -491,7 +581,7 @@ func TestVagaService_Create_EmpresaRepoError(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
 		mockEmpresaRepo.getError = errors.New("database error")
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vaga := &empregabilidade.Vaga{
 			Titulo:        "Desenvolvedor Go",
@@ -522,7 +612,7 @@ func TestVagaService_CreateDraft_Success(t *testing.T) {
 	t.Run("Successful draft creation with valid contratante", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		cnpj := "12.345.678/0001-90"
 		mockEmpresaRepo.empresas[cnpj] = &empregabilidade.Empresa{
@@ -556,7 +646,7 @@ func TestVagaService_CreateDraft_ContratanteNotFound(t *testing.T) {
 	t.Run("Error when contratante not found in draft creation", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vaga := &empregabilidade.Vaga{
 			Titulo:        "Desenvolvedor Go",
@@ -587,7 +677,7 @@ func TestVagaService_Update_Success(t *testing.T) {
 	t.Run("Successful update preserves status", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vagaID := uuid.New()
 		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
@@ -625,7 +715,7 @@ func TestVagaService_Update_VagaNotFound(t *testing.T) {
 	t.Run("Error when vaga not found", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vaga := &empregabilidade.Vaga{
 			ID:     uuid.New(),
@@ -651,7 +741,7 @@ func TestVagaService_Update_RepositoryErrors(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockVagaRepo.getError = errors.New("database error")
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
-		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo)
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
 
 		vaga := &empregabilidade.Vaga{
 			ID:     uuid.New(),

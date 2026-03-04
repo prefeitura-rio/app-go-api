@@ -3,7 +3,7 @@ WORKDIR /app
 COPY go.* ./
 RUN go mod download
 COPY . .
-RUN go install github.com/pressly/goose/v3/cmd/goose@latest
+RUN go install github.com/pressly/goose/v3/cmd/goose@v3.23.0
 RUN go install github.com/swaggo/swag/cmd/swag@latest
 RUN swag init -g cmd/server/main.go
 RUN CGO_ENABLED=0 go build -o api ./cmd/server

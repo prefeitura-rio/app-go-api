@@ -34,6 +34,7 @@ type AppConfig struct {
 	Cache       CacheSettings
 	Keycloak    KeycloakSettings
 	Enrollment  EnrollmentSettings
+	Heimdall    HeimdallSettings
 }
 
 // EnrollmentSettings define configurações para inscrições em cursos
@@ -174,6 +175,11 @@ type CacheSettings struct {
 	ReferenceDataTTL time.Duration // TTL para dados de referência (categorias, etc)
 	CourseTTL        time.Duration // TTL para cache de cursos
 	ContactInfoTTL   time.Duration // TTL para informações de contato de donos de CNPJ
+}
+
+// HeimdallSettings define configurações do Heimdall para verificação de roles
+type HeimdallSettings struct {
+	BaseURL string // URL base do Heimdall (ex: https://services.staging.app.dados.rio/heimdall-admin)
 }
 
 // KeycloakSettings define configurações do Keycloak para service account
@@ -436,6 +442,9 @@ func Load() (*AppConfig, error) {
 		},
 		Enrollment: EnrollmentSettings{
 			ScheduleChangeDeadlineHours: getInt(v, "ENROLLMENT_SCHEDULE_CHANGE_DEADLINE_HOURS", 48),
+		},
+		Heimdall: HeimdallSettings{
+			BaseURL: getEnv(v, "HEIMDALL_BASE_URL", ""),
 		},
 	}
 

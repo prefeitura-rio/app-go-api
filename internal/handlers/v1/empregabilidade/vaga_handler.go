@@ -7,10 +7,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
+
+func isPublishedStatus(status empregabilidade.StatusVaga) bool {
+	switch status {
+	case empregabilidade.StatusVagaPublicadoAtivo,
+		empregabilidade.StatusVagaPublicadoExpirado,
+		empregabilidade.StatusVagaCongelada,
+		empregabilidade.StatusVagaDescontinuada:
+		return true
+	}
+	return false
+}
 
 func handleVagaError(c *gin.Context, err error) {
 	msg := err.Error()
@@ -51,6 +63,7 @@ func NewVagaHandler(service *services.VagaService) *VagaHandler {
 // @Failure      400      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas [post]
+// @Router       /api/v1/empregabilidade/vagas/draft [post]
 func (h *VagaHandler) Create(c *gin.Context) {
 	var entity empregabilidade.Vaga
 	if err := c.ShouldBindJSON(&entity); err != nil {
@@ -68,43 +81,18 @@ func (h *VagaHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, entity)
 }
 
-// @Summary      Criar rascunho de vaga
-// @Description  Cria um rascunho de vaga
-// @Tags         empregabilidade-vagas
-// @Accept       json
-// @Produce      json
-// @Param        request  body      empregabilidade.Vaga  true  "Dados da vaga"
-// @Success      201      {object}  empregabilidade.Vaga
-// @Failure      400      {object}  map[string]string
-// @Failure      500      {object}  map[string]string
-// @Router       /api/v1/empregabilidade/vagas/draft [post]
-func (h *VagaHandler) CreateDraft(c *gin.Context) {
-	var entity empregabilidade.Vaga
-	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	id, err := h.service.CreateDraft(c.Request.Context(), &entity)
-	if err != nil {
-		handleVagaError(c, err)
-		return
-	}
-
-	entity.ID = id
-	c.JSON(http.StatusCreated, entity)
-}
-
 // @Summary      Listar vagas
-// @Description  Retorna lista paginada de vagas
+// @Description  Retorna lista paginada de vagas com filtros opcionais
 // @Tags         empregabilidade-vagas
 // @Produce      json
-// @Param        page       query     int     false  "Número da página (default: 1)"
-// @Param        pageSize   query     int     false  "Tamanho da página (default: 10)"
-// @Param        status     query     string  false  "Filtrar por status"
-// @Param        contratante query    string  false  "Filtrar por CNPJ do contratante"
-// @Success      200        {object}  map[string]interface{}
-// @Failure      500        {object}  map[string]string
+// @Param        page              query     int     false  "Número da página (default: 1)"
+// @Param        pageSize          query     int     false  "Tamanho da página (default: 10)"
+// @Param        status            query     string  false  "Filtrar por status (em_edicao, em_aprovacao, publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)"
+// @Param        contratante       query     string  false  "Filtrar por CNPJ do contratante"
+// @Param        orgao_parceiro_id query     string  false  "Filtrar por ID do órgão parceiro"
+// @Param        search            query     string  false  "Busca parcial no título da vaga"
+// @Success      200               {object}  map[string]interface{}
+// @Failure      500               {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas [get]
 func (h *VagaHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -117,12 +105,11 @@ func (h *VagaHandler) List(c *gin.Context) {
 		pageSize = 10
 	}
 
-	filter := make(map[string]interface{})
-	if status := c.Query("status"); status != "" {
-		filter["status"] = status
-	}
-	if contratante := c.Query("contratante"); contratante != "" {
-		filter["id_contratante"] = contratante
+	filter := empregabilidade.VagaFilter{
+		Status:          c.Query("status"),
+		Contratante:     c.Query("contratante"),
+		OrgaoParceiroID: c.Query("orgao_parceiro_id"),
+		Search:          c.Query("search"),
 	}
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
@@ -190,6 +177,21 @@ func (h *VagaHandler) Update(c *gin.Context) {
 		return
 	}
 
+	existing, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		handleVagaError(c, err)
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
+		return
+	}
+
+	if isPublishedStatus(existing.Status) && !middlewares.IsAdmin(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores podem editar vagas publicadas"})
+		return
+	}
+
 	var entity empregabilidade.Vaga
 	if err := c.ShouldBindJSON(&entity); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -234,6 +236,58 @@ func (h *VagaHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Vaga excluída com sucesso"})
+}
+
+// @Summary      Retornar vaga para rascunho
+// @Description  Retorna uma vaga em aprovação para o estado de edição (rascunho)
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/send-to-draft [put]
+func (h *VagaHandler) SendToDraft(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.SendToDraft(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga retornada para rascunho com sucesso"})
+}
+
+// @Summary      Enviar vaga para aprovação
+// @Description  Envia uma vaga em edição para o fluxo de aprovação
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/send-to-approval [put]
+func (h *VagaHandler) SendToApproval(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.SendToApproval(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga enviada para aprovação com sucesso"})
 }
 
 // @Summary      Publicar vaga
@@ -298,6 +352,110 @@ func (h *VagaHandler) UpdateTiposPCD(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Tipos PCD atualizados com sucesso"})
 }
 
+// @Summary      Congelar vaga
+// @Description  Congela uma vaga publicada e atualiza o status de todas as candidaturas vinculadas para vaga_congelada
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/freeze [put]
+func (h *VagaHandler) Freeze(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.FreezeVaga(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga congelada com sucesso"})
+}
+
+// @Summary      Descongelar vaga
+// @Description  Descongela uma vaga congelada e restaura o status anterior das candidaturas
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/unfreeze [put]
+func (h *VagaHandler) Unfreeze(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.UnfreezeVaga(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga descongelada com sucesso"})
+}
+
+// @Summary      Descontinuar vaga
+// @Description  Descontinua uma vaga publicada ou congelada e atualiza o status de todas as candidaturas para vaga_descontinuada
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/discontinue [put]
+func (h *VagaHandler) Discontinue(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.DiscontinueVaga(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga descontinuada com sucesso"})
+}
+
+// @Summary      Reativar vaga
+// @Description  Reativa uma vaga descontinuada e restaura o status anterior das candidaturas
+// @Tags         empregabilidade-vagas
+// @Produce      json
+// @Param        id   path      string  true  "ID da vaga"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/reactivate [put]
+func (h *VagaHandler) Reactivate(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.ReactivateVaga(c.Request.Context(), id); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vaga reativada com sucesso"})
+}
+
 // ==================== Public Endpoints ====================
 
 // @Summary      Listar vagas públicas
@@ -320,12 +478,7 @@ func (h *VagaHandler) PublicList(c *gin.Context) {
 		pageSize = 10
 	}
 
-	// Force filter to only show published active vagas
-	filter := map[string]interface{}{
-		"status": empregabilidade.StatusVagaPublicadoAtivo,
-	}
-
-	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
+	entities, total, err := h.service.ListPublicActive(c.Request.Context(), page, pageSize)
 	if err != nil {
 		handleVagaError(c, err)
 		return

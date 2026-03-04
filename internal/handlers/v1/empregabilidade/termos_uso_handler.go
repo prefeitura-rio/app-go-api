@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
@@ -15,15 +16,36 @@ func NewTermosUsoHandler(service *services.TermosUsoService) *TermosUsoHandler {
 	return &TermosUsoHandler{service: service}
 }
 
+func checkTermosOwnership(c *gin.Context) bool {
+	cpf := c.Param("cpf")
+	if middlewares.IsAdmin(c) {
+		return true
+	}
+	userCPF := middlewares.GetUserCPF(c)
+	if userCPF == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não identificado"})
+		return false
+	}
+	if userCPF != cpf {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode acessar seus próprios dados"})
+		return false
+	}
+	return true
+}
+
 // @Summary      Verificar aceite dos termos
 // @Description  Verifica se o usuário aceitou os termos de uso
 // @Tags         empregabilidade-termos-uso
 // @Produce      json
 // @Param        cpf   path      string  true  "CPF do usuário"
 // @Success      200   {object}  map[string]bool
+// @Failure      403   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
 // @Router       /api/v1/empregabilidade/termos-uso/{cpf} [get]
 func (h *TermosUsoHandler) HasAcceptedTerms(c *gin.Context) {
+	if !checkTermosOwnership(c) {
+		return
+	}
 	cpf := c.Param("cpf")
 
 	hasAccepted, err := h.service.HasAcceptedTerms(c.Request.Context(), cpf)
@@ -36,14 +58,18 @@ func (h *TermosUsoHandler) HasAcceptedTerms(c *gin.Context) {
 }
 
 // @Summary      Aceitar termos de uso
-// @Description  Registra o aceite dos termos de uso pelo usuário
+// @Description  Registra o aceite dos termos de uso pelo usuário autenticado
 // @Tags         empregabilidade-termos-uso
 // @Produce      json
 // @Param        cpf   path      string  true  "CPF do usuário"
 // @Success      200   {object}  map[string]string
+// @Failure      403   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
 // @Router       /api/v1/empregabilidade/termos-uso/{cpf}/accept [put]
 func (h *TermosUsoHandler) AcceptTerms(c *gin.Context) {
+	if !checkTermosOwnership(c) {
+		return
+	}
 	cpf := c.Param("cpf")
 
 	if err := h.service.AcceptTerms(c.Request.Context(), cpf); err != nil {
@@ -60,10 +86,14 @@ func (h *TermosUsoHandler) AcceptTerms(c *gin.Context) {
 // @Produce      json
 // @Param        cpf   path      string  true  "CPF do usuário"
 // @Success      200   {object}  empregabilidade.TermosUso
+// @Failure      403   {object}  map[string]string
 // @Failure      404   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
 // @Router       /api/v1/empregabilidade/termos-uso/{cpf}/details [get]
 func (h *TermosUsoHandler) GetDetails(c *gin.Context) {
+	if !checkTermosOwnership(c) {
+		return
+	}
 	cpf := c.Param("cpf")
 
 	termos, err := h.service.GetByCPF(c.Request.Context(), cpf)

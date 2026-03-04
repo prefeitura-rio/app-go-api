@@ -10,6 +10,28 @@ definitions:
     - AcessibilidadeParaPCD
     - AcessibilidadePreferencialPCD
     - AcessibilidadeExclusivoPCD
+  empregabilidade.BulkUpdateEtapaRequest:
+    properties:
+      cpfs:
+        items:
+          type: string
+        type: array
+      id_etapa:
+        type: string
+      vaga_id:
+        type: string
+    type: object
+  empregabilidade.BulkUpdateStatusRequest:
+    properties:
+      cpfs:
+        items:
+          type: string
+        type: array
+      status:
+        $ref: '#/definitions/empregabilidade.StatusCandidatura'
+      vaga_id:
+        type: string
+    type: object
   empregabilidade.Candidatura:
     properties:
       cpf:
@@ -33,11 +55,17 @@ definitions:
         type: string
       nome:
         type: string
+      personal_info:
+        allOf:
+        - $ref: '#/definitions/models.CitizenPersonalInfo'
+        description: Computed field (not stored in DB) - populated from CitizenSnapshot
       respostas_info_complementares:
         items:
           $ref: '#/definitions/empregabilidade.RespostaInfoComplementar'
         type: array
       status:
+        $ref: '#/definitions/empregabilidade.StatusCandidatura'
+      status_anterior:
         $ref: '#/definitions/empregabilidade.StatusCandidatura'
       updated_at:
         type: string
@@ -412,12 +440,16 @@ definitions:
     - em_aprovacao
     - publicado_ativo
     - publicado_expirado
+    - vaga_congelada
+    - vaga_descontinuada
     type: string
     x-enum-varnames:
     - StatusVagaEmEdicao
     - StatusVagaEmAprovacao
     - StatusVagaPublicadoAtivo
     - StatusVagaPublicadoExpirado
+    - StatusVagaCongelada
+    - StatusVagaDescontinuada
   empregabilidade.TermosUso:
     properties:
       aceito_em:
@@ -2603,7 +2635,8 @@ paths:
       - courses
   /api/v1/empregabilidade/candidaturas:
     get:
-      description: Retorna lista paginada de candidaturas
+      description: Retorna lista paginada de candidaturas com filtros e busca universal.
+        Restrito a administradores.
       parameters:
       - description: 'Número da página (default: 1)'
         in: query
@@ -2625,6 +2658,14 @@ paths:
         in: query
         name: status
         type: string
+      - description: Busca parcial por CPF, nome ou email
+        in: query
+        name: search
+        type: string
+      - description: Filtrar por ID da etapa atual
+        in: query
+        name: etapa_id
+        type: string
       produces:
       - application/json
       responses:
@@ -2633,13 +2674,19 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Listar candidaturas
+      summary: Listar candidaturas (admin)
       tags:
       - empregabilidade-candidaturas
     post:
@@ -2930,6 +2977,143 @@ paths:
       summary: Atualizar status da candidatura
       tags:
       - empregabilidade-candidaturas
+  /api/v1/empregabilidade/candidaturas/bulk-etapa:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza a etapa atual de múltiplas candidaturas de uma vaga. Todos
+        os candidatos devem estar na mesma etapa atual.
+      parameters:
+      - description: Lista de CPFs, ID da vaga e nova etapa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.BulkUpdateEtapaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar etapa de candidaturas em lote
+      tags:
+      - empregabilidade-candidaturas
+  /api/v1/empregabilidade/candidaturas/bulk-status:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza o status de múltiplas candidaturas de uma vaga identificadas
+        por lista de CPFs
+      parameters:
+      - description: Lista de CPFs, ID da vaga e novo status
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.BulkUpdateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar status de candidaturas em lote
+      tags:
+      - empregabilidade-candidaturas
+  /api/v1/empregabilidade/candidaturas/usuario/{cpf}:
+    get:
+      description: Retorna lista paginada de candidaturas de um usuário pelo CPF.
+        Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF.
+      parameters:
+      - description: CPF do usuário
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filtrar por ID da vaga
+        in: query
+        name: vagaId
+        type: string
+      - description: Filtrar por status
+        in: query
+        name: status
+        type: string
+      - description: Filtrar por ID da etapa atual
+        in: query
+        name: etapa_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar candidaturas por CPF
+      tags:
+      - empregabilidade-candidaturas
   /api/v1/empregabilidade/curriculo/{cpf}:
     get:
       description: Retorna o currículo completo de um usuário
@@ -2946,6 +3130,12 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/empregabilidade.CurriculoCompleto'
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -2957,7 +3147,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/conquistas:
     get:
-      description: Retorna todas as conquistas de um usuário
+      description: Retorna todas as conquistas do usuário autenticado
       parameters:
       - description: CPF do usuário
         in: path
@@ -2971,6 +3161,12 @@ paths:
           description: OK
           schema:
             additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
             type: object
         "500":
           description: Internal Server Error
@@ -3013,6 +3209,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3024,7 +3226,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/cursos-complementares:
     get:
-      description: Retorna todos os cursos complementares de um usuário
+      description: Retorna todos os cursos complementares do usuário autenticado
       parameters:
       - description: CPF do usuário
         in: path
@@ -3038,6 +3240,12 @@ paths:
           description: OK
           schema:
             additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
             type: object
         "500":
           description: Internal Server Error
@@ -3081,6 +3289,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3092,7 +3306,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/experiencias:
     get:
-      description: Retorna todas as experiências profissionais de um usuário
+      description: Retorna todas as experiências profissionais do usuário autenticado
       parameters:
       - description: CPF do usuário
         in: path
@@ -3106,6 +3320,12 @@ paths:
           description: OK
           schema:
             additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
             type: object
         "500":
           description: Internal Server Error
@@ -3147,6 +3367,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3158,7 +3384,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/formacoes:
     get:
-      description: Retorna todas as formações de um usuário
+      description: Retorna todas as formações do usuário autenticado
       parameters:
       - description: CPF do usuário
         in: path
@@ -3172,6 +3398,12 @@ paths:
           description: OK
           schema:
             additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
             type: object
         "500":
           description: Internal Server Error
@@ -3213,6 +3445,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3224,7 +3462,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/idiomas:
     get:
-      description: Retorna todos os idiomas de um usuário
+      description: Retorna todos os idiomas do usuário autenticado
       parameters:
       - description: CPF do usuário
         in: path
@@ -3238,6 +3476,12 @@ paths:
           description: OK
           schema:
             additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
             type: object
         "500":
           description: Internal Server Error
@@ -3280,6 +3524,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3291,7 +3541,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}/situacao-interesses:
     get:
-      description: Retorna a situação atual e interesses de um usuário
+      description: Retorna a situação atual e interesses do usuário autenticado
       parameters:
       - description: CPF do usuário
         in: path
@@ -3305,6 +3555,12 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/empregabilidade.CurriculoSituacaoInteresses'
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:
@@ -3324,7 +3580,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Adiciona uma nova conquista ao currículo
+      description: Adiciona uma nova conquista ao currículo do usuário autenticado
       parameters:
       - description: Dados da conquista
         in: body
@@ -3345,6 +3601,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3356,7 +3618,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/conquistas/{id}:
     delete:
-      description: Remove uma conquista do currículo
+      description: Remove uma conquista do currículo do usuário autenticado
       parameters:
       - description: ID da conquista
         in: path
@@ -3374,6 +3636,18 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
           schema:
             additionalProperties:
               type: string
@@ -3426,7 +3700,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Atualiza uma conquista existente no currículo
+      description: Atualiza uma conquista existente do usuário autenticado
       parameters:
       - description: ID da conquista
         in: path
@@ -3452,6 +3726,18 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3465,7 +3751,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Adiciona um novo curso complementar ao currículo
+      description: Adiciona um novo curso complementar ao currículo do usuário autenticado
       parameters:
       - description: Dados do curso complementar
         in: body
@@ -3486,6 +3772,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3497,7 +3789,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/cursos-complementares/{id}:
     delete:
-      description: Remove um curso complementar do currículo
+      description: Remove um curso complementar do currículo do usuário autenticado
       parameters:
       - description: ID do curso complementar
         in: path
@@ -3515,6 +3807,18 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
           schema:
             additionalProperties:
               type: string
@@ -3567,7 +3871,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Atualiza um curso complementar existente no currículo
+      description: Atualiza um curso complementar existente do usuário autenticado
       parameters:
       - description: ID do curso complementar
         in: path
@@ -3593,6 +3897,18 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3606,7 +3922,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Adiciona uma nova experiência profissional ao currículo
+      description: Adiciona uma nova experiência profissional ao currículo do usuário
+        autenticado
       parameters:
       - description: Dados da experiência
         in: body
@@ -3627,6 +3944,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3638,7 +3961,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/experiencias/{id}:
     delete:
-      description: Remove uma experiência do currículo
+      description: Remove uma experiência do currículo do usuário autenticado
       parameters:
       - description: ID da experiência
         in: path
@@ -3656,6 +3979,18 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
           schema:
             additionalProperties:
               type: string
@@ -3708,7 +4043,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Atualiza uma experiência existente no currículo
+      description: Atualiza uma experiência existente do usuário autenticado
       parameters:
       - description: ID da experiência
         in: path
@@ -3734,6 +4069,18 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3747,7 +4094,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Cria uma nova formação no currículo
+      description: Cria uma nova formação no currículo do usuário autenticado
       parameters:
       - description: Dados da formação
         in: body
@@ -3768,6 +4115,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3779,7 +4132,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/formacoes/{id}:
     delete:
-      description: Remove uma formação do currículo
+      description: Remove uma formação do currículo do usuário autenticado
       parameters:
       - description: ID da formação
         in: path
@@ -3797,6 +4150,18 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
           schema:
             additionalProperties:
               type: string
@@ -3849,7 +4214,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Atualiza uma formação existente
+      description: Atualiza uma formação existente do usuário autenticado
       parameters:
       - description: ID da formação
         in: path
@@ -3875,6 +4240,18 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3888,7 +4265,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Adiciona um novo idioma ao currículo
+      description: Adiciona um novo idioma ao currículo do usuário autenticado
       parameters:
       - description: Dados do idioma
         in: body
@@ -3909,6 +4286,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -3920,7 +4303,7 @@ paths:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/idiomas/{id}:
     delete:
-      description: Remove um idioma do currículo
+      description: Remove um idioma do currículo do usuário autenticado
       parameters:
       - description: ID do idioma
         in: path
@@ -3938,6 +4321,18 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
           schema:
             additionalProperties:
               type: string
@@ -3990,7 +4385,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Atualiza um idioma existente no currículo
+      description: Atualiza um idioma existente do usuário autenticado
       parameters:
       - description: ID do idioma
         in: path
@@ -4016,6 +4411,18 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -4029,7 +4436,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Cria ou atualiza a situação atual e interesses do usuário
+      description: Cria ou atualiza a situação atual e interesses do usuário autenticado
       parameters:
       - description: Dados da situação e interesses
         in: body
@@ -4046,6 +4453,12 @@ paths:
             $ref: '#/definitions/empregabilidade.CurriculoSituacaoInteresses'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
           schema:
             additionalProperties:
               type: string
@@ -4226,7 +4639,7 @@ paths:
       - empregabilidade-disponibilidades
   /api/v1/empregabilidade/empresas:
     get:
-      description: Retorna lista paginada de empresas
+      description: Retorna lista paginada de empresas com filtros opcionais
       parameters:
       - description: 'Número da página (default: 1)'
         in: query
@@ -4236,6 +4649,14 @@ paths:
         in: query
         name: pageSize
         type: integer
+      - description: Busca parcial em razão social ou nome fantasia
+        in: query
+        name: search
+        type: string
+      - description: Filtrar por CNPJ exato
+        in: query
+        name: cnpj
+        type: string
       produces:
       - application/json
       responses:
@@ -5097,6 +5518,12 @@ paths:
             additionalProperties:
               type: boolean
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -5120,6 +5547,12 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
           schema:
             additionalProperties:
               type: string
@@ -5491,6 +5924,12 @@ paths:
             additionalProperties:
               type: boolean
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -5502,7 +5941,7 @@ paths:
       - empregabilidade-termos-uso
   /api/v1/empregabilidade/termos-uso/{cpf}/accept:
     put:
-      description: Registra o aceite dos termos de uso pelo usuário
+      description: Registra o aceite dos termos de uso pelo usuário autenticado
       parameters:
       - description: CPF do usuário
         in: path
@@ -5514,6 +5953,12 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
           schema:
             additionalProperties:
               type: string
@@ -5543,6 +5988,12 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/empregabilidade.TermosUso'
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:
@@ -5890,7 +6341,7 @@ paths:
       - empregabilidade-tipos-pcd
   /api/v1/empregabilidade/vagas:
     get:
-      description: Retorna lista paginada de vagas
+      description: Retorna lista paginada de vagas com filtros opcionais
       parameters:
       - description: 'Número da página (default: 1)'
         in: query
@@ -5900,13 +6351,22 @@ paths:
         in: query
         name: pageSize
         type: integer
-      - description: Filtrar por status
+      - description: Filtrar por status (em_edicao, em_aprovacao, publicado_ativo,
+          publicado_expirado, vaga_congelada, vaga_descontinuada)
         in: query
         name: status
         type: string
       - description: Filtrar por CNPJ do contratante
         in: query
         name: contratante
+        type: string
+      - description: Filtrar por ID do órgão parceiro
+        in: query
+        name: orgao_parceiro_id
+        type: string
+      - description: Busca parcial no título da vaga
+        in: query
+        name: search
         type: string
       produces:
       - application/json
@@ -6063,6 +6523,52 @@ paths:
               type: string
             type: object
       summary: Atualizar vaga
+      tags:
+      - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/{id}/discontinue:
+    put:
+      description: Descontinua uma vaga publicada ou congelada e atualiza o status
+        de todas as candidaturas para vaga_descontinuada
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Descontinuar vaga
       tags:
       - empregabilidade-vagas
   /api/v1/empregabilidade/vagas/{id}/etapas:
@@ -6257,6 +6763,52 @@ paths:
       summary: Atualizar etapa
       tags:
       - empregabilidade-etapas
+  /api/v1/empregabilidade/vagas/{id}/freeze:
+    put:
+      description: Congela uma vaga publicada e atualiza o status de todas as candidaturas
+        vinculadas para vaga_congelada
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Congelar vaga
+      tags:
+      - empregabilidade-vagas
   /api/v1/empregabilidade/vagas/{id}/publish:
     put:
       description: Publica uma vaga em edição
@@ -6302,6 +6854,142 @@ paths:
       summary: Publicar vaga
       tags:
       - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/{id}/reactivate:
+    put:
+      description: Reativa uma vaga descontinuada e restaura o status anterior das
+        candidaturas
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Reativar vaga
+      tags:
+      - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/{id}/send-to-approval:
+    put:
+      description: Envia uma vaga em edição para o fluxo de aprovação
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Enviar vaga para aprovação
+      tags:
+      - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/{id}/send-to-draft:
+    put:
+      description: Retorna uma vaga em aprovação para o estado de edição (rascunho)
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Retornar vaga para rascunho
+      tags:
+      - empregabilidade-vagas
   /api/v1/empregabilidade/vagas/{id}/tipos-pcd:
     put:
       consumes:
@@ -6343,11 +7031,57 @@ paths:
       summary: Atualizar tipos PCD da vaga
       tags:
       - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/{id}/unfreeze:
+    put:
+      description: Descongela uma vaga congelada e restaura o status anterior das
+        candidaturas
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Descongelar vaga
+      tags:
+      - empregabilidade-vagas
   /api/v1/empregabilidade/vagas/draft:
     post:
       consumes:
       - application/json
-      description: Cria um rascunho de vaga
+      description: Cria uma nova vaga
       parameters:
       - description: Dados da vaga
         in: body
@@ -6374,7 +7108,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Criar rascunho de vaga
+      summary: Criar vaga
       tags:
       - empregabilidade-vagas
   /api/v1/empregos:

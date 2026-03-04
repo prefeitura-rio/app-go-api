@@ -53,19 +53,28 @@ func (r *EmpresaRepository) Delete(ctx context.Context, cnpj string) error {
 	return nil
 }
 
-func (r *EmpresaRepository) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Empresa, int, error) {
+func (r *EmpresaRepository) List(ctx context.Context, filter empregabilidade.EmpresaFilter, limit, offset int) ([]*empregabilidade.Empresa, int, error) {
 	var entities []*empregabilidade.Empresa
 	var total int64
 
-	db := r.db.WithContext(ctx).Model(&empregabilidade.Empresa{})
-
-	for key, value := range filter {
-		db = db.Where(key+" = ?", value)
+	applyFilters := func(db *gorm.DB) *gorm.DB {
+		if filter.CNPJ != "" {
+			db = db.Where("cnpj = ?", filter.CNPJ)
+		}
+		if filter.Search != "" {
+			searchTerm := fmt.Sprintf("%%%s%%", filter.Search)
+			db = db.Where("razao_social ILIKE ? OR nome_fantasia ILIKE ?", searchTerm, searchTerm)
+		}
+		return db
 	}
 
-	db.Count(&total)
+	countDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Empresa{}))
+	if err := countDB.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar empresas: %w", err)
+	}
 
-	result := db.Order("razao_social ASC").Limit(limit).Offset(offset).Find(&entities)
+	findDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Empresa{}))
+	result := findDB.Order("razao_social ASC").Limit(limit).Offset(offset).Find(&entities)
 	if result.Error != nil {
 		return nil, 0, fmt.Errorf("erro ao listar empresas: %w", result.Error)
 	}

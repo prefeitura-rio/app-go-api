@@ -102,6 +102,8 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 		}
 
 		if entity.Etapas != nil {
+			// Clear id_etapa_atual from all candidaturas of this vaga before deleting the steps.
+			// We must clear all statuses (not only active ones) because the FK has no ON DELETE SET NULL.
 			if err := tx.Model(&empregabilidade.Candidatura{}).
 				Where("id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)", entity.ID).
 				Update("id_etapa_atual", nil).Error; err != nil {
@@ -143,6 +145,17 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			}
 		}
 
+		if entity.TiposPCD != nil {
+			if err := tx.Exec("DELETE FROM emp_vagas_tipos_pcd WHERE id_vaga = ?", entity.ID).Error; err != nil {
+				return fmt.Errorf("erro ao remover tipos PCD: %w", err)
+			}
+			for _, tipo := range entity.TiposPCD {
+				if err := tx.Exec("INSERT INTO emp_vagas_tipos_pcd (id_vaga, id_tipo_pcd) VALUES (?, ?)", entity.ID, tipo.ID).Error; err != nil {
+					return fmt.Errorf("erro ao inserir tipo PCD: %w", err)
+				}
+			}
+		}
+
 		return nil
 	})
 }
@@ -152,20 +165,72 @@ func (r *VagaRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	if result.Error != nil {
 		return fmt.Errorf("erro ao excluir vaga: %w", result.Error)
 	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("vaga não encontrada")
+	}
 	return nil
 }
 
-func (r *VagaRepository) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+func (r *VagaRepository) List(ctx context.Context, filter empregabilidade.VagaFilter, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
 	var entities []*empregabilidade.Vaga
 	var total int64
 
-	db := r.db.WithContext(ctx).Model(&empregabilidade.Vaga{})
-
-	for key, value := range filter {
-		db = db.Where(key+" = ?", value)
+	applyFilters := func(db *gorm.DB) *gorm.DB {
+		if filter.Contratante != "" {
+			db = db.Where("id_contratante = ?", filter.Contratante)
+		}
+		if filter.OrgaoParceiroID != "" {
+			db = db.Where("id_orgao_parceiro = ?", filter.OrgaoParceiroID)
+		}
+		if filter.Search != "" {
+			searchTerm := fmt.Sprintf("%%%s%%", filter.Search)
+			db = db.Where("titulo ILIKE ?", searchTerm)
+		}
+		if filter.Status != "" {
+			switch filter.Status {
+			case string(empregabilidade.StatusVagaPublicadoAtivo):
+				db = db.Where("status = ? AND (data_limite IS NULL OR data_limite > NOW())", empregabilidade.StatusVagaPublicadoAtivo)
+			case string(empregabilidade.StatusVagaPublicadoExpirado):
+				db = db.Where("status = ? AND data_limite IS NOT NULL AND data_limite <= NOW()", empregabilidade.StatusVagaPublicadoAtivo)
+			default:
+				db = db.Where("status = ?", filter.Status)
+			}
+		}
+		return db
 	}
 
-	db.Count(&total)
+	countDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}))
+	if err := countDB.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar vagas: %w", err)
+	}
+
+	findDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}))
+	result := findDB.
+		Preload("Contratante").
+		Preload("RegimeContratacao").
+		Preload("ModeloTrabalho").
+		Preload("OrgaoParceiro").
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&entities)
+	if result.Error != nil {
+		return nil, 0, fmt.Errorf("erro ao listar vagas: %w", result.Error)
+	}
+
+	return entities, int(total), nil
+}
+
+func (r *VagaRepository) ListPublicActive(ctx context.Context, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+	var entities []*empregabilidade.Vaga
+	var total int64
+
+	db := r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}).
+		Where("status = ? AND (data_limite IS NULL OR data_limite > NOW())", empregabilidade.StatusVagaPublicadoAtivo)
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar vagas: %w", err)
+	}
 
 	result := db.
 		Preload("Contratante").
@@ -177,7 +242,7 @@ func (r *VagaRepository) List(ctx context.Context, filter map[string]interface{}
 		Offset(offset).
 		Find(&entities)
 	if result.Error != nil {
-		return nil, 0, fmt.Errorf("erro ao listar vagas: %w", result.Error)
+		return nil, 0, fmt.Errorf("erro ao listar vagas públicas ativas: %w", result.Error)
 	}
 
 	return entities, int(total), nil
@@ -205,7 +270,9 @@ func (r *VagaRepository) ListByContratante(ctx context.Context, cnpj string, lim
 
 	db := r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}).Where("id_contratante = ?", cnpj)
 
-	db.Count(&total)
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar vagas por contratante: %w", err)
+	}
 
 	result := db.
 		Preload("RegimeContratacao").
@@ -228,7 +295,9 @@ func (r *VagaRepository) ListByOrgaoParceiro(ctx context.Context, orgaoID string
 
 	db := r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}).Where("id_orgao_parceiro = ?", orgaoID)
 
-	db.Count(&total)
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar vagas por órgão parceiro: %w", err)
+	}
 
 	result := db.
 		Preload("Contratante").

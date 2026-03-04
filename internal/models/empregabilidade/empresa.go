@@ -20,3 +20,8 @@ type Empresa struct {
 func (Empresa) TableName() string {
 	return "emp_empresas"
 }
+
+type EmpresaFilter struct {
+	Search string // ILIKE em razao_social e nome_fantasia
+	CNPJ   string // exact match
+}

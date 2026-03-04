@@ -61,7 +61,8 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	apiV1 := r.Group("/api/v1")
 
 	// Middleware para extrair contexto do usuário dos headers injetados pelo Istio
-	apiV1.Use(middlewares.ExtractUserContext())
+	// Consulta o Heimdall para obter as roles reais do usuário quando configurado
+	apiV1.Use(middlewares.ExtractUserContext(cfg.Heimdall.BaseURL))
 
 	// Inicializando repositórios
 	cursoRepo := repository.NewCursoRepository(db)
@@ -91,7 +92,6 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empEmpresaRepo := empRepository.NewEmpresaRepository(db)
 	empVagaRepo := empRepository.NewVagaRepository(db)
 	empEtapaRepo := empRepository.NewEtapaRepository(db)
-	empInformacaoComplementarRepo := empRepository.NewInformacaoComplementarRepository(db)
 	empCandidaturaRepo := empRepository.NewCandidaturaRepository(db)
 	empCurriculoRepo := empRepository.NewCurriculoRepository(db)
 	empOnboardingRepo := empRepository.NewOnboardingRepository(db)
@@ -207,10 +207,10 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empSituacaoAtualService := empServices.NewSituacaoAtualService(empSituacaoAtualRepo)
 	empDisponibilidadeService := empServices.NewDisponibilidadeService(empDisponibilidadeRepo)
 	empEmpresaService := empServices.NewEmpresaService(empEmpresaRepo)
-	empVagaService := empServices.NewVagaService(empVagaRepo, empEmpresaRepo, empEtapaRepo, empInformacaoComplementarRepo)
+	empVagaService := empServices.NewVagaService(empVagaRepo, empEmpresaRepo, empCandidaturaRepo)
 	empEtapaService := empServices.NewEtapaService(empEtapaRepo)
 	empCurriculoService := empServices.NewCurriculoService(empCurriculoRepo)
-	empCandidaturaService := empServices.NewCandidaturaService(empCandidaturaRepo, empVagaRepo, empCurriculoService)
+	empCandidaturaService := empServices.NewCandidaturaService(empCandidaturaRepo, empVagaRepo, empCurriculoService, citizenSnapshotRepo, citizenDataFetcher)
 	empOnboardingService := empServices.NewOnboardingService(empOnboardingRepo)
 	empTermosUsoService := empServices.NewTermosUsoService(empTermosUsoRepo)
 
@@ -522,12 +522,18 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	empVagas := empregabilidade.Group("/vagas")
 	{
 		empVagas.POST("", empVagaHandler.Create)
-		empVagas.POST("/draft", empVagaHandler.CreateDraft)
+		empVagas.POST("/draft", empVagaHandler.Create)
 		empVagas.GET("", empVagaHandler.List)
 		empVagas.GET("/:id", empVagaHandler.GetByID)
 		empVagas.PUT("/:id", empVagaHandler.Update)
 		empVagas.DELETE("/:id", empVagaHandler.Delete)
+		empVagas.PUT("/:id/send-to-draft", empVagaHandler.SendToDraft)
+		empVagas.PUT("/:id/send-to-approval", empVagaHandler.SendToApproval)
 		empVagas.PUT("/:id/publish", empVagaHandler.Publish)
+		empVagas.PUT("/:id/freeze", empVagaHandler.Freeze)
+		empVagas.PUT("/:id/unfreeze", empVagaHandler.Unfreeze)
+		empVagas.PUT("/:id/discontinue", empVagaHandler.Discontinue)
+		empVagas.PUT("/:id/reactivate", empVagaHandler.Reactivate)
 		empVagas.PUT("/:id/tipos-pcd", empVagaHandler.UpdateTiposPCD)
 
 		// Etapas (nested)
@@ -543,6 +549,9 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 	{
 		empCandidaturas.POST("", empCandidaturaHandler.Create)
 		empCandidaturas.GET("", empCandidaturaHandler.List)
+		empCandidaturas.PUT("/bulk-status", empCandidaturaHandler.BulkUpdateStatus)
+		empCandidaturas.PUT("/bulk-etapa", empCandidaturaHandler.BulkUpdateEtapa)
+		empCandidaturas.GET("/usuario/:cpf", empCandidaturaHandler.ListByCPF)
 		empCandidaturas.GET("/:id", empCandidaturaHandler.GetByID)
 		empCandidaturas.PUT("/:id", empCandidaturaHandler.Update)
 		empCandidaturas.DELETE("/:id", empCandidaturaHandler.Delete)
