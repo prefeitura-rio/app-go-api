@@ -63,6 +63,8 @@ func (e *CitizenEndereco) Scan(value interface{}) error {
 
 // CitizenPersonalInfo represents the personal info returned in enrollment responses
 type CitizenPersonalInfo struct {
+	Nome           string           `json:"nome,omitempty"`
+	NomeSocial     string           `json:"nome_social,omitempty"`
 	Email          string           `json:"email"`
 	Celular        string           `json:"celular"`
 	DataNascimento *time.Time       `json:"data_nascimento,omitempty"`
@@ -72,7 +74,6 @@ type CitizenPersonalInfo struct {
 	RendaFamiliar  string           `json:"renda_familiar,omitempty"`
 	Escolaridade   string           `json:"escolaridade,omitempty"`
 	Deficiencia    string           `json:"deficiencia,omitempty"`
-	NomeSocial     string           `json:"nome_social,omitempty"`
 }
 
 // ToPersonalInfo converts a CitizenSnapshot to CitizenPersonalInfo for API responses
@@ -81,6 +82,8 @@ func (c *CitizenSnapshot) ToPersonalInfo() *CitizenPersonalInfo {
 		return nil
 	}
 	return &CitizenPersonalInfo{
+		Nome:           c.Nome,
+		NomeSocial:     c.NomeSocial,
 		Email:          c.Email,
 		Celular:        c.Celular,
 		DataNascimento: c.DataNascimento,
@@ -90,6 +93,5 @@ func (c *CitizenSnapshot) ToPersonalInfo() *CitizenPersonalInfo {
 		RendaFamiliar:  c.RendaFamiliar,
 		Escolaridade:   c.Escolaridade,
 		Deficiencia:    c.Deficiencia,
-		NomeSocial:     c.NomeSocial,
 	}
 }

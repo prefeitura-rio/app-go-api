@@ -352,7 +352,7 @@ type CitizenEnderecoInfo struct {
 
 // GetEmail returns the email value from the nested structure
 func (c *CitizenContactInfo) GetEmail() string {
-	if c.Email.Indicador && c.Email.Principal.Valor != "" {
+	if c.Email.Principal.Valor != "" {
 		return c.Email.Principal.Valor
 	}
 	return ""
