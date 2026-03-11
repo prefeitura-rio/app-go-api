@@ -14217,6 +14217,9 @@
           "genero": {
             "type": "string"
           },
+          "nome": {
+            "type": "string"
+          },
           "nome_social": {
             "type": "string"
           },
