@@ -115,7 +115,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		} else if citizenSnapshot != nil {
 			// Use RMI data for email and phone (overrides any value sent by frontend)
 			if citizenSnapshot.Email != "" {
-				inscricao.Email = citizenSnapshot.Email
+				inscricao.Email = models.SanitizeEmail(citizenSnapshot.Email)
 			}
 			if citizenSnapshot.Celular != "" {
 				inscricao.Phone = citizenSnapshot.Celular
@@ -355,7 +355,7 @@ func (s *InscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cu
 		inscricao.Name = *updateData.Name
 	}
 	if updateData.Email != nil {
-		inscricao.Email = *updateData.Email
+		inscricao.Email = models.SanitizeEmail(*updateData.Email)
 	}
 	if updateData.Phone != nil {
 		inscricao.Phone = *updateData.Phone
