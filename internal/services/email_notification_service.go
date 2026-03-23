@@ -41,14 +41,19 @@ func NewEmailNotificationService(
 
 // resolveEmail returns the most up-to-date email for an enrollment.
 // It prefers the snapshot email (live RMI data) and falls back to the stored inscricao.Email.
+// Both candidates are sanitized before use to avoid sending to malformed addresses.
 func (s *EmailNotificationService) resolveEmail(ctx context.Context, inscricao *models.Inscricao) string {
+	var email string
 	if s.citizenSnapshotRepo != nil && inscricao.CPF != "" {
 		snapshot, err := s.citizenSnapshotRepo.GetByCPF(ctx, inscricao.CPF)
 		if err == nil && snapshot != nil && snapshot.Email != "" {
-			return snapshot.Email
+			email = models.SanitizeEmail(snapshot.Email)
 		}
 	}
-	return inscricao.Email
+	if email == "" {
+		email = models.SanitizeEmail(inscricao.Email)
+	}
+	return email
 }
 
 // getOrgaoName fetches the organization name from orgao_snapshots or falls back to curso.Organization

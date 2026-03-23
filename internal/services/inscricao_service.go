@@ -198,9 +198,22 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
 			return err
 		}
+		// Check vacancy availability to prevent overbooking when auto-approving
+		if autoApprove {
+			vacancies := s.findScheduleVacancies(*inscricao.ScheduleID, curso)
+			if vacancies > 0 {
+				enrolledCount, err := s.cursoRepo.CountEnrollmentsByScheduleID(ctx, *inscricao.ScheduleID)
+				if err != nil || int(enrolledCount) >= vacancies {
+					autoApprove = false
+				}
+			}
+		}
 	}
 
 	// NOTE: citizen data fetching is skipped — admin provides data explicitly
+
+	// Sanitize admin-provided email before persisting
+	inscricao.Email = models.SanitizeEmail(inscricao.Email)
 
 	if autoApprove {
 		inscricao.Status = models.StatusInscricaoApproved
@@ -210,7 +223,29 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 	inscricao.EnrolledAt = time.Now()
 	inscricao.UpdatedAt = time.Now()
 
-	return s.repo.Create(ctx, inscricao)
+	if err := s.repo.Create(ctx, inscricao); err != nil {
+		return err
+	}
+
+	// Send confirmation email (same logic as Create)
+	if s.emailNotificationService != nil {
+		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+		if err == nil && curso != nil {
+			go func() {
+				var emailErr error
+				if autoApprove {
+					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), inscricao, curso)
+				} else {
+					emailErr = s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso)
+				}
+				if emailErr != nil {
+					fmt.Printf("Failed to send manual enrollment email: %v\n", emailErr)
+				}
+			}()
+		}
+	}
+
+	return nil
 }
 
 func (s *InscricaoService) GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {

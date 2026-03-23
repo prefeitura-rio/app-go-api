@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
@@ -63,25 +64,38 @@ func NewOrgaoSyncWorker(
 }
 
 // tryAcquireLock attempts to acquire a distributed Redis lock.
-// Returns true if the lock was acquired, false if another pod already holds it.
+// Returns (token, true, nil) if acquired, ("", false, nil) if held by another instance,
+// or ("", false, err) on Redis error.
 // The lock TTL equals the sync interval so it expires automatically if the pod crashes.
-func (w *OrgaoSyncWorker) tryAcquireLock(ctx context.Context) (bool, error) {
+func (w *OrgaoSyncWorker) tryAcquireLock(ctx context.Context) (string, bool, error) {
 	if w.redisClient == nil {
-		return true, nil // no Redis configured, run without lock
+		return "", true, nil // no Redis configured, run without lock
 	}
-	acquired, err := w.redisClient.SetNX(ctx, orgaoSyncLockKey, "1", w.syncInterval).Result()
+	token := uuid.New().String()
+	acquired, err := w.redisClient.SetNX(ctx, orgaoSyncLockKey, token, w.syncInterval).Result()
 	if err != nil {
-		return false, fmt.Errorf("redis lock error: %w", err)
+		return "", false, fmt.Errorf("redis lock error: %w", err)
 	}
-	return acquired, nil
+	if !acquired {
+		return "", false, nil
+	}
+	return token, true, nil
 }
 
-// releaseLock releases the distributed Redis lock.
-func (w *OrgaoSyncWorker) releaseLock(ctx context.Context) {
-	if w.redisClient == nil {
+// releaseLock releases the lock only if we still own it (atomic compare-and-delete via Lua).
+// This prevents a pod from accidentally deleting another pod's lock after TTL expiry.
+func (w *OrgaoSyncWorker) releaseLock(ctx context.Context, token string) {
+	if w.redisClient == nil || token == "" {
 		return
 	}
-	if err := w.redisClient.Del(ctx, orgaoSyncLockKey).Err(); err != nil {
+	script := redis.NewScript(`
+		if redis.call("get", KEYS[1]) == ARGV[1] then
+			return redis.call("del", KEYS[1])
+		else
+			return 0
+		end
+	`)
+	if err := script.Run(ctx, w.redisClient, []string{orgaoSyncLockKey}, token).Err(); err != nil && err != redis.Nil {
 		log.Printf("[OrgaoSyncWorker] Failed to release lock: %v", err)
 	}
 }
@@ -119,16 +133,16 @@ func (w *OrgaoSyncWorker) Start(ctx context.Context) error {
 // runSync executes a full sync cycle, guarded by a distributed Redis lock.
 // If another pod already holds the lock, the cycle is skipped.
 func (w *OrgaoSyncWorker) runSync(ctx context.Context) error {
-	acquired, err := w.tryAcquireLock(ctx)
+	token, acquired, err := w.tryAcquireLock(ctx)
 	if err != nil {
-		log.Printf("[OrgaoSyncWorker] Could not acquire distributed lock, skipping cycle: %v", err)
-		return nil
+		log.Printf("[OrgaoSyncWorker] Could not acquire distributed lock: %v", err)
+		return fmt.Errorf("could not acquire distributed lock: %w", err)
 	}
 	if !acquired {
 		log.Println("[OrgaoSyncWorker] Another instance is running sync, skipping cycle")
 		return nil
 	}
-	defer w.releaseLock(ctx)
+	defer w.releaseLock(ctx, token)
 
 	startTime := time.Now()
 	log.Println("[OrgaoSyncWorker] Starting sync cycle (lock acquired)...")
