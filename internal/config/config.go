@@ -145,7 +145,7 @@ type OrgaoSyncSettings struct {
 	StaleThreshold       time.Duration // Consider snapshot stale after this duration
 	BatchSize            int           // Number of orgaos to sync per batch
 	MaxRetries           int           // Maximum retries for failed syncs
-	FailedRetryThreshold time.Duration // How long to wait before retrying a failed sync
+	FailedRetryThreshold time.Duration // How long to wait before retrying a failed sync (backoff for filterIDsToSync, not related to lock TTL)
 }
 
 // CitizenSyncSettings define configurações do worker de sincronização de dados de cidadão

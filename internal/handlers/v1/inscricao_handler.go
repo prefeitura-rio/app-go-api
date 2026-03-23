@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -509,6 +510,14 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
+	}
+
+	if request.CertificateURL != "" {
+		u, err := url.Parse(request.CertificateURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "certificate_url deve ser uma URL http ou https válida"})
+			return
+		}
 	}
 
 	if err := h.service.UpdateCertificate(c.Request.Context(), cursoID, enrollmentID, request.CertificateURL); err != nil {

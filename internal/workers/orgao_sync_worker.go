@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
@@ -17,6 +18,16 @@ import (
 )
 
 const orgaoSyncLockKey = "orgao_sync:lock"
+
+// releaseLockScript atomically deletes the lock only if its value matches the token we set,
+// preventing phantom deletes when the TTL expired and another pod re-acquired the lock.
+var releaseLockScript = redis.NewScript(`
+	if redis.call("get", KEYS[1]) == ARGV[1] then
+		return redis.call("del", KEYS[1])
+	else
+		return 0
+	end
+`)
 
 // OrgaoSyncWorker handles periodic synchronization of orgao data from RMI API
 type OrgaoSyncWorker struct {
@@ -62,26 +73,36 @@ func NewOrgaoSyncWorker(
 	}
 }
 
-// tryAcquireLock attempts to acquire a distributed Redis lock.
-// Returns true if the lock was acquired, false if another pod already holds it.
-// The lock TTL equals the sync interval so it expires automatically if the pod crashes.
-func (w *OrgaoSyncWorker) tryAcquireLock(ctx context.Context) (bool, error) {
+// tryAcquireLock attempts to acquire a distributed Redis lock using a unique token.
+// Returns (lockToken, skip):
+//   - lockToken non-empty: lock acquired — pass to releaseLock when done
+//   - skip=true: another pod holds the lock, skip this cycle
+//   - lockToken="" + skip=false: Redis unavailable or nil, running without lock (fail open)
+func (w *OrgaoSyncWorker) tryAcquireLock(ctx context.Context) (string, bool) {
 	if w.redisClient == nil {
-		return true, nil // no Redis configured, run without lock
+		return "", false
 	}
-	acquired, err := w.redisClient.SetNX(ctx, orgaoSyncLockKey, "1", w.syncInterval).Result()
+	token := uuid.New().String()
+	acquired, err := w.redisClient.SetNX(ctx, orgaoSyncLockKey, token, w.syncInterval).Result()
 	if err != nil {
-		return false, fmt.Errorf("redis lock error: %w", err)
+		// Fail open: Redis unavailable, run without distributed lock rather than halting all pods
+		log.Printf("[OrgaoSyncWorker] Redis unavailable, running without distributed lock: %v", err)
+		return "", false
 	}
-	return acquired, nil
+	if !acquired {
+		return "", true // another pod holds the lock
+	}
+	return token, false
 }
 
-// releaseLock releases the distributed Redis lock.
-func (w *OrgaoSyncWorker) releaseLock(ctx context.Context) {
-	if w.redisClient == nil {
+// releaseLock releases the distributed Redis lock via an atomic Lua compare-and-delete.
+// Only deletes the key if its value still matches our token, preventing phantom deletes
+// in case the TTL expired and another pod re-acquired the lock mid-sync.
+func (w *OrgaoSyncWorker) releaseLock(ctx context.Context, token string) {
+	if w.redisClient == nil || token == "" {
 		return
 	}
-	if err := w.redisClient.Del(ctx, orgaoSyncLockKey).Err(); err != nil {
+	if err := releaseLockScript.Run(ctx, w.redisClient, []string{orgaoSyncLockKey}, token).Err(); err != nil && err != redis.Nil {
 		log.Printf("[OrgaoSyncWorker] Failed to release lock: %v", err)
 	}
 }
@@ -118,20 +139,19 @@ func (w *OrgaoSyncWorker) Start(ctx context.Context) error {
 
 // runSync executes a full sync cycle, guarded by a distributed Redis lock.
 // If another pod already holds the lock, the cycle is skipped.
+// If Redis is unavailable, the cycle runs without the lock (fail open).
 func (w *OrgaoSyncWorker) runSync(ctx context.Context) error {
-	acquired, err := w.tryAcquireLock(ctx)
-	if err != nil {
-		log.Printf("[OrgaoSyncWorker] Could not acquire distributed lock, skipping cycle: %v", err)
-		return nil
-	}
-	if !acquired {
+	lockToken, skip := w.tryAcquireLock(ctx)
+	if skip {
 		log.Println("[OrgaoSyncWorker] Another instance is running sync, skipping cycle")
 		return nil
 	}
-	defer w.releaseLock(ctx)
+	if lockToken != "" {
+		defer w.releaseLock(ctx, lockToken)
+	}
 
 	startTime := time.Now()
-	log.Println("[OrgaoSyncWorker] Starting sync cycle (lock acquired)...")
+	log.Println("[OrgaoSyncWorker] Starting sync cycle...")
 
 	// Discover all unique orgao IDs from database
 	orgaoIDs, err := w.discoverOrgaoIDs(ctx)

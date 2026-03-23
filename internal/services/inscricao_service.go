@@ -198,6 +198,18 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
 			return err
 		}
+
+		// Same vacancy fail-safe as Create: disable auto-approve if schedule is full or
+		// capacity cannot be verified, so the admin must explicitly approve overbooked entries.
+		if autoApprove {
+			vacancies := s.findScheduleVacancies(*inscricao.ScheduleID, curso)
+			if vacancies > 0 {
+				enrolledCount, err := s.cursoRepo.CountEnrollmentsByScheduleID(ctx, *inscricao.ScheduleID)
+				if err != nil || int(enrolledCount) >= vacancies {
+					autoApprove = false
+				}
+			}
+		}
 	}
 
 	// NOTE: citizen data fetching is skipped — admin provides data explicitly

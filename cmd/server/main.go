@@ -162,6 +162,7 @@ func main() {
 	// Initialize orgao sync worker if enabled
 	var workerCtx context.Context
 	var workerCancel context.CancelFunc
+	var workerRedis *redis.Client
 
 	if cfg.OrgaoSync.Enabled {
 		log.Println("Initializing orgao sync worker...")
@@ -170,10 +171,12 @@ func main() {
 		rmiClient := clients.NewRMIClient(cfg.RMI.BaseURL, 30*time.Second)
 
 		// Create Redis client for distributed locking (ensures only one pod runs sync at a time)
-		workerRedis := redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
-			Password: cfg.Redis.Password,
-			DB:       cfg.Redis.DB,
+		workerRedis = redis.NewClient(&redis.Options{
+			Addr:         fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
+			Password:     cfg.Redis.Password,
+			DB:           cfg.Redis.DB,
+			PoolSize:     cfg.Redis.PoolSize,
+			MinIdleConns: cfg.Redis.MinIdleConns,
 		})
 
 		// Create repositories
@@ -230,6 +233,11 @@ func main() {
 	if workerCancel != nil {
 		log.Println("Stopping orgao sync worker...")
 		workerCancel()
+	}
+	if workerRedis != nil {
+		if err := workerRedis.Close(); err != nil {
+			log.Printf("Error closing worker Redis client: %v", err)
+		}
 	}
 
 	log.Println("Server shutdown complete")
