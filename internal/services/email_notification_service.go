@@ -12,11 +12,12 @@ import (
 
 // EmailNotificationService handles enrollment email notifications
 type EmailNotificationService struct {
-	dataRelayClient   *clients.DataRelayClient
-	cursoRepo         *repository.CursoRepository
-	orgaoSnapshotRepo *repository.OrgaoSnapshotRepository
-	enabled           bool
-	prefrioDomain     string
+	dataRelayClient     *clients.DataRelayClient
+	cursoRepo           *repository.CursoRepository
+	orgaoSnapshotRepo   *repository.OrgaoSnapshotRepository
+	citizenSnapshotRepo *repository.CitizenSnapshotRepository
+	enabled             bool
+	prefrioDomain       string
 }
 
 // NewEmailNotificationService creates a new email notification service
@@ -24,16 +25,35 @@ func NewEmailNotificationService(
 	dataRelayClient *clients.DataRelayClient,
 	cursoRepo *repository.CursoRepository,
 	orgaoSnapshotRepo *repository.OrgaoSnapshotRepository,
+	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
 	enabled bool,
 	prefrioDomain string,
 ) *EmailNotificationService {
 	return &EmailNotificationService{
-		dataRelayClient:   dataRelayClient,
-		cursoRepo:         cursoRepo,
-		orgaoSnapshotRepo: orgaoSnapshotRepo,
-		enabled:           enabled,
-		prefrioDomain:     prefrioDomain,
+		dataRelayClient:     dataRelayClient,
+		cursoRepo:           cursoRepo,
+		orgaoSnapshotRepo:   orgaoSnapshotRepo,
+		citizenSnapshotRepo: citizenSnapshotRepo,
+		enabled:             enabled,
+		prefrioDomain:       prefrioDomain,
 	}
+}
+
+// resolveEmail returns the most up-to-date email for an enrollment.
+// It prefers the snapshot email (live RMI data) and falls back to the stored inscricao.Email.
+// Both candidates are sanitized before use to avoid sending to malformed addresses.
+func (s *EmailNotificationService) resolveEmail(ctx context.Context, inscricao *models.Inscricao) string {
+	var email string
+	if s.citizenSnapshotRepo != nil && inscricao.CPF != "" {
+		snapshot, err := s.citizenSnapshotRepo.GetByCPF(ctx, inscricao.CPF)
+		if err == nil && snapshot != nil && snapshot.Email != "" {
+			email = models.SanitizeEmail(snapshot.Email)
+		}
+	}
+	if email == "" {
+		email = models.SanitizeEmail(inscricao.Email)
+	}
+	return email
 }
 
 // getOrgaoName fetches the organization name from orgao_snapshots or falls back to curso.Organization
@@ -106,7 +126,8 @@ func (s *EmailNotificationService) SendEnrollmentCreatedEmail(ctx context.Contex
 		return nil
 	}
 
-	if inscricao.Email == "" {
+	email := s.resolveEmail(ctx, inscricao)
+	if email == "" {
 		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
 		return nil
 	}
@@ -115,7 +136,7 @@ func (s *EmailNotificationService) SendEnrollmentCreatedEmail(ctx context.Contex
 	template := GetEnrollmentPendingEmailTemplate(inscricao, curso, orgaoName, s.prefrioDomain)
 
 	emailReq := &clients.EmailRequest{
-		ToAddresses: []string{inscricao.Email},
+		ToAddresses: []string{email},
 		Subject:     template.Subject,
 		Body:        template.Body,
 		IsHTMLBody:  template.IsHTML,
@@ -125,7 +146,7 @@ func (s *EmailNotificationService) SendEnrollmentCreatedEmail(ctx context.Contex
 		return fmt.Errorf("failed to send enrollment created email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent enrollment created email to %s for course '%s'", inscricao.Email, curso.Titulo)
+	log.Printf("[EmailNotificationService] Sent enrollment created email to %s for course '%s'", email, curso.Titulo)
 	return nil
 }
 
@@ -136,7 +157,8 @@ func (s *EmailNotificationService) SendEnrollmentApprovedEmail(ctx context.Conte
 		return nil
 	}
 
-	if inscricao.Email == "" {
+	email := s.resolveEmail(ctx, inscricao)
+	if email == "" {
 		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
 		return nil
 	}
@@ -146,7 +168,7 @@ func (s *EmailNotificationService) SendEnrollmentApprovedEmail(ctx context.Conte
 	template := GetEnrollmentApprovedEmailTemplate(inscricao, curso, orgaoName, scheduleInfo, s.prefrioDomain)
 
 	emailReq := &clients.EmailRequest{
-		ToAddresses: []string{inscricao.Email},
+		ToAddresses: []string{email},
 		Subject:     template.Subject,
 		Body:        template.Body,
 		IsHTMLBody:  template.IsHTML,
@@ -156,7 +178,7 @@ func (s *EmailNotificationService) SendEnrollmentApprovedEmail(ctx context.Conte
 		return fmt.Errorf("failed to send enrollment approved email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent enrollment approved email to %s for course '%s'", inscricao.Email, curso.Titulo)
+	log.Printf("[EmailNotificationService] Sent enrollment approved email to %s for course '%s'", email, curso.Titulo)
 	return nil
 }
 
@@ -167,7 +189,8 @@ func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Conte
 		return nil
 	}
 
-	if inscricao.Email == "" {
+	email := s.resolveEmail(ctx, inscricao)
+	if email == "" {
 		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
 		return nil
 	}
@@ -175,7 +198,7 @@ func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Conte
 	template := GetEnrollmentRejectedEmailTemplate(inscricao, curso, s.prefrioDomain)
 
 	emailReq := &clients.EmailRequest{
-		ToAddresses: []string{inscricao.Email},
+		ToAddresses: []string{email},
 		Subject:     template.Subject,
 		Body:        template.Body,
 		IsHTMLBody:  template.IsHTML,
@@ -185,6 +208,6 @@ func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Conte
 		return fmt.Errorf("failed to send enrollment rejected email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent enrollment rejected email to %s for course '%s'", inscricao.Email, curso.Titulo)
+	log.Printf("[EmailNotificationService] Sent enrollment rejected email to %s for course '%s'", email, curso.Titulo)
 	return nil
 }

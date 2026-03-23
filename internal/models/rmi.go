@@ -1,5 +1,7 @@
 package models
 
+import "regexp"
+
 // LegalEntity represents a legal entity (CNPJ) from the RMI API
 type LegalEntity struct {
 	CNPJ              string   `json:"cnpj"`
@@ -352,8 +354,18 @@ type CitizenEnderecoInfo struct {
 
 // GetEmail returns the email value from the nested structure
 func (c *CitizenContactInfo) GetEmail() string {
-	if c.Email.Principal.Valor != "" {
-		return c.Email.Principal.Valor
+	if c.Email.Indicador && c.Email.Principal.Valor != "" {
+		return SanitizeEmail(c.Email.Principal.Valor)
+	}
+	return ""
+}
+
+var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]{2,}\.[a-zA-Z]{2,}$`)
+
+// SanitizeEmail returns the email if it has a valid format, or empty string otherwise.
+func SanitizeEmail(email string) string {
+	if emailRegex.MatchString(email) {
+		return email
 	}
 	return ""
 }

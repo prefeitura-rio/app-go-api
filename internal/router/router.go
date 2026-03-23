@@ -154,7 +154,7 @@ func SetupRouter(db *gorm.DB, cfg *config.AppConfig) *gin.Engine {
 
 	// Initialize email notification service
 	emailNotificationEnabled := cfg.DataRelay.BaseURL != "" && cfg.DataRelay.APIKey != ""
-	emailNotificationService := services.NewEmailNotificationService(dataRelayClient, cursoRepo, orgaoSnapshotRepo, emailNotificationEnabled, cfg.PrefRio.Domain)
+	emailNotificationService := services.NewEmailNotificationService(dataRelayClient, cursoRepo, orgaoSnapshotRepo, citizenSnapshotRepo, emailNotificationEnabled, cfg.PrefRio.Domain)
 
 	// Initialize citizen sync worker (for fetching citizen data from RMI)
 	// Use interface type to avoid nil pointer in interface issue

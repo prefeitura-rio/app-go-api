@@ -595,8 +595,7 @@ func (h *InscricaoHandler) CreateManual(c *gin.Context) {
 	// Set the course ID from URL
 	inscricao.CursoID = cursoID
 
-	// Apply the same validations as the regular endpoint
-	if err := h.service.Create(c.Request.Context(), &inscricao); err != nil {
+	if err := h.service.CreateManual(c.Request.Context(), &inscricao); err != nil {
 		if err.Error() == "CPF já inscrito neste curso" {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return

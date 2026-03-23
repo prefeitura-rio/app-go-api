@@ -47,6 +47,23 @@ func (r *OrgaoSnapshotRepository) GetByOrgaoID(ctx context.Context, orgaoID stri
 	return &snapshot, nil
 }
 
+// GetByOrgaoIDs fetches snapshots for multiple orgao IDs in a single query.
+// Returns a map from orgao_id to snapshot; missing IDs are absent from the map.
+func (r *OrgaoSnapshotRepository) GetByOrgaoIDs(ctx context.Context, orgaoIDs []string) (map[string]*models.OrgaoSnapshot, error) {
+	var snapshots []*models.OrgaoSnapshot
+
+	result := r.db.WithContext(ctx).Where("orgao_id IN ?", orgaoIDs).Find(&snapshots)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to get orgao snapshots: %w", result.Error)
+	}
+
+	snapshotMap := make(map[string]*models.OrgaoSnapshot, len(snapshots))
+	for _, s := range snapshots {
+		snapshotMap[s.OrgaoID] = s
+	}
+	return snapshotMap, nil
+}
+
 // Update updates an existing orgao snapshot
 func (r *OrgaoSnapshotRepository) Update(ctx context.Context, snapshot *models.OrgaoSnapshot) error {
 	result := r.db.WithContext(ctx).Model(snapshot).

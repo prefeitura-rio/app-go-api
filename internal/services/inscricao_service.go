@@ -115,7 +115,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		} else if citizenSnapshot != nil {
 			// Use RMI data for email and phone (overrides any value sent by frontend)
 			if citizenSnapshot.Email != "" {
-				inscricao.Email = citizenSnapshot.Email
+				inscricao.Email = models.SanitizeEmail(citizenSnapshot.Email)
 			}
 			if citizenSnapshot.Celular != "" {
 				inscricao.Phone = citizenSnapshot.Celular
@@ -153,6 +153,93 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 				}
 				if emailErr != nil {
 					fmt.Printf("Failed to send enrollment email: %v\n", emailErr)
+				}
+			}()
+		}
+	}
+
+	return nil
+}
+
+// CreateManual creates an enrollment bypassing date restrictions and citizen data override.
+// Used by admins to manually enroll someone regardless of the enrollment period.
+func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
+	// Validate course exists and can accept enrollments
+	status, _, _, autoApprove, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)
+	if err != nil {
+		return err
+	}
+
+	// Course must still be in opened status
+	if models.StatusCurso(status) != models.StatusCursoOpened {
+		return fmt.Errorf("curso não está aberto para inscrições")
+	}
+
+	// NOTE: enrollment date validation is intentionally skipped for manual admin enrollments
+
+	// Check if CPF is already enrolled
+	exists, err := s.repo.ExistsByCPFAndCurso(ctx, inscricao.CPF, inscricao.CursoID)
+	if err != nil {
+		return fmt.Errorf("erro ao verificar inscrição existente: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("CPF já inscrito neste curso")
+	}
+
+	// Validate schedule_id if provided
+	if inscricao.ScheduleID != nil {
+		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+		if err != nil {
+			return fmt.Errorf("erro ao verificar curso para validação de schedule: %w", err)
+		}
+		if curso == nil {
+			return fmt.Errorf("curso não encontrado")
+		}
+		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
+			return err
+		}
+		// Check vacancy availability to prevent overbooking when auto-approving
+		if autoApprove {
+			vacancies := s.findScheduleVacancies(*inscricao.ScheduleID, curso)
+			if vacancies > 0 {
+				enrolledCount, err := s.cursoRepo.CountEnrollmentsByScheduleID(ctx, *inscricao.ScheduleID)
+				if err != nil || int(enrolledCount) >= vacancies {
+					autoApprove = false
+				}
+			}
+		}
+	}
+
+	// NOTE: citizen data fetching is skipped — admin provides data explicitly
+
+	// Sanitize admin-provided email before persisting
+	inscricao.Email = models.SanitizeEmail(inscricao.Email)
+
+	if autoApprove {
+		inscricao.Status = models.StatusInscricaoApproved
+	} else {
+		inscricao.Status = models.StatusInscricaoPending
+	}
+	inscricao.EnrolledAt = time.Now()
+	inscricao.UpdatedAt = time.Now()
+
+	if err := s.repo.Create(ctx, inscricao); err != nil {
+		return err
+	}
+
+	// Send confirmation email (same logic as Create)
+	if s.emailNotificationService != nil {
+		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+		if err == nil && curso != nil {
+			go func() {
+				var emailErr error
+				if autoApprove {
+					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), inscricao, curso)
+				} else {
+					emailErr = s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso)
+				}
+				if emailErr != nil {
+					fmt.Printf("Failed to send manual enrollment email: %v\n", emailErr)
 				}
 			}()
 		}
@@ -355,7 +442,7 @@ func (s *InscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cu
 		inscricao.Name = *updateData.Name
 	}
 	if updateData.Email != nil {
-		inscricao.Email = *updateData.Email
+		inscricao.Email = models.SanitizeEmail(*updateData.Email)
 	}
 	if updateData.Phone != nil {
 		inscricao.Phone = *updateData.Phone
