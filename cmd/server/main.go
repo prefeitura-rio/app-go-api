@@ -13,6 +13,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -167,6 +169,13 @@ func main() {
 		// Create RMI client for worker
 		rmiClient := clients.NewRMIClient(cfg.RMI.BaseURL, 30*time.Second)
 
+		// Create Redis client for distributed locking (ensures only one pod runs sync at a time)
+		workerRedis := redis.NewClient(&redis.Options{
+			Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
+			Password: cfg.Redis.Password,
+			DB:       cfg.Redis.DB,
+		})
+
 		// Create repositories
 		orgaoSnapshotRepo := repository.NewOrgaoSnapshotRepository(db)
 		cursoRepo := repository.NewCursoRepository(db)
@@ -177,6 +186,7 @@ func main() {
 		worker := workers.NewOrgaoSyncWorker(
 			db,
 			rmiClient,
+			workerRedis,
 			orgaoSnapshotRepo,
 			cursoRepo,
 			empregoRepo,

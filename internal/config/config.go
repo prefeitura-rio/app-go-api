@@ -140,11 +140,12 @@ type TracingSettings struct {
 
 // OrgaoSyncSettings define configurações do worker de sincronização de órgãos
 type OrgaoSyncSettings struct {
-	Enabled        bool
-	SyncInterval   time.Duration // How often to run sync cycle
-	StaleThreshold time.Duration // Consider snapshot stale after this duration
-	BatchSize      int           // Number of orgaos to sync per batch
-	MaxRetries     int           // Maximum retries for failed syncs
+	Enabled              bool
+	SyncInterval         time.Duration // How often to run sync cycle
+	StaleThreshold       time.Duration // Consider snapshot stale after this duration
+	BatchSize            int           // Number of orgaos to sync per batch
+	MaxRetries           int           // Maximum retries for failed syncs
+	FailedRetryThreshold time.Duration // How long to wait before retrying a failed sync
 }
 
 // CitizenSyncSettings define configurações do worker de sincronização de dados de cidadão
@@ -399,11 +400,12 @@ func Load() (*AppConfig, error) {
 			ServiceVersion: getEnv(v, "TRACING_SERVICE_VERSION", "v1.0.0"),
 		},
 		OrgaoSync: OrgaoSyncSettings{
-			Enabled:        getBool(v, "ORGAO_SYNC_ENABLED", true),
-			SyncInterval:   getDuration(v, "ORGAO_SYNC_INTERVAL", 15*time.Minute),
-			StaleThreshold: getDuration(v, "ORGAO_SYNC_STALE_THRESHOLD", 7*24*time.Hour), // 1 week
-			BatchSize:      getInt(v, "ORGAO_SYNC_BATCH_SIZE", 50),
-			MaxRetries:     getInt(v, "ORGAO_SYNC_MAX_RETRIES", 3),
+			Enabled:              getBool(v, "ORGAO_SYNC_ENABLED", true),
+			SyncInterval:         getDuration(v, "ORGAO_SYNC_INTERVAL", 15*time.Minute),
+			StaleThreshold:       getDuration(v, "ORGAO_SYNC_STALE_THRESHOLD", 7*24*time.Hour), // 1 week
+			BatchSize:            getInt(v, "ORGAO_SYNC_BATCH_SIZE", 50),
+			MaxRetries:           getInt(v, "ORGAO_SYNC_MAX_RETRIES", 3),
+			FailedRetryThreshold: getDuration(v, "ORGAO_SYNC_FAILED_RETRY_THRESHOLD", 1*time.Hour),
 		},
 		CitizenSync: CitizenSyncSettings{
 			Enabled:        getBool(v, "CITIZEN_SYNC_ENABLED", true),
