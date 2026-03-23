@@ -14149,7 +14149,8 @@
         "type": "object",
         "properties": {
           "certificate_url": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 2048
           }
         }
       },
