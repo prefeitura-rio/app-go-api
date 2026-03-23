@@ -7,6 +7,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -14,24 +16,30 @@ import (
 	"gorm.io/gorm"
 )
 
+const orgaoSyncLockKey = "orgao_sync:lock"
+
 // OrgaoSyncWorker handles periodic synchronization of orgao data from RMI API
 type OrgaoSyncWorker struct {
-	db                  *gorm.DB
-	rmiClient           *clients.RMIClient
-	orgaoSnapshotRepo   *repository.OrgaoSnapshotRepository
-	cursoRepo           *repository.CursoRepository
-	empregoRepo         *repository.EmpregoRepository
-	oportunidadeMEIRepo *repository.OportunidadeMEIRepository
-	syncInterval        time.Duration
-	staleThreshold      time.Duration
-	batchSize           int
-	maxRetries          int
+	db                   *gorm.DB
+	rmiClient            *clients.RMIClient
+	redisClient          *redis.Client
+	orgaoSnapshotRepo    *repository.OrgaoSnapshotRepository
+	cursoRepo            *repository.CursoRepository
+	empregoRepo          *repository.EmpregoRepository
+	oportunidadeMEIRepo  *repository.OportunidadeMEIRepository
+	syncInterval         time.Duration
+	staleThreshold       time.Duration
+	failedRetryThreshold time.Duration
+	batchSize            int
+	maxRetries           int
 }
 
-// NewOrgaoSyncWorker creates a new orgao sync worker instance
+// NewOrgaoSyncWorker creates a new orgao sync worker instance.
+// redisClient is used for distributed locking so only one pod runs the sync at a time.
 func NewOrgaoSyncWorker(
 	db *gorm.DB,
 	rmiClient *clients.RMIClient,
+	redisClient *redis.Client,
 	orgaoSnapshotRepo *repository.OrgaoSnapshotRepository,
 	cursoRepo *repository.CursoRepository,
 	empregoRepo *repository.EmpregoRepository,
@@ -39,16 +47,42 @@ func NewOrgaoSyncWorker(
 	cfg *config.OrgaoSyncSettings,
 ) *OrgaoSyncWorker {
 	return &OrgaoSyncWorker{
-		db:                  db,
-		rmiClient:           rmiClient,
-		orgaoSnapshotRepo:   orgaoSnapshotRepo,
-		cursoRepo:           cursoRepo,
-		empregoRepo:         empregoRepo,
-		oportunidadeMEIRepo: oportunidadeMEIRepo,
-		syncInterval:        cfg.SyncInterval,
-		staleThreshold:      cfg.StaleThreshold,
-		batchSize:           cfg.BatchSize,
-		maxRetries:          cfg.MaxRetries,
+		db:                   db,
+		rmiClient:            rmiClient,
+		redisClient:          redisClient,
+		orgaoSnapshotRepo:    orgaoSnapshotRepo,
+		cursoRepo:            cursoRepo,
+		empregoRepo:          empregoRepo,
+		oportunidadeMEIRepo:  oportunidadeMEIRepo,
+		syncInterval:         cfg.SyncInterval,
+		staleThreshold:       cfg.StaleThreshold,
+		failedRetryThreshold: cfg.FailedRetryThreshold,
+		batchSize:            cfg.BatchSize,
+		maxRetries:           cfg.MaxRetries,
+	}
+}
+
+// tryAcquireLock attempts to acquire a distributed Redis lock.
+// Returns true if the lock was acquired, false if another pod already holds it.
+// The lock TTL equals the sync interval so it expires automatically if the pod crashes.
+func (w *OrgaoSyncWorker) tryAcquireLock(ctx context.Context) (bool, error) {
+	if w.redisClient == nil {
+		return true, nil // no Redis configured, run without lock
+	}
+	acquired, err := w.redisClient.SetNX(ctx, orgaoSyncLockKey, "1", w.syncInterval).Result()
+	if err != nil {
+		return false, fmt.Errorf("redis lock error: %w", err)
+	}
+	return acquired, nil
+}
+
+// releaseLock releases the distributed Redis lock.
+func (w *OrgaoSyncWorker) releaseLock(ctx context.Context) {
+	if w.redisClient == nil {
+		return
+	}
+	if err := w.redisClient.Del(ctx, orgaoSyncLockKey).Err(); err != nil {
+		log.Printf("[OrgaoSyncWorker] Failed to release lock: %v", err)
 	}
 }
 
@@ -82,10 +116,22 @@ func (w *OrgaoSyncWorker) Start(ctx context.Context) error {
 	}
 }
 
-// runSync executes a full sync cycle
+// runSync executes a full sync cycle, guarded by a distributed Redis lock.
+// If another pod already holds the lock, the cycle is skipped.
 func (w *OrgaoSyncWorker) runSync(ctx context.Context) error {
+	acquired, err := w.tryAcquireLock(ctx)
+	if err != nil {
+		log.Printf("[OrgaoSyncWorker] Could not acquire distributed lock, skipping cycle: %v", err)
+		return nil
+	}
+	if !acquired {
+		log.Println("[OrgaoSyncWorker] Another instance is running sync, skipping cycle")
+		return nil
+	}
+	defer w.releaseLock(ctx)
+
 	startTime := time.Now()
-	log.Println("[OrgaoSyncWorker] Starting sync cycle...")
+	log.Println("[OrgaoSyncWorker] Starting sync cycle (lock acquired)...")
 
 	// Discover all unique orgao IDs from database
 	orgaoIDs, err := w.discoverOrgaoIDs(ctx)
@@ -180,23 +226,38 @@ func (w *OrgaoSyncWorker) discoverOrgaoIDs(ctx context.Context) ([]string, error
 	return orgaoIDs, nil
 }
 
-// filterIDsToSync returns IDs that are missing or stale
+// filterIDsToSync returns IDs that are missing or stale.
+// Uses a single bulk query instead of N individual queries to avoid hammering the DB.
+// Failed syncs are only retried after failedRetryThreshold to prevent thundering herd against the RMI API.
 func (w *OrgaoSyncWorker) filterIDsToSync(ctx context.Context, orgaoIDs []string) ([]string, error) {
 	staleTime := time.Now().Add(-w.staleThreshold)
-	idsToSync := []string{}
+	failedRetryTime := time.Now().Add(-w.failedRetryThreshold)
 
+	snapshotMap, err := w.orgaoSnapshotRepo.GetByOrgaoIDs(ctx, orgaoIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get snapshots: %w", err)
+	}
+
+	idsToSync := []string{}
 	for _, orgaoID := range orgaoIDs {
-		snapshot, err := w.orgaoSnapshotRepo.GetByOrgaoID(ctx, orgaoID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get snapshot for %s: %w", orgaoID, err)
+		snapshot, exists := snapshotMap[orgaoID]
+		if !exists {
+			idsToSync = append(idsToSync, orgaoID)
+			continue
 		}
 
-		// Sync if missing or stale or failed
-		if snapshot == nil ||
-			snapshot.LastSyncedAt.Before(staleTime) ||
-			snapshot.SyncStatus == models.SyncStatusFailed ||
-			snapshot.SyncStatus == models.SyncStatusPending {
+		switch snapshot.SyncStatus {
+		case models.SyncStatusFailed:
+			// Back off: only retry failed syncs after failedRetryThreshold
+			if snapshot.LastSyncedAt.Before(failedRetryTime) {
+				idsToSync = append(idsToSync, orgaoID)
+			}
+		case models.SyncStatusPending:
 			idsToSync = append(idsToSync, orgaoID)
+		default: // SyncStatusSynced
+			if snapshot.LastSyncedAt.Before(staleTime) {
+				idsToSync = append(idsToSync, orgaoID)
+			}
 		}
 	}
 

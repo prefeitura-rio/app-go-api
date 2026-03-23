@@ -161,6 +161,58 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	return nil
 }
 
+// CreateManual creates an enrollment bypassing date restrictions and citizen data override.
+// Used by admins to manually enroll someone regardless of the enrollment period.
+func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
+	// Validate course exists and can accept enrollments
+	status, _, _, autoApprove, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)
+	if err != nil {
+		return err
+	}
+
+	// Course must still be in opened status
+	if models.StatusCurso(status) != models.StatusCursoOpened {
+		return fmt.Errorf("curso não está aberto para inscrições")
+	}
+
+	// NOTE: enrollment date validation is intentionally skipped for manual admin enrollments
+
+	// Check if CPF is already enrolled
+	exists, err := s.repo.ExistsByCPFAndCurso(ctx, inscricao.CPF, inscricao.CursoID)
+	if err != nil {
+		return fmt.Errorf("erro ao verificar inscrição existente: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("CPF já inscrito neste curso")
+	}
+
+	// Validate schedule_id if provided
+	if inscricao.ScheduleID != nil {
+		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+		if err != nil {
+			return fmt.Errorf("erro ao verificar curso para validação de schedule: %w", err)
+		}
+		if curso == nil {
+			return fmt.Errorf("curso não encontrado")
+		}
+		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
+			return err
+		}
+	}
+
+	// NOTE: citizen data fetching is skipped — admin provides data explicitly
+
+	if autoApprove {
+		inscricao.Status = models.StatusInscricaoApproved
+	} else {
+		inscricao.Status = models.StatusInscricaoPending
+	}
+	inscricao.EnrolledAt = time.Now()
+	inscricao.UpdatedAt = time.Now()
+
+	return s.repo.Create(ctx, inscricao)
+}
+
 func (s *InscricaoService) GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
 	return s.repo.GetByID(ctx, id)
 }
