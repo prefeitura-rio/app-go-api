@@ -15,15 +15,15 @@ import (
 )
 
 type mockCRUDService struct {
-	createID    int
-	createErr   error
-	entity      *models.Categoria
-	getErr      error
-	updateErr   error
-	deleteErr   error
-	listItems   []*models.Categoria
-	listTotal   int
-	listErr     error
+	createID  int
+	createErr error
+	entity    *models.Categoria
+	getErr    error
+	updateErr error
+	deleteErr error
+	listItems []*models.Categoria
+	listTotal int
+	listErr   error
 }
 
 func (m *mockCRUDService) Create(ctx context.Context, entity *models.Categoria) (int, error) {

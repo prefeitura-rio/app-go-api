@@ -81,16 +81,16 @@ func (CurriculoCursoComplementar) TableName() string {
 }
 
 type CurriculoExperiencia struct {
-	ID                    uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	CPF                   string    `json:"cpf" gorm:"type:varchar(14);not null"`
-	Cargo                 string    `json:"cargo" gorm:"type:varchar(500);not null"`
-	Empresa               string    `json:"empresa" gorm:"type:varchar(500);not null"`
-	EhTrabalhoAtual       bool      `json:"eh_trabalho_atual" gorm:"default:false"`
-	DescricaoAtividades   string    `json:"descricao_atividades" gorm:"type:text"`
-	TempoExperienciaMeses *int      `json:"tempo_experiencia_meses" gorm:"type:integer"`
-	ExperienciaComprovadaCT bool    `json:"experiencia_comprovada_ct" gorm:"default:false"`
-	CreatedAt             time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt             time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID                      uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	CPF                     string    `json:"cpf" gorm:"type:varchar(14);not null"`
+	Cargo                   string    `json:"cargo" gorm:"type:varchar(500);not null"`
+	Empresa                 string    `json:"empresa" gorm:"type:varchar(500);not null"`
+	EhTrabalhoAtual         bool      `json:"eh_trabalho_atual" gorm:"default:false"`
+	DescricaoAtividades     string    `json:"descricao_atividades" gorm:"type:text"`
+	TempoExperienciaMeses   *int      `json:"tempo_experiencia_meses" gorm:"type:integer"`
+	ExperienciaComprovadaCT bool      `json:"experiencia_comprovada_ct" gorm:"default:false"`
+	CreatedAt               time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt               time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 func (CurriculoExperiencia) TableName() string {
@@ -116,7 +116,7 @@ func (CurriculoConquista) TableName() string {
 
 type FormacaoAccordionRequest struct {
 	Formacoes []*CurriculoFormacao `json:"formacoes"`
-	Idiomas   []*CurriculoIdioma  `json:"idiomas"`
+	Idiomas   []*CurriculoIdioma   `json:"idiomas"`
 }
 
 type ExperienciaProfissionalAccordionRequest struct {
@@ -125,16 +125,16 @@ type ExperienciaProfissionalAccordionRequest struct {
 }
 
 type CurriculoSituacaoInteresses struct {
-	CPF                       string      `json:"cpf" gorm:"type:varchar(14);primaryKey"`
-	IDSituacao                *uuid.UUID  `json:"id_situacao" gorm:"type:uuid"`
-	TempoProcurandoEmprego    string      `json:"tempo_procurando_emprego" gorm:"type:varchar(50)"`
-	IDDisponibilidade         *uuid.UUID  `json:"id_disponibilidade" gorm:"type:uuid"`
+	CPF                        string      `json:"cpf" gorm:"type:varchar(14);primaryKey"`
+	IDSituacao                 *uuid.UUID  `json:"id_situacao" gorm:"type:uuid"`
+	TempoProcurandoEmprego     string      `json:"tempo_procurando_emprego" gorm:"type:varchar(50)"`
+	IDDisponibilidade          *uuid.UUID  `json:"id_disponibilidade" gorm:"type:uuid"`
 	IDsTiposVinculoPreferencia []uuid.UUID `json:"ids_tipos_vinculo_preferencia" gorm:"type:jsonb;serializer:json"`
-	CreatedAt                 time.Time   `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt                 time.Time   `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedAt                  time.Time   `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt                  time.Time   `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relationships
-	Situacao       *SituacaoAtual   `json:"situacao,omitempty" gorm:"foreignKey:IDSituacao"`
+	Situacao        *SituacaoAtual   `json:"situacao,omitempty" gorm:"foreignKey:IDSituacao"`
 	Disponibilidade *Disponibilidade `json:"disponibilidade,omitempty" gorm:"foreignKey:IDDisponibilidade"`
 }
 

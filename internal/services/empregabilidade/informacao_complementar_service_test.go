@@ -12,13 +12,13 @@ import (
 
 // Mock InformacaoComplementar Repository
 type MockInformacaoComplementarRepo struct {
-	informacoes  map[uuid.UUID]*empregabilidade.InformacaoComplementar
-	byVaga       map[uuid.UUID][]*empregabilidade.InformacaoComplementar
-	createError  error
-	getError     error
-	updateError  error
-	deleteError  error
-	listError    error
+	informacoes map[uuid.UUID]*empregabilidade.InformacaoComplementar
+	byVaga      map[uuid.UUID][]*empregabilidade.InformacaoComplementar
+	createError error
+	getError    error
+	updateError error
+	deleteError error
+	listError   error
 }
 
 func NewMockInformacaoComplementarRepo() *MockInformacaoComplementarRepo {
@@ -109,9 +109,9 @@ func TestInformacaoComplementarService_Create_Success(t *testing.T) {
 
 		vagaID := uuid.New()
 		info := &empregabilidade.InformacaoComplementar{
-			IDVaga:     vagaID,
-			Titulo:     "Pergunta 1",
-			TipoCampo:  "resposta_curta",
+			IDVaga:      vagaID,
+			Titulo:      "Pergunta 1",
+			TipoCampo:   "resposta_curta",
 			Obrigatorio: false,
 		}
 
@@ -145,9 +145,9 @@ func TestInformacaoComplementarService_Create_Success(t *testing.T) {
 		}
 
 		info := &empregabilidade.InformacaoComplementar{
-			IDVaga:     vagaID,
-			Titulo:     "Pergunta 5 (última permitida)",
-			TipoCampo:  "resposta_curta",
+			IDVaga:      vagaID,
+			Titulo:      "Pergunta 5 (última permitida)",
+			TipoCampo:   "resposta_curta",
 			Obrigatorio: false,
 		}
 
@@ -183,9 +183,9 @@ func TestInformacaoComplementarService_Create_ExceedsLimit(t *testing.T) {
 		}
 
 		info := &empregabilidade.InformacaoComplementar{
-			IDVaga:     vagaID,
-			Titulo:     "Pergunta 6 (deve falhar)",
-			TipoCampo:  "resposta_curta",
+			IDVaga:      vagaID,
+			Titulo:      "Pergunta 6 (deve falhar)",
+			TipoCampo:   "resposta_curta",
 			Obrigatorio: false,
 		}
 
@@ -215,9 +215,9 @@ func TestInformacaoComplementarService_Create_ListError(t *testing.T) {
 
 		vagaID := uuid.New()
 		info := &empregabilidade.InformacaoComplementar{
-			IDVaga:     vagaID,
-			Titulo:     "Pergunta",
-			TipoCampo:  "resposta_curta",
+			IDVaga:      vagaID,
+			Titulo:      "Pergunta",
+			TipoCampo:   "resposta_curta",
 			Obrigatorio: false,
 		}
 

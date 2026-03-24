@@ -159,8 +159,11 @@ func main() {
 
 	reportJSON, _ := json.MarshalIndent(report, "", "  ")
 	reportFile := fmt.Sprintf("import_report_%s.json", time.Now().Format("20060102_150405"))
-	os.WriteFile(reportFile, reportJSON, 0644)
-	fmt.Printf("\nRelatório salvo em: %s\n", reportFile)
+	if err := os.WriteFile(reportFile, reportJSON, 0644); err != nil {
+		fmt.Printf("Aviso: não foi possível salvar relatório: %v\n", err)
+	} else {
+		fmt.Printf("\nRelatório salvo em: %s\n", reportFile)
+	}
 
 	fmt.Printf("\n=== RESUMO ===\n")
 	fmt.Printf("Total processado: %d\n", report.TotalProcessed)
@@ -181,7 +184,11 @@ func importCourses() (*ImportReport, error) {
 	if err != nil {
 		return nil, fmt.Errorf("erro ao abrir arquivo: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Printf("Aviso: erro ao fechar arquivo: %v\n", err)
+		}
+	}()
 
 	reader := csv.NewReader(file)
 	reader.Comma = '\t'
@@ -572,7 +579,9 @@ func loadCategorias() error {
 	if err != nil {
 		return fmt.Errorf("erro ao buscar categorias: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	var catResp CategoriaResponse
 	if err := json.NewDecoder(resp.Body).Decode(&catResp); err != nil {
@@ -604,7 +613,7 @@ func getOrCreateCategoria(nome string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("erro ao criar categoria %s: %w", nome, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -654,7 +663,7 @@ func sendToAPI(payload []byte) (int, error) {
 		}
 		break
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -729,8 +738,8 @@ func startPortForward() error {
 func stopPortForward() {
 	if portForwardCmd != nil && portForwardCmd.Process != nil {
 		fmt.Println("Encerrando port-forward...")
-		portForwardCmd.Process.Kill()
-		portForwardCmd.Wait()
+		_ = portForwardCmd.Process.Kill()
+		_ = portForwardCmd.Wait()
 		portForwardCmd = nil
 	}
 }
@@ -741,6 +750,6 @@ func isAPIReady() bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return resp.StatusCode == http.StatusOK
 }

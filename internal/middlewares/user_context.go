@@ -22,7 +22,6 @@ const (
 	UserEmailKey = "user_email"
 )
 
-
 // JWTClaims representa as claims do JWT que nos interessam
 type JWTClaims struct {
 	PreferredUsername string `json:"preferred_username"` // CPF
@@ -62,7 +61,7 @@ func fetchHeimdallUserInfo(ctx context.Context, baseURL, authHeader string) (*He
 	if err != nil {
 		return nil, fmt.Errorf("heimdall: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("heimdall: returned status %d", resp.StatusCode)
