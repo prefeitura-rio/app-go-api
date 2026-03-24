@@ -3,12 +3,12 @@ WORKDIR /app
 COPY go.* ./
 RUN go mod download
 COPY . .
-RUN go install github.com/pressly/goose/v3/cmd/goose@v3.23.0
-RUN go install github.com/swaggo/swag/cmd/swag@latest
-RUN swag init -g cmd/server/main.go
-RUN CGO_ENABLED=0 go build -o api ./cmd/server
+RUN go install github.com/pressly/goose/v3/cmd/goose@v3.23.0 && \
+    go install github.com/swaggo/swag/cmd/swag@latest && \
+    swag init -g cmd/server/main.go && \
+    CGO_ENABLED=0 go build -o api ./cmd/server
 
-FROM alpine:latest
+FROM alpine:3.21
 WORKDIR /app
 COPY --from=builder /app/api .
 COPY --from=builder /go/bin/goose /usr/local/bin/goose
