@@ -1,0 +1,107 @@
+run:
+  timeout: 10m
+  tests: true
+  build-tags:
+    - integration
+
+linters:
+  # Start with critical linters only, gradually enable more
+  enable:
+    # Critical error detection
+    - errcheck      # Check for unchecked errors
+    - govet         # Examine Go source code and reports suspicious constructs
+
+    # Formatting (these are linters, not formatters in golangci-lint v1.64+)
+    - gofmt         # Check whether code was gofmt-ed
+    - goimports     # Check import statements are formatted according to goimports
+
+    # SQL-related checks
+    - sqlclosecheck # Check that sql.Rows and sql.Stmt are closed
+    - rowserrcheck  # Check whether Err of rows is checked successfully
+
+  # These will be enabled incrementally in future phases
+  disable:
+    - ineffassign
+    - unused
+    - misspell
+    - revive
+    - unconvert
+    - gocyclo
+    - dupl
+    - goconst
+    - bodyclose
+    - noctx
+    - copyloopvar
+    - errorlint
+    - nilerr
+    - staticcheck  # Will be enabled in Phase 2 - currently has 2 false positives in tests
+    - gosec        # Will be enabled in Phase 2 with proper exclusions
+
+linters-settings:
+  errcheck:
+    check-type-assertions: false  # Too strict for initial rollout
+    check-blank: false            # Too strict for initial rollout
+
+  govet:
+    enable-all: false
+    enable:
+      - atomic
+      - bools
+      - buildtag
+      - errorsas
+      - nilfunc
+      - printf
+
+  gosec:
+    excludes:
+      - G101 # Hardcoded credentials detection in tests - these are fake test tokens
+      - G104 # Unhandled errors (covered by errcheck)
+      - G204 # Subprocess launched with variable - controlled in admin tools
+      - G304 # File path inclusion - controlled by application logic
+      - G306 # File permissions - 0644 is acceptable for report files
+      - G404 # Use of weak random number generator (math/rand) - acceptable for non-security purposes
+      - G501 # Blocklisted import crypto/md5 - acceptable for checksums
+      - G505 # Blocklisted import crypto/sha1 - acceptable for non-security purposes
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - staticcheck
+
+    # Exclude known issues in generated code
+    - path: docs/.*\.go
+      linters:
+        - all
+
+    # Exclude tool scripts from strict security checks (these are admin tools, not production code)
+    - path: "cmd/tools/"
+      linters:
+        - gosec
+
+    # Exclude job processors from strict security checks
+    - path: "internal/jobs/"
+      linters:
+        - gosec
+
+    # Exclude SQL string concatenation warnings for parameterized queries
+    - linters:
+        - gosec
+      text: "G201|G202" # SQL string concatenation/formatting - we use parameterized queries
+
+    # Exclude weak crypto warnings for non-security use cases
+    - linters:
+        - gosec
+      text: "G401|G501|G505" # MD5/SHA1 usage - acceptable for checksums
+
+  # Set reasonable limits for initial rollout
+  max-issues-per-linter: 50
+  max-same-issues: 10
+  new: false  # Report all issues, not just new ones
+
+  # Exclude specific known issues for baseline
+  exclude:
+    - "SA5011.*informacao_complementar_service_test.go"  # Intentional nil check pattern in tests

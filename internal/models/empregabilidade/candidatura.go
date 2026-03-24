@@ -11,11 +11,11 @@ import (
 type StatusCandidatura string
 
 const (
-	StatusCandidaturaEnviada        StatusCandidatura = "candidatura_enviada"
-	StatusCandidaturaAprovada       StatusCandidatura = "aprovada"
-	StatusCandidaturaReprovada      StatusCandidatura = "reprovada"
-	StatusCandidaturaVagaCongelada  StatusCandidatura = "vaga_congelada"
-	StatusCandidaturaDescontinuada  StatusCandidatura = "vaga_descontinuada"
+	StatusCandidaturaEnviada       StatusCandidatura = "candidatura_enviada"
+	StatusCandidaturaAprovada      StatusCandidatura = "aprovada"
+	StatusCandidaturaReprovada     StatusCandidatura = "reprovada"
+	StatusCandidaturaVagaCongelada StatusCandidatura = "vaga_congelada"
+	StatusCandidaturaDescontinuada StatusCandidatura = "vaga_descontinuada"
 )
 
 func (s StatusCandidatura) IsValid() bool {

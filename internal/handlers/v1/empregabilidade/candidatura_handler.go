@@ -42,7 +42,6 @@ func handleCandidaturaError(c *gin.Context, err error) {
 	c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
 }
 
-
 type CandidaturaHandler struct {
 	service *services.CandidaturaService
 }
@@ -466,9 +465,9 @@ func (h *CandidaturaHandler) Reject(c *gin.Context) {
 }
 
 type BulkUpdateStatusRequest struct {
-	CPFs   []string                              `json:"cpfs"`
-	VagaID uuid.UUID                             `json:"vaga_id"`
-	Status empregabilidade.StatusCandidatura     `json:"status"`
+	CPFs   []string                          `json:"cpfs"`
+	VagaID uuid.UUID                         `json:"vaga_id"`
+	Status empregabilidade.StatusCandidatura `json:"status"`
 }
 
 // @Summary      Atualizar status de candidaturas em lote

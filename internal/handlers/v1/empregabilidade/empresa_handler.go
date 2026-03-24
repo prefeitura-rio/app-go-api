@@ -12,8 +12,8 @@ import (
 )
 
 type EmpresaHandler struct {
-	service              *services.EmpresaService
-	cnpjConsultaService  *services.CNPJConsultaService
+	service             *services.EmpresaService
+	cnpjConsultaService *services.CNPJConsultaService
 }
 
 func NewEmpresaHandler(service *services.EmpresaService) *EmpresaHandler {
