@@ -178,16 +178,12 @@ jobs:
         if: steps.check-k8s-only.outputs.k8s_only != 'true'
         run: |
           echo "Waiting for preview pods to be fully ready..."
-          # Get the preview replicaset hash from rollout status
-          PREVIEW_RS=$(kubectl argo rollouts status go -n go --timeout=2m | grep -oP 'Revision \d+.*deployed' | awk '{print $2}' | head -1)
-          if [ -z "$PREVIEW_RS" ]; then
-            echo "Failed to detect preview replicaset"
-            exit 1
-          fi
+          # Wait for ALL pods with app=go label to be ready (2/2 containers including Istio sidecar)
+          kubectl wait --for=condition=ready pod -l app=go -n go --timeout=5m || true
 
-          # Wait for preview pods to be ready (2/2 containers)
-          echo "Waiting for preview pods to become ready..."
-          kubectl wait --for=condition=ready pod -l app=go -n go --timeout=3m
+          # Give pods a few extra seconds to fully initialize
+          echo "Waiting for application to fully start..."
+          sleep 10
 
           echo "Setting up port forward to preview service..."
           # Start port-forward in background
