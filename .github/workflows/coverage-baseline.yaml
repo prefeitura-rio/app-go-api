@@ -1,0 +1,60 @@
+name: Coverage Baseline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run tests with coverage
+        run: ./scripts/extract-coverage.sh
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/testdb?sslmode=disable
+          REDIS_URL: redis://localhost:6379
+
+      - name: Update coverage baseline
+        run: |
+          echo "${COVERAGE}" > .coverage-baseline
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .coverage-baseline
+          git commit -m "chore: update coverage baseline to ${COVERAGE}%" || echo "No changes"
+          git push || echo "Nothing to push"
