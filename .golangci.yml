@@ -1,5 +1,3 @@
-version: 2
-
 run:
   timeout: 10m
   tests: true
@@ -12,6 +10,10 @@ linters:
     # Critical error detection
     - errcheck      # Check for unchecked errors
     - govet         # Examine Go source code and reports suspicious constructs
+
+    # Formatting (these are linters, not formatters in golangci-lint v1.64+)
+    - gofmt         # Check whether code was gofmt-ed
+    - goimports     # Check import statements are formatted according to goimports
 
     # SQL-related checks
     - sqlclosecheck # Check that sql.Rows and sql.Stmt are closed
@@ -34,11 +36,6 @@ linters:
     - nilerr
     - staticcheck  # Will be enabled in Phase 2 - currently has 2 false positives in tests
     - gosec        # Will be enabled in Phase 2 with proper exclusions
-
-formatters:
-  enable:
-    - gofmt         # Check whether code was gofmt-ed
-    - goimports     # Check import statements are formatted according to goimports
 
 linters-settings:
   errcheck:
@@ -108,8 +105,3 @@ issues:
   # Exclude specific known issues for baseline
   exclude:
     - "SA5011.*informacao_complementar_service_test.go"  # Intentional nil check pattern in tests
-
-output:
-  format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
