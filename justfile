@@ -65,6 +65,11 @@ test-integration:
     @echo "Running integration tests..."
     RUN_REPOSITORY_INTEGRATION=1 go test -v -race ./internal/repository/...
 
+# Run E2E health check tests
+test-e2e url="http://localhost:8080":
+    @echo "Running E2E health check tests..."
+    @API_URL={{url}} ./tests/e2e/health_check.sh
+
 # ==============================================================================
 # Building
 # ==============================================================================
