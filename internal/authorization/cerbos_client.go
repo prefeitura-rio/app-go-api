@@ -46,7 +46,7 @@ func (c *Client) CheckResources(ctx context.Context, request *CheckResourcesRequ
 	if err != nil {
 		return nil, fmt.Errorf("failed to call Cerbos: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("cerbos returned status %d", resp.StatusCode)
