@@ -205,7 +205,7 @@ jobs:
           echo "Running smoke tests against preview service..."
 
           # Health check
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/v1/health)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health)
           if [ "$HTTP_CODE" != "200" ]; then
             echo "❌ Health check failed with HTTP $HTTP_CODE"
             exit 1
