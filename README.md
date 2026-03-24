@@ -161,6 +161,7 @@ just test                    # Executar todos os testes
 just test-coverage           # Gerar relatório de cobertura
 just test-pkg <package>      # Testar pacote específico
 just test-integration        # Executar testes de integração
+just test-e2e [url]          # Executar testes E2E (padrão: http://localhost:8080)
 
 # Build e execução
 just build         # Compilar binário
