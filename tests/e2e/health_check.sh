@@ -38,7 +38,7 @@ wait_for_service() {
     log_info "Waiting for service to be ready at $API_URL..."
 
     for i in $(seq 1 $MAX_RETRIES); do
-        if curl -sf "$API_URL/v1/health" > /dev/null 2>&1; then
+        if curl -sf "$API_URL/health" > /dev/null 2>&1; then
             log_success "Service is ready (attempt $i/$MAX_RETRIES)"
             return 0
         fi
@@ -56,7 +56,7 @@ test_health_endpoint() {
     TESTS_RUN=$((TESTS_RUN + 1))
     log_info "Test: Health endpoint returns HTTP 200"
 
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/v1/health")
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health")
 
     if [ "$HTTP_CODE" = "200" ]; then
         log_success "Health endpoint returned HTTP 200"
@@ -74,7 +74,7 @@ test_health_json() {
     TESTS_RUN=$((TESTS_RUN + 1))
     log_info "Test: Health endpoint returns valid JSON"
 
-    RESPONSE=$(curl -s "$API_URL/v1/health")
+    RESPONSE=$(curl -s "$API_URL/health")
 
     if echo "$RESPONSE" | jq empty > /dev/null 2>&1; then
         log_success "Health endpoint returned valid JSON"
@@ -92,7 +92,7 @@ test_health_status_field() {
     TESTS_RUN=$((TESTS_RUN + 1))
     log_info "Test: Health endpoint includes 'status' field"
 
-    RESPONSE=$(curl -s "$API_URL/v1/health")
+    RESPONSE=$(curl -s "$API_URL/health")
     STATUS=$(echo "$RESPONSE" | jq -r '.status // empty')
 
     if [ -n "$STATUS" ]; then
@@ -111,7 +111,7 @@ test_database_connectivity() {
     TESTS_RUN=$((TESTS_RUN + 1))
     log_info "Test: Database connectivity (via health endpoint)"
 
-    RESPONSE=$(curl -s "$API_URL/v1/health")
+    RESPONSE=$(curl -s "$API_URL/health")
     DB_STATUS=$(echo "$RESPONSE" | jq -r '.database // .db // empty')
 
     if [ -n "$DB_STATUS" ]; then
@@ -173,7 +173,7 @@ test_response_time() {
     log_info "Test: Response time is acceptable (<2s)"
 
     START_TIME=$(date +%s%N)
-    curl -sf "$API_URL/v1/health" > /dev/null
+    curl -sf "$API_URL/health" > /dev/null
     END_TIME=$(date +%s%N)
 
     DURATION_MS=$(( (END_TIME - START_TIME) / 1000000 ))
