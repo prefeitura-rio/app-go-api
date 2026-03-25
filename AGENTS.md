@@ -364,6 +364,109 @@ Triggered on push to `main`. Runs tests with coverage and pushes the coverage pe
 
 ## Working with the Codebase
 
+### Development Environment Setup
+
+**Use nix and direnv for a reproducible development environment.**
+
+This project provides a `flake.nix` and `.envrc` to ensure every developer and CI run uses the exact same versions of all tools.
+
+#### Prerequisites
+
+Install nix (if not already installed):
+```bash
+# Multi-user installation (recommended)
+sh <(curl -L https://nixos.org/nix/install) --daemon
+
+# Or single-user installation
+sh <(curl -L https://nixos.org/nix/install) --no-daemon
+```
+
+Enable flakes in your nix configuration:
+```bash
+mkdir -p ~/.config/nix
+echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
+```
+
+Install direnv (if not already installed):
+```bash
+# macOS
+brew install direnv
+
+# Linux — follow https://direnv.net/docs/installation.html
+```
+
+Add the direnv hook to your shell:
+```bash
+# bash
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+
+# zsh
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+
+# fish
+echo 'direnv hook fish | source' >> ~/.config/fish/config.fish
+```
+
+#### Activating the Environment
+
+```bash
+cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api
+direnv allow   # one-time approval; re-run after flake.nix changes
+```
+
+After `direnv allow`, every `cd` into the project directory automatically loads the nix shell. Leaving the directory unloads it. No manual version management is needed.
+
+#### What the Nix Shell Provides
+
+The `flake.nix` `devShells.default` includes:
+
+| Tool | Purpose |
+|---|---|
+| `go_1_24` | Go compiler and toolchain |
+| `gopls` | Go language server (editor support) |
+| `gotools` | `goimports` and other Go utilities |
+| `golangci-lint` | Linter (matches CI version) |
+| `delve` | Go debugger |
+| `air` | Hot reload for local development |
+| `postgresql_16` | PostgreSQL client tools |
+| `goose` | Database migration runner |
+| `docker` / `docker-compose` | Container runtime |
+| `jq` | JSON processing |
+| `gnumake` / `just` | Task runners |
+
+`swag` (Swagger doc generator) is installed on first shell entry via the `shellHook` if not already present.
+
+#### Benefits
+
+- **Reproducibility**: All developers and CI use identical tool versions
+- **Isolation**: Project tools do not conflict with system-level installations
+- **Fast onboarding**: New developers get a working environment with two commands (`direnv allow`)
+- **CI parity**: The same `flake.nix` can be referenced in CI to match the local environment
+
+#### Troubleshooting
+
+**direnv not loading automatically**:
+```bash
+direnv allow
+```
+
+**Nix shell not activating**:
+```bash
+# Reload the environment
+direnv reload
+
+# Or enter the nix shell manually
+nix develop
+```
+
+**Stale or broken dependencies**:
+```bash
+nix-collect-garbage -d
+direnv reload
+```
+
+---
+
 ### Running Locally
 
 ```bash
@@ -606,6 +709,7 @@ gh pr checks <pr-number>
 10. **Do not hard-code configuration**: Use `cfg` (passed from `config.Load()`) for all tuneable values
 11. **Handle Redis cache misses gracefully**: Cache is a performance optimization; the service must work if Redis is unavailable
 12. **Use user context helpers**: Use `middlewares.GetUserCPF(c)`, `middlewares.IsAdmin(c)`, etc. — never parse headers manually in handlers
+13. **Use nix + direnv**: Always develop within the nix shell (`direnv allow`) for reproducibility and CI parity
 
 ## Common Pitfalls to Avoid
 
