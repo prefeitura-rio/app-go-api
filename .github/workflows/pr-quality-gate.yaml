@@ -21,14 +21,6 @@ jobs:
           go-version: '1.22'
           cache: true
 
-      - name: Download Go modules
-        run: go mod download
-
-      - name: Generate Wire Code
-        run: |
-          go install github.com/google/wire/cmd/wire@latest
-          cd internal/wire && $(go env GOPATH)/bin/wire
-
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
@@ -96,14 +88,6 @@ jobs:
         with:
           go-version: '1.22'
           cache: true
-
-      - name: Download Go modules
-        run: go mod download
-
-      - name: Generate Wire Code
-        run: |
-          go install github.com/google/wire/cmd/wire@latest
-          cd internal/wire && $(go env GOPATH)/bin/wire
 
       - name: Run unit tests
         env:
@@ -247,14 +231,6 @@ jobs:
         with:
           go-version: '1.22'
           cache: true
-
-      - name: Download Go modules
-        run: go mod download
-
-      - name: Generate Wire Code
-        run: |
-          go install github.com/google/wire/cmd/wire@latest
-          cd internal/wire && $(go env GOPATH)/bin/wire
 
       - name: Install swag
         run: |
