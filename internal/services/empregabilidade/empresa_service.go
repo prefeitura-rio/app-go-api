@@ -8,10 +8,14 @@ import (
 )
 
 type EmpresaService struct {
-	repo *repository.EmpresaRepository
+	repo EmpresaRepositoryInterface
 }
 
 func NewEmpresaService(repo *repository.EmpresaRepository) *EmpresaService {
+	return &EmpresaService{repo: repo}
+}
+
+func NewEmpresaServiceWithInterface(repo EmpresaRepositoryInterface) *EmpresaService {
 	return &EmpresaService{repo: repo}
 }
 

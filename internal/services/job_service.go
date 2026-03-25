@@ -11,13 +11,17 @@ import (
 )
 
 type JobService struct {
-	repo *repository.JobRepository
+	repo JobRepositoryInterface
 }
 
 func NewJobService(repo *repository.JobRepository) *JobService {
 	return &JobService{
 		repo: repo,
 	}
+}
+
+func NewJobServiceWithInterface(repo JobRepositoryInterface) *JobService {
+	return &JobService{repo: repo}
 }
 
 func (s *JobService) Create(ctx context.Context, job *models.Job) error {

@@ -9,10 +9,14 @@ import (
 )
 
 type TipoPCDService struct {
-	repo *repository.TipoPCDRepository
+	repo TipoPCDRepositoryInterface
 }
 
 func NewTipoPCDService(repo *repository.TipoPCDRepository) *TipoPCDService {
+	return &TipoPCDService{repo: repo}
+}
+
+func NewTipoPCDServiceWithInterface(repo TipoPCDRepositoryInterface) *TipoPCDService {
 	return &TipoPCDService{repo: repo}
 }
 

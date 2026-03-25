@@ -9,10 +9,14 @@ import (
 )
 
 type SituacaoAtualService struct {
-	repo *repository.SituacaoAtualRepository
+	repo SituacaoAtualRepositoryInterface
 }
 
 func NewSituacaoAtualService(repo *repository.SituacaoAtualRepository) *SituacaoAtualService {
+	return &SituacaoAtualService{repo: repo}
+}
+
+func NewSituacaoAtualServiceWithInterface(repo SituacaoAtualRepositoryInterface) *SituacaoAtualService {
 	return &SituacaoAtualService{repo: repo}
 }
 

@@ -9,10 +9,14 @@ import (
 )
 
 type NivelIdiomaService struct {
-	repo *repository.NivelIdiomaRepository
+	repo NivelIdiomaRepositoryInterface
 }
 
 func NewNivelIdiomaService(repo *repository.NivelIdiomaRepository) *NivelIdiomaService {
+	return &NivelIdiomaService{repo: repo}
+}
+
+func NewNivelIdiomaServiceWithInterface(repo NivelIdiomaRepositoryInterface) *NivelIdiomaService {
 	return &NivelIdiomaService{repo: repo}
 }
 

@@ -9,10 +9,14 @@ import (
 )
 
 type EscolaridadeService struct {
-	repo *repository.EscolaridadeRepository
+	repo EmpEscolaridadeRepositoryInterface
 }
 
 func NewEscolaridadeService(repo *repository.EscolaridadeRepository) *EscolaridadeService {
+	return &EscolaridadeService{repo: repo}
+}
+
+func NewEscolaridadeServiceWithInterface(repo EmpEscolaridadeRepositoryInterface) *EscolaridadeService {
 	return &EscolaridadeService{repo: repo}
 }
 

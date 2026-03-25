@@ -8,13 +8,17 @@ import (
 )
 
 type EmpresaService struct {
-	repo *repository.EmpresaRepository
+	repo EmpresaRepositoryInterface
 }
 
 func NewEmpresaService(repo *repository.EmpresaRepository) *EmpresaService {
 	return &EmpresaService{
 		repo: repo,
 	}
+}
+
+func NewEmpresaServiceWithInterface(repo EmpresaRepositoryInterface) *EmpresaService {
+	return &EmpresaService{repo: repo}
 }
 
 func (s *EmpresaService) Create(ctx context.Context, empresa *models.Empresa) (int, error) {

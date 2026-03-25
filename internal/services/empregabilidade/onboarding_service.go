@@ -8,10 +8,14 @@ import (
 )
 
 type OnboardingService struct {
-	repo *repository.OnboardingRepository
+	repo OnboardingRepositoryInterface
 }
 
 func NewOnboardingService(repo *repository.OnboardingRepository) *OnboardingService {
+	return &OnboardingService{repo: repo}
+}
+
+func NewOnboardingServiceWithInterface(repo OnboardingRepositoryInterface) *OnboardingService {
 	return &OnboardingService{repo: repo}
 }
 

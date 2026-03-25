@@ -5,7 +5,49 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	modelsEmp "github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
+
+// Suppress unused import - modelsEmp is used below for OportunidadeMEI interface
+var _ = modelsEmp.StatusVagaEmEdicao
+
+// EmpregoRepositoryInterface defines the interface for Emprego repository.
+type EmpregoRepositoryInterface interface {
+	Create(ctx context.Context, emprego *models.Emprego) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Emprego, error)
+	Update(ctx context.Context, emprego *models.Emprego) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Emprego, int, error)
+}
+
+// EmpresaRepositoryInterface defines the interface for main Empresa repository.
+type EmpresaRepositoryInterface interface {
+	Create(ctx context.Context, empresa *models.Empresa) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Empresa, error)
+	Update(ctx context.Context, empresa *models.Empresa) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Empresa, int, error)
+}
+
+// InstituicaoRepositoryInterface defines the interface for InstituicaoEnsino repository.
+type InstituicaoRepositoryInterface interface {
+	Create(ctx context.Context, instituicao *models.InstituicaoEnsino) (int, error)
+	GetByID(ctx context.Context, id int) (*models.InstituicaoEnsino, error)
+	Update(ctx context.Context, instituicao *models.InstituicaoEnsino) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.InstituicaoEnsino, int, error)
+}
+
+// JobRepositoryInterface defines the interface for Job repository.
+type JobRepositoryInterface interface {
+	Create(ctx context.Context, job *models.Job) error
+	GetByID(ctx context.Context, id uuid.UUID) (*models.Job, error)
+	Update(ctx context.Context, job *models.Job) error
+	UpdateStatus(ctx context.Context, id uuid.UUID, status models.JobStatus) error
+	UpdateProgress(ctx context.Context, id uuid.UUID, progress, successCount, errorCount int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Job, int, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
 
 // RMIClientInterface defines the interface for RMI API client
 type RMIClientInterface interface {

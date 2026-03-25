@@ -9,10 +9,14 @@ import (
 )
 
 type RegimeContratacaoService struct {
-	repo *repository.RegimeContratacaoRepository
+	repo RegimeContratacaoRepositoryInterface
 }
 
 func NewRegimeContratacaoService(repo *repository.RegimeContratacaoRepository) *RegimeContratacaoService {
+	return &RegimeContratacaoService{repo: repo}
+}
+
+func NewRegimeContratacaoServiceWithInterface(repo RegimeContratacaoRepositoryInterface) *RegimeContratacaoService {
 	return &RegimeContratacaoService{repo: repo}
 }
 
