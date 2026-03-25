@@ -127,11 +127,11 @@ jobs:
           echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
           echo "Current PR coverage: $COVERAGE%"
 
-      - name: Download baseline coverage from main
+      - name: Download baseline coverage from gh-pages
         id: baseline_coverage
         run: |
-          # Try to fetch baseline from main branch, default to 0% if not found
-          BASELINE=$(curl -s https://raw.githubusercontent.com/${{ github.repository }}/main/.coverage-baseline || echo "0.0")
+          # Try to fetch baseline from gh-pages branch, default to 0% if not found
+          BASELINE=$(curl -s https://raw.githubusercontent.com/${{ github.repository }}/gh-pages/coverage-baseline.txt || echo "0.0")
 
           # Validate it's a number
           if ! [[ "$BASELINE" =~ ^[0-9]+\.?[0-9]*$ ]]; then

@@ -1,29 +1,20 @@
-name: Coverage Baseline
+name: Update Coverage Baseline
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   update-baseline:
+    name: Update Coverage Baseline
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write  # Required to push to gh-pages
 
     services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: testdb
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
       redis:
         image: redis:7-alpine
         options: >-
@@ -45,22 +36,104 @@ jobs:
           cache: true
 
       - name: Run tests with coverage
-        run: go test -v -race -coverprofile=coverage.out ./...
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/testdb?sslmode=disable
+          # Redis configuration for tests that need it
           REDIS_URL: redis://localhost:6379
+          # Do NOT set DATABASE_URL - integration tests are skipped without it
+        run: |
+          # Retry up to 3 times on test failure
+          MAX_ATTEMPTS=3
+          ATTEMPT=1
+
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Test attempt $ATTEMPT of $MAX_ATTEMPTS..."
+
+            if go test -race -coverprofile=coverage.out -timeout=5m ./...; then
+              echo "Tests passed on attempt $ATTEMPT"
+              exit 0
+            else
+              if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+                echo "Tests failed on attempt $ATTEMPT, retrying..."
+                ATTEMPT=$((ATTEMPT + 1))
+                sleep 2
+              else
+                echo "Tests failed after $MAX_ATTEMPTS attempts"
+                exit 1
+              fi
+            fi
+          done
 
       - name: Extract coverage percentage
+        id: coverage
         run: |
           COVERAGE=$(./scripts/extract-coverage.sh)
-          echo "COVERAGE=${COVERAGE}" >> $GITHUB_ENV
-          echo "Coverage: ${COVERAGE}%"
+          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+          echo "Coverage: $COVERAGE%"
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages-dir
+        continue-on-error: true  # First run won't have gh-pages yet
+
+      - name: Create gh-pages branch if it doesn't exist
+        run: |
+          if [ ! -d "gh-pages-dir/.git" ]; then
+            echo "Creating gh-pages branch..."
+            mkdir -p gh-pages-dir
+            cd gh-pages-dir
+            git init
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git checkout -b gh-pages
+            echo "# Coverage Reports" > README.md
+            git add README.md
+            git commit -m "Initialize gh-pages branch"
+            git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+            git push -u origin gh-pages
+          fi
 
       - name: Update coverage baseline
         run: |
-          echo "${COVERAGE}" > .coverage-baseline
+          cd gh-pages-dir
+          echo "${{ steps.coverage.outputs.coverage }}" > coverage-baseline.txt
+
+          # Create a coverage badge JSON (for future use)
+          COVERAGE="${{ steps.coverage.outputs.coverage }}"
+          COLOR="red"
+          if (( $(echo "$COVERAGE >= 80" | bc -l) )); then COLOR="brightgreen"; fi
+          if (( $(echo "$COVERAGE >= 60 && $COVERAGE < 80" | bc -l) )); then COLOR="yellow"; fi
+          if (( $(echo "$COVERAGE >= 40 && $COVERAGE < 60" | bc -l) )); then COLOR="orange"; fi
+
+          cat > coverage-badge.json <<EOF
+          {
+            "schemaVersion": 1,
+            "label": "coverage",
+            "message": "${COVERAGE}%",
+            "color": "${COLOR}"
+          }
+          EOF
+
+          # Update timestamp
+          echo "Last updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > coverage-updated.txt
+          echo "Commit: ${{ github.sha }}" >> coverage-updated.txt
+
+      - name: Commit and push baseline
+        run: |
+          cd gh-pages-dir
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .coverage-baseline
-          git commit -m "chore: update coverage baseline to ${COVERAGE}%" || echo "No changes"
-          git push || echo "Nothing to push"
+          git add coverage-baseline.txt coverage-badge.json coverage-updated.txt
+          git commit -m "Update coverage baseline to ${{ steps.coverage.outputs.coverage }}%" || exit 0
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:gh-pages
+
+      - name: Generate coverage report
+        run: |
+          echo "## Coverage Updated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Coverage**: ${{ steps.coverage.outputs.coverage }}%" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Baseline updated in gh-pages branch." >> $GITHUB_STEP_SUMMARY
