@@ -45,10 +45,16 @@ jobs:
           cache: true
 
       - name: Run tests with coverage
-        run: ./scripts/extract-coverage.sh
+        run: go test -v -race -coverprofile=coverage.out ./...
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/testdb?sslmode=disable
           REDIS_URL: redis://localhost:6379
+
+      - name: Extract coverage percentage
+        run: |
+          COVERAGE=$(./scripts/extract-coverage.sh)
+          echo "COVERAGE=${COVERAGE}" >> $GITHUB_ENV
+          echo "Coverage: ${COVERAGE}%"
 
       - name: Update coverage baseline
         run: |
