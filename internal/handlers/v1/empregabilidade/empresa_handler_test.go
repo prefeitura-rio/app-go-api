@@ -39,7 +39,7 @@ func (m *mockEmpresaRepoEmpH) GetByID(_ context.Context, _ string) (*empmodels.E
 	return m.entity, m.err
 }
 func (m *mockEmpresaRepoEmpH) Update(_ context.Context, _ *empmodels.Empresa) error { return m.err }
-func (m *mockEmpresaRepoEmpH) Delete(_ context.Context, _ string) error              { return m.err }
+func (m *mockEmpresaRepoEmpH) Delete(_ context.Context, _ string) error             { return m.err }
 func (m *mockEmpresaRepoEmpH) List(_ context.Context, _ empmodels.EmpresaFilter, _, _ int) ([]*empmodels.Empresa, int, error) {
 	return m.listItems, m.listTotal, m.err
 }

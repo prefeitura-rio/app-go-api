@@ -9,8 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	handlers "github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade"
-	empmodels "github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
+	empmodels "github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
@@ -161,11 +161,11 @@ func TestOnboardingHandler_MarkCompleted_ServiceError(t *testing.T) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 type mockTermosUsoRepoH struct {
-	entity        *empmodels.TermosUso
-	hasAccepted   bool
-	err           error
-	upsertErr     error
-	acceptErr     error
+	entity      *empmodels.TermosUso
+	hasAccepted bool
+	err         error
+	upsertErr   error
+	acceptErr   error
 }
 
 func (m *mockTermosUsoRepoH) GetByCPF(_ context.Context, _ string) (*empmodels.TermosUso, error) {

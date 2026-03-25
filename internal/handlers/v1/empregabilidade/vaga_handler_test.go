@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	handlers "github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade"
-	empmodels "github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
+	empmodels "github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 

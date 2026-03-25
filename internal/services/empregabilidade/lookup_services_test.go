@@ -896,7 +896,7 @@ func TestDisponibilidadeService_CRUD(t *testing.T) {
 // ─── Empresa ─────────────────────────────────────────────────────────────────
 
 type mockEmpresaRepo struct {
-	items    map[string]*empregabilidade.Empresa
+	items     map[string]*empregabilidade.Empresa
 	createErr error
 }
 
@@ -1010,7 +1010,7 @@ func TestEmpresaService_CRUD(t *testing.T) {
 // ─── Onboarding ───────────────────────────────────────────────────────────────
 
 type mockOnboardingRepo struct {
-	items map[string]*empregabilidade.Onboarding
+	items  map[string]*empregabilidade.Onboarding
 	getErr error
 }
 

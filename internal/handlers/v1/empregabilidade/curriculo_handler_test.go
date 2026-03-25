@@ -19,13 +19,13 @@ import (
 // ──────────────────────────────────────────────────────────────────────────────
 
 type mockCurriculoRepoH struct {
-	formacao       *empmodels.CurriculoFormacao
-	idioma         *empmodels.CurriculoIdioma
-	curso          *empmodels.CurriculoCursoComplementar
-	experiencia    *empmodels.CurriculoExperiencia
-	conquista      *empmodels.CurriculoConquista
-	situacao       *empmodels.CurriculoSituacaoInteresses
-	err            error
+	formacao    *empmodels.CurriculoFormacao
+	idioma      *empmodels.CurriculoIdioma
+	curso       *empmodels.CurriculoCursoComplementar
+	experiencia *empmodels.CurriculoExperiencia
+	conquista   *empmodels.CurriculoConquista
+	situacao    *empmodels.CurriculoSituacaoInteresses
+	err         error
 }
 
 // Formação

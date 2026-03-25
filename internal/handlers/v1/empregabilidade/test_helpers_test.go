@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	errTest  = fmt.Errorf("simulated error")
+	errTest   = fmt.Errorf("simulated error")
 	validUUID = "550e8400-e29b-41d4-a716-446655440000"
 )
 

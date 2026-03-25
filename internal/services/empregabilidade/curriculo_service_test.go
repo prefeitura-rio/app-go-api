@@ -51,7 +51,6 @@ func (m *mockCurriculoRepo) ListFormacoesByCPF(_ context.Context, _ string) ([]*
 	return m.formacoes, m.err
 }
 
-
 func (m *mockCurriculoRepo) CreateIdioma(_ context.Context, _ *empregabilidade.CurriculoIdioma) (uuid.UUID, error) {
 	return uuid.New(), m.err
 }

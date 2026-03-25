@@ -707,8 +707,10 @@ func (m *mockNivelIdiomaRepoH) Create(_ context.Context, _ *empmodels.NivelIdiom
 func (m *mockNivelIdiomaRepoH) GetByID(_ context.Context, _ uuid.UUID) (*empmodels.NivelIdioma, error) {
 	return m.entity, m.err
 }
-func (m *mockNivelIdiomaRepoH) Update(_ context.Context, _ *empmodels.NivelIdioma) error { return m.err }
-func (m *mockNivelIdiomaRepoH) Delete(_ context.Context, _ uuid.UUID) error              { return m.err }
+func (m *mockNivelIdiomaRepoH) Update(_ context.Context, _ *empmodels.NivelIdioma) error {
+	return m.err
+}
+func (m *mockNivelIdiomaRepoH) Delete(_ context.Context, _ uuid.UUID) error { return m.err }
 func (m *mockNivelIdiomaRepoH) List(_ context.Context, _ map[string]interface{}, _, _ int) ([]*empmodels.NivelIdioma, int, error) {
 	return m.listItems, m.listTotal, m.err
 }
@@ -819,8 +821,10 @@ func (m *mockEscolaridadeRepoH) Create(_ context.Context, _ *empmodels.Escolarid
 func (m *mockEscolaridadeRepoH) GetByID(_ context.Context, _ uuid.UUID) (*empmodels.Escolaridade, error) {
 	return m.entity, m.err
 }
-func (m *mockEscolaridadeRepoH) Update(_ context.Context, _ *empmodels.Escolaridade) error { return m.err }
-func (m *mockEscolaridadeRepoH) Delete(_ context.Context, _ uuid.UUID) error               { return m.err }
+func (m *mockEscolaridadeRepoH) Update(_ context.Context, _ *empmodels.Escolaridade) error {
+	return m.err
+}
+func (m *mockEscolaridadeRepoH) Delete(_ context.Context, _ uuid.UUID) error { return m.err }
 func (m *mockEscolaridadeRepoH) List(_ context.Context, _ map[string]interface{}, _, _ int) ([]*empmodels.Escolaridade, int, error) {
 	return m.listItems, m.listTotal, m.err
 }
@@ -931,8 +935,10 @@ func (m *mockTipoConquistaRepoH) Create(_ context.Context, _ *empmodels.TipoConq
 func (m *mockTipoConquistaRepoH) GetByID(_ context.Context, _ uuid.UUID) (*empmodels.TipoConquista, error) {
 	return m.entity, m.err
 }
-func (m *mockTipoConquistaRepoH) Update(_ context.Context, _ *empmodels.TipoConquista) error { return m.err }
-func (m *mockTipoConquistaRepoH) Delete(_ context.Context, _ uuid.UUID) error                { return m.err }
+func (m *mockTipoConquistaRepoH) Update(_ context.Context, _ *empmodels.TipoConquista) error {
+	return m.err
+}
+func (m *mockTipoConquistaRepoH) Delete(_ context.Context, _ uuid.UUID) error { return m.err }
 func (m *mockTipoConquistaRepoH) List(_ context.Context, _ map[string]interface{}, _, _ int) ([]*empmodels.TipoConquista, int, error) {
 	return m.listItems, m.listTotal, m.err
 }
@@ -1043,8 +1049,10 @@ func (m *mockSituacaoAtualRepoH) Create(_ context.Context, _ *empmodels.Situacao
 func (m *mockSituacaoAtualRepoH) GetByID(_ context.Context, _ uuid.UUID) (*empmodels.SituacaoAtual, error) {
 	return m.entity, m.err
 }
-func (m *mockSituacaoAtualRepoH) Update(_ context.Context, _ *empmodels.SituacaoAtual) error { return m.err }
-func (m *mockSituacaoAtualRepoH) Delete(_ context.Context, _ uuid.UUID) error                { return m.err }
+func (m *mockSituacaoAtualRepoH) Update(_ context.Context, _ *empmodels.SituacaoAtual) error {
+	return m.err
+}
+func (m *mockSituacaoAtualRepoH) Delete(_ context.Context, _ uuid.UUID) error { return m.err }
 func (m *mockSituacaoAtualRepoH) List(_ context.Context, _ map[string]interface{}, _, _ int) ([]*empmodels.SituacaoAtual, int, error) {
 	return m.listItems, m.listTotal, m.err
 }
@@ -1155,8 +1163,10 @@ func (m *mockDisponibilidadeRepoH) Create(_ context.Context, _ *empmodels.Dispon
 func (m *mockDisponibilidadeRepoH) GetByID(_ context.Context, _ uuid.UUID) (*empmodels.Disponibilidade, error) {
 	return m.entity, m.err
 }
-func (m *mockDisponibilidadeRepoH) Update(_ context.Context, _ *empmodels.Disponibilidade) error { return m.err }
-func (m *mockDisponibilidadeRepoH) Delete(_ context.Context, _ uuid.UUID) error                  { return m.err }
+func (m *mockDisponibilidadeRepoH) Update(_ context.Context, _ *empmodels.Disponibilidade) error {
+	return m.err
+}
+func (m *mockDisponibilidadeRepoH) Delete(_ context.Context, _ uuid.UUID) error { return m.err }
 func (m *mockDisponibilidadeRepoH) List(_ context.Context, _ map[string]interface{}, _, _ int) ([]*empmodels.Disponibilidade, int, error) {
 	return m.listItems, m.listTotal, m.err
 }
