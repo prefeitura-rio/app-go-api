@@ -44,6 +44,12 @@ func NewInscricaoService(
 	}
 }
 
+// SetCitizenDataFetcher allows late-binding of the citizen data fetcher, e.g. after
+// the citizen sync worker has been started by the application bootstrap.
+func (s *InscricaoService) SetCitizenDataFetcher(fetcher CitizenDataFetcher) {
+	s.citizenDataFetcher = fetcher
+}
+
 func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscricao) error {
 	// Validate course exists and can accept enrollments (lightweight query)
 	status, enrollmentStart, enrollmentEnd, autoApprove, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)

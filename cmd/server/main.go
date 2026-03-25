@@ -9,10 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-
 	"github.com/redis/go-redis/v9"
 
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
@@ -22,7 +18,9 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/router"
 	"github.com/prefeitura-rio/app-go-api/internal/workers"
-	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // @title API Go
@@ -48,7 +46,6 @@ import (
 
 // @Security BearerAuth
 func main() {
-	// Carrega configurações
 	log.Println("Carregando configurações...")
 	cfg, err := config.Load()
 	if err != nil {
@@ -61,130 +58,46 @@ func main() {
 	}
 	defer observability.ShutdownTracer()
 
-	// Conecta ao banco de dados usando GORM
-	dsn := cfg.Database.DSN()
-
-	// Configura o logger do GORM de acordo com o ambiente
-	var logMode logger.LogLevel
-	if cfg.App.IsDevelopment() {
-		logMode = logger.Info
-	} else {
-		logMode = logger.Silent
-	}
-
-	gormConfig := &gorm.Config{
-		Logger: logger.Default.LogMode(logMode),
-	}
-
-	log.Println("Tentando conectar ao banco de dados...")
-	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
-	if err != nil {
-		log.Fatalf("Erro ao conectar ao banco de dados: %v", err)
-	}
-	log.Println("Conexão com o banco de dados estabelecida com sucesso!")
-
-	// Configure connection pool for optimal performance under high load
-	sqlDB, err := db.DB()
-	if err != nil {
-		log.Fatalf("Erro ao obter database/sql DB: %v", err)
-	}
-
-	sqlDB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
-	sqlDB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
-	sqlDB.SetConnMaxLifetime(time.Duration(cfg.Database.ConnMaxLifetime) * time.Minute)
-	sqlDB.SetConnMaxIdleTime(time.Duration(cfg.Database.ConnMaxIdleTime) * time.Minute)
-
-	log.Printf("Database connection pool configured: MaxOpen=%d, MaxIdle=%d, MaxLifetime=%dm, MaxIdleTime=%dm",
-		cfg.Database.MaxOpenConns, cfg.Database.MaxIdleConns,
-		cfg.Database.ConnMaxLifetime, cfg.Database.ConnMaxIdleTime)
-
-	// Add OpenTelemetry instrumentation to GORM (if tracing is enabled)
-	if cfg.Tracing.Enabled {
-		if err := db.Use(otelgorm.NewPlugin()); err != nil {
-			log.Fatalf("Erro ao adicionar plugin OTEL ao GORM: %v", err)
-		}
-		log.Println("GORM OpenTelemetry instrumentation enabled")
-	}
-
-	// Auto-migração do GORM (opcional)
+	// Run database migrations if enabled.
+	// Wire owns the primary DB connection; we open a short-lived connection
+	// here solely for migrations, then close it.
 	if cfg.Migrations.Run {
-		log.Println("Iniciando auto-migração...")
-		// Migrar apenas as tabelas básicas que já existem
-		// Nota: Categoria foi removida do AutoMigrate pois é gerenciada via migrations SQL
-		err = db.AutoMigrate(
-			&models.Curso{},
-			&models.Emprego{},
-			&models.Acessibilidade{},
-			&models.InstituicaoEnsino{},
-			&models.Empresa{},
-			&models.Escolaridade{},
-			&models.CursoCategoria{},
-			&models.CursoAcessibilidade{},
-		)
-		if err != nil {
-			log.Fatalf("Erro ao executar auto-migração básica: %v", err)
-		}
-
-		// Tentar migrar as novas tabelas individualmente para melhor controle de erros
-		log.Println("Migrando tabelas de inscrições...")
-		err = db.AutoMigrate(&models.Inscricao{})
-		if err != nil {
-			log.Printf("Aviso: Erro ao migrar tabela inscricoes: %v", err)
-		}
-
-		err = db.AutoMigrate(&models.CustomField{})
-		if err != nil {
-			log.Printf("Aviso: Erro ao migrar tabela custom_fields: %v", err)
-		}
-
-		err = db.AutoMigrate(&models.LocationClass{})
-		if err != nil {
-			log.Printf("Aviso: Erro ao migrar tabela location_classes: %v", err)
-		}
-
-		err = db.AutoMigrate(&models.RemoteClass{})
-		if err != nil {
-			log.Printf("Aviso: Erro ao migrar tabela remote_classes: %v", err)
-		}
-
-		log.Println("Migrando tabela de jobs...")
-		err = db.AutoMigrate(&models.Job{})
-		if err != nil {
-			log.Printf("Aviso: Erro ao migrar tabela jobs: %v", err)
-		}
-
-		log.Println("Auto-migração concluída!")
+		runMigrations(cfg)
 	}
 
-	// Configura o router
-	r := router.SetupRouter(db, cfg)
+	// Set up router (Wire initializes all dependencies internally)
+	r, err := router.SetupRouter(cfg)
+	if err != nil {
+		log.Fatalf("Erro ao inicializar router: %v", err)
+	}
 
-	// Initialize orgao sync worker if enabled
+	// Initialize orgao sync worker if enabled (uses its own DB/Redis connections)
 	var workerCtx context.Context
 	var workerCancel context.CancelFunc
 
 	if cfg.OrgaoSync.Enabled {
 		log.Println("Initializing orgao sync worker...")
 
-		// Create RMI client for worker
 		rmiClient := clients.NewRMIClient(cfg.RMI.BaseURL, 30*time.Second)
-
-		// Create Redis client for distributed locking (ensures only one pod runs sync at a time)
 		workerRedis := redis.NewClient(&redis.Options{
 			Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
 			Password: cfg.Redis.Password,
 			DB:       cfg.Redis.DB,
 		})
 
-		// Create repositories
-		orgaoSnapshotRepo := repository.NewOrgaoSnapshotRepository(db)
-		cursoRepo := repository.NewCursoRepository(db)
-		empregoRepo := repository.NewEmpregoRepository(db)
-		oportunidadeMEIRepo := repository.NewOportunidadeMEIRepository(db)
+		// Open a dedicated DB connection for the worker
+		workerDB, err := openDB(cfg)
+		if err != nil {
+			log.Fatalf("Erro ao conectar ao banco de dados para worker: %v", err)
+		}
 
-		// Create worker
+		orgaoSnapshotRepo := repository.NewOrgaoSnapshotRepository(workerDB)
+		cursoRepo := repository.NewCursoRepository(workerDB)
+		empregoRepo := repository.NewEmpregoRepository(workerDB)
+		oportunidadeMEIRepo := repository.NewOportunidadeMEIRepository(workerDB)
+
 		worker := workers.NewOrgaoSyncWorker(
-			db,
+			workerDB,
 			rmiClient,
 			workerRedis,
 			orgaoSnapshotRepo,
@@ -194,7 +107,6 @@ func main() {
 			&cfg.OrgaoSync,
 		)
 
-		// Start worker in background
 		workerCtx, workerCancel = context.WithCancel(context.Background())
 		go func() {
 			if err := worker.Start(workerCtx); err != nil && err != context.Canceled {
@@ -208,11 +120,10 @@ func main() {
 		log.Println("Orgao sync worker disabled")
 	}
 
-	// Setup graceful shutdown
+	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// Start server in goroutine
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("Servidor iniciado em %s", addr)
 
@@ -222,15 +133,87 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal
 	<-quit
 	log.Println("Shutting down server...")
 
-	// Cancel worker context if worker is running
 	if workerCancel != nil {
 		log.Println("Stopping orgao sync worker...")
 		workerCancel()
 	}
 
 	log.Println("Server shutdown complete")
+}
+
+// openDB opens a GORM database connection using the application configuration.
+func openDB(cfg *config.AppConfig) (*gorm.DB, error) {
+	var logMode logger.LogLevel
+	if cfg.App.IsDevelopment() {
+		logMode = logger.Info
+	} else {
+		logMode = logger.Silent
+	}
+
+	db, err := gorm.Open(postgres.Open(cfg.Database.DSN()), &gorm.Config{
+		Logger: logger.Default.LogMode(logMode),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sql.DB: %w", err)
+	}
+	sqlDB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(time.Duration(cfg.Database.ConnMaxLifetime) * time.Minute)
+	sqlDB.SetConnMaxIdleTime(time.Duration(cfg.Database.ConnMaxIdleTime) * time.Minute)
+
+	return db, nil
+}
+
+// runMigrations runs GORM auto-migrations using a temporary database connection.
+func runMigrations(cfg *config.AppConfig) {
+	log.Println("Iniciando auto-migração...")
+
+	db, err := openDB(cfg)
+	if err != nil {
+		log.Fatalf("Erro ao conectar ao banco de dados para migração: %v", err)
+	}
+
+	err = db.AutoMigrate(
+		&models.Curso{},
+		&models.Emprego{},
+		&models.Acessibilidade{},
+		&models.InstituicaoEnsino{},
+		&models.Empresa{},
+		&models.Escolaridade{},
+		&models.CursoCategoria{},
+		&models.CursoAcessibilidade{},
+	)
+	if err != nil {
+		log.Fatalf("Erro ao executar auto-migração básica: %v", err)
+	}
+
+	migrateTable := func(model interface{}, name string) {
+		if err := db.AutoMigrate(model); err != nil {
+			log.Printf("Aviso: Erro ao migrar tabela %s: %v", name, err)
+		}
+	}
+
+	log.Println("Migrando tabelas de inscrições...")
+	migrateTable(&models.Inscricao{}, "inscricoes")
+	migrateTable(&models.CustomField{}, "custom_fields")
+	migrateTable(&models.LocationClass{}, "location_classes")
+	migrateTable(&models.RemoteClass{}, "remote_classes")
+
+	log.Println("Migrando tabela de jobs...")
+	migrateTable(&models.Job{}, "jobs")
+
+	log.Println("Auto-migração concluída!")
+
+	// Close the migration-only DB connection
+	if sqlDB, err := db.DB(); err == nil {
+		_ = sqlDB.Close()
+	}
 }

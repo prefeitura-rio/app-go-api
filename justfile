@@ -38,11 +38,30 @@ lint-fix:
     @echo "✅ Auto-fix complete!"
 
 # ==============================================================================
+# Wire Dependency Injection
+# ==============================================================================
+
+# Generate Wire code
+wire-gen:
+    #!/bin/bash
+    echo "Generating Wire dependency injection code..."
+    go install github.com/google/wire/cmd/wire@latest
+    cd internal/wire && $(go env GOPATH)/bin/wire
+    echo "✅ Wire code generated!"
+
+# Verify Wire configuration (dry-run)
+wire-check:
+    #!/bin/bash
+    echo "Checking Wire configuration..."
+    cd internal/wire && $(go env GOPATH)/bin/wire check
+    echo "✅ Wire configuration valid!"
+
+# ==============================================================================
 # Testing
 # ==============================================================================
 
 # Run all tests with race detection (like CI)
-test:
+test: wire-gen
     @echo "Running tests with race detection..."
     @go test -v -race ./...
 
@@ -75,7 +94,7 @@ test-e2e url="http://localhost:8080":
 # ==============================================================================
 
 # Build the server binary
-build:
+build: wire-gen
     @echo "Building server binary..."
     @mkdir -p bin
     @go build -o bin/server cmd/server/main.go
