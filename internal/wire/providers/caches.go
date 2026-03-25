@@ -11,9 +11,9 @@ import (
 // ReferenceCaches bundles the three reference-data Redis caches to avoid
 // Wire ambiguity caused by all three having the same *cache.ReferenceDataCache type.
 type ReferenceCaches struct {
-	Categorias     *cache.ReferenceDataCache
+	Categorias      *cache.ReferenceDataCache
 	Acessibilidades *cache.ReferenceDataCache
-	Escolaridades  *cache.ReferenceDataCache
+	Escolaridades   *cache.ReferenceDataCache
 }
 
 // ProvideReferenceCaches creates all three reference-data caches (1-hour TTL each)

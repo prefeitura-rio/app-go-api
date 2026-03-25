@@ -31,7 +31,7 @@ func SetupRouter(cfg *config.AppConfig) (*gin.Engine, error) {
 	if cfg.Tracing.Enabled {
 		r.Use(otelgin.Middleware(cfg.Tracing.ServiceName))
 	}
-	r.Use(middlewares.TimeoutMiddleware(time.Duration(cfg.Server.RequestTimeout)*time.Second))
+	r.Use(middlewares.TimeoutMiddleware(time.Duration(cfg.Server.RequestTimeout) * time.Second))
 	r.Use(middlewares.CorsMiddleware())
 
 	r.GET("/docs/*any", middlewares.DynamicSwaggerHandler())

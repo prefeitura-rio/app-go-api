@@ -60,7 +60,7 @@ func TestAcessibilidadePCD_IsInvalid(t *testing.T) {
 
 func TestVaga_UpdateStatusBasedOnExpiration_NilDataLimite(t *testing.T) {
 	v := &Vaga{
-		Status:    StatusVagaPublicadoAtivo,
+		Status:     StatusVagaPublicadoAtivo,
 		DataLimite: nil,
 	}
 	v.UpdateStatusBasedOnExpiration()
@@ -72,7 +72,7 @@ func TestVaga_UpdateStatusBasedOnExpiration_NilDataLimite(t *testing.T) {
 func TestVaga_UpdateStatusBasedOnExpiration_Expired_ActiveToExpired(t *testing.T) {
 	past := time.Now().Add(-24 * time.Hour)
 	v := &Vaga{
-		Status:    StatusVagaPublicadoAtivo,
+		Status:     StatusVagaPublicadoAtivo,
 		DataLimite: &past,
 	}
 	v.UpdateStatusBasedOnExpiration()
@@ -84,7 +84,7 @@ func TestVaga_UpdateStatusBasedOnExpiration_Expired_ActiveToExpired(t *testing.T
 func TestVaga_UpdateStatusBasedOnExpiration_Expired_NonActiveUnchanged(t *testing.T) {
 	past := time.Now().Add(-24 * time.Hour)
 	v := &Vaga{
-		Status:    StatusVagaEmEdicao,
+		Status:     StatusVagaEmEdicao,
 		DataLimite: &past,
 	}
 	v.UpdateStatusBasedOnExpiration()
@@ -96,7 +96,7 @@ func TestVaga_UpdateStatusBasedOnExpiration_Expired_NonActiveUnchanged(t *testin
 func TestVaga_UpdateStatusBasedOnExpiration_NotExpired_ExpiredToActive(t *testing.T) {
 	future := time.Now().Add(24 * time.Hour)
 	v := &Vaga{
-		Status:    StatusVagaPublicadoExpirado,
+		Status:     StatusVagaPublicadoExpirado,
 		DataLimite: &future,
 	}
 	v.UpdateStatusBasedOnExpiration()
@@ -108,7 +108,7 @@ func TestVaga_UpdateStatusBasedOnExpiration_NotExpired_ExpiredToActive(t *testin
 func TestVaga_UpdateStatusBasedOnExpiration_NotExpired_NonExpiredUnchanged(t *testing.T) {
 	future := time.Now().Add(24 * time.Hour)
 	v := &Vaga{
-		Status:    StatusVagaEmEdicao,
+		Status:     StatusVagaEmEdicao,
 		DataLimite: &future,
 	}
 	v.UpdateStatusBasedOnExpiration()
