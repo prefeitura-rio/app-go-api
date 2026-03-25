@@ -2,14 +2,16 @@ package middlewares
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 // TimeoutMiddleware adds a timeout to all requests to prevent long-running
-// queries from accumulating under high load
+// queries from accumulating under high load.
+//
+// This middleware sets a timeout context for the request. Handlers should
+// check c.Request.Context().Done() to respect the timeout.
 func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Create a context with timeout
@@ -19,24 +21,8 @@ func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
 		// Replace request context with timeout context
 		c.Request = c.Request.WithContext(ctx)
 
-		// Channel to signal completion
-		finished := make(chan struct{})
-
-		go func() {
-			c.Next()
-			close(finished)
-		}()
-
-		select {
-		case <-finished:
-			// Request completed successfully
-			return
-		case <-ctx.Done():
-			// Timeout occurred
-			c.AbortWithStatusJSON(http.StatusGatewayTimeout, gin.H{
-				"error": "Request timeout - operation took too long to complete",
-			})
-			return
-		}
+		// Continue with the request
+		// Handlers are responsible for checking ctx.Done() to respect timeout
+		c.Next()
 	}
 }

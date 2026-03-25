@@ -63,13 +63,13 @@ func TestExtractUserContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name           string
-		setupHeaders   func(*httptest.ResponseRecorder, *gin.Context)
-		expectCPF      string
-		expectRole     string
-		expectUserID   string
-		expectName     string
-		expectEmail    string
+		name         string
+		setupHeaders func(*httptest.ResponseRecorder, *gin.Context)
+		expectCPF    string
+		expectRole   string
+		expectUserID string
+		expectName   string
+		expectEmail  string
 	}{
 		{
 			name: "extract_from_authorization_header",
@@ -239,12 +239,12 @@ func TestRequireOwnershipOrAdmin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name           string
-		ownerCPF       string
-		userCPF        string
-		userRole       string
-		expectStatus   int
-		expectAbort    bool
+		name         string
+		ownerCPF     string
+		userCPF      string
+		userRole     string
+		expectStatus int
+		expectAbort  bool
 	}{
 		{
 			name:         "admin_access_allowed",

@@ -38,9 +38,14 @@ func TestTimeout_Exceeded(t *testing.T) {
 	router.Use(TimeoutMiddleware(100 * time.Millisecond))
 
 	router.GET("/test", func(c *gin.Context) {
-		// Slow handler that exceeds timeout
-		time.Sleep(500 * time.Millisecond)
-		c.String(http.StatusOK, "This should not be returned")
+		// Handler that respects context timeout
+		select {
+		case <-time.After(500 * time.Millisecond):
+			c.String(http.StatusOK, "This should not be returned")
+		case <-c.Request.Context().Done():
+			c.String(http.StatusRequestTimeout, "Request timeout")
+			return
+		}
 	})
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -48,7 +53,7 @@ func TestTimeout_Exceeded(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusGatewayTimeout, w.Code)
+	assert.Equal(t, http.StatusRequestTimeout, w.Code)
 	assert.Contains(t, w.Body.String(), "timeout")
 }
 
@@ -74,7 +79,7 @@ func TestTimeout_ChecksContext(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	// The timeout should trigger (either 408 or 504 depending on when context was checked)
-	assert.True(t, w.Code == http.StatusRequestTimeout || w.Code == http.StatusGatewayTimeout,
-		"Expected timeout status code (408 or 504), got %d", w.Code)
+	// The timeout should trigger and handler should respond
+	assert.Equal(t, http.StatusRequestTimeout, w.Code)
+	assert.Contains(t, w.Body.String(), "Cancelled")
 }

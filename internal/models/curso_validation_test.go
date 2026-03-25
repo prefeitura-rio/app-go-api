@@ -31,9 +31,9 @@ func TestModalidade_IsValid(t *testing.T) {
 
 func TestModalidade_Normalize(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      Modalidade
-		expected   Modalidade
+		name     string
+		input    Modalidade
+		expected Modalidade
 	}{
 		{"presencial_uppercase_maps", "PRESENCIAL", ModalidadePresencial},
 		{"online_maps_to_remoto", "ONLINE", ModalidadeRemoto},
