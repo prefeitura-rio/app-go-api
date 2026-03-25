@@ -21,6 +21,11 @@ jobs:
           go-version: '1.22'
           cache: true
 
+      - name: Generate Wire Code
+        run: |
+          go install github.com/google/wire/cmd/wire@latest
+          cd internal/wire && $(go env GOPATH)/bin/wire
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
