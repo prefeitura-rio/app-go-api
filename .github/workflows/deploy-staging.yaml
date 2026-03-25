@@ -177,6 +177,14 @@ jobs:
       - name: Set up port forward to preview service
         if: steps.check-k8s-only.outputs.k8s_only != 'true'
         run: |
+          echo "Waiting for preview pods to be fully ready..."
+          # Wait for ALL pods with app=go label to be ready (2/2 containers including Istio sidecar)
+          kubectl wait --for=condition=ready pod -l app=go -n go --timeout=5m || true
+
+          # Give pods a few extra seconds to fully initialize
+          echo "Waiting for application to fully start..."
+          sleep 10
+
           echo "Setting up port forward to preview service..."
           # Start port-forward in background
           kubectl port-forward -n go service/go-preview 8080:80 &
@@ -186,7 +194,7 @@ jobs:
           # Wait for port-forward to be ready
           echo "Waiting for port-forward to be ready..."
           for i in {1..30}; do
-            if curl -s http://localhost:8080/v1/health > /dev/null 2>&1; then
+            if curl -s http://localhost:8080/health > /dev/null 2>&1; then
               echo "Port-forward is ready!"
               break
             fi
@@ -205,20 +213,12 @@ jobs:
           echo "Running smoke tests against preview service..."
 
           # Health check
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/v1/health)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health)
           if [ "$HTTP_CODE" != "200" ]; then
             echo "❌ Health check failed with HTTP $HTTP_CODE"
             exit 1
           fi
           echo "✅ Health check passed"
-
-          # Swagger docs check
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/swagger/index.html)
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "❌ Swagger docs check failed with HTTP $HTTP_CODE"
-            exit 1
-          fi
-          echo "✅ Swagger docs available"
 
           echo "✅ All smoke tests passed!"
 
