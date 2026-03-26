@@ -9,10 +9,14 @@ import (
 )
 
 type ModeloTrabalhoService struct {
-	repo *repository.ModeloTrabalhoRepository
+	repo ModeloTrabalhoRepositoryInterface
 }
 
 func NewModeloTrabalhoService(repo *repository.ModeloTrabalhoRepository) *ModeloTrabalhoService {
+	return &ModeloTrabalhoService{repo: repo}
+}
+
+func NewModeloTrabalhoServiceWithInterface(repo ModeloTrabalhoRepositoryInterface) *ModeloTrabalhoService {
 	return &ModeloTrabalhoService{repo: repo}
 }
 

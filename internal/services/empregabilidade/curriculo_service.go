@@ -9,10 +9,14 @@ import (
 )
 
 type CurriculoService struct {
-	repo *repository.CurriculoRepository
+	repo CurriculoRepositoryInterface
 }
 
 func NewCurriculoService(repo *repository.CurriculoRepository) *CurriculoService {
+	return &CurriculoService{repo: repo}
+}
+
+func NewCurriculoServiceWithInterface(repo CurriculoRepositoryInterface) *CurriculoService {
 	return &CurriculoService{repo: repo}
 }
 

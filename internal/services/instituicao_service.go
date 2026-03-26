@@ -8,13 +8,17 @@ import (
 )
 
 type InstituicaoService struct {
-	repo *repository.InstituicaoRepository
+	repo InstituicaoRepositoryInterface
 }
 
 func NewInstituicaoService(repo *repository.InstituicaoRepository) *InstituicaoService {
 	return &InstituicaoService{
 		repo: repo,
 	}
+}
+
+func NewInstituicaoServiceWithInterface(repo InstituicaoRepositoryInterface) *InstituicaoService {
+	return &InstituicaoService{repo: repo}
 }
 
 func (s *InstituicaoService) Create(ctx context.Context, instituicao *models.InstituicaoEnsino) (int, error) {

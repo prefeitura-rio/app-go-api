@@ -9,10 +9,14 @@ import (
 )
 
 type TipoConquistaService struct {
-	repo *repository.TipoConquistaRepository
+	repo TipoConquistaRepositoryInterface
 }
 
 func NewTipoConquistaService(repo *repository.TipoConquistaRepository) *TipoConquistaService {
+	return &TipoConquistaService{repo: repo}
+}
+
+func NewTipoConquistaServiceWithInterface(repo TipoConquistaRepositoryInterface) *TipoConquistaService {
 	return &TipoConquistaService{repo: repo}
 }
 

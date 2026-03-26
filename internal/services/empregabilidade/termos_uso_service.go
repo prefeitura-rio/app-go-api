@@ -8,10 +8,14 @@ import (
 )
 
 type TermosUsoService struct {
-	repo *repository.TermosUsoRepository
+	repo TermosUsoRepositoryInterface
 }
 
 func NewTermosUsoService(repo *repository.TermosUsoRepository) *TermosUsoService {
+	return &TermosUsoService{repo: repo}
+}
+
+func NewTermosUsoServiceWithInterface(repo TermosUsoRepositoryInterface) *TermosUsoService {
 	return &TermosUsoService{repo: repo}
 }
 

@@ -8,13 +8,17 @@ import (
 )
 
 type EmpregoService struct {
-	repo *repository.EmpregoRepository
+	repo EmpregoRepositoryInterface
 }
 
 func NewEmpregoService(repo *repository.EmpregoRepository) *EmpregoService {
 	return &EmpregoService{
 		repo: repo,
 	}
+}
+
+func NewEmpregoServiceWithInterface(repo EmpregoRepositoryInterface) *EmpregoService {
+	return &EmpregoService{repo: repo}
 }
 
 func (s *EmpregoService) Create(ctx context.Context, emprego *models.Emprego) (int, error) {

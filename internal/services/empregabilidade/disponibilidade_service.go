@@ -9,10 +9,14 @@ import (
 )
 
 type DisponibilidadeService struct {
-	repo *repository.DisponibilidadeRepository
+	repo DisponibilidadeRepositoryInterface
 }
 
 func NewDisponibilidadeService(repo *repository.DisponibilidadeRepository) *DisponibilidadeService {
+	return &DisponibilidadeService{repo: repo}
+}
+
+func NewDisponibilidadeServiceWithInterface(repo DisponibilidadeRepositoryInterface) *DisponibilidadeService {
 	return &DisponibilidadeService{repo: repo}
 }
 

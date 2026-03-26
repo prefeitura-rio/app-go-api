@@ -9,10 +9,14 @@ import (
 )
 
 type IdiomaService struct {
-	repo *repository.IdiomaRepository
+	repo IdiomaRepositoryInterface
 }
 
 func NewIdiomaService(repo *repository.IdiomaRepository) *IdiomaService {
+	return &IdiomaService{repo: repo}
+}
+
+func NewIdiomaServiceWithInterface(repo IdiomaRepositoryInterface) *IdiomaService {
 	return &IdiomaService{repo: repo}
 }
 

@@ -9,10 +9,14 @@ import (
 )
 
 type EtapaService struct {
-	repo *repository.EtapaRepository
+	repo EtapaRepositoryInterface
 }
 
 func NewEtapaService(repo *repository.EtapaRepository) *EtapaService {
+	return &EtapaService{repo: repo}
+}
+
+func NewEtapaServiceWithInterface(repo EtapaRepositoryInterface) *EtapaService {
 	return &EtapaService{repo: repo}
 }
 

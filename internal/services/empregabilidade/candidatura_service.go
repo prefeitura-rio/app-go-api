@@ -110,6 +110,12 @@ func NewCandidaturaService(
 	}
 }
 
+// SetCitizenDataFetcher allows late-binding of the citizen data fetcher, e.g. after
+// the citizen sync worker has been started by the application bootstrap.
+func (s *CandidaturaService) SetCitizenDataFetcher(fetcher CitizenDataFetcherForCandidaturaInterface) {
+	s.citizenDataFetcher = fetcher
+}
+
 func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade.Candidatura) (uuid.UUID, error) {
 	vaga, err := s.vagaRepo.GetByID(ctx, entity.IDVaga)
 	if err != nil {
