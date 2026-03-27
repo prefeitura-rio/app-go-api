@@ -330,9 +330,10 @@ func Initialize() error {
 		}
 	}
 
-	// Carregar configuração inicial
-	_, err := Get()
-	return err
+	// Note: We don't call Get() here to avoid circular dependency
+	// Get() -> once.Do(Load) -> Load() -> Initialize() -> Get() would deadlock
+	// The caller (Load or Get) will handle loading the config
+	return nil
 }
 
 // Load carrega configurações de variáveis de ambiente e arquivo .env
