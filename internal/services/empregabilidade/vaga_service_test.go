@@ -870,6 +870,88 @@ func TestVagaService_UnfreezeVaga_Errors(t *testing.T) {
 			t.Error("Expected error when vaga not frozen")
 		}
 	})
+
+	t.Run("Error when vaga not found", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		ctx := context.Background()
+		err := service.UnfreezeVaga(ctx, uuid.New())
+
+		if err == nil || err.Error() != "vaga não encontrada" {
+			t.Errorf("Expected 'vaga não encontrada', got: %v", err)
+		}
+	})
+
+	t.Run("Error when GetByID fails", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockVagaRepo.getError = errors.New("database error")
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		ctx := context.Background()
+		err := service.UnfreezeVaga(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+
+		if err.Error() != "database error" {
+			t.Errorf("Expected 'database error', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Error when BulkRestoreStatusByVagaID fails", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		mockCandidaturaRepo := &MockCandidaturaRepoForVaga{
+			restoreError: errors.New("restore failed"),
+		}
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaCongelada,
+		}
+
+		ctx := context.Background()
+		err := service.UnfreezeVaga(ctx, vagaID)
+
+		if err == nil {
+			t.Error("Expected error when BulkRestoreStatusByVagaID fails")
+		}
+
+		if err.Error() != "restore failed" {
+			t.Errorf("Expected 'restore failed', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Error when Update fails", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		mockCandidaturaRepo := &MockCandidaturaRepoForVaga{}
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaCongelada,
+		}
+		mockVagaRepo.updateError = errors.New("update failed")
+
+		ctx := context.Background()
+		err := service.UnfreezeVaga(ctx, vagaID)
+
+		if err == nil {
+			t.Error("Expected error when Update fails")
+		}
+
+		if err.Error() != "update failed" {
+			t.Errorf("Expected 'update failed', got '%s'", err.Error())
+		}
+	})
 }
 
 // ==================== DiscontinueVaga Tests ====================
@@ -930,6 +1012,88 @@ func TestVagaService_DiscontinueVaga_Errors(t *testing.T) {
 			t.Error("Expected error when discontinuing draft vaga")
 		}
 	})
+
+	t.Run("Error when vaga not found", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		ctx := context.Background()
+		err := service.DiscontinueVaga(ctx, uuid.New())
+
+		if err == nil || err.Error() != "vaga não encontrada" {
+			t.Errorf("Expected 'vaga não encontrada', got: %v", err)
+		}
+	})
+
+	t.Run("Error when GetByID fails", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockVagaRepo.getError = errors.New("database error")
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		ctx := context.Background()
+		err := service.DiscontinueVaga(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+
+		if err.Error() != "database error" {
+			t.Errorf("Expected 'database error', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Error when BulkSaveAndUpdateStatusByVagaID fails", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		mockCandidaturaRepo := &MockCandidaturaRepoForVaga{
+			saveError: errors.New("save failed"),
+		}
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaPublicadoAtivo,
+		}
+
+		ctx := context.Background()
+		err := service.DiscontinueVaga(ctx, vagaID)
+
+		if err == nil {
+			t.Error("Expected error when BulkSaveAndUpdateStatusByVagaID fails")
+		}
+
+		if err.Error() != "save failed" {
+			t.Errorf("Expected 'save failed', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Error when Update fails", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		mockCandidaturaRepo := &MockCandidaturaRepoForVaga{}
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaPublicadoAtivo,
+		}
+		mockVagaRepo.updateError = errors.New("update failed")
+
+		ctx := context.Background()
+		err := service.DiscontinueVaga(ctx, vagaID)
+
+		if err == nil {
+			t.Error("Expected error when Update fails")
+		}
+
+		if err.Error() != "update failed" {
+			t.Errorf("Expected 'update failed', got '%s'", err.Error())
+		}
+	})
 }
 
 // ==================== ReactivateVaga Tests ====================
@@ -977,6 +1141,88 @@ func TestVagaService_ReactivateVaga_Errors(t *testing.T) {
 
 		if err == nil {
 			t.Error("Expected error when reactivating non-discontinued vaga")
+		}
+	})
+
+	t.Run("Error when vaga not found", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		ctx := context.Background()
+		err := service.ReactivateVaga(ctx, uuid.New())
+
+		if err == nil || err.Error() != "vaga não encontrada" {
+			t.Errorf("Expected 'vaga não encontrada', got: %v", err)
+		}
+	})
+
+	t.Run("Error when GetByID fails", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockVagaRepo.getError = errors.New("database error")
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		ctx := context.Background()
+		err := service.ReactivateVaga(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+
+		if err.Error() != "database error" {
+			t.Errorf("Expected 'database error', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Error when BulkRestoreStatusByVagaID fails", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		mockCandidaturaRepo := &MockCandidaturaRepoForVaga{
+			restoreError: errors.New("restore failed"),
+		}
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaDescontinuada,
+		}
+
+		ctx := context.Background()
+		err := service.ReactivateVaga(ctx, vagaID)
+
+		if err == nil {
+			t.Error("Expected error when BulkRestoreStatusByVagaID fails")
+		}
+
+		if err.Error() != "restore failed" {
+			t.Errorf("Expected 'restore failed', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Error when Update fails", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		mockCandidaturaRepo := &MockCandidaturaRepoForVaga{}
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaDescontinuada,
+		}
+		mockVagaRepo.updateError = errors.New("update failed")
+
+		ctx := context.Background()
+		err := service.ReactivateVaga(ctx, vagaID)
+
+		if err == nil {
+			t.Error("Expected error when Update fails")
+		}
+
+		if err.Error() != "update failed" {
+			t.Errorf("Expected 'update failed', got '%s'", err.Error())
 		}
 	})
 }

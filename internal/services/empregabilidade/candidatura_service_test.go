@@ -3,6 +3,7 @@ package empregabilidade_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -522,6 +523,97 @@ func TestCandidaturaService_UpdateStatus(t *testing.T) {
 			t.Errorf("Expected error '%s', got '%s'", expectedMsg, err.Error())
 		}
 	})
+
+	t.Run("UpdateStatus candidatura not found", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.UpdateStatus(ctx, uuid.New(), empregabilidade.StatusCandidaturaAprovada)
+
+		if err == nil {
+			t.Error("Expected error when candidatura not found")
+		}
+
+		expectedMsg := "candidatura não encontrada"
+		if err.Error() != expectedMsg {
+			t.Errorf("Expected error '%s', got '%s'", expectedMsg, err.Error())
+		}
+	})
+
+	t.Run("UpdateStatus repository error", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockCandidaturaRepo.getError = errors.New("database error")
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.UpdateStatus(ctx, uuid.New(), empregabilidade.StatusCandidaturaAprovada)
+
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+
+		if err.Error() != "database error" {
+			t.Errorf("Expected 'database error', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("UpdateStatus invalid transition", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		id := uuid.New()
+		mockCandidaturaRepo.candidaturas[id] = &empregabilidade.Candidatura{
+			ID:     id,
+			Status: empregabilidade.StatusCandidaturaDescontinuada,
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
+
+		if err == nil {
+			t.Error("Expected error for invalid state transition")
+		}
+
+		if !strings.Contains(err.Error(), "transição de status inválida") {
+			t.Errorf("Expected transition error, got '%s'", err.Error())
+		}
+	})
+
+	t.Run("UpdateStatus update error", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		id := uuid.New()
+		mockCandidaturaRepo.candidaturas[id] = &empregabilidade.Candidatura{
+			ID:     id,
+			Status: empregabilidade.StatusCandidaturaEnviada,
+		}
+		mockCandidaturaRepo.updateStatusErr = errors.New("update failed")
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
+
+		if err == nil {
+			t.Error("Expected error when UpdateStatus fails")
+		}
+
+		if err.Error() != "update failed" {
+			t.Errorf("Expected 'update failed', got '%s'", err.Error())
+		}
+	})
 }
 
 func TestCandidaturaService_ApproveReject(t *testing.T) {
@@ -572,6 +664,188 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 
 		if mockCandidaturaRepo.candidaturas[id].Status != empregabilidade.StatusCandidaturaReprovada {
 			t.Error("Expected status to be rejected")
+		}
+	})
+
+	t.Run("Approve candidatura not found", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.Approve(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when candidatura not found")
+		}
+
+		expectedMsg := "candidatura não encontrada"
+		if err.Error() != expectedMsg {
+			t.Errorf("Expected error '%s', got '%s'", expectedMsg, err.Error())
+		}
+	})
+
+	t.Run("Reject candidatura not found", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.Reject(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when candidatura not found")
+		}
+
+		expectedMsg := "candidatura não encontrada"
+		if err.Error() != expectedMsg {
+			t.Errorf("Expected error '%s', got '%s'", expectedMsg, err.Error())
+		}
+	})
+
+	t.Run("Approve with repository error", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockCandidaturaRepo.getError = errors.New("database error")
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.Approve(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+
+		if err.Error() != "database error" {
+			t.Errorf("Expected 'database error', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Reject with repository error", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockCandidaturaRepo.getError = errors.New("database error")
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.Reject(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+
+		if err.Error() != "database error" {
+			t.Errorf("Expected 'database error', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Approve invalid state transition", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		id := uuid.New()
+		mockCandidaturaRepo.candidaturas[id] = &empregabilidade.Candidatura{
+			ID:     id,
+			Status: empregabilidade.StatusCandidaturaDescontinuada,
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.Approve(ctx, id)
+
+		if err == nil {
+			t.Error("Expected error for invalid state transition")
+		}
+
+		if !strings.Contains(err.Error(), "não pode ser aprovada") {
+			t.Errorf("Expected state transition error, got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Reject invalid state transition", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		id := uuid.New()
+		mockCandidaturaRepo.candidaturas[id] = &empregabilidade.Candidatura{
+			ID:     id,
+			Status: empregabilidade.StatusCandidaturaDescontinuada,
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.Reject(ctx, id)
+
+		if err == nil {
+			t.Error("Expected error for invalid state transition")
+		}
+
+		if !strings.Contains(err.Error(), "não pode ser reprovada") {
+			t.Errorf("Expected state transition error, got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Approve update status error", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		id := uuid.New()
+		mockCandidaturaRepo.candidaturas[id] = &empregabilidade.Candidatura{
+			ID:     id,
+			Status: empregabilidade.StatusCandidaturaEnviada,
+		}
+		mockCandidaturaRepo.updateStatusErr = errors.New("update failed")
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.Approve(ctx, id)
+
+		if err == nil {
+			t.Error("Expected error when UpdateStatus fails")
+		}
+
+		if err.Error() != "update failed" {
+			t.Errorf("Expected 'update failed', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Reject update status error", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		id := uuid.New()
+		mockCandidaturaRepo.candidaturas[id] = &empregabilidade.Candidatura{
+			ID:     id,
+			Status: empregabilidade.StatusCandidaturaEnviada,
+		}
+		mockCandidaturaRepo.updateStatusErr = errors.New("update failed")
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.Reject(ctx, id)
+
+		if err == nil {
+			t.Error("Expected error when UpdateStatus fails")
+		}
+
+		if err.Error() != "update failed" {
+			t.Errorf("Expected 'update failed', got '%s'", err.Error())
 		}
 	})
 }
@@ -921,6 +1195,98 @@ func TestCandidaturaService_BulkUpdateStatus_Errors(t *testing.T) {
 			t.Errorf("Expected 'lista de CPFs não pode ser vazia', got: %v", err)
 		}
 	})
+
+	t.Run("Invalid state transitions are filtered out", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		vagaID := uuid.New()
+		cpf1 := "11111111111"
+		cpf2 := "22222222222"
+
+		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
+			CPF:    cpf1,
+			IDVaga: vagaID,
+			Status: empregabilidade.StatusCandidaturaDescontinuada, // Cannot transition from discontinued
+		}
+		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
+			CPF:    cpf2,
+			IDVaga: vagaID,
+			Status: empregabilidade.StatusCandidaturaEnviada, // Can transition
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		result, err := service.BulkUpdateStatus(ctx, vagaID, []string{cpf1, cpf2}, empregabilidade.StatusCandidaturaAprovada)
+
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+
+		// Only cpf2 should be updated
+		if result.Updated != 1 {
+			t.Errorf("Expected 1 update, got %d", result.Updated)
+		}
+
+		if len(result.FailedCPFs) != 1 {
+			t.Errorf("Expected 1 failed CPF, got %d", len(result.FailedCPFs))
+		}
+
+		if len(result.FailedCPFs) > 0 && result.FailedCPFs[0] != cpf1 {
+			t.Errorf("Expected failed CPF to be %s, got %s", cpf1, result.FailedCPFs[0])
+		}
+	})
+
+	t.Run("BulkGetByCPFs error", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockCandidaturaRepo.listError = errors.New("database error")
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		_, err := service.BulkUpdateStatus(ctx, uuid.New(), []string{"12345678901"}, empregabilidade.StatusCandidaturaAprovada)
+
+		if err == nil {
+			t.Error("Expected error when BulkGetByCPFs fails")
+		}
+	})
+
+	t.Run("CPFs not found are marked as failed", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		vagaID := uuid.New()
+		cpf1 := "11111111111"
+		cpf2 := "22222222222" // Not in database
+
+		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
+			CPF:    cpf1,
+			IDVaga: vagaID,
+			Status: empregabilidade.StatusCandidaturaEnviada,
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		result, err := service.BulkUpdateStatus(ctx, vagaID, []string{cpf1, cpf2}, empregabilidade.StatusCandidaturaAprovada)
+
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+
+		if result.Updated != 1 {
+			t.Errorf("Expected 1 update, got %d", result.Updated)
+		}
+
+		if len(result.FailedCPFs) != 1 {
+			t.Errorf("Expected 1 failed CPF, got %d", len(result.FailedCPFs))
+		}
+	})
 }
 
 // ==================== BulkUpdateEtapa Tests ====================
@@ -1001,6 +1367,148 @@ func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
 
 		if err == nil || err.Error() != "etapa não pertence à vaga" {
 			t.Errorf("Expected 'etapa não pertence à vaga', got: %v", err)
+		}
+	})
+
+	t.Run("Error with empty CPF list", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		_, err := service.BulkUpdateEtapa(ctx, uuid.New(), []string{}, uuid.New())
+
+		if err == nil || err.Error() != "lista de CPFs não pode ser vazia" {
+			t.Errorf("Expected 'lista de CPFs não pode ser vazia', got: %v", err)
+		}
+	})
+
+	t.Run("Error when vaga repository fails", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockVagaRepo.getError = errors.New("database error")
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		_, err := service.BulkUpdateEtapa(ctx, uuid.New(), []string{"12345678901"}, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when vaga repository fails")
+		}
+
+		if err.Error() != "database error" {
+			t.Errorf("Expected 'database error', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("Error when BulkGetByCPFs fails", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockCandidaturaRepo.listError = errors.New("database error")
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		vagaID := uuid.New()
+		etapaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Etapas: []empregabilidade.Etapa{{ID: etapaID}},
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		_, err := service.BulkUpdateEtapa(ctx, vagaID, []string{"12345678901"}, etapaID)
+
+		if err == nil {
+			t.Error("Expected error when BulkGetByCPFs fails")
+		}
+	})
+
+	t.Run("Error when candidaturas have different etapas", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		vagaID := uuid.New()
+		etapaID := uuid.New()
+		etapa1 := uuid.New()
+		etapa2 := uuid.New()
+		cpf1 := "11111111111"
+		cpf2 := "22222222222"
+
+		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
+			CPF:           cpf1,
+			IDVaga:        vagaID,
+			IDEtapaAtual:  &etapa1,
+		}
+		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
+			CPF:           cpf2,
+			IDVaga:        vagaID,
+			IDEtapaAtual:  &etapa2,
+		}
+
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Etapas: []empregabilidade.Etapa{{ID: etapaID}},
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		_, err := service.BulkUpdateEtapa(ctx, vagaID, []string{cpf1, cpf2}, etapaID)
+
+		if err == nil {
+			t.Error("Expected error when candidaturas have different etapas")
+		}
+
+		if !strings.Contains(err.Error(), "mesma etapa") {
+			t.Errorf("Expected error about same etapa, got: %s", err.Error())
+		}
+	})
+
+	t.Run("Success with failed CPFs (not found)", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		vagaID := uuid.New()
+		etapaID := uuid.New()
+		cpf1 := "11111111111"
+		cpf2 := "22222222222" // Not in database
+
+		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
+			CPF:    cpf1,
+			IDVaga: vagaID,
+		}
+
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Etapas: []empregabilidade.Etapa{{ID: etapaID}},
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		result, err := service.BulkUpdateEtapa(ctx, vagaID, []string{cpf1, cpf2}, etapaID)
+
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+
+		if result.Updated != 1 {
+			t.Errorf("Expected 1 update, got %d", result.Updated)
+		}
+
+		if len(result.FailedCPFs) != 1 {
+			t.Errorf("Expected 1 failed CPF, got %d", len(result.FailedCPFs))
+		}
+
+		if len(result.FailedCPFs) > 0 && result.FailedCPFs[0] != cpf2 {
+			t.Errorf("Expected failed CPF to be %s, got %s", cpf2, result.FailedCPFs[0])
 		}
 	})
 }
