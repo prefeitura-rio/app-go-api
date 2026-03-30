@@ -134,6 +134,40 @@ func TestInscricaoRepository_UpdateStatus(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "não encontrada")
 	})
+
+	t.Run("update status with admin notes", func(t *testing.T) {
+		id := uuid.New()
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "inscricoes"`)).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.UpdateStatus(ctx, id, models.StatusInscricaoApproved, "", "Revisado pelo admin")
+		assert.NoError(t, err)
+	})
+
+	t.Run("update status to concluded sets concluded_at", func(t *testing.T) {
+		id := uuid.New()
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "inscricoes"`)).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.UpdateStatus(ctx, id, models.StatusInscricaoConcluded, "", "")
+		assert.NoError(t, err)
+	})
+
+	t.Run("update status database error", func(t *testing.T) {
+		id := uuid.New()
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "inscricoes"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.UpdateStatus(ctx, id, models.StatusInscricaoApproved, "", "")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao atualizar status")
+	})
 }
 
 func TestInscricaoRepository_GetByCursoID(t *testing.T) {
@@ -163,6 +197,82 @@ func TestInscricaoRepository_GetByCursoID(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 5, total)
 		assert.Len(t, inscricoes, 2)
+	})
+
+	t.Run("list by curso with search filter", func(t *testing.T) {
+		cursoID := 1
+		filter := map[string]interface{}{
+			"search": "joão",
+		}
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "inscricoes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+		rows := sqlmock.NewRows([]string{"id", "curso_id", "cpf", "name"}).
+			AddRow(uuid.New(), cursoID, "12345678901", "João Silva")
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "inscricoes"`)).
+			WillReturnRows(rows)
+
+		inscricoes, total, err := repo.GetByCursoID(ctx, cursoID, filter, 10, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, total)
+		assert.Len(t, inscricoes, 1)
+	})
+
+	t.Run("list by curso no filters", func(t *testing.T) {
+		cursoID := 1
+		filter := map[string]interface{}{}
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "inscricoes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(10))
+
+		rows := sqlmock.NewRows([]string{"id", "curso_id", "cpf"}).
+			AddRow(uuid.New(), cursoID, "12345678901")
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "inscricoes"`)).
+			WillReturnRows(rows)
+
+		inscricoes, total, err := repo.GetByCursoID(ctx, cursoID, filter, 10, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, 10, total)
+		assert.Len(t, inscricoes, 1)
+	})
+
+	t.Run("list by curso database error", func(t *testing.T) {
+		cursoID := 1
+		filter := map[string]interface{}{}
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "inscricoes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(10))
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "inscricoes"`)).
+			WillReturnError(assert.AnError)
+
+		inscricoes, total, err := repo.GetByCursoID(ctx, cursoID, filter, 10, 0)
+		assert.Error(t, err)
+		assert.Nil(t, inscricoes)
+		assert.Equal(t, 0, total)
+		assert.Contains(t, err.Error(), "erro ao listar inscrições")
+	})
+
+	t.Run("list by curso with pagination", func(t *testing.T) {
+		cursoID := 1
+		filter := map[string]interface{}{}
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "inscricoes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(50))
+
+		rows := sqlmock.NewRows([]string{"id", "curso_id", "cpf"}).
+			AddRow(uuid.New(), cursoID, "12345678901")
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "inscricoes"`)).
+			WillReturnRows(rows)
+
+		inscricoes, total, err := repo.GetByCursoID(ctx, cursoID, filter, 10, 20)
+		assert.NoError(t, err)
+		assert.Equal(t, 50, total)
+		assert.Len(t, inscricoes, 1)
 	})
 }
 
@@ -195,6 +305,31 @@ func TestInscricaoRepository_ExistsByCPFAndCurso(t *testing.T) {
 		exists, err := repo.ExistsByCPFAndCurso(ctx, cpf, cursoID)
 		assert.NoError(t, err)
 		assert.False(t, exists)
+	})
+
+	t.Run("exists database error", func(t *testing.T) {
+		cpf := "12345678901"
+		cursoID := 1
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "inscricoes"`)).
+			WillReturnError(assert.AnError)
+
+		exists, err := repo.ExistsByCPFAndCurso(ctx, cpf, cursoID)
+		assert.Error(t, err)
+		assert.False(t, exists)
+		assert.Contains(t, err.Error(), "erro ao verificar inscrição existente")
+	})
+
+	t.Run("exists multiple matches", func(t *testing.T) {
+		cpf := "12345678901"
+		cursoID := 1
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "inscricoes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+
+		exists, err := repo.ExistsByCPFAndCurso(ctx, cpf, cursoID)
+		assert.NoError(t, err)
+		assert.True(t, exists)
 	})
 }
 
@@ -287,6 +422,42 @@ func TestInscricaoRepository_Update(t *testing.T) {
 		err := repo.Update(ctx, inscricao)
 		assert.NoError(t, err)
 	})
+
+	t.Run("update not found", func(t *testing.T) {
+		inscricao := &models.Inscricao{
+			ID:      uuid.New(),
+			CursoID: 1,
+			CPF:     "12345678901",
+			Name:    "João Updated",
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "inscricoes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectCommit()
+
+		err := repo.Update(ctx, inscricao)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "não encontrada")
+	})
+
+	t.Run("update database error", func(t *testing.T) {
+		inscricao := &models.Inscricao{
+			ID:      uuid.New(),
+			CursoID: 1,
+			CPF:     "12345678901",
+			Name:    "João Updated",
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "inscricoes"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.Update(ctx, inscricao)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao atualizar inscrição")
+	})
 }
 
 func TestInscricaoRepository_Delete(t *testing.T) {
@@ -302,6 +473,31 @@ func TestInscricaoRepository_Delete(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "inscricoes"`)).
 			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.Delete(ctx, id)
+		assert.NoError(t, err)
+	})
+
+	t.Run("delete database error", func(t *testing.T) {
+		id := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "inscricoes"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.Delete(ctx, id)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao excluir inscrição")
+	})
+
+	t.Run("delete no rows affected", func(t *testing.T) {
+		id := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "inscricoes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectCommit()
 
 		err := repo.Delete(ctx, id)

@@ -366,6 +366,72 @@ func TestCursoRepository_GetByID(t *testing.T) {
 		assert.Nil(t, curso)
 		assert.Contains(t, err.Error(), "erro ao buscar curso por ID")
 	})
+
+	t.Run("get by id with preload failures", func(t *testing.T) {
+		db2, mock2, cleanup2 := SetupMockDB(t)
+		defer cleanup2()
+		repo2 := NewCursoRepository(db2)
+		mock2.MatchExpectationsInOrder(false)
+
+		cursoID := 1
+		rows := sqlmock.NewRows([]string{"id", "titulo", "status"}).
+			AddRow(cursoID, "Curso Test", "active")
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnRows(rows)
+
+		// Simulate preload failures for each association
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_categorias"`)).
+			WillReturnError(assert.AnError)
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_acessibilidades"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "acessibilidade_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "instituicoes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "custom_fields"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		curso, err := repo2.GetByID(ctx, cursoID)
+		// The error from preload should propagate
+		assert.Error(t, err)
+		assert.Nil(t, curso)
+	})
+
+	t.Run("get by id with empty preloads", func(t *testing.T) {
+		db2, mock2, cleanup2 := SetupMockDB(t)
+		defer cleanup2()
+		repo2 := NewCursoRepository(db2)
+		mock2.MatchExpectationsInOrder(false)
+
+		cursoID := 1
+		rows := sqlmock.NewRows([]string{"id", "titulo", "status"}).
+			AddRow(cursoID, "Curso Test", "active")
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnRows(rows)
+
+		// All preloads return empty results
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_categorias"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "categoria_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_acessibilidades"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "acessibilidade_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "instituicoes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "custom_fields"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		curso, err := repo2.GetByID(ctx, cursoID)
+		assert.NoError(t, err)
+		assert.NotNil(t, curso)
+		assert.Equal(t, cursoID, curso.ID)
+	})
 }
 
 func TestCursoRepository_Update(t *testing.T) {
@@ -496,6 +562,125 @@ func TestCursoRepository_List(t *testing.T) {
 		assert.Nil(t, cursos)
 		assert.Equal(t, 0, total)
 		assert.Contains(t, err.Error(), "erro ao listar cursos")
+	})
+
+	t.Run("list with complex filters", func(t *testing.T) {
+		db2, mock2, cleanup2 := SetupMockDB(t)
+		defer cleanup2()
+		repo2 := NewCursoRepository(db2)
+		mock2.MatchExpectationsInOrder(false)
+
+		filter := map[string]interface{}{
+			"status NOT":         "archived",
+			"title ILIKE":        "%golang%",
+			"categoria_id":       1,
+			"acessibilidade_id":  2,
+			"neighborhood_zone":  "Zona Sul",
+			"instituicao_id":     3,
+		}
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "cursos"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+		rows := sqlmock.NewRows([]string{"id", "titulo", "status"}).
+			AddRow(1, "Curso Golang", "active")
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnRows(rows)
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_categorias"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "categoria_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_acessibilidades"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "acessibilidade_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		cursos, total, err := repo2.List(ctx, filter, 10, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, total)
+		assert.Len(t, cursos, 1)
+	})
+
+	t.Run("list with pagination boundary", func(t *testing.T) {
+		db2, mock2, cleanup2 := SetupMockDB(t)
+		defer cleanup2()
+		repo2 := NewCursoRepository(db2)
+		mock2.MatchExpectationsInOrder(false)
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "cursos"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+
+		rows := sqlmock.NewRows([]string{"id", "titulo", "status"})
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnRows(rows)
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_categorias"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "categoria_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_acessibilidades"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "acessibilidade_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		// Request offset beyond total
+		cursos, total, err := repo2.List(ctx, nil, 10, 150)
+		assert.NoError(t, err)
+		assert.Equal(t, 100, total)
+		assert.Len(t, cursos, 0)
+	})
+
+	t.Run("list with empty result", func(t *testing.T) {
+		db2, mock2, cleanup2 := SetupMockDB(t)
+		defer cleanup2()
+		repo2 := NewCursoRepository(db2)
+		mock2.MatchExpectationsInOrder(false)
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "cursos"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+		rows := sqlmock.NewRows([]string{"id", "titulo", "status"})
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnRows(rows)
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_categorias"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "categoria_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_acessibilidades"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "acessibilidade_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		cursos, total, err := repo2.List(ctx, nil, 10, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, total)
+		assert.Len(t, cursos, 0)
+	})
+
+	t.Run("list preload error", func(t *testing.T) {
+		db2, mock2, cleanup2 := SetupMockDB(t)
+		defer cleanup2()
+		repo2 := NewCursoRepository(db2)
+		mock2.MatchExpectationsInOrder(false)
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "cursos"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+		rows := sqlmock.NewRows([]string{"id", "titulo", "status"}).
+			AddRow(1, "Curso Test", "active")
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnRows(rows)
+
+		// Simulate preload error
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_categorias"`)).
+			WillReturnError(assert.AnError)
+
+		cursos, total, err := repo2.List(ctx, nil, 10, 0)
+		assert.Error(t, err)
+		assert.Nil(t, cursos)
+		assert.Equal(t, 0, total)
 	})
 }
 
