@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -499,22 +500,21 @@ func getEnv(v *viper.Viper, key, defaultValue string) string {
 
 func getInt(v *viper.Viper, key string, defaultValue int) int {
 	if v.IsSet(key) {
-		val := v.GetInt(key)
-		// If viper returns 0, verify if it's a real 0 or a parse error
-		if val == 0 {
-			// Check if the actual string value is "0" (valid) or something else (invalid)
-			strVal := v.GetString(key)
-			if strVal != "0" && strVal != "" {
-				// Parse error - use default
-				return defaultValue
+		strVal := v.GetString(key)
+		if strVal != "" {
+			// Use strconv.Atoi for proper parsing of string values
+			if val, err := strconv.Atoi(strings.TrimSpace(strVal)); err == nil {
+				return val
 			}
+			// Parse error - use default
+			return defaultValue
 		}
-		return val
+		// Empty string - try GetInt in case value is numeric type
+		return v.GetInt(key)
 	}
 	// Fallback para os.Getenv diretamente
 	if value := os.Getenv(key); value != "" {
-		var val int
-		if _, err := fmt.Sscanf(value, "%d", &val); err == nil {
+		if val, err := strconv.Atoi(strings.TrimSpace(value)); err == nil {
 			return val
 		}
 	}
@@ -523,7 +523,7 @@ func getInt(v *viper.Viper, key string, defaultValue int) int {
 
 func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 	if v.IsSet(key) {
-		strVal := v.GetString(key)
+		strVal := strings.TrimSpace(v.GetString(key))
 		lowerVal := strings.ToLower(strVal)
 		// Only accept explicit true/false values
 		if lowerVal == "true" || lowerVal == "1" {
@@ -536,7 +536,7 @@ func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 	}
 	// Fallback para os.Getenv diretamente
 	if value := os.Getenv(key); value != "" {
-		lowerVal := strings.ToLower(value)
+		lowerVal := strings.ToLower(strings.TrimSpace(value))
 		if lowerVal == "true" || lowerVal == "1" {
 			return true
 		} else if lowerVal == "false" || lowerVal == "0" {
@@ -548,10 +548,20 @@ func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 
 func getDuration(v *viper.Viper, key string, defaultValue time.Duration) time.Duration {
 	if v.IsSet(key) {
-		strVal := v.GetString(key)
-		// Try to parse the duration
-		if d, err := time.ParseDuration(strVal); err == nil {
-			return d
+		val := v.Get(key)
+		switch t := val.(type) {
+		case time.Duration:
+			return t
+		case int:
+			return time.Duration(t) * time.Second
+		case int64:
+			return time.Duration(t) * time.Second
+		case float64:
+			return time.Duration(t * float64(time.Second))
+		case string:
+			if d, err := time.ParseDuration(t); err == nil {
+				return d
+			}
 		}
 		// Parse error - use default
 		return defaultValue

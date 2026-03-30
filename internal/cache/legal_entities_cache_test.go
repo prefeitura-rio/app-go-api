@@ -2,6 +2,7 @@ package cache_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -598,7 +599,7 @@ func TestLegalEntitiesCache_LargeDataSets(t *testing.T) {
 			entities[i] = models.LegalEntity{
 				CNPJ:        "12345678000190",
 				CNAEFiscal:  "1111-1/11",
-				RazaoSocial: "Company " + string(rune(i)),
+				RazaoSocial: "Company " + strconv.Itoa(i),
 			}
 		}
 

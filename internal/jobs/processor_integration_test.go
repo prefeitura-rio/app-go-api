@@ -18,13 +18,16 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func setupIntegrationTestDB() *gorm.DB {
-	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+func setupIntegrationTestDB(t *testing.T) *gorm.DB {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
 
 	// Migrate all needed tables
-	db.AutoMigrate(
+	err = db.AutoMigrate(
 		&models.Job{},
 		&models.Curso{},
 		&models.Inscricao{},
@@ -34,13 +37,16 @@ func setupIntegrationTestDB() *gorm.DB {
 		&models.RemoteClass{},
 		&models.RemoteSchedule{},
 	)
+	if err != nil {
+		t.Fatalf("Failed to migrate database: %v", err)
+	}
 
 	return db
 }
 
 func TestProcessJob_EnrollmentImport_Integration(t *testing.T) {
 	t.Skip("Integration test - requires database setup")
-	db := setupIntegrationTestDB()
+	db := setupIntegrationTestDB(t)
 
 	// Create repositories
 	jobRepo := repository.NewJobRepository(db)
@@ -264,7 +270,8 @@ func TestFindScheduleByTurma_Scenarios(t *testing.T) {
 }
 
 func TestParseCSV_Integration(t *testing.T) {
-	db := setupIntegrationTestDB()
+	t.Skip("Integration test - requires database setup")
+	db := setupIntegrationTestDB(t)
 	processor := NewEnrollmentImportProcessor(db, nil, nil, nil)
 
 	tests := []struct {
@@ -360,7 +367,7 @@ func TestCancelJob_Integration(t *testing.T) {
 
 func TestStartJob_Integration(t *testing.T) {
 	t.Skip("Integration test - requires database setup")
-	db := setupIntegrationTestDB()
+	db := setupIntegrationTestDB(t)
 
 	jobRepo := repository.NewJobRepository(db)
 	inscricaoRepo := repository.NewInscricaoRepository(db)
