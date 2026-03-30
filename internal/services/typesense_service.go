@@ -12,6 +12,14 @@ import (
 	"github.com/typesense/typesense-go/v3/typesense/api"
 )
 
+// TypesenseServiceInterface define os métodos do serviço de busca Typesense
+type TypesenseServiceInterface interface {
+	SearchCursos(ctx context.Context, params models.CursoSearchParameters) (*models.SearchDocumentsResponse, error)
+	SearchEmpregos(ctx context.Context, params models.EmpregoSearchParameters) (*models.SearchDocumentsResponse, error)
+	SearchDocuments(ctx context.Context, collectionName string, params models.SearchParameters) (*models.SearchDocumentsResponse, error)
+	SearchMultiCollection(ctx context.Context, params models.MultiCollectionSearchParameters) (*models.MultiCollectionSearchResponse, error)
+}
+
 // TypesenseService fornece operações de busca no Typesense
 type TypesenseService struct {
 	client *typesense.Client

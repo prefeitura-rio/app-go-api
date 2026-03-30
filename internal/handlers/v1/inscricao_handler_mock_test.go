@@ -975,6 +975,10 @@ func TestInscricaoHandler_Import_ProcessorNotInitialized(t *testing.T) {
 	mockJobService.AssertExpectations(t)
 }
 
+// Note: Testing the full success path (GlobalJobProcessor != nil and 202 Accepted response)
+// requires integration testing because StartJob spawns a goroutine that needs real service
+// dependencies. The error paths and validation logic are comprehensively tested above.
+
 // --- ChangeSchedule Tests ---
 
 // Test ChangeSchedule with success

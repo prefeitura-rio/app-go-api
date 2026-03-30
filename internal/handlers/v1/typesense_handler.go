@@ -10,7 +10,7 @@ import (
 
 // TypesenseHandler contém os handlers para operações de busca no Typesense
 type TypesenseHandler struct {
-	service *services.TypesenseService
+	service services.TypesenseServiceInterface
 }
 
 // NewTypesenseHandler cria uma nova instância do TypesenseHandler
@@ -22,6 +22,13 @@ func NewTypesenseHandler() (*TypesenseHandler, error) {
 	return &TypesenseHandler{
 		service: service,
 	}, nil
+}
+
+// NewTypesenseHandlerWithService cria uma nova instância do TypesenseHandler com um serviço customizado
+func NewTypesenseHandlerWithService(service services.TypesenseServiceInterface) *TypesenseHandler {
+	return &TypesenseHandler{
+		service: service,
+	}
 }
 
 // handleError é uma função utilitária para manipular erros em respostas HTTP

@@ -3301,3 +3301,718 @@ func TestValidationFunctions_Coverage(t *testing.T) {
 		}
 	})
 }
+
+// ==================== Additional Edge Cases for 100% Coverage ====================
+
+func TestCursoService_Create_AdditionalValidationEdgeCases(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Create with RemoteClass error", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 999, nil
+			},
+			CreateRemoteClassFunc: func(ctx context.Context, remoteClass *models.RemoteClass) error {
+				return errors.New("remote class creation failed")
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		startDate := time.Now().Add(24 * time.Hour)
+		endDate := startDate.Add(72 * time.Hour)
+		classTime := "09:00-12:00"
+		classDays := "Segunda a Sexta"
+
+		curso := &models.Curso{
+			Titulo:     "Course with Remote Class Error",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadeRemoto,
+			RemoteClass: &models.RemoteClass{
+				Schedules: []models.RemoteSchedule{
+					{
+						Vacancies:      30,
+						ClassStartDate: &startDate,
+						ClassEndDate:   &endDate,
+						ClassTime:      &classTime,
+						ClassDays:      &classDays,
+					},
+				},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected remote class error")
+		}
+		if !strings.Contains(err.Error(), "remote class") {
+			t.Errorf("Expected remote class error message, got: %v", err)
+		}
+	})
+
+	t.Run("Create draft with invalid FormatoAula", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:      "Draft with Invalid Formato",
+			Status:      models.StatusCursoDraft,
+			FormatoAula: models.FormatoAula("INVALID_FORMATO"),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected formato de aula error")
+		}
+		if !strings.Contains(err.Error(), "formato de aula inválido") {
+			t.Errorf("Expected 'formato de aula inválido' error, got: %v", err)
+		}
+	})
+
+	t.Run("Create draft with invalid Turno", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo: "Draft with Invalid Turno",
+			Status: models.StatusCursoDraft,
+			Turno:  models.Turno("INVALID_TURNO"),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected turno error")
+		}
+		if !strings.Contains(err.Error(), "turno inválido") {
+			t.Errorf("Expected 'turno inválido' error, got: %v", err)
+		}
+	})
+
+	t.Run("Create draft with invalid CourseManagementType", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:              "Draft with Invalid Management Type",
+			Status:              models.StatusCursoDraft,
+			CourseManagementType: models.CourseManagementType("INVALID_TYPE"),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected course management type error")
+		}
+		if !strings.Contains(err.Error(), "tipo de gestão do curso inválido") {
+			t.Errorf("Expected 'tipo de gestão do curso inválido' error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with invalid Status", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:     "Published with Invalid Status",
+			Status:     models.StatusCurso("INVALID_STATUS"),
+			Modalidade: models.ModalidadePresencial,
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected status error")
+		}
+		if !strings.Contains(err.Error(), "status inválido") {
+			t.Errorf("Expected 'status inválido' error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with invalid FormatoAula", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:      "Published with Invalid Formato",
+			Status:      models.StatusCursoOpened,
+			Modalidade:  models.ModalidadePresencial,
+			FormatoAula: models.FormatoAula("INVALID_FORMATO"),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected formato de aula error")
+		}
+		if !strings.Contains(err.Error(), "formato de aula inválido") {
+			t.Errorf("Expected 'formato de aula inválido' error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with invalid Turno", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:     "Published with Invalid Turno",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			Turno:      models.Turno("INVALID_TURNO"),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected turno error")
+		}
+		if !strings.Contains(err.Error(), "turno inválido") {
+			t.Errorf("Expected 'turno inválido' error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with Organization too long", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		longOrg := make([]byte, 20001)
+		for i := range longOrg {
+			longOrg[i] = 'A'
+		}
+
+		curso := &models.Curso{
+			Titulo:       "Course with Long Org",
+			Status:       models.StatusCursoOpened,
+			Modalidade:   models.ModalidadePresencial,
+			Organization: string(longOrg),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected organization length error")
+		}
+		if !strings.Contains(err.Error(), "organização deve ter no máximo 20000 caracteres") {
+			t.Errorf("Expected organization length error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with negative CargaHoraria", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:       "Course with Negative Carga",
+			Status:       models.StatusCursoOpened,
+			Modalidade:   models.ModalidadePresencial,
+			CargaHoraria: -10,
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected carga horária error")
+		}
+		if !strings.Contains(err.Error(), "carga horária deve ser positiva") {
+			t.Errorf("Expected carga horária error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with InstitutionalLogo too long", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		longURL := make([]byte, 20001)
+		for i := range longURL {
+			longURL[i] = 'A'
+		}
+
+		curso := &models.Curso{
+			Titulo:            "Course with Long Logo URL",
+			Status:            models.StatusCursoOpened,
+			Modalidade:        models.ModalidadePresencial,
+			InstitutionalLogo: string(longURL),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected institutional logo URL length error")
+		}
+		if !strings.Contains(err.Error(), "URL do logo institucional deve ter no máximo 20000 caracteres") {
+			t.Errorf("Expected logo URL length error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with CoverImage too long", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		longURL := make([]byte, 20001)
+		for i := range longURL {
+			longURL[i] = 'A'
+		}
+
+		curso := &models.Curso{
+			Titulo:     "Course with Long Cover Image URL",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			CoverImage: string(longURL),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected cover image URL length error")
+		}
+		if !strings.Contains(err.Error(), "URL da imagem de capa deve ter no máximo 20000 caracteres") {
+			t.Errorf("Expected cover image URL length error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with Theme too long", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		longTheme := make([]byte, 20001)
+		for i := range longTheme {
+			longTheme[i] = 'A'
+		}
+
+		curso := &models.Curso{
+			Titulo:     "Course with Long Theme",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			Theme:      string(longTheme),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected theme length error")
+		}
+		if !strings.Contains(err.Error(), "tema deve ter no máximo 20000 caracteres") {
+			t.Errorf("Expected theme length error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with Workload too long", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		longWorkload := make([]byte, 20001)
+		for i := range longWorkload {
+			longWorkload[i] = 'A'
+		}
+
+		curso := &models.Curso{
+			Titulo:     "Course with Long Workload",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			Workload:   string(longWorkload),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected workload length error")
+		}
+		if !strings.Contains(err.Error(), "carga de trabalho deve ter no máximo 20000 caracteres") {
+			t.Errorf("Expected workload length error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with TargetAudience too long", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		longAudience := make([]byte, 20001)
+		for i := range longAudience {
+			longAudience[i] = 'A'
+		}
+
+		curso := &models.Curso{
+			Titulo:         "Course with Long Target Audience",
+			Status:         models.StatusCursoOpened,
+			Modalidade:     models.ModalidadePresencial,
+			TargetAudience: string(longAudience),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected target audience length error")
+		}
+		if !strings.Contains(err.Error(), "público-alvo deve ter no máximo 20000 caracteres") {
+			t.Errorf("Expected target audience length error, got: %v", err)
+		}
+	})
+
+	t.Run("Create published with schedule vacancies > 1000", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		startDate := time.Now().Add(24 * time.Hour)
+		endDate := startDate.Add(72 * time.Hour)
+
+		curso := &models.Curso{
+			Titulo:     "Course with Excessive Vacancies",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			LocationClasses: []models.LocationClass{
+				{
+					Address:      "Test Address 123",
+					Neighborhood: "Test Neighborhood",
+					Schedules: []models.CourseSchedule{
+						{
+							Vacancies:      1001,
+							ClassStartDate: startDate,
+							ClassEndDate:   endDate,
+							ClassTime:      "09:00-12:00",
+							ClassDays:      "Segunda a Sexta",
+						},
+					},
+				},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected vacancies validation error")
+		}
+		if !strings.Contains(err.Error(), "número de vagas deve estar entre 1 e 1000") {
+			t.Errorf("Expected vacancies error, got: %v", err)
+		}
+	})
+}
+
+func TestCursoService_Update_PublishWorkflow(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Update draft to published - missing modalidade", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			ID:     1,
+			Titulo: "Course Without Modalidade",
+			Status: models.StatusCursoOpened,
+			// Missing modalidade - should fail validation
+		}
+
+		err := svc.Update(ctx, curso)
+		if err == nil {
+			t.Error("Expected modalidade validation error")
+		}
+		if !strings.Contains(err.Error(), "modalidade inválida") {
+			t.Errorf("Expected modalidade error, got: %v", err)
+		}
+	})
+
+	t.Run("Update draft to published - all required fields present", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			UpdateFunc: func(ctx context.Context, curso *models.Curso) error {
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		startDate := time.Now().Add(24 * time.Hour)
+		endDate := startDate.Add(72 * time.Hour)
+
+		curso := &models.Curso{
+			ID:           1,
+			Titulo:       "Complete Published Course",
+			Status:       models.StatusCursoOpened,
+			Modalidade:   models.ModalidadePresencial,
+			NumeroVagas:  50,
+			CargaHoraria: 40,
+			LocationClasses: []models.LocationClass{
+				{
+					Address:      "Test Address 123",
+					Neighborhood: "Test Neighborhood",
+					Schedules: []models.CourseSchedule{
+						{
+							Vacancies:      30,
+							ClassStartDate: startDate,
+							ClassEndDate:   endDate,
+							ClassTime:      "09:00-12:00",
+							ClassDays:      "Segunda a Sexta",
+						},
+					},
+				},
+			},
+		}
+
+		err := svc.Update(ctx, curso)
+		if err != nil {
+			t.Fatalf("Update should succeed with all required fields: %v", err)
+		}
+	})
+
+	t.Run("Update with repository error", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			UpdateFunc: func(ctx context.Context, curso *models.Curso) error {
+				return errors.New("database connection failed")
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			ID:         1,
+			Titulo:     "Course with Repo Error",
+			Status:     models.StatusCursoDraft,
+			Modalidade: models.ModalidadePresencial,
+		}
+
+		err := svc.Update(ctx, curso)
+		if err == nil {
+			t.Error("Expected repository error")
+		}
+		if !strings.Contains(err.Error(), "database connection failed") {
+			t.Errorf("Expected repository error, got: %v", err)
+		}
+	})
+
+	t.Run("Update published course with validation error", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			ID:          1,
+			Titulo:      "Published Course with Negative Vagas",
+			Status:      models.StatusCursoOpened,
+			Modalidade:  models.ModalidadePresencial,
+			NumeroVagas: -5,
+		}
+
+		err := svc.Update(ctx, curso)
+		if err == nil {
+			t.Error("Expected validation error for negative vagas")
+		}
+		if !strings.Contains(err.Error(), "número de vagas deve ser positivo") {
+			t.Errorf("Expected vagas error, got: %v", err)
+		}
+	})
+}
+
+func TestCursoService_NormalizationEdgeCases(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Create normalizes external partner with IsExternalPartner true and URL", func(t *testing.T) {
+		var createdCurso *models.Curso
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				createdCurso = curso
+				return 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		isExternal := true
+		curso := &models.Curso{
+			Titulo:               "Course with External Partner URL",
+			Status:               models.StatusCursoDraft,
+			IsExternalPartner:    &isExternal,
+			ExternalPartnerURL:   "https://partner.com",
+			ExternalPartnerName:  "Partner Name",
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if createdCurso.CourseManagementType != models.CourseManagementExternalManagedByPartner {
+			t.Errorf("Expected EXTERNAL_MANAGED_BY_PARTNER, got %s", createdCurso.CourseManagementType)
+		}
+	})
+
+	t.Run("Create normalizes external partner with IsExternalPartner true and no URL", func(t *testing.T) {
+		var createdCurso *models.Curso
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				createdCurso = curso
+				return 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		isExternal := true
+		curso := &models.Curso{
+			Titulo:              "Course with External Partner No URL",
+			Status:              models.StatusCursoDraft,
+			IsExternalPartner:   &isExternal,
+			ExternalPartnerName: "Partner Name",
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if createdCurso.CourseManagementType != models.CourseManagementExternalManagedByOrg {
+			t.Errorf("Expected EXTERNAL_MANAGED_BY_ORG, got %s", createdCurso.CourseManagementType)
+		}
+	})
+
+	t.Run("Create normalizes external partner with IsExternalPartner true but no name", func(t *testing.T) {
+		var createdCurso *models.Curso
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				createdCurso = curso
+				return 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		isExternal := true
+		curso := &models.Curso{
+			Titulo:            "Course with External Flag No Name",
+			Status:            models.StatusCursoDraft,
+			IsExternalPartner: &isExternal,
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if createdCurso.CourseManagementType != models.CourseManagementOwnOrg {
+			t.Errorf("Expected OWN_ORG, got %s", createdCurso.CourseManagementType)
+		}
+	})
+
+	t.Run("Create normalizes external partner with IsExternalPartner false", func(t *testing.T) {
+		var createdCurso *models.Curso
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				createdCurso = curso
+				return 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		isExternal := false
+		curso := &models.Curso{
+			Titulo:            "Course with IsExternalPartner False",
+			Status:            models.StatusCursoDraft,
+			IsExternalPartner: &isExternal,
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if createdCurso.CourseManagementType != models.CourseManagementOwnOrg {
+			t.Errorf("Expected OWN_ORG, got %s", createdCurso.CourseManagementType)
+		}
+	})
+
+	t.Run("Create sets default AutoApproveEnrollments to false", func(t *testing.T) {
+		var createdCurso *models.Curso
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				createdCurso = curso
+				return 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo: "Course without AutoApprove",
+			Status: models.StatusCursoDraft,
+			// AutoApproveEnrollments not set
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if createdCurso.AutoApproveEnrollments == nil {
+			t.Error("AutoApproveEnrollments should not be nil")
+		} else if *createdCurso.AutoApproveEnrollments != false {
+			t.Errorf("Expected AutoApproveEnrollments to be false, got %v", *createdCurso.AutoApproveEnrollments)
+		}
+	})
+
+	t.Run("Create sets default AcceptingEnrollments for location schedules", func(t *testing.T) {
+		var createdCurso *models.Curso
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				createdCurso = curso
+				return 1, nil
+			},
+			CreateLocationClassesFunc: func(ctx context.Context, locations []models.LocationClass) error {
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		startDate := time.Now().Add(24 * time.Hour)
+		endDate := startDate.Add(72 * time.Hour)
+
+		curso := &models.Curso{
+			Titulo:     "Course with Location Schedules",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			LocationClasses: []models.LocationClass{
+				{
+					Address:      "Test Address 123",
+					Neighborhood: "Test Neighborhood",
+					Schedules: []models.CourseSchedule{
+						{
+							Vacancies:      30,
+							ClassStartDate: startDate,
+							ClassEndDate:   endDate,
+							ClassTime:      "09:00-12:00",
+							ClassDays:      "Segunda a Sexta",
+							// AcceptingEnrollments not set
+						},
+					},
+				},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if createdCurso.LocationClasses[0].Schedules[0].AcceptingEnrollments == nil {
+			t.Error("AcceptingEnrollments should not be nil")
+		} else if *createdCurso.LocationClasses[0].Schedules[0].AcceptingEnrollments != true {
+			t.Errorf("Expected AcceptingEnrollments to be true, got %v", *createdCurso.LocationClasses[0].Schedules[0].AcceptingEnrollments)
+		}
+	})
+
+	t.Run("Create sets default AcceptingEnrollments for remote schedules", func(t *testing.T) {
+		var createdCurso *models.Curso
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				createdCurso = curso
+				return 1, nil
+			},
+			CreateRemoteClassFunc: func(ctx context.Context, rc *models.RemoteClass) error {
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		startDate := time.Now().Add(24 * time.Hour)
+		endDate := startDate.Add(72 * time.Hour)
+		classTime := "09:00-12:00"
+		classDays := "Segunda a Sexta"
+
+		curso := &models.Curso{
+			Titulo:     "Course with Remote Schedules",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadeRemoto,
+			RemoteClass: &models.RemoteClass{
+				Schedules: []models.RemoteSchedule{
+					{
+						Vacancies:      30,
+						ClassStartDate: &startDate,
+						ClassEndDate:   &endDate,
+						ClassTime:      &classTime,
+						ClassDays:      &classDays,
+						// AcceptingEnrollments not set
+					},
+				},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if createdCurso.RemoteClass.Schedules[0].AcceptingEnrollments == nil {
+			t.Error("AcceptingEnrollments should not be nil")
+		} else if *createdCurso.RemoteClass.Schedules[0].AcceptingEnrollments != true {
+			t.Errorf("Expected AcceptingEnrollments to be true, got %v", *createdCurso.RemoteClass.Schedules[0].AcceptingEnrollments)
+		}
+	})
+}

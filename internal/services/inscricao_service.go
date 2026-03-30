@@ -20,7 +20,7 @@ type CitizenDataFetcher interface {
 type InscricaoService struct {
 	repo                     InscricaoRepositoryInterface
 	cursoRepo                CursoRepositoryInterface
-	citizenSnapshotRepo      *repository.CitizenSnapshotRepository
+	citizenSnapshotRepo      repository.CitizenSnapshotRepositoryInterface
 	citizenDataFetcher       CitizenDataFetcher
 	emailNotificationService *EmailNotificationService
 	cfg                      *config.AppConfig
@@ -47,7 +47,7 @@ func NewInscricaoService(
 func NewInscricaoServiceWithInterface(
 	repo InscricaoRepositoryInterface,
 	cursoRepo CursoRepositoryInterface,
-	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
+	citizenSnapshotRepo repository.CitizenSnapshotRepositoryInterface,
 	citizenDataFetcher CitizenDataFetcher,
 	emailNotificationService *EmailNotificationService,
 	cfg *config.AppConfig,
