@@ -1698,3 +1698,1088 @@ func TestCourseHandler_Delete_GetByIDError(t *testing.T) {
 
 	mockService.AssertExpectations(t)
 }
+
+// ========== Additional Coverage Tests ==========
+
+// Test calculateRemainingVacanciesForCourses with empty course list
+func TestCourseHandler_CalculateRemainingVacanciesForCourses_EmptyList(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses", handler.List)
+
+	// Empty list of courses
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return([]*models.Curso{}, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	data := response["data"].(map[string]interface{})
+	courses := data["courses"].([]interface{})
+	assert.Equal(t, 0, len(courses))
+
+	mockService.AssertExpectations(t)
+}
+
+// Test calculateRemainingVacanciesForCourses with courses missing schedules
+func TestCourseHandler_CalculateRemainingVacanciesForCourses_MissingSchedules(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses", handler.List)
+
+	// Courses with no schedules
+	cursos := []*models.Curso{
+		{ID: 1, Titulo: "Course 1", LocationClasses: []models.LocationClass{}},
+		{ID: 2, Titulo: "Course 2", LocationClasses: []models.LocationClass{}, RemoteClass: nil},
+	}
+
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return(cursos, 2, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test calculateRemainingVacanciesForCourses with mixed schedule types
+func TestCourseHandler_CalculateRemainingVacanciesForCourses_MixedScheduleTypes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses", handler.List)
+
+	schedID1 := uuid.New()
+	schedID2 := uuid.New()
+	schedID3 := uuid.New()
+
+	cursos := []*models.Curso{
+		{
+			ID:     1,
+			Titulo: "Mixed Course 1",
+			LocationClasses: []models.LocationClass{
+				{
+					Schedules: []models.CourseSchedule{
+						{ID: schedID1, Vacancies: 20},
+					},
+				},
+			},
+			RemoteClass: &models.RemoteClass{
+				Schedules: []models.RemoteSchedule{
+					{ID: schedID2, Vacancies: 50},
+				},
+			},
+		},
+		{
+			ID:              2,
+			Titulo:          "Location Only",
+			LocationClasses: []models.LocationClass{
+				{
+					Schedules: []models.CourseSchedule{
+						{ID: schedID3, Vacancies: 15},
+					},
+				},
+			},
+		},
+	}
+
+	enrollmentCounts := map[uuid.UUID]int64{
+		schedID1: 5,
+		schedID2: 30,
+		schedID3: 10,
+	}
+
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return(cursos, 2, nil)
+	mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
+		return len(ids) == 3
+	})).Return(enrollmentCounts, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+	mockRepo.AssertExpectations(t)
+}
+
+// Test Update with empty body
+func TestCourseHandler_Update_EmptyBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId", handler.Update)
+
+	existingCurso := &models.Curso{
+		ID:     1,
+		Titulo: "Old Title",
+	}
+
+	mockService.On("GetByID", mock.Anything, 1).Return(existingCurso, nil)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1", nil)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test Update with database error from service
+func TestCourseHandler_Update_DatabaseError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId", handler.Update)
+
+	existingCurso := &models.Curso{
+		ID:     1,
+		Titulo: "Old Title",
+		Status: models.StatusCursoOpened,
+	}
+
+	mockService.On("GetByID", mock.Anything, 1).Return(existingCurso, nil)
+	mockService.On("Update", mock.Anything, mock.Anything).Return(errors.New("database connection lost"))
+
+	body := []byte(`{"titulo":"Updated Title"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List with pagination boundary page=0
+func TestCourseHandler_List_PaginationPageZero(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses", handler.List)
+
+	cursos := []*models.Curso{
+		{ID: 1, Titulo: "Course 1"},
+	}
+
+	// Page 0 should default to page 1
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return(cursos, 1, nil)
+	mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).Return(make(map[uuid.UUID]int64), nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses?page=0", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	data := response["data"].(map[string]interface{})
+	pagination := data["pagination"].(map[string]interface{})
+	assert.Equal(t, float64(1), pagination["page"])
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List with pagination boundary limit=0
+func TestCourseHandler_List_PaginationLimitZero(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses", handler.List)
+
+	cursos := []*models.Curso{
+		{ID: 1, Titulo: "Course 1"},
+	}
+
+	// Limit 0 should default to limit 10
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return(cursos, 1, nil)
+	mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).Return(make(map[uuid.UUID]int64), nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses?limit=0", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	data := response["data"].(map[string]interface{})
+	pagination := data["pagination"].(map[string]interface{})
+	assert.Equal(t, float64(10), pagination["limit"])
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List with pagination limit > max
+func TestCourseHandler_List_PaginationLimitExceedsMax(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses", handler.List)
+
+	cursos := []*models.Curso{}
+
+	// Limit > 1000 should default to limit 10
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return(cursos, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses?limit=2000", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List with multiple filters combination
+func TestCourseHandler_List_MultipleFilters(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses", handler.List)
+
+	cursos := []*models.Curso{
+		{ID: 1, Titulo: "Filtered Course"},
+	}
+
+	mockService.On("List", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		return filter["modalidade"] == "presencial" &&
+			filter["organization"] == "test-org" &&
+			filter["status"] == "opened" &&
+			filter["categoria_id"] == 5 &&
+			filter["acessibilidade_id"] == 3 &&
+			filter["neighborhood_zone"] == "norte"
+	}), 1, 10).Return(cursos, 1, nil)
+	mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).Return(make(map[uuid.UUID]int64), nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses?modalidade=presencial&organization=test-org&status=opened&categoria_id=5&acessibilidade_id=3&neighborhood_zone=norte", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test ListDrafts with pagination boundary page=0
+func TestCourseHandler_ListDrafts_PaginationPageZero(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
+
+	drafts := []*models.Curso{
+		{ID: 1, Titulo: "Draft 1", Status: models.StatusCursoDraft, LocationClasses: []models.LocationClass{}},
+	}
+
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return(drafts, 1, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/drafts?page=0", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	data := response["data"].(map[string]interface{})
+	pagination := data["pagination"].(map[string]interface{})
+	assert.Equal(t, float64(1), pagination["page"])
+
+	mockService.AssertExpectations(t)
+}
+
+// Test ListDrafts with pagination limit=0
+func TestCourseHandler_ListDrafts_PaginationLimitZero(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
+
+	drafts := []*models.Curso{}
+
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return(drafts, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/drafts?limit=0", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test ListDrafts with empty drafts
+func TestCourseHandler_ListDrafts_EmptyDrafts(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
+
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return([]*models.Curso{}, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/drafts", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	data := response["data"].(map[string]interface{})
+	drafts := data["drafts"].([]interface{})
+	assert.Equal(t, 0, len(drafts))
+
+	mockService.AssertExpectations(t)
+}
+
+// Test ListByUser with empty user ID
+func TestCourseHandler_ListByUser_EmptyUserID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
+
+	mockService.On("List", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		return filter["orgao_id"] == ""
+	}), 1, 10).Return([]*models.Curso{}, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/users//courses", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test ListByUser with no courses
+func TestCourseHandler_ListByUser_NoCourses(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
+
+	mockService.On("List", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		return filter["orgao_id"] == "user999"
+	}), 1, 10).Return([]*models.Curso{}, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/user999/courses", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	data := response["data"].(map[string]interface{})
+	courses := data["courses"].([]interface{})
+	assert.Equal(t, 0, len(courses))
+
+	mockService.AssertExpectations(t)
+}
+
+// Test ListByUser with multiple courses
+func TestCourseHandler_ListByUser_MultipleCourses(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
+
+	cursos := []*models.Curso{
+		{ID: 1, Titulo: "User Course 1", OrgaoID: "user123"},
+		{ID: 2, Titulo: "User Course 2", OrgaoID: "user123"},
+		{ID: 3, Titulo: "User Course 3", OrgaoID: "user123"},
+	}
+
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return(cursos, 3, nil)
+	mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).Return(make(map[uuid.UUID]int64), nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/user123/courses", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	data := response["data"].(map[string]interface{})
+	courses := data["courses"].([]interface{})
+	assert.Equal(t, 3, len(courses))
+
+	mockService.AssertExpectations(t)
+}
+
+// Test ListByUser with pagination boundaries
+func TestCourseHandler_ListByUser_PaginationBoundaries(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
+
+	cursos := []*models.Curso{}
+
+	// Page=-1 should default to 1, limit=2000 should default to 10
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return(cursos, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/user123/courses?page=-1&limit=2000", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test ListByUser with filters
+func TestCourseHandler_ListByUser_WithFilters(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
+
+	cursos := []*models.Curso{
+		{ID: 1, Titulo: "Filtered User Course", OrgaoID: "user123", Status: models.StatusCursoOpened},
+	}
+
+	mockService.On("List", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		return filter["orgao_id"] == "user123" &&
+			filter["status"] == "opened" &&
+			filter["modalidade"] == "remoto" &&
+			filter["categoria_id"] == 2
+	}), 1, 10).Return(cursos, 1, nil)
+	mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).Return(make(map[uuid.UUID]int64), nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/user123/courses?status=opened&modalidade=remoto&categoria_id=2", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test calculateRemainingVacancies with multiple location classes
+func TestCourseHandler_CalculateRemainingVacancies_MultipleLocationClasses(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses/:courseId", handler.GetByID)
+
+	schedID1 := uuid.New()
+	schedID2 := uuid.New()
+	schedID3 := uuid.New()
+
+	curso := &models.Curso{
+		ID:     1,
+		Titulo: "Multi-location Course",
+		LocationClasses: []models.LocationClass{
+			{
+				Schedules: []models.CourseSchedule{
+					{ID: schedID1, Vacancies: 10},
+					{ID: schedID2, Vacancies: 15},
+				},
+			},
+			{
+				Schedules: []models.CourseSchedule{
+					{ID: schedID3, Vacancies: 20},
+				},
+			},
+		},
+	}
+
+	enrollmentCounts := map[uuid.UUID]int64{
+		schedID1: 5,
+		schedID2: 12,
+		schedID3: 18,
+	}
+
+	mockService.On("GetByID", mock.Anything, 1).Return(curso, nil)
+	mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
+		return len(ids) == 3
+	})).Return(enrollmentCounts, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/1", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+	mockRepo.AssertExpectations(t)
+}
+
+// Test Update with partial update preserving IsVisible
+func TestCourseHandler_Update_PreserveIsVisible(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId", handler.Update)
+
+	isVisibleTrue := true
+	existingCurso := &models.Curso{
+		ID:        1,
+		Titulo:    "Old Title",
+		Status:    models.StatusCursoOpened,
+		IsVisible: &isVisibleTrue,
+	}
+
+	// Request doesn't include is_visible, should preserve existing value
+	updateCurso := models.Curso{
+		Titulo: "New Title",
+	}
+
+	mockService.On("GetByID", mock.Anything, 1).Return(existingCurso, nil)
+	mockService.On("Update", mock.Anything, mock.MatchedBy(func(c *models.Curso) bool {
+		return c.IsVisible != nil && *c.IsVisible == true
+	})).Return(nil)
+
+	body, _ := json.Marshal(updateCurso)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test Update with partial update preserving AutoApproveEnrollments
+func TestCourseHandler_Update_PreserveAutoApprove(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId", handler.Update)
+
+	autoApproveTrue := true
+	existingCurso := &models.Curso{
+		ID:                     1,
+		Titulo:                 "Old Title",
+		Status:                 models.StatusCursoOpened,
+		AutoApproveEnrollments: &autoApproveTrue,
+	}
+
+	updateCurso := models.Curso{
+		Titulo: "New Title",
+	}
+
+	mockService.On("GetByID", mock.Anything, 1).Return(existingCurso, nil)
+	mockService.On("Update", mock.Anything, mock.MatchedBy(func(c *models.Curso) bool {
+		return c.AutoApproveEnrollments != nil && *c.AutoApproveEnrollments == true
+	})).Return(nil)
+
+	body, _ := json.Marshal(updateCurso)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List with search filter
+func TestCourseHandler_List_SearchFilter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses", handler.List)
+
+	cursos := []*models.Curso{
+		{ID: 1, Titulo: "Test Course"},
+	}
+
+	mockService.On("List", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		search, ok := filter["title ILIKE"]
+		return ok && search == "%test%"
+	}), 1, 10).Return(cursos, 1, nil)
+	mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).Return(make(map[uuid.UUID]int64), nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses?search=test", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test ListDrafts with multiple filters
+func TestCourseHandler_ListDrafts_MultipleFilters(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
+
+	drafts := []*models.Curso{
+		{ID: 1, Titulo: "Draft", Status: models.StatusCursoDraft, LocationClasses: []models.LocationClass{}},
+	}
+
+	mockService.On("List", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		return filter["status"] == models.StatusCursoDraft &&
+			filter["modalidade"] == "hibrido" &&
+			filter["categoria_id"] == 7 &&
+			filter["acessibilidade_id"] == 2 &&
+			filter["neighborhood_zone"] == "sul"
+	}), 1, 10).Return(drafts, 1, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/drafts?modalidade=hibrido&categoria_id=7&acessibilidade_id=2&neighborhood_zone=sul", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List with empty result set
+func TestCourseHandler_List_EmptyResultSet(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses", handler.List)
+
+	mockService.On("List", mock.Anything, mock.Anything, 1, 10).Return([]*models.Curso{}, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses?status=nonexistent", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	data := response["data"].(map[string]interface{})
+	courses := data["courses"].([]interface{})
+	assert.Equal(t, 0, len(courses))
+
+	mockService.AssertExpectations(t)
+}
+
+// Test Update preserving schedule AcceptingEnrollments
+func TestCourseHandler_Update_PreserveScheduleAcceptingEnrollments(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId", handler.Update)
+
+	schedID1 := uuid.MustParse("12345678-1234-1234-1234-123456789012")
+	schedID2 := uuid.MustParse("87654321-4321-4321-4321-210987654321")
+	acceptingTrue := true
+	acceptingFalse := false
+
+	existingCurso := &models.Curso{
+		ID:     1,
+		Titulo: "Existing Course",
+		Status: models.StatusCursoOpened,
+		LocationClasses: []models.LocationClass{
+			{
+				Schedules: []models.CourseSchedule{
+					{ID: schedID1, AcceptingEnrollments: &acceptingTrue},
+				},
+			},
+		},
+		RemoteClass: &models.RemoteClass{
+			Schedules: []models.RemoteSchedule{
+				{ID: schedID2, AcceptingEnrollments: &acceptingFalse},
+			},
+		},
+	}
+
+	// Update request doesn't include AcceptingEnrollments, should preserve
+	updateData := map[string]interface{}{
+		"titulo": "Updated Course",
+		"locations": []map[string]interface{}{
+			{
+				"schedules": []map[string]interface{}{
+					{
+						"id":        schedID1.String(),
+						"vacancies": 10,
+					},
+				},
+			},
+		},
+		"remote_class": map[string]interface{}{
+			"schedules": []map[string]interface{}{
+				{
+					"id":        schedID2.String(),
+					"vacancies": 20,
+				},
+			},
+		},
+	}
+
+	mockService.On("GetByID", mock.Anything, 1).Return(existingCurso, nil)
+	mockService.On("Update", mock.Anything, mock.MatchedBy(func(c *models.Curso) bool {
+		// Verify AcceptingEnrollments is preserved
+		if len(c.LocationClasses) > 0 && len(c.LocationClasses[0].Schedules) > 0 {
+			if c.LocationClasses[0].Schedules[0].AcceptingEnrollments == nil {
+				return false
+			}
+			if !*c.LocationClasses[0].Schedules[0].AcceptingEnrollments {
+				return false
+			}
+		}
+		if c.RemoteClass != nil && len(c.RemoteClass.Schedules) > 0 {
+			if c.RemoteClass.Schedules[0].AcceptingEnrollments == nil {
+				return false
+			}
+			if *c.RemoteClass.Schedules[0].AcceptingEnrollments {
+				return false
+			}
+		}
+		return true
+	})).Return(nil)
+
+	body, _ := json.Marshal(updateData)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test Update with zero UUID should not preserve AcceptingEnrollments
+func TestCourseHandler_Update_ZeroUUIDNoPreserve(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId", handler.Update)
+
+	existingCurso := &models.Curso{
+		ID:     1,
+		Titulo: "Existing Course",
+		Status: models.StatusCursoOpened,
+	}
+
+	zeroUUID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
+	updateData := map[string]interface{}{
+		"titulo": "Updated Course",
+		"locations": []map[string]interface{}{
+			{
+				"schedules": []map[string]interface{}{
+					{
+						"id":        zeroUUID.String(),
+						"vacancies": 10,
+					},
+				},
+			},
+		},
+	}
+
+	mockService.On("GetByID", mock.Anything, 1).Return(existingCurso, nil)
+	mockService.On("Update", mock.Anything, mock.Anything).Return(nil)
+
+	body, _ := json.Marshal(updateData)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test Create with database error non-validation
+func TestCourseHandler_Create_NonValidationDatabaseError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.POST("/api/v1/courses", handler.Create)
+
+	curso := models.Curso{
+		Titulo:    "Test Course",
+		Descricao: "Description",
+	}
+
+	// Database error without "erro de validação" prefix
+	mockService.On("Create", mock.Anything, mock.Anything).Return(0, errors.New("unique constraint violation"))
+
+	body, _ := json.Marshal(curso)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	// Should be handled as database error
+	assert.NotEqual(t, http.StatusCreated, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test CreateDraft with non-validation database error
+func TestCourseHandler_CreateDraft_NonValidationDatabaseError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.POST("/api/v1/courses/draft", handler.CreateDraft)
+
+	curso := models.Curso{
+		Titulo: "Draft",
+	}
+
+	mockService.On("Create", mock.Anything, mock.Anything).Return(0, errors.New("unique constraint violation"))
+
+	body, _ := json.Marshal(curso)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/draft", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.NotEqual(t, http.StatusCreated, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test Update with non-validation database error
+func TestCourseHandler_Update_NonValidationDatabaseError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId", handler.Update)
+
+	existingCurso := &models.Curso{
+		ID:     1,
+		Titulo: "Old Title",
+		Status: models.StatusCursoOpened,
+	}
+
+	mockService.On("GetByID", mock.Anything, 1).Return(existingCurso, nil)
+	mockService.On("Update", mock.Anything, mock.Anything).Return(errors.New("unique constraint violation"))
+
+	body := []byte(`{"titulo":"New Title"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.NotEqual(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test CreateDraft with validation error
+func TestCourseHandler_CreateDraft_ValidationError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.POST("/api/v1/courses/draft", handler.CreateDraft)
+
+	curso := models.Curso{
+		Titulo: "D",
+	}
+
+	mockService.On("Create", mock.Anything, mock.Anything).Return(0, errors.New("erro de validação: título muito curto"))
+
+	body, _ := json.Marshal(curso)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/draft", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "título muito curto")
+
+	mockService.AssertExpectations(t)
+}
