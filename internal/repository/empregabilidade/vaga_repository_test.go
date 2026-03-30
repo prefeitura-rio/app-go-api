@@ -496,8 +496,9 @@ func TestVagaRepository_GetByID_Success(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "orgaos_snapshots"`).
 		WillReturnRows(sqlmock.NewRows([]string{"orgao_id"}))
 
-	mock.ExpectQuery(`.* FROM "emp_tipos_pcd"`).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	// TiposPCD is a many2many relation, so it queries the junction table first
+	mock.ExpectQuery(`SELECT \* FROM "emp_vagas_tipos_pcd"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id_vaga", "id_tipo_pcd"}))
 
 	mock.ExpectQuery(`SELECT \* FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
