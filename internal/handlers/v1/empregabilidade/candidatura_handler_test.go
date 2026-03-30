@@ -684,10 +684,87 @@ func TestCandidaturaHandler_Reject_Success(t *testing.T) {
 // Tests: BulkUpdateStatus Success
 // ──────────────────────────────────────────────────────────────────────────────
 
+func TestCandidaturaHandler_BulkUpdateStatus_EmptyCPFList(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{"cpfs":[],"vaga_id":"` + validUUID + `","status":"aprovada"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/bulk-status", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCandidaturaHandler_BulkUpdateStatus_Success(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{"cpfs":["12345678900"],"vaga_id":"` + validUUID + `","status":"aprovada"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/bulk-status", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCandidaturaHandler_BulkUpdateStatus_InvalidStatus(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{"cpfs":["12345678900"],"vaga_id":"` + validUUID + `","status":"invalid_status"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/bulk-status", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tests: BulkUpdateEtapa Success
 // ──────────────────────────────────────────────────────────────────────────────
+
+func TestCandidaturaHandler_BulkUpdateEtapa_EmptyCPFList(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	etapaID := uuid.New().String()
+	body := bodyOf(`{"cpfs":[],"vaga_id":"` + validUUID + `","id_etapa":"` + etapaID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/bulk-etapa", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCandidaturaHandler_BulkUpdateEtapa_Success(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{
+		entity: &empmodels.Vaga{
+			ID: uuid.MustParse(validUUID),
+			Etapas: []empmodels.Etapa{
+				{ID: uuid.MustParse(validUUID)},
+			},
+		},
+	}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{"cpfs":["12345678900"],"vaga_id":"` + validUUID + `","id_etapa":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/bulk-etapa", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
 
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -887,7 +964,7 @@ func TestCandidaturaHandler_BulkUpdateStatus_ServiceError_EdgeCase(t *testing.T)
 	candRepo := &mockCandidaturaRepoH{err: errTest}
 	vagaRepo := &mockVagaForCandidaturaH{}
 	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
-	body := bodyOf(`{"cpfs":["12345678900"],"vaga_id":"` + validUUID + `","status":"aprovado"}`)
+	body := bodyOf(`{"cpfs":["12345678900"],"vaga_id":"` + validUUID + `","status":"aprovada"}`)
 	req := httptest.NewRequest(http.MethodPut, "/candidaturas/bulk-status", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
