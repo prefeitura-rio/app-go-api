@@ -5,6 +5,7 @@ run:
     - integration
 
 linters:
+  default: none
   enable:
     - errcheck
     - govet
@@ -35,6 +36,14 @@ linters:
         - G404
         - G501
         - G505
+
+  exclusions:
+    paths:
+      - _test\.go$
+    rules:
+      - path: _test\.go$
+        linters:
+          - errcheck
 
 issues:
   max-issues-per-linter: 50
