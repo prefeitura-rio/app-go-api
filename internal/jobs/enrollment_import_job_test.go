@@ -1183,13 +1183,44 @@ type MockJobService struct {
 	mock.Mock
 }
 
+func (m *MockJobService) Create(ctx context.Context, job *models.Job) error {
+	args := m.Called(ctx, job)
+	return args.Error(0)
+}
+
+func (m *MockJobService) GetByID(ctx context.Context, id uuid.UUID) (*models.Job, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Job), args.Error(1)
+}
+
 func (m *MockJobService) Update(ctx context.Context, job *models.Job) error {
 	args := m.Called(ctx, job)
 	return args.Error(0)
 }
 
+func (m *MockJobService) UpdateStatus(ctx context.Context, id uuid.UUID, status models.JobStatus) error {
+	args := m.Called(ctx, id, status)
+	return args.Error(0)
+}
+
 func (m *MockJobService) UpdateProgress(ctx context.Context, jobID uuid.UUID, progress, successCount, errorCount int) error {
 	args := m.Called(ctx, jobID, progress, successCount, errorCount)
+	return args.Error(0)
+}
+
+func (m *MockJobService) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Job, int, error) {
+	args := m.Called(ctx, filter, limit, offset)
+	if args.Get(0) == nil {
+		return nil, args.Int(1), args.Error(2)
+	}
+	return args.Get(0).([]*models.Job), args.Int(1), args.Error(2)
+}
+
+func (m *MockJobService) Delete(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
@@ -1202,8 +1233,91 @@ func (m *MockInscricaoService) Create(ctx context.Context, inscricao *models.Ins
 	return args.Error(0)
 }
 
+func (m *MockInscricaoService) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
+	args := m.Called(ctx, inscricao)
+	return args.Error(0)
+}
+
+func (m *MockInscricaoService) GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Inscricao), args.Error(1)
+}
+
+func (m *MockInscricaoService) GetByCursoID(ctx context.Context, cursoID int, filter map[string]interface{}, page, pageSize int) ([]*models.Inscricao, int, error) {
+	args := m.Called(ctx, cursoID, filter, page, pageSize)
+	if args.Get(0) == nil {
+		return nil, args.Int(1), args.Error(2)
+	}
+	return args.Get(0).([]*models.Inscricao), args.Int(1), args.Error(2)
+}
+
+func (m *MockInscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error {
+	args := m.Called(ctx, inscricaoID, status, reason, adminNotes)
+	return args.Error(0)
+}
+
+func (m *MockInscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+	args := m.Called(ctx, inscricaoIDs, status, reason, adminNotes)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *MockInscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) {
+	args := m.Called(ctx, cursoID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.EnrollmentSummary), args.Error(1)
+}
+
+func (m *MockInscricaoService) Delete(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockInscricaoService) ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error) {
+	args := m.Called(ctx, cpf, filter, offset, limit)
+	if args.Get(0) == nil {
+		return nil, args.Int(1), args.Error(2)
+	}
+	return args.Get(0).([]*models.Inscricao), args.Int(1), args.Error(2)
+}
+
+func (m *MockInscricaoService) UpdateCertificate(ctx context.Context, cursoID int, inscricaoID uuid.UUID, certificateURL string) error {
+	args := m.Called(ctx, cursoID, inscricaoID, certificateURL)
+	return args.Error(0)
+}
+
+func (m *MockInscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cursoID int, updateData *models.InscricaoUpdateRequest) error {
+	args := m.Called(ctx, id, cursoID, updateData)
+	return args.Error(0)
+}
+
+func (m *MockInscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao *models.Inscricao) {
+	m.Called(ctx, inscricao)
+}
+
+func (m *MockInscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, inscricoes []*models.Inscricao) {
+	m.Called(ctx, inscricoes)
+}
+
+func (m *MockInscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.UUID, userCPF string, request *models.ScheduleChangeRequest) (*models.Inscricao, error) {
+	args := m.Called(ctx, inscricaoID, userCPF, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Inscricao), args.Error(1)
+}
+
 type MockCursoService struct {
 	mock.Mock
+}
+
+func (m *MockCursoService) Create(ctx context.Context, curso *models.Curso) (int, error) {
+	args := m.Called(ctx, curso)
+	return args.Int(0), args.Error(1)
 }
 
 func (m *MockCursoService) GetByID(ctx context.Context, id int) (*models.Curso, error) {
@@ -1212,6 +1326,24 @@ func (m *MockCursoService) GetByID(ctx context.Context, id int) (*models.Curso, 
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.Curso), args.Error(1)
+}
+
+func (m *MockCursoService) Update(ctx context.Context, curso *models.Curso) error {
+	args := m.Called(ctx, curso)
+	return args.Error(0)
+}
+
+func (m *MockCursoService) Delete(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockCursoService) List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Curso, int, error) {
+	args := m.Called(ctx, filter, page, pageSize)
+	if args.Get(0) == nil {
+		return nil, args.Int(1), args.Error(2)
+	}
+	return args.Get(0).([]*models.Curso), args.Int(1), args.Error(2)
 }
 
 type MockDB struct {
@@ -1504,9 +1636,453 @@ func TestParseXLSX(t *testing.T) {
 	}
 }
 
+// Tests for Process - main job execution flow
+// Note: These tests are skipped due to complex GORM DB mocking requirements.
+// The Process function interacts with the database via GORM's Where/Find/First methods,
+// which are difficult to mock without a full database setup. Integration tests cover these paths.
+func TestProcess_Note(t *testing.T) {
+	t.Skip("Process tests require full DB setup - covered by integration tests. See processRow tests for unit coverage.")
+}
+
 // Tests for processRow
-func TestProcessRow(t *testing.T) {
-	t.Skip("Mock incompatibility - needs refactoring")
+func TestProcessRow_Success(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "123.456.789-01",
+		Email:        "joao@example.com",
+		Telefone:     "21987654321",
+		Idade:        30,
+		Endereco:     "Rua A, 123",
+		Bairro:       "Centro",
+	}
+
+	mockInscricaoService := new(MockInscricaoService)
+
+	// Setup successful creation
+	var capturedInscricao *models.Inscricao
+	mockInscricaoService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
+		Run(func(args mock.Arguments) {
+			capturedInscricao = args.Get(1).(*models.Inscricao)
+			capturedInscricao.ID = uuid.New() // Simulate DB assigning ID
+		}).Return(nil)
+
+	processor := &EnrollmentImportProcessor{
+		inscricaoService: mockInscricaoService,
+	}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, []models.CustomField{}, nil, []models.LocationClass{}, false, nil)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, enrollmentID)
+	assert.Equal(t, "12345678901", capturedInscricao.CPF) // CPF cleaned
+	assert.Equal(t, "João Silva", capturedInscricao.Name)
+	assert.Equal(t, "joao@example.com", capturedInscricao.Email)
+	assert.Equal(t, 30, capturedInscricao.Age)
+
+	mockInscricaoService.AssertExpectations(t)
+}
+
+func TestProcessRow_EmptyNome(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	row := EnrollmentRow{
+		NomeCompleto: "",
+		CPF:          "12345678901",
+	}
+
+	processor := &EnrollmentImportProcessor{}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, []models.CustomField{}, nil, []models.LocationClass{}, false, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, enrollmentID)
+	assert.Contains(t, err.Error(), "nome completo é obrigatório")
+}
+
+func TestProcessRow_EmptyCPF(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "",
+	}
+
+	processor := &EnrollmentImportProcessor{}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, []models.CustomField{}, nil, []models.LocationClass{}, false, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, enrollmentID)
+	assert.Contains(t, err.Error(), "CPF é obrigatório")
+}
+
+func TestProcessRow_InvalidCPFLength(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "123",
+	}
+
+	processor := &EnrollmentImportProcessor{}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, []models.CustomField{}, nil, []models.LocationClass{}, false, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, enrollmentID)
+	assert.Contains(t, err.Error(), "CPF inválido")
+}
+
+func TestProcessRow_WithCustomFields(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "12345678901",
+		CustomFields: map[string]string{
+			"Data de Nascimento": "01/01/1990",
+			"Profissão":          "Engenheiro",
+		},
+	}
+
+	customFields := []models.CustomField{
+		{
+			Title:    "Data de Nascimento",
+			Required: true,
+		},
+		{
+			Title:    "Profissão",
+			Required: false,
+		},
+	}
+
+	mockInscricaoService := new(MockInscricaoService)
+
+	var capturedInscricao *models.Inscricao
+	mockInscricaoService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
+		Run(func(args mock.Arguments) {
+			capturedInscricao = args.Get(1).(*models.Inscricao)
+			capturedInscricao.ID = uuid.New()
+		}).Return(nil)
+
+	processor := &EnrollmentImportProcessor{
+		inscricaoService: mockInscricaoService,
+	}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, customFields, nil, []models.LocationClass{}, false, nil)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, enrollmentID)
+
+	// Verify custom fields were serialized
+	var customFieldsData map[string]interface{}
+	err = json.Unmarshal(capturedInscricao.CustomFieldsData, &customFieldsData)
+	assert.NoError(t, err)
+	assert.Equal(t, "01/01/1990", customFieldsData["Data de Nascimento"])
+	assert.Equal(t, "Engenheiro", customFieldsData["Profissão"])
+}
+
+func TestProcessRow_MissingRequiredCustomField(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "12345678901",
+		CustomFields: map[string]string{},
+	}
+
+	customFields := []models.CustomField{
+		{
+			Title:    "Data de Nascimento",
+			Required: true,
+		},
+	}
+
+	processor := &EnrollmentImportProcessor{}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, customFields, nil, []models.LocationClass{}, false, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, enrollmentID)
+	assert.Contains(t, err.Error(), "obrigatório")
+}
+
+func TestProcessRow_InvalidCustomFieldType(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "12345678901",
+		CustomFields: map[string]string{
+			"Idade": "abc",
+		},
+	}
+
+	customFields := []models.CustomField{
+		{
+			Title:     "Idade",
+			FieldType: "number",
+			Required:  true,
+		},
+	}
+
+	processor := &EnrollmentImportProcessor{}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, customFields, nil, []models.LocationClass{}, false, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, enrollmentID)
+	assert.Contains(t, err.Error(), "número válido")
+}
+
+func TestProcessRow_ServiceError(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "12345678901",
+	}
+
+	mockInscricaoService := new(MockInscricaoService)
+	mockInscricaoService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
+		Return(fmt.Errorf("database error"))
+
+	processor := &EnrollmentImportProcessor{
+		inscricaoService: mockInscricaoService,
+	}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, []models.CustomField{}, nil, []models.LocationClass{}, false, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, enrollmentID)
+	assert.Contains(t, err.Error(), "database error")
+}
+
+func TestProcessRow_WithSingleSchedule(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "12345678901",
+	}
+
+	locationID := uuid.New()
+	scheduleID := uuid.New()
+	now := time.Now()
+
+	locationClasses := []models.LocationClass{
+		{
+			ID:           locationID,
+			Address:      "Rua A, 123",
+			Neighborhood: "Centro",
+			Schedules: []models.CourseSchedule{
+				{
+					ID:             scheduleID,
+					ClassTime:      "09:00-12:00",
+					ClassDays:      "Segunda a Sexta",
+					Vacancies:      30,
+					ClassStartDate: now,
+					ClassEndDate:   now.AddDate(0, 1, 0),
+					CreatedAt:      now,
+					UpdatedAt:      now,
+				},
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	mockInscricaoService := new(MockInscricaoService)
+
+	var capturedInscricao *models.Inscricao
+	mockInscricaoService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
+		Run(func(args mock.Arguments) {
+			capturedInscricao = args.Get(1).(*models.Inscricao)
+			capturedInscricao.ID = uuid.New()
+		}).Return(nil)
+
+	processor := &EnrollmentImportProcessor{
+		inscricaoService: mockInscricaoService,
+	}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, []models.CustomField{}, nil, locationClasses, false, nil)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, enrollmentID)
+	assert.NotNil(t, capturedInscricao.ScheduleID)
+	assert.Equal(t, scheduleID, *capturedInscricao.ScheduleID)
+	assert.NotNil(t, capturedInscricao.EnrolledUnit)
+	assert.Equal(t, locationID.String(), capturedInscricao.EnrolledUnit.ID)
+}
+
+func TestProcessRow_WithTurmaField(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	locationID := uuid.New()
+	scheduleID := uuid.New()
+	now := time.Now()
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "12345678901",
+		Turma:        "Rua A, 123|09:00-12:00|Segunda a Sexta",
+	}
+
+	locationClasses := []models.LocationClass{
+		{
+			ID:           locationID,
+			Address:      "Rua A, 123",
+			Neighborhood: "Centro",
+			Schedules: []models.CourseSchedule{
+				{
+					ID:             scheduleID,
+					ClassTime:      "09:00-12:00",
+					ClassDays:      "Segunda a Sexta",
+					Vacancies:      30,
+					ClassStartDate: now,
+					ClassEndDate:   now.AddDate(0, 1, 0),
+					CreatedAt:      now,
+					UpdatedAt:      now,
+				},
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	scheduleMap := buildScheduleMap(locationClasses, false, nil)
+
+	mockInscricaoService := new(MockInscricaoService)
+
+	var capturedInscricao *models.Inscricao
+	mockInscricaoService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
+		Run(func(args mock.Arguments) {
+			capturedInscricao = args.Get(1).(*models.Inscricao)
+			capturedInscricao.ID = uuid.New()
+		}).Return(nil)
+
+	processor := &EnrollmentImportProcessor{
+		inscricaoService: mockInscricaoService,
+	}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, []models.CustomField{}, scheduleMap, locationClasses, false, nil)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, enrollmentID)
+	assert.NotNil(t, capturedInscricao.ScheduleID)
+	assert.Equal(t, scheduleID, *capturedInscricao.ScheduleID)
+}
+
+func TestProcessRow_InvalidTurma(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	locationID := uuid.New()
+	scheduleID := uuid.New()
+	now := time.Now()
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "12345678901",
+		Turma:        "Invalid Turma",
+	}
+
+	locationClasses := []models.LocationClass{
+		{
+			ID:      locationID,
+			Address: "Rua A, 123",
+			Schedules: []models.CourseSchedule{
+				{
+					ID:             scheduleID,
+					ClassTime:      "09:00-12:00",
+					ClassDays:      "Segunda a Sexta",
+					ClassStartDate: now,
+					ClassEndDate:   now.AddDate(0, 1, 0),
+					CreatedAt:      now,
+					UpdatedAt:      now,
+				},
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	scheduleMap := buildScheduleMap(locationClasses, false, nil)
+
+	processor := &EnrollmentImportProcessor{}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, []models.CustomField{}, scheduleMap, locationClasses, false, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, enrollmentID)
+	assert.Contains(t, err.Error(), "turma")
+	assert.Contains(t, err.Error(), "não encontrada")
+}
+
+func TestProcessRow_MultipleSchedulesWithoutTurma(t *testing.T) {
+	ctx := context.Background()
+	cursoID := 1
+
+	locationID := uuid.New()
+	schedule1ID := uuid.New()
+	schedule2ID := uuid.New()
+	now := time.Now()
+
+	row := EnrollmentRow{
+		NomeCompleto: "João Silva",
+		CPF:          "12345678901",
+		Turma:        "", // Missing turma when multiple schedules exist
+	}
+
+	locationClasses := []models.LocationClass{
+		{
+			ID:      locationID,
+			Address: "Rua A, 123",
+			Schedules: []models.CourseSchedule{
+				{
+					ID:             schedule1ID,
+					ClassTime:      "09:00-12:00",
+					ClassDays:      "Segunda a Sexta",
+					ClassStartDate: now,
+					ClassEndDate:   now.AddDate(0, 1, 0),
+					CreatedAt:      now,
+					UpdatedAt:      now,
+				},
+				{
+					ID:             schedule2ID,
+					ClassTime:      "14:00-17:00",
+					ClassDays:      "Segunda a Sexta",
+					ClassStartDate: now,
+					ClassEndDate:   now.AddDate(0, 1, 0),
+					CreatedAt:      now,
+					UpdatedAt:      now,
+				},
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	processor := &EnrollmentImportProcessor{}
+
+	enrollmentID, err := processor.processRow(ctx, cursoID, row, []models.CustomField{}, nil, locationClasses, false, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, enrollmentID)
+	assert.Contains(t, err.Error(), "Turma")
+	assert.Contains(t, err.Error(), "obrigatória")
 }
 
 // Additional processRow tests focusing on validation paths (before service call)

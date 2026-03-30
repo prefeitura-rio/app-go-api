@@ -354,3 +354,25 @@ func TestInscricaoHandler_ChangeSchedule_MissingAuth(t *testing.T) {
 	// Returns 403 when user_cpf is not set in context
 	assert.Equal(t, http.StatusForbidden, w.Code)
 }
+
+// Test UpdateIndividualStatus endpoint with invalid courseId
+func TestInscricaoHandler_UpdateIndividualStatus_InvalidCourseID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	h := v1.NewInscricaoHandler(nil, nil, nil)
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/status", h.UpdateIndividualStatus)
+
+	enrollmentID := uuid.New().String()
+	body := []byte(`{"status": "approved"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/invalid/enrollments/"+enrollmentID+"/status", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "ID do curso inválido")
+}
+
+
+
+
