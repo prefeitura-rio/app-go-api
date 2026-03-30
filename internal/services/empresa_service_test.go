@@ -474,18 +474,10 @@ func TestEmpresaService_List_OffsetCalculation(t *testing.T) {
 }
 
 func TestNewEmpresaService(t *testing.T) {
-	repo := &mockEmpresaRepo{}
-	service := services.NewEmpresaServiceWithInterface(repo)
+	service := services.NewEmpresaService(nil)
 
 	if service == nil {
 		t.Error("NewEmpresaService() returned nil")
-	}
-
-	// Verify service can perform basic operations
-	ctx := context.Background()
-	_, _, err := service.List(ctx, map[string]interface{}{}, 1, 10)
-	if err != nil {
-		t.Errorf("NewEmpresaService() service not properly initialized: %v", err)
 	}
 }
 

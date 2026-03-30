@@ -706,8 +706,7 @@ func TestOportunidadeMEIService_UpdateExpiredOpportunities(t *testing.T) {
 }
 
 func TestNewOportunidadeMEIService(t *testing.T) {
-	repo := &mockOportunidadeMEIRepo{}
-	service := services.NewOportunidadeMEIServiceWithInterface(repo)
+	service := services.NewOportunidadeMEIService(nil)
 
 	if service == nil {
 		t.Error("NewOportunidadeMEIService() returned nil")

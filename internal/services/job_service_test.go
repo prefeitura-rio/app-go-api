@@ -721,8 +721,7 @@ func TestJobService_List_OffsetCalculation(t *testing.T) {
 }
 
 func TestNewJobService(t *testing.T) {
-	repo := &mockJobRepo{}
-	service := services.NewJobServiceWithInterface(repo)
+	service := services.NewJobService(nil)
 
 	if service == nil {
 		t.Error("NewJobService() returned nil")

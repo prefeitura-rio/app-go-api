@@ -2236,3 +2236,157 @@ func TestCurriculoHandler_UpsertSituacaoInteresses_Unauthorized(t *testing.T) {
 		t.Errorf("expected 401, got %d", w.Code)
 	}
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Additional error path tests for nested operations
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestCurriculoHandler_CreateConquista_ServiceError(t *testing.T) {
+	repo := &mockCurriculoRepoH{err: errTest}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{"titulo":"Premio Inovacao","id_tipo_conquista":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/conquistas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusCreated {
+		t.Error("expected error status, got 201")
+	}
+}
+
+func TestCurriculoHandler_CreateExperiencia_ServiceError(t *testing.T) {
+	repo := &mockCurriculoRepoH{err: errTest}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{"cargo":"Desenvolvedor","empresa":"Acme Inc"}`)
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/experiencias", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusCreated {
+		t.Error("expected error status, got 201")
+	}
+}
+
+func TestCurriculoHandler_CreateCursoComplementar_Success(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{"nome":"Curso de Go","instituicao":"Online Academy"}`)
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/cursos", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_CreateCursoComplementar_Unauthorized(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "", false)
+	body := bodyOf(`{"nome":"Curso de Go"}`)
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/cursos", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestCurriculoHandler_CreateCursoComplementar_BadJSON(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{bad}`)
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/cursos", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCurriculoHandler_CreateCursoComplementar_ServiceError(t *testing.T) {
+	repo := &mockCurriculoRepoH{err: errTest}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{"nome":"Curso de Go","instituicao":"Online Academy"}`)
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/cursos", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusCreated {
+		t.Error("expected error status, got 201")
+	}
+}
+
+func TestCurriculoHandler_DeleteCursoComplementar_AsOwner(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	repo := &mockCurriculoRepoH{curso: &empmodels.CurriculoCursoComplementar{ID: id, CPF: "12345678900"}}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/cursos/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestCurriculoHandler_DeleteCursoComplementar_Forbidden(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	repo := &mockCurriculoRepoH{curso: &empmodels.CurriculoCursoComplementar{ID: id, CPF: "00000000000"}}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/cursos/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", w.Code)
+	}
+}
+
+func TestCurriculoHandler_DeleteCursoComplementar_InvalidID(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/cursos/bad-id", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCurriculoHandler_DeleteCursoComplementar_NotFound(t *testing.T) {
+	repo := &mockCurriculoRepoH{curso: nil}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/cursos/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestCurriculoHandler_DeleteCursoComplementar_ServiceError(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	repo := &mockCurriculoRepoH{
+		curso: &empmodels.CurriculoCursoComplementar{ID: id, CPF: "12345678900"},
+		err:   errTest,
+	}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/cursos/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status, got 200")
+	}
+}
+
+func TestCurriculoHandler_DeleteCursoComplementar_GetByIDError(t *testing.T) {
+	repo := &mockCurriculoRepoH{err: errTest}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/cursos/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status, got 200")
+	}
+}

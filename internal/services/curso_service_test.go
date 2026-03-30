@@ -137,10 +137,12 @@ func TestNewCursoService(t *testing.T) {
 		}
 	})
 
-	t.Run("Concrete constructor exists", func(t *testing.T) {
-		// Verify the function signature exists at compile time
-		// This ensures NewCursoService(repo *repository.CursoRepository) is available
-		_ = services.NewCursoService
+	t.Run("Concrete constructor", func(t *testing.T) {
+		// Test the concrete constructor with nil (it doesn't validate)
+		svc := services.NewCursoService(nil)
+		if svc == nil {
+			t.Fatal("NewCursoService returned nil")
+		}
 	})
 }
 

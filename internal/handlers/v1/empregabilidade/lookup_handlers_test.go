@@ -159,6 +159,17 @@ func TestRegimeContratacaoHandler_GetByID_InvalidID(t *testing.T) {
 	}
 }
 
+func TestRegimeContratacaoHandler_GetByID_ServiceError(t *testing.T) {
+	repo := &mockRegimeContratacaoRepoH{err: fmt.Errorf("db error")}
+	r := setupRegimeContratacaoRouter(repo)
+	req := httptest.NewRequest(http.MethodGet, "/regimes/"+uuid.New().String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
 func TestRegimeContratacaoHandler_Update_Success(t *testing.T) {
 	repo := &mockRegimeContratacaoRepoH{}
 	r := setupRegimeContratacaoRouter(repo)
@@ -287,6 +298,17 @@ func TestModeloTrabalhoHandler_List(t *testing.T) {
 	}
 }
 
+func TestModeloTrabalhoHandler_List_Error(t *testing.T) {
+	repo := &mockModeloTrabalhoRepoH{err: fmt.Errorf("db error")}
+	r := setupModeloTrabalhoRouter(repo)
+	req := httptest.NewRequest(http.MethodGet, "/modelos", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
 func TestModeloTrabalhoHandler_GetByID_Found(t *testing.T) {
 	id := uuid.New()
 	repo := &mockModeloTrabalhoRepoH{entity: &empmodels.ModeloTrabalho{ID: id, Descricao: "Remoto"}}
@@ -314,6 +336,30 @@ func TestModeloTrabalhoHandler_GetByID_InvalidID(t *testing.T) {
 	repo := &mockModeloTrabalhoRepoH{}
 	r := setupModeloTrabalhoRouter(repo)
 	req := httptest.NewRequest(http.MethodGet, "/modelos/bad-id", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestModeloTrabalhoHandler_GetByID_ServiceError(t *testing.T) {
+	repo := &mockModeloTrabalhoRepoH{err: fmt.Errorf("db error")}
+	r := setupModeloTrabalhoRouter(repo)
+	req := httptest.NewRequest(http.MethodGet, "/modelos/"+uuid.New().String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestModeloTrabalhoHandler_Create_BadJSON(t *testing.T) {
+	repo := &mockModeloTrabalhoRepoH{}
+	r := setupModeloTrabalhoRouter(repo)
+	body := bytes.NewBufferString(`invalid json`)
+	req := httptest.NewRequest(http.MethodPost, "/modelos", body)
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusBadRequest {
@@ -480,6 +526,41 @@ func TestTipoPCDHandler_CRUD(t *testing.T) {
 		}
 	})
 
+	t.Run("GetByID_ServiceError", func(t *testing.T) {
+		repo := &mockTipoPCDRepoH{err: fmt.Errorf("db error")}
+		r := setupTipoPCDRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/tipos-pcd/"+uuid.New().String(), nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("List_Error", func(t *testing.T) {
+		repo := &mockTipoPCDRepoH{err: fmt.Errorf("db error")}
+		r := setupTipoPCDRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/tipos-pcd", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("Create_Error", func(t *testing.T) {
+		repo := &mockTipoPCDRepoH{err: fmt.Errorf("db error")}
+		r := setupTipoPCDRouter(repo)
+		body := bytes.NewBufferString(`{"descricao":"Visual"}`)
+		req := httptest.NewRequest(http.MethodPost, "/tipos-pcd", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusCreated {
+			t.Error("expected error status")
+		}
+	})
+
 	t.Run("Update_Success", func(t *testing.T) {
 		repo := &mockTipoPCDRepoH{}
 		r := setupTipoPCDRouter(repo)
@@ -635,6 +716,43 @@ func TestIdiomaHandler_CRUD(t *testing.T) {
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetByID_ServiceError", func(t *testing.T) {
+		repo := &mockIdiomaRepoH{err: fmt.Errorf("db error")}
+		r := setupIdiomaRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/idiomas/"+uuid.New().String(), nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("Create_BadJSON", func(t *testing.T) {
+		repo := &mockIdiomaRepoH{}
+		r := setupIdiomaRouter(repo)
+		body := bytes.NewBufferString(`not json`)
+		req := httptest.NewRequest(http.MethodPost, "/idiomas", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("Create_Error", func(t *testing.T) {
+		repo := &mockIdiomaRepoH{err: fmt.Errorf("db error")}
+		r := setupIdiomaRouter(repo)
+		body := bytes.NewBufferString(`{"descricao":"Inglês"}`)
+		req := httptest.NewRequest(http.MethodPost, "/idiomas", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusCreated {
+			t.Error("expected error status")
 		}
 	})
 
@@ -799,6 +917,65 @@ func TestNivelIdiomaHandler_CRUD(t *testing.T) {
 			t.Errorf("expected 200, got %d", w.Code)
 		}
 	})
+
+	t.Run("GetByID_InvalidID", func(t *testing.T) {
+		repo := &mockNivelIdiomaRepoH{}
+		r := setupNivelIdiomaRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/niveis/bad-id", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetByID_ServiceError", func(t *testing.T) {
+		repo := &mockNivelIdiomaRepoH{err: fmt.Errorf("db error")}
+		r := setupNivelIdiomaRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/niveis/"+uuid.New().String(), nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("List_Error", func(t *testing.T) {
+		repo := &mockNivelIdiomaRepoH{err: fmt.Errorf("db error")}
+		r := setupNivelIdiomaRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/niveis", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("Create_BadJSON", func(t *testing.T) {
+		repo := &mockNivelIdiomaRepoH{}
+		r := setupNivelIdiomaRouter(repo)
+		body := bytes.NewBufferString(`not json`)
+		req := httptest.NewRequest(http.MethodPost, "/niveis", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("Create_Error", func(t *testing.T) {
+		repo := &mockNivelIdiomaRepoH{err: fmt.Errorf("db error")}
+		r := setupNivelIdiomaRouter(repo)
+		body := bytes.NewBufferString(`{"descricao":"Básico"}`)
+		req := httptest.NewRequest(http.MethodPost, "/niveis", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusCreated {
+			t.Error("expected error status")
+		}
+	})
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -911,6 +1088,65 @@ func TestEscolaridadeHandler_CRUD(t *testing.T) {
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusOK {
 			t.Errorf("expected 200, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetByID_InvalidID", func(t *testing.T) {
+		repo := &mockEscolaridadeRepoH{}
+		r := setupEscolaridadeRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/escolaridades/bad-id", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetByID_ServiceError", func(t *testing.T) {
+		repo := &mockEscolaridadeRepoH{err: fmt.Errorf("db error")}
+		r := setupEscolaridadeRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/escolaridades/"+uuid.New().String(), nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("List_Error", func(t *testing.T) {
+		repo := &mockEscolaridadeRepoH{err: fmt.Errorf("db error")}
+		r := setupEscolaridadeRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/escolaridades", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("Create_BadJSON", func(t *testing.T) {
+		repo := &mockEscolaridadeRepoH{}
+		r := setupEscolaridadeRouter(repo)
+		body := bytes.NewBufferString(`not json`)
+		req := httptest.NewRequest(http.MethodPost, "/escolaridades", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("Create_Error", func(t *testing.T) {
+		repo := &mockEscolaridadeRepoH{err: fmt.Errorf("db error")}
+		r := setupEscolaridadeRouter(repo)
+		body := bytes.NewBufferString(`{"descricao":"Superior"}`)
+		req := httptest.NewRequest(http.MethodPost, "/escolaridades", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusCreated {
+			t.Error("expected error status")
 		}
 	})
 }
@@ -1027,6 +1263,65 @@ func TestTipoConquistaHandler_CRUD(t *testing.T) {
 			t.Errorf("expected 200, got %d", w.Code)
 		}
 	})
+
+	t.Run("GetByID_InvalidID", func(t *testing.T) {
+		repo := &mockTipoConquistaRepoH{}
+		r := setupTipoConquistaRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/tipos-conquista/bad-id", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetByID_ServiceError", func(t *testing.T) {
+		repo := &mockTipoConquistaRepoH{err: fmt.Errorf("db error")}
+		r := setupTipoConquistaRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/tipos-conquista/"+uuid.New().String(), nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("List_Error", func(t *testing.T) {
+		repo := &mockTipoConquistaRepoH{err: fmt.Errorf("db error")}
+		r := setupTipoConquistaRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/tipos-conquista", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("Create_BadJSON", func(t *testing.T) {
+		repo := &mockTipoConquistaRepoH{}
+		r := setupTipoConquistaRouter(repo)
+		body := bytes.NewBufferString(`not json`)
+		req := httptest.NewRequest(http.MethodPost, "/tipos-conquista", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("Create_Error", func(t *testing.T) {
+		repo := &mockTipoConquistaRepoH{err: fmt.Errorf("db error")}
+		r := setupTipoConquistaRouter(repo)
+		body := bytes.NewBufferString(`{"descricao":"Certificado"}`)
+		req := httptest.NewRequest(http.MethodPost, "/tipos-conquista", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusCreated {
+			t.Error("expected error status")
+		}
+	})
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1141,6 +1436,65 @@ func TestSituacaoAtualHandler_CRUD(t *testing.T) {
 			t.Errorf("expected 200, got %d", w.Code)
 		}
 	})
+
+	t.Run("GetByID_InvalidID", func(t *testing.T) {
+		repo := &mockSituacaoAtualRepoH{}
+		r := setupSituacaoAtualRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/situacoes/bad-id", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetByID_ServiceError", func(t *testing.T) {
+		repo := &mockSituacaoAtualRepoH{err: fmt.Errorf("db error")}
+		r := setupSituacaoAtualRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/situacoes/"+uuid.New().String(), nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("List_Error", func(t *testing.T) {
+		repo := &mockSituacaoAtualRepoH{err: fmt.Errorf("db error")}
+		r := setupSituacaoAtualRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/situacoes", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("Create_BadJSON", func(t *testing.T) {
+		repo := &mockSituacaoAtualRepoH{}
+		r := setupSituacaoAtualRouter(repo)
+		body := bytes.NewBufferString(`not json`)
+		req := httptest.NewRequest(http.MethodPost, "/situacoes", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("Create_Error", func(t *testing.T) {
+		repo := &mockSituacaoAtualRepoH{err: fmt.Errorf("db error")}
+		r := setupSituacaoAtualRouter(repo)
+		body := bytes.NewBufferString(`{"descricao":"Empregado"}`)
+		req := httptest.NewRequest(http.MethodPost, "/situacoes", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusCreated {
+			t.Error("expected error status")
+		}
+	})
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1253,6 +1607,65 @@ func TestDisponibilidadeHandler_CRUD(t *testing.T) {
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusOK {
 			t.Errorf("expected 200, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetByID_InvalidID", func(t *testing.T) {
+		repo := &mockDisponibilidadeRepoH{}
+		r := setupDisponibilidadeRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/disponibilidades/bad-id", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetByID_ServiceError", func(t *testing.T) {
+		repo := &mockDisponibilidadeRepoH{err: fmt.Errorf("db error")}
+		r := setupDisponibilidadeRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/disponibilidades/"+uuid.New().String(), nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("List_Error", func(t *testing.T) {
+		repo := &mockDisponibilidadeRepoH{err: fmt.Errorf("db error")}
+		r := setupDisponibilidadeRouter(repo)
+		req := httptest.NewRequest(http.MethodGet, "/disponibilidades", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK {
+			t.Error("expected error status")
+		}
+	})
+
+	t.Run("Create_BadJSON", func(t *testing.T) {
+		repo := &mockDisponibilidadeRepoH{}
+		r := setupDisponibilidadeRouter(repo)
+		body := bytes.NewBufferString(`not json`)
+		req := httptest.NewRequest(http.MethodPost, "/disponibilidades", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("Create_Error", func(t *testing.T) {
+		repo := &mockDisponibilidadeRepoH{err: fmt.Errorf("db error")}
+		r := setupDisponibilidadeRouter(repo)
+		body := bytes.NewBufferString(`{"descricao":"Imediata"}`)
+		req := httptest.NewRequest(http.MethodPost, "/disponibilidades", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusCreated {
+			t.Error("expected error status")
 		}
 	})
 }

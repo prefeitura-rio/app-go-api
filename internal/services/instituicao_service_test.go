@@ -510,8 +510,7 @@ func TestInstituicaoService_List_OffsetCalculation(t *testing.T) {
 }
 
 func TestNewInstituicaoService(t *testing.T) {
-	repo := &mockInstituicaoRepo{}
-	service := services.NewInstituicaoServiceWithInterface(repo)
+	service := services.NewInstituicaoService(nil)
 
 	if service == nil {
 		t.Error("NewInstituicaoService() returned nil")

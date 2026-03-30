@@ -636,8 +636,7 @@ func TestEmpregoService_Create_AllJornadaTrabalho(t *testing.T) {
 }
 
 func TestNewEmpregoService(t *testing.T) {
-	repo := &mockEmpregoRepo{}
-	service := services.NewEmpregoServiceWithInterface(repo)
+	service := services.NewEmpregoService(nil)
 
 	if service == nil {
 		t.Error("NewEmpregoService() returned nil")
