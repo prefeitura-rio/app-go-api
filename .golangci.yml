@@ -1,8 +1,7 @@
-version: 2
-
 run:
   timeout: 10m
-  tests: false
+  skip-dirs:
+    - tests
   build-tags:
     - integration
 
