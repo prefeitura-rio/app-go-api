@@ -1222,6 +1222,42 @@ func TestCurriculoRepository_ReplaceAllFormacaoAccordionByCPF(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao inserir idiomas")
 	})
+
+	t.Run("delete idiomas error", func(t *testing.T) {
+		cpf := "12345678900"
+		formacoes := []*empregabilidade.CurriculoFormacao{{NomeCurso: "Engenharia"}}
+		idiomas := []*empregabilidade.CurriculoIdioma{{IDIdioma: uuid.New()}}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_formacoes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_formacoes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_idiomas"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.ReplaceAllFormacaoAccordionByCPF(ctx, cpf, formacoes, idiomas)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao remover idiomas")
+	})
+
+	t.Run("insert formacoes error", func(t *testing.T) {
+		cpf := "12345678900"
+		formacoes := []*empregabilidade.CurriculoFormacao{{NomeCurso: "Engenharia"}}
+		idiomas := []*empregabilidade.CurriculoIdioma{{IDIdioma: uuid.New()}}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_formacoes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_formacoes"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.ReplaceAllFormacaoAccordionByCPF(ctx, cpf, formacoes, idiomas)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao inserir formações")
+	})
 }
 
 func TestCurriculoRepository_ReplaceAllExperienciasByCPF(t *testing.T) {
@@ -1350,6 +1386,42 @@ func TestCurriculoRepository_ReplaceAllExperienciaProfissionalAccordionByCPF(t *
 		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao inserir conquistas")
+	})
+
+	t.Run("delete conquistas error", func(t *testing.T) {
+		cpf := "12345678900"
+		experiencias := []*empregabilidade.CurriculoExperiencia{{Cargo: "Dev"}}
+		conquistas := []*empregabilidade.CurriculoConquista{{Descricao: "Award"}}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_experiencias"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_experiencias"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_conquistas"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao remover conquistas")
+	})
+
+	t.Run("insert experiencias error", func(t *testing.T) {
+		cpf := "12345678900"
+		experiencias := []*empregabilidade.CurriculoExperiencia{{Cargo: "Dev"}}
+		conquistas := []*empregabilidade.CurriculoConquista{{Descricao: "Award"}}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_experiencias"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_experiencias"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao inserir experiências")
 	})
 }
 
