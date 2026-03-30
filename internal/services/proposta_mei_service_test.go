@@ -114,6 +114,34 @@ func (m *MockOportunidadeRepo) GetByID(ctx context.Context, id int) (*models.Opo
 	return oportunidade, nil
 }
 
+func (m *MockOportunidadeRepo) Create(ctx context.Context, oportunidade *models.OportunidadeMEI) (int, error) {
+	return 0, errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) Update(ctx context.Context, oportunidade *models.OportunidadeMEI) error {
+	return errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) Delete(ctx context.Context, id int) error {
+	return errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) List(ctx context.Context, filters map[string]interface{}, titulo string, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) ListByStatus(ctx context.Context, status models.StatusOportunidadeMEI, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) ListByOrgao(ctx context.Context, orgaoID string, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) UpdateExpiredOpportunities(ctx context.Context) error {
+	return errors.New("not implemented")
+}
+
 // Mock CNAE Validation Service
 type MockCNAEValidation struct {
 	validateError        error

@@ -139,3 +139,84 @@ func TestHasMatchingCNAE(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractDigits_Unicode(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"Arabic-Indic numerals", "١٢٣٤٥", "١٢٣٤٥"},    // unicode.IsDigit accepts these
+		{"Mixed unicode", "123٤٥٦", "123٤٥٦"},         // All unicode digits
+		{"Chinese numerals", "一二三四", ""},               // Not digits
+		{"Emoji with numbers", "🔢123🔢", "123"},        // Extracts ASCII digits
+		{"Full-width digits", "１２３４５", "１２３４５"},     // unicode.IsDigit accepts these
+		{"Subscript digits", "₁₂₃₄₅", ""},              // Not considered digits
+		{"Superscript digits", "¹²³⁴⁵", ""},            // Not considered digits
+		{"Roman numerals", "ⅠⅡⅢⅣⅤ", ""},               // Not digits
+		{"Letters and numbers", "abc123def", "123"},   // Only digits extracted
+		{"Special chars", "!@#$%123^&*", "123"},       // Only digits extracted
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractDigits(tt.input)
+			if result != tt.expected {
+				t.Errorf("ExtractDigits(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExtractDigits_Performance(t *testing.T) {
+	// Test with very long string
+	longInput := ""
+	for i := 0; i < 10000; i++ {
+		longInput += "12-34.56/78 "
+	}
+
+	result := ExtractDigits(longInput)
+	expectedLen := 10000 * 8 // 8 digits per iteration
+	if len(result) != expectedLen {
+		t.Errorf("ExtractDigits length = %d, want %d", len(result), expectedLen)
+	}
+}
+
+func TestCNAEListToDigits_NilInput(t *testing.T) {
+	// Even though nil slice, function should handle gracefully
+	result := CNAEListToDigits(nil)
+	if result == nil {
+		t.Error("Expected empty slice, got nil")
+	}
+	if len(result) != 0 {
+		t.Errorf("Expected empty slice, got length %d", len(result))
+	}
+}
+
+func TestHasMatchingCNAE_LargeDataset(t *testing.T) {
+	// Test with large datasets to ensure O(1) lookup works
+	cnpjCNAEs := make([]string, 1000)
+	opportunityCNAEs := make([]string, 1000)
+
+	for i := 0; i < 1000; i++ {
+		cnpjCNAEs[i] = string(rune('0' + (i % 10)))
+		opportunityCNAEs[i] = string(rune('0' + ((i + 500) % 10)))
+	}
+
+	// Should find matches quickly
+	result := HasMatchingCNAE(cnpjCNAEs, opportunityCNAEs)
+	if !result {
+		t.Error("Expected match in large dataset")
+	}
+}
+
+func TestHasMatchingCNAE_OnlyEmptyStrings(t *testing.T) {
+	// All empty strings should not match
+	cnpjCNAEs := []string{"", "", ""}
+	opportunityCNAEs := []string{"", "", ""}
+
+	result := HasMatchingCNAE(cnpjCNAEs, opportunityCNAEs)
+	if result {
+		t.Error("Empty strings should not match")
+	}
+}

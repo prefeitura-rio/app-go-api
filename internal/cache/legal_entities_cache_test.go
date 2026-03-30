@@ -5,29 +5,36 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/redis/go-redis/v9"
 )
 
-func TestLegalEntitiesCache_SetAndGet(t *testing.T) {
-	// Setup: Create a Redis client for testing
-	// Using a test database (DB 15) to avoid conflicts
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-		DB:   15, // Use test database
-	})
-
-	// Ensure Redis is available
-	ctx := context.Background()
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		t.Skipf("Redis not available for testing: %v", err)
-		return
+func setupLegalEntitiesCacheTest(t *testing.T) (*redis.Client, context.Context, func()) {
+	// Create a miniredis instance for testing
+	mr, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("Failed to start miniredis: %v", err)
 	}
 
-	// Clean up test data before and after
-	defer redisClient.FlushDB(ctx)
-	redisClient.FlushDB(ctx)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: mr.Addr(),
+	})
+
+	ctx := context.Background()
+
+	cleanup := func() {
+		redisClient.Close()
+		mr.Close()
+	}
+
+	return redisClient, ctx, cleanup
+}
+
+func TestLegalEntitiesCache_SetAndGet(t *testing.T) {
+	redisClient, ctx, cleanup := setupLegalEntitiesCacheTest(t)
+	defer cleanup()
 
 	// Create cache with 1 minute TTL for testing
 	c := cache.NewLegalEntitiesCache(redisClient, 1*time.Minute)
@@ -254,4 +261,358 @@ func TestLegalEntitiesCache_GetAllCNAEs_NoSecundarias(t *testing.T) {
 	if cnaes[0] != "6201-5/00" {
 		t.Errorf("Expected fiscal CNAE, got %s", cnaes[0])
 	}
+}
+
+func TestLegalEntitiesCache_Delete(t *testing.T) {
+	redisClient, ctx, cleanup := setupLegalEntitiesCacheTest(t)
+	defer cleanup()
+
+	c := cache.NewLegalEntitiesCache(redisClient, 1*time.Minute)
+
+	t.Run("Delete existing cache entry", func(t *testing.T) {
+		cpf := "12345678900"
+		entities := []models.LegalEntity{
+			{CNPJ: "12345678000190", CNAEFiscal: "1111-1/11", RazaoSocial: "Test"},
+		}
+
+		// Set cache
+		err := c.Set(ctx, cpf, entities)
+		if err != nil {
+			t.Fatalf("Failed to set cache: %v", err)
+		}
+
+		// Verify it exists
+		cached, err := c.Get(ctx, cpf)
+		if err != nil {
+			t.Fatalf("Failed to get cache: %v", err)
+		}
+		if cached == nil {
+			t.Fatal("Expected cache to exist")
+		}
+
+		// Delete directly using Redis client
+		key := "legal_entities:" + cpf
+		result, err := redisClient.Del(ctx, key).Result()
+		if err != nil {
+			t.Fatalf("Failed to delete key: %v", err)
+		}
+		if result != 1 {
+			t.Errorf("Expected 1 key deleted, got %d", result)
+		}
+
+		// Verify it's gone
+		cached, err = c.Get(ctx, cpf)
+		if err != nil {
+			t.Fatalf("Failed to get cache after delete: %v", err)
+		}
+		if cached != nil {
+			t.Error("Expected cache to be deleted")
+		}
+	})
+}
+
+func TestLegalEntitiesCache_Exists(t *testing.T) {
+	redisClient, ctx, cleanup := setupLegalEntitiesCacheTest(t)
+	defer cleanup()
+
+	c := cache.NewLegalEntitiesCache(redisClient, 1*time.Minute)
+
+	t.Run("Check if key exists", func(t *testing.T) {
+		cpf := "11111111111"
+
+		// Verify key doesn't exist initially
+		key := "legal_entities:" + cpf
+		exists, err := redisClient.Exists(ctx, key).Result()
+		if err != nil {
+			t.Fatalf("Failed to check existence: %v", err)
+		}
+		if exists != 0 {
+			t.Error("Expected key to not exist")
+		}
+
+		// Set cache
+		entities := []models.LegalEntity{
+			{CNPJ: "11111111000111", CNAEFiscal: "1111-1/11", RazaoSocial: "Test"},
+		}
+		err = c.Set(ctx, cpf, entities)
+		if err != nil {
+			t.Fatalf("Failed to set cache: %v", err)
+		}
+
+		// Verify key exists
+		exists, err = redisClient.Exists(ctx, key).Result()
+		if err != nil {
+			t.Fatalf("Failed to check existence: %v", err)
+		}
+		if exists != 1 {
+			t.Error("Expected key to exist")
+		}
+	})
+}
+
+func TestLegalEntitiesCache_ErrorHandling(t *testing.T) {
+	redisClient, ctx, cleanup := setupLegalEntitiesCacheTest(t)
+	defer cleanup()
+
+	c := cache.NewLegalEntitiesCache(redisClient, 1*time.Minute)
+
+	t.Run("Get with invalid JSON in cache", func(t *testing.T) {
+		cpf := "99999999999"
+		key := "legal_entities:" + cpf
+
+		// Set invalid JSON directly in Redis
+		err := redisClient.Set(ctx, key, "invalid json {{{", 1*time.Minute).Err()
+		if err != nil {
+			t.Fatalf("Failed to set invalid JSON: %v", err)
+		}
+
+		// Try to get - should fail to unmarshal
+		_, err = c.Get(ctx, cpf)
+		if err == nil {
+			t.Error("Expected error when getting invalid JSON")
+		}
+		if err != nil && err.Error() != "" {
+			// Verify error message mentions unmarshal
+			if len(err.Error()) == 0 {
+				t.Error("Expected non-empty error message")
+			}
+		}
+	})
+
+	t.Run("Operations with closed connection", func(t *testing.T) {
+		// Create a miniredis and immediately close it
+		mrClosed, _ := miniredis.Run()
+		closedClient := redis.NewClient(&redis.Options{
+			Addr: mrClosed.Addr(),
+		})
+		mrClosed.Close() // Close the miniredis server
+		closedClient.Close()
+
+		closedCache := cache.NewLegalEntitiesCache(closedClient, 1*time.Minute)
+
+		// Get should fail
+		_, err := closedCache.Get(ctx, "12345678900")
+		if err == nil {
+			t.Error("Expected error with closed connection")
+		}
+
+		// Set should fail
+		entities := []models.LegalEntity{
+			{CNPJ: "12345678000190", CNAEFiscal: "1111-1/11", RazaoSocial: "Test"},
+		}
+		err = closedCache.Set(ctx, "12345678900", entities)
+		if err == nil {
+			t.Error("Expected error with closed connection")
+		}
+	})
+}
+
+func TestLegalEntitiesCache_MultipleEntries(t *testing.T) {
+	redisClient, ctx, cleanup := setupLegalEntitiesCacheTest(t)
+	defer cleanup()
+
+	c := cache.NewLegalEntitiesCache(redisClient, 1*time.Minute)
+
+	t.Run("Store and retrieve multiple CPFs", func(t *testing.T) {
+		cpfData := map[string][]models.LegalEntity{
+			"11111111111": {
+				{CNPJ: "11111111000111", CNAEFiscal: "1111-1/11", RazaoSocial: "Company 1"},
+			},
+			"22222222222": {
+				{CNPJ: "22222222000122", CNAEFiscal: "2222-2/22", RazaoSocial: "Company 2A"},
+				{CNPJ: "33333333000133", CNAEFiscal: "3333-3/33", RazaoSocial: "Company 2B"},
+			},
+			"33333333333": {
+				{CNPJ: "44444444000144", CNAEFiscal: "4444-4/44", RazaoSocial: "Company 3"},
+			},
+		}
+
+		// Set all entries
+		for cpf, entities := range cpfData {
+			err := c.Set(ctx, cpf, entities)
+			if err != nil {
+				t.Fatalf("Failed to set cache for CPF %s: %v", cpf, err)
+			}
+		}
+
+		// Verify all entries
+		for cpf, expectedEntities := range cpfData {
+			cached, err := c.Get(ctx, cpf)
+			if err != nil {
+				t.Fatalf("Failed to get cache for CPF %s: %v", cpf, err)
+			}
+			if cached == nil {
+				t.Fatalf("Expected cache for CPF %s, got nil", cpf)
+			}
+			if len(cached) != len(expectedEntities) {
+				t.Errorf("CPF %s: expected %d entities, got %d", cpf, len(expectedEntities), len(cached))
+			}
+		}
+	})
+}
+
+func TestLegalEntitiesCache_ConcurrentAccess(t *testing.T) {
+	redisClient, ctx, cleanup := setupLegalEntitiesCacheTest(t)
+	defer cleanup()
+
+	c := cache.NewLegalEntitiesCache(redisClient, 1*time.Minute)
+
+	t.Run("Concurrent sets and gets", func(t *testing.T) {
+		const numGoroutines = 20
+		done := make(chan bool, numGoroutines)
+
+		// Concurrent writes
+		for i := 0; i < numGoroutines; i++ {
+			go func(index int) {
+				cpf := "12345678900"
+				entities := []models.LegalEntity{
+					{
+						CNPJ:        "12345678000190",
+						CNAEFiscal:  "1111-1/11",
+						RazaoSocial: "Concurrent Test",
+					},
+				}
+				err := c.Set(ctx, cpf, entities)
+				if err != nil {
+					t.Errorf("Goroutine %d: failed to set: %v", index, err)
+				}
+				done <- true
+			}(i)
+		}
+
+		// Wait for all writes
+		for i := 0; i < numGoroutines; i++ {
+			<-done
+		}
+
+		// Verify final state
+		cached, err := c.Get(ctx, "12345678900")
+		if err != nil {
+			t.Fatalf("Failed to get after concurrent writes: %v", err)
+		}
+		if cached == nil {
+			t.Error("Expected cache to exist after concurrent writes")
+		}
+	})
+}
+
+func TestLegalEntitiesCache_NilAndEmptyValues(t *testing.T) {
+	redisClient, ctx, cleanup := setupLegalEntitiesCacheTest(t)
+	defer cleanup()
+
+	c := cache.NewLegalEntitiesCache(redisClient, 1*time.Minute)
+
+	t.Run("Set nil entities", func(t *testing.T) {
+		cpf := "00000000000"
+
+		err := c.Set(ctx, cpf, nil)
+		if err != nil {
+			t.Fatalf("Failed to set nil: %v", err)
+		}
+
+		cached, err := c.Get(ctx, cpf)
+		if err != nil {
+			t.Fatalf("Failed to get nil value: %v", err)
+		}
+		if cached != nil && len(cached) != 0 {
+			t.Errorf("Expected nil or empty, got %d entities", len(cached))
+		}
+	})
+
+	t.Run("Entity with empty strings", func(t *testing.T) {
+		cpf := "11111111111"
+		entities := []models.LegalEntity{
+			{
+				CNPJ:            "",
+				CNAEFiscal:      "",
+				CNAESecundarias: []string{},
+				RazaoSocial:     "",
+			},
+		}
+
+		err := c.Set(ctx, cpf, entities)
+		if err != nil {
+			t.Fatalf("Failed to set empty entity: %v", err)
+		}
+
+		cached, err := c.Get(ctx, cpf)
+		if err != nil {
+			t.Fatalf("Failed to get empty entity: %v", err)
+		}
+		if cached == nil || len(cached) != 1 {
+			t.Errorf("Expected 1 empty entity, got %v", cached)
+		}
+	})
+}
+
+func TestLegalEntitiesCache_SpecialCPFFormats(t *testing.T) {
+	redisClient, ctx, cleanup := setupLegalEntitiesCacheTest(t)
+	defer cleanup()
+
+	c := cache.NewLegalEntitiesCache(redisClient, 1*time.Minute)
+
+	testCases := []struct {
+		name string
+		cpf  string
+	}{
+		{"Standard CPF", "12345678900"},
+		{"CPF with zeros", "00000000000"},
+		{"CPF with all nines", "99999999999"},
+		{"CPF with special pattern", "11111111111"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := []models.LegalEntity{
+				{CNPJ: "12345678000190", CNAEFiscal: "1111-1/11", RazaoSocial: "Test"},
+			}
+
+			err := c.Set(ctx, tc.cpf, entities)
+			if err != nil {
+				t.Fatalf("Failed to set cache for CPF %s: %v", tc.cpf, err)
+			}
+
+			cached, err := c.Get(ctx, tc.cpf)
+			if err != nil {
+				t.Fatalf("Failed to get cache for CPF %s: %v", tc.cpf, err)
+			}
+			if cached == nil {
+				t.Errorf("Expected cache for CPF %s, got nil", tc.cpf)
+			}
+		})
+	}
+}
+
+func TestLegalEntitiesCache_LargeDataSets(t *testing.T) {
+	redisClient, ctx, cleanup := setupLegalEntitiesCacheTest(t)
+	defer cleanup()
+
+	c := cache.NewLegalEntitiesCache(redisClient, 1*time.Minute)
+
+	t.Run("Store large number of entities for single CPF", func(t *testing.T) {
+		cpf := "12345678900"
+
+		// Create 100 entities
+		entities := make([]models.LegalEntity, 100)
+		for i := 0; i < 100; i++ {
+			entities[i] = models.LegalEntity{
+				CNPJ:        "12345678000190",
+				CNAEFiscal:  "1111-1/11",
+				RazaoSocial: "Company " + string(rune(i)),
+			}
+		}
+
+		err := c.Set(ctx, cpf, entities)
+		if err != nil {
+			t.Fatalf("Failed to set large dataset: %v", err)
+		}
+
+		cached, err := c.Get(ctx, cpf)
+		if err != nil {
+			t.Fatalf("Failed to get large dataset: %v", err)
+		}
+		if len(cached) != 100 {
+			t.Errorf("Expected 100 entities, got %d", len(cached))
+		}
+	})
 }

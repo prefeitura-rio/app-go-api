@@ -499,11 +499,22 @@ func getEnv(v *viper.Viper, key, defaultValue string) string {
 
 func getInt(v *viper.Viper, key string, defaultValue int) int {
 	if v.IsSet(key) {
-		return v.GetInt(key)
+		val := v.GetInt(key)
+		// If viper returns 0, verify if it's a real 0 or a parse error
+		if val == 0 {
+			// Check if the actual string value is "0" (valid) or something else (invalid)
+			strVal := v.GetString(key)
+			if strVal != "0" && strVal != "" {
+				// Parse error - use default
+				return defaultValue
+			}
+		}
+		return val
 	}
 	// Fallback para os.Getenv diretamente
 	if value := os.Getenv(key); value != "" {
-		if val, err := fmt.Sscanf(value, "%d", new(int)); err == nil && val > 0 {
+		var val int
+		if _, err := fmt.Sscanf(value, "%d", &val); err == nil {
 			return val
 		}
 	}
@@ -512,7 +523,16 @@ func getInt(v *viper.Viper, key string, defaultValue int) int {
 
 func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 	if v.IsSet(key) {
-		return v.GetBool(key)
+		strVal := v.GetString(key)
+		lowerVal := strings.ToLower(strVal)
+		// Only accept explicit true/false values
+		if lowerVal == "true" || lowerVal == "1" {
+			return true
+		} else if lowerVal == "false" || lowerVal == "0" {
+			return false
+		}
+		// Invalid boolean value - use default
+		return defaultValue
 	}
 	// Fallback para os.Getenv diretamente
 	if value := os.Getenv(key); value != "" {
@@ -523,7 +543,13 @@ func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 
 func getDuration(v *viper.Viper, key string, defaultValue time.Duration) time.Duration {
 	if v.IsSet(key) {
-		return v.GetDuration(key)
+		strVal := v.GetString(key)
+		// Try to parse the duration
+		if d, err := time.ParseDuration(strVal); err == nil {
+			return d
+		}
+		// Parse error - use default
+		return defaultValue
 	}
 	// Fallback para os.Getenv diretamente
 	if value := os.Getenv(key); value != "" {
@@ -535,8 +561,24 @@ func getDuration(v *viper.Viper, key string, defaultValue time.Duration) time.Du
 }
 
 func getStringSlice(v *viper.Viper, key string) []string {
-	// Try viper first
+	// Viper's GetStringSlice doesn't parse comma-separated values from env vars
+	// We need to handle this manually
 	if v.IsSet(key) {
+		// First try to get as string and parse manually
+		strVal := v.GetString(key)
+		if strVal != "" {
+			// Split by comma and trim spaces
+			parts := strings.Split(strVal, ",")
+			result := make([]string, 0, len(parts))
+			for _, part := range parts {
+				trimmed := strings.TrimSpace(part)
+				if trimmed != "" {
+					result = append(result, trimmed)
+				}
+			}
+			return result
+		}
+		// Fallback to GetStringSlice for array values from config files
 		return v.GetStringSlice(key)
 	}
 	// Fallback para os.Getenv com parse de comma-separated values

@@ -79,10 +79,35 @@ test-pkg pkg:
     @echo "Running tests for {{pkg}}..."
     @go test -v -race ./{{pkg}}/...
 
-# Run integration tests (requires DATABASE_URL)
-test-integration:
-    @echo "Running integration tests..."
+# Run repository integration tests (requires DATABASE_URL)
+test-integration-repo:
+    @echo "Running repository integration tests..."
     RUN_REPOSITORY_INTEGRATION=1 go test -v -race ./internal/repository/...
+
+# Run all integration tests (requires DATABASE_URL)
+test-integration:
+    @echo "Running all integration tests..."
+    RUN_INTEGRATION_TESTS=1 go test -v -timeout 30m ./tests/integration/...
+
+# Run integration workflow tests
+test-integration-workflows:
+    @echo "Running workflow integration tests..."
+    RUN_INTEGRATION_TESTS=1 go test -v -timeout 15m ./tests/integration/ -run "Workflow"
+
+# Run stress tests
+test-stress:
+    @echo "Running stress tests..."
+    RUN_INTEGRATION_TESTS=1 go test -v -timeout 30m ./tests/integration/ -run "TestStress"
+
+# Run error recovery tests
+test-error-recovery:
+    @echo "Running error recovery tests..."
+    RUN_INTEGRATION_TESTS=1 go test -v -timeout 15m ./tests/integration/ -run "TestErrorRecovery"
+
+# Run integration tests with race detection
+test-integration-race:
+    @echo "Running integration tests with race detection..."
+    RUN_INTEGRATION_TESTS=1 go test -v -race -timeout 30m ./tests/integration/...
 
 # Run E2E health check tests
 test-e2e url="http://localhost:8080":

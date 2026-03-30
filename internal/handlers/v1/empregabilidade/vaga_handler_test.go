@@ -553,3 +553,420 @@ func TestVagaHandler_PublicGetByID_InvalidID(t *testing.T) {
 		t.Errorf("expected 400, got %d", w.Code)
 	}
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: SendToDraft Success (50% → 80%+)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_SendToDraft_Success(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmAprovacao}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/send-to-draft", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: SendToApproval Success (50% → 80%+)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_SendToApproval_Success(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/send-to-approval", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: Publish Success (50% → 80%+)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_Publish_Success(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmAprovacao}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/publish", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: UpdateTiposPCD (66.7% → 80%+)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_UpdateTiposPCD_BadJSON(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	body := bodyOf(`{bad}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/tipos-pcd", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: Freeze Success (50% → 80%+)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_Freeze_Success(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/freeze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: Unfreeze Success (50% → 80%+)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_Unfreeze_Success(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaCongelada}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/unfreeze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: Discontinue Success (50% → 80%+)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_Discontinue_Success(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/discontinue", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: Reactivate Success (50% → 80%+)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_Reactivate_Success(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaDescontinuada}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/reactivate", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Additional VagaHandler Edge Case Tests
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_List_InvalidPageSize(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	req := httptest.NewRequest(http.MethodGet, "/vagas?pageSize=2000", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_List_InvalidPage(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	req := httptest.NewRequest(http.MethodGet, "/vagas?page=-1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_List_ComplexFilters(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	req := httptest.NewRequest(http.MethodGet, "/vagas?status=em_edicao&contratante=12345678000100&orgao_parceiro_id="+validUUID+"&search=desenvolvedor", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_Update_ServiceError(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{
+		entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao},
+		err:    errTest,
+	}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	body := bodyOf(`{"titulo":"Dev"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_Update_GetByIDError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	body := bodyOf(`{"titulo":"Dev"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_Update_BadJSON(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	body := bodyOf(`{bad}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_SendToDraft_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/send-to-draft", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_SendToApproval_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/send-to-approval", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_Publish_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/publish", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_UpdateTiposPCD_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	body := bodyOf(`{"tipos_pcd_ids":["` + validUUID + `"]}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/tipos-pcd", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_UpdateTiposPCD_EmptyArray(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	body := bodyOf(`{"tipos_pcd_ids":[]}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/tipos-pcd", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_Freeze_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/freeze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_Unfreeze_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/unfreeze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_Discontinue_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/discontinue", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_Reactivate_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/reactivate", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_PublicList_InvalidPageSize(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?pageSize=200", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicList_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_PublicGetByID_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_Update_PublishedCongelada_NonAdmin(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaCongelada}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	body := bodyOf(`{"titulo":"Dev"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_Update_PublishedDescontinuada_NonAdmin(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaDescontinuada}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	body := bodyOf(`{"titulo":"Dev"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_Update_PublishedExpirado_NonAdmin(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoExpirado}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	body := bodyOf(`{"titulo":"Dev"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", w.Code)
+	}
+}

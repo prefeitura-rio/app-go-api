@@ -11,19 +11,18 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
-	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type CourseHandler struct {
-	cursoService     *services.CursoService
-	inscricaoService *services.InscricaoService
-	cursoRepo        *repository.CursoRepository
+	cursoService     services.CursoServiceInterface
+	inscricaoService services.InscricaoServiceInterface
+	cursoRepo        services.CursoRepositoryInterface
 	courseCache      *cache.CourseCache
 }
 
-func NewCourseHandler(cursoService *services.CursoService, inscricaoService *services.InscricaoService, cursoRepo *repository.CursoRepository) *CourseHandler {
+func NewCourseHandler(cursoService services.CursoServiceInterface, inscricaoService services.InscricaoServiceInterface, cursoRepo services.CursoRepositoryInterface) *CourseHandler {
 	return &CourseHandler{
 		cursoService:     cursoService,
 		inscricaoService: inscricaoService,

@@ -6,23 +6,24 @@ import (
 	"testing"
 )
 
-func TestExtractCPFFromToken(t *testing.T) {
-	// Helper to create a fake JWT token
-	createToken := func(preferredUsername string) string {
-		header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
+// createToken is a helper to create a fake JWT token for testing
+func createToken(preferredUsername string) string {
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
 
-		claims := map[string]interface{}{
-			"preferred_username": preferredUsername,
-			"sub":                "1234567890",
-			"name":               "Test User",
-		}
-		claimsJSON, _ := json.Marshal(claims)
-		payload := base64.RawURLEncoding.EncodeToString(claimsJSON)
-
-		signature := base64.RawURLEncoding.EncodeToString([]byte("fake-signature"))
-
-		return header + "." + payload + "." + signature
+	claims := map[string]interface{}{
+		"preferred_username": preferredUsername,
+		"sub":                "1234567890",
+		"name":               "Test User",
 	}
+	claimsJSON, _ := json.Marshal(claims)
+	payload := base64.RawURLEncoding.EncodeToString(claimsJSON)
+
+	signature := base64.RawURLEncoding.EncodeToString([]byte("fake-signature"))
+
+	return header + "." + payload + "." + signature
+}
+
+func TestExtractCPFFromToken(t *testing.T) {
 
 	tests := []struct {
 		name        string
@@ -78,6 +79,24 @@ func TestExtractCPFFromToken(t *testing.T) {
 			"",
 			true,
 		},
+		{
+			"Token with standard base64 encoding (with padding)",
+			"Bearer " + createTokenWithPadding("11122233344"),
+			"11122233344",
+			false,
+		},
+		{
+			"Token with whitespace",
+			"  Bearer   " + createToken("12345678900") + "  ",
+			"12345678900",
+			false,
+		},
+		{
+			"Token with only whitespace after Bearer",
+			"Bearer    ",
+			"",
+			true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -95,6 +114,68 @@ func TestExtractCPFFromToken(t *testing.T) {
 				if cpf != tt.expectedCPF {
 					t.Errorf("ExtractCPFFromToken() = %q, want %q", cpf, tt.expectedCPF)
 				}
+			}
+		})
+	}
+}
+
+// createTokenWithPadding creates a JWT with standard base64 encoding (with padding)
+func createTokenWithPadding(preferredUsername string) string {
+	header := base64.StdEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
+
+	claims := map[string]interface{}{
+		"preferred_username": preferredUsername,
+		"sub":                "1234567890",
+		"name":               "Test User",
+	}
+	claimsJSON, _ := json.Marshal(claims)
+	payload := base64.StdEncoding.EncodeToString(claimsJSON)
+
+	signature := base64.StdEncoding.EncodeToString([]byte("fake-signature"))
+
+	return header + "." + payload + "." + signature
+}
+
+func TestExtractCPFFromToken_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		claims      map[string]interface{}
+		shouldError bool
+	}{
+		{
+			"Empty preferred_username",
+			map[string]interface{}{"preferred_username": "", "sub": "123"},
+			true,
+		},
+		{
+			"Null preferred_username",
+			map[string]interface{}{"sub": "123"},
+			true,
+		},
+		{
+			"CPF with special characters",
+			map[string]interface{}{"preferred_username": "123.456.789-00", "sub": "123"},
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token := createToken("")
+			if !tt.shouldError {
+				claimsJSON, _ := json.Marshal(tt.claims)
+				payload := base64.RawURLEncoding.EncodeToString(claimsJSON)
+				header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
+				signature := base64.RawURLEncoding.EncodeToString([]byte("fake-signature"))
+				token = header + "." + payload + "." + signature
+			}
+
+			_, err := ExtractCPFFromToken("Bearer " + token)
+
+			if tt.shouldError && err == nil {
+				t.Error("Expected error but got none")
+			} else if !tt.shouldError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
 			}
 		})
 	}

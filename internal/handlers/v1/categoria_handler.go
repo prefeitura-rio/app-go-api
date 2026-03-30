@@ -13,10 +13,10 @@ import (
 
 type CategoriaHandler struct {
 	*common.CRUDHandler[models.Categoria]
-	service *services.CategoriaService
+	service services.CategoriaServiceInterface
 }
 
-func NewCategoriaHandler(service *services.CategoriaService) *CategoriaHandler {
+func NewCategoriaHandler(service services.CategoriaServiceInterface) *CategoriaHandler {
 	return &CategoriaHandler{
 		CRUDHandler: common.NewCRUDHandler[models.Categoria](service, "Categoria"),
 		service:     service,

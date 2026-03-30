@@ -10,10 +10,10 @@ import (
 )
 
 type JobHandler struct {
-	service *services.JobService
+	service services.JobServiceInterface
 }
 
-func NewJobHandler(service *services.JobService) *JobHandler {
+func NewJobHandler(service services.JobServiceInterface) *JobHandler {
 	return &JobHandler{
 		service: service,
 	}

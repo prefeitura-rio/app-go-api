@@ -155,3 +155,99 @@ func TestCategoriaHandler_List_ServiceError(t *testing.T) {
 		t.Errorf("List service error: expected 500, got %d", w.Code)
 	}
 }
+
+// Test Update - Success
+func TestCategoriaHandler_Update_Success(t *testing.T) {
+	repo := &mockCategoriaRepoForHandler{entity: &models.Categoria{ID: 1, Nome: "Old Name"}}
+	router := setupCategoriaRouter(repo)
+	body := []byte(`{"nome":"New Name"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/categorias/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("Update: expected 200, got %d", w.Code)
+	}
+}
+
+// Test Update - Invalid ID
+func TestCategoriaHandler_Update_InvalidID(t *testing.T) {
+	repo := &mockCategoriaRepoForHandler{}
+	router := setupCategoriaRouter(repo)
+	body := []byte(`{"nome":"Test"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/categorias/invalid", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Update InvalidID: expected 400, got %d", w.Code)
+	}
+}
+
+// Test Update - Invalid JSON
+func TestCategoriaHandler_Update_InvalidJSON(t *testing.T) {
+	repo := &mockCategoriaRepoForHandler{}
+	router := setupCategoriaRouter(repo)
+	body := []byte(`{invalid}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/categorias/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Update InvalidJSON: expected 400, got %d", w.Code)
+	}
+}
+
+
+// Test Update - Service Error
+func TestCategoriaHandler_Update_ServiceError(t *testing.T) {
+	repo := &mockCategoriaRepoForHandler{
+		entity:    &models.Categoria{ID: 1, Nome: "Test"},
+		updateErr: errors.New("database error"),
+	}
+	router := setupCategoriaRouter(repo)
+	body := []byte(`{"nome":"Updated"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/categorias/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Update ServiceError: expected 500, got %d", w.Code)
+	}
+}
+
+// Test Delete - Success
+func TestCategoriaHandler_Delete_Success(t *testing.T) {
+	repo := &mockCategoriaRepoForHandler{}
+	router := setupCategoriaRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/categorias/1", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("Delete: expected 200, got %d", w.Code)
+	}
+}
+
+// Test Delete - Invalid ID
+func TestCategoriaHandler_Delete_InvalidID(t *testing.T) {
+	repo := &mockCategoriaRepoForHandler{}
+	router := setupCategoriaRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/categorias/invalid", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Delete InvalidID: expected 400, got %d", w.Code)
+	}
+}
+
+// Test Delete - Service Error
+func TestCategoriaHandler_Delete_ServiceError(t *testing.T) {
+	repo := &mockCategoriaRepoForHandler{deleteErr: errors.New("database error")}
+	router := setupCategoriaRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/categorias/1", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Delete ServiceError: expected 500, got %d", w.Code)
+	}
+}
