@@ -2,6 +2,7 @@ package v1_test
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
+	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -353,4 +355,129 @@ func TestInscricaoHandler_ChangeSchedule_MissingAuth(t *testing.T) {
 
 	// Returns 403 when user_cpf is not set in context
 	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+// Test UpdateIndividualStatus endpoint with invalid courseId
+func TestInscricaoHandler_UpdateIndividualStatus_InvalidCourseID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	h := v1.NewInscricaoHandler(nil, nil, nil)
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/status", h.UpdateIndividualStatus)
+
+	enrollmentID := uuid.New().String()
+	body := []byte(`{"status": "approved"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/invalid/enrollments/"+enrollmentID+"/status", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "ID do curso inválido")
+}
+
+// mockInscricaoService is a mock implementation of InscricaoServiceInterface for testing
+type mockInscricaoService struct {
+	createManualErr error
+}
+
+func (m *mockInscricaoService) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
+	return m.createManualErr
+}
+
+// Dummy implementations for other interface methods (not used in CreateManual tests)
+func (m *mockInscricaoService) Create(ctx context.Context, inscricao *models.Inscricao) error { return nil }
+func (m *mockInscricaoService) GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) { return nil, nil }
+func (m *mockInscricaoService) GetByCursoID(ctx context.Context, cursoID int, filter map[string]interface{}, page, pageSize int) ([]*models.Inscricao, int, error) { return nil, 0, nil }
+func (m *mockInscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error { return nil }
+func (m *mockInscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) { return 0, nil }
+func (m *mockInscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) { return nil, nil }
+func (m *mockInscricaoService) Delete(ctx context.Context, id uuid.UUID) error { return nil }
+func (m *mockInscricaoService) ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error) { return nil, 0, nil }
+func (m *mockInscricaoService) UpdateCertificate(ctx context.Context, cursoID int, inscricaoID uuid.UUID, certificateURL string) error { return nil }
+func (m *mockInscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cursoID int, updateData *models.InscricaoUpdateRequest) error { return nil }
+func (m *mockInscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao *models.Inscricao) {}
+func (m *mockInscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, inscricoes []*models.Inscricao) {}
+func (m *mockInscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.UUID, userCPF string, request *models.ScheduleChangeRequest) (*models.Inscricao, error) { return nil, nil }
+
+// Test CreateManual endpoint with conflict error (CPF already enrolled)
+func TestInscricaoHandler_CreateManual_ConflictError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := &mockInscricaoService{
+		createManualErr: assert.AnError,
+	}
+	// Override error message to simulate conflict
+	mockService.createManualErr = &conflictError{msg: "CPF já inscrito neste curso"}
+
+	h := v1.NewInscricaoHandler(mockService, nil, nil)
+	r := gin.New()
+	r.POST("/api/v1/courses/:courseId/enrollments/manual", h.CreateManual)
+
+	body := []byte(`{"cpf": "12345678901", "name": "Test User"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments/manual", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	assert.Contains(t, w.Body.String(), "CPF já inscrito neste curso")
+}
+
+// Test CreateManual endpoint with service error
+func TestInscricaoHandler_CreateManual_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := &mockInscricaoService{
+		createManualErr: &serviceError{msg: "database connection error"},
+	}
+
+	h := v1.NewInscricaoHandler(mockService, nil, nil)
+	r := gin.New()
+	r.POST("/api/v1/courses/:courseId/enrollments/manual", h.CreateManual)
+
+	body := []byte(`{"cpf": "12345678901", "name": "Test User"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments/manual", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao criar inscrição")
+}
+
+// Test CreateManual endpoint with success
+func TestInscricaoHandler_CreateManual_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := &mockInscricaoService{
+		createManualErr: nil, // No error = success
+	}
+
+	h := v1.NewInscricaoHandler(mockService, nil, nil)
+	r := gin.New()
+	r.POST("/api/v1/courses/:courseId/enrollments/manual", h.CreateManual)
+
+	body := []byte(`{"cpf": "12345678901", "name": "Test User", "email": "test@example.com"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments/manual", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Contains(t, w.Body.String(), "success")
+	assert.Contains(t, w.Body.String(), "Inscrição manual criada com sucesso")
+}
+
+// Helper error types for testing
+type conflictError struct {
+	msg string
+}
+
+func (e *conflictError) Error() string {
+	return e.msg
+}
+
+type serviceError struct {
+	msg string
+}
+
+func (e *serviceError) Error() string {
+	return e.msg
 }

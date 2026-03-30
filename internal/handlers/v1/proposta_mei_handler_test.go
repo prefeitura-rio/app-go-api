@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -578,6 +579,573 @@ func TestPropostaMEIHandler_ListByMEIEmpresa_MissingParam(t *testing.T) {
 	}
 
 	if response["error"] != "CNPJ da MEI empresa não fornecido" {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+// ===================================
+// Update Tests
+// ===================================
+
+func TestPropostaMEIHandler_Update_Success(t *testing.T) {
+	propostaID := uuid.New()
+	mockService := &MockPropostaMEIService{
+		proposta: &models.PropostaMEI{
+			ID:           propostaID,
+			MEIEmpresaID: "12345678000190",
+		},
+	}
+	router := setupRouter(mockService)
+
+	valorProposta := 2000.00
+	requestBody := map[string]interface{}{
+		"valor_proposta": valorProposta,
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer test-token")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var response models.PropostaMEI
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if response.ID != propostaID {
+		t.Errorf("Expected proposta ID %s, got %s", propostaID, response.ID)
+	}
+}
+
+func TestPropostaMEIHandler_Update_InvalidOportunidadeID(t *testing.T) {
+	mockService := &MockPropostaMEIService{}
+	router := setupRouter(mockService)
+
+	propostaID := uuid.New()
+	requestBody := map[string]interface{}{
+		"valor_proposta": 2000.00,
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/invalid/propostas/"+propostaID.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if response["error"] != "ID da oportunidade inválido" {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_Update_InvalidPropostaUUID(t *testing.T) {
+	mockService := &MockPropostaMEIService{}
+	router := setupRouter(mockService)
+
+	requestBody := map[string]interface{}{
+		"valor_proposta": 2000.00,
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/invalid-uuid", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if response["error"] != "UUID da proposta inválido" {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_Update_PropostaNotFound(t *testing.T) {
+	mockService := &MockPropostaMEIService{
+		proposta: nil, // Not found
+	}
+	router := setupRouter(mockService)
+
+	propostaID := uuid.New()
+	requestBody := map[string]interface{}{
+		"valor_proposta": 2000.00,
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer test-token")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if response["error"] != "Proposta não encontrada" {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_Update_GetByIDError(t *testing.T) {
+	mockService := &MockPropostaMEIService{
+		getError: errors.New("database error"),
+	}
+	router := setupRouter(mockService)
+
+	propostaID := uuid.New()
+	requestBody := map[string]interface{}{
+		"valor_proposta": 2000.00,
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer test-token")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if !strings.Contains(response["error"].(string), "Erro ao buscar proposta") {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_Update_InvalidJSON(t *testing.T) {
+	propostaID := uuid.New()
+	mockService := &MockPropostaMEIService{
+		proposta: &models.PropostaMEI{
+			ID:           propostaID,
+			MEIEmpresaID: "12345678000190",
+		},
+	}
+	router := setupRouter(mockService)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), bytes.NewBuffer([]byte("invalid json")))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer test-token")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if !strings.Contains(response["error"].(string), "Dados inválidos") {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_Update_UpdateServiceError(t *testing.T) {
+	propostaID := uuid.New()
+	mockService := &MockPropostaMEIService{
+		proposta: &models.PropostaMEI{
+			ID:           propostaID,
+			MEIEmpresaID: "12345678000190",
+		},
+		updateError: errors.New("update service error"),
+	}
+	router := setupRouter(mockService)
+
+	requestBody := map[string]interface{}{
+		"valor_proposta": 2000.00,
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer test-token")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestPropostaMEIHandler_Update_WithAllFields(t *testing.T) {
+	propostaID := uuid.New()
+	mockService := &MockPropostaMEIService{
+		proposta: &models.PropostaMEI{
+			ID:           propostaID,
+			MEIEmpresaID: "12345678000190",
+		},
+	}
+	router := setupRouter(mockService)
+
+	prazoExecucao := "30 dias"
+	aceitaCustos := true
+	valorProposta := 2500.00
+
+	requestBody := map[string]interface{}{
+		"valor_proposta":          valorProposta,
+		"prazo_execucao":          prazoExecucao,
+		"aceita_custos_integrais": aceitaCustos,
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer test-token")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================================
+// UpdateStatusBulk Tests
+// ===================================
+
+func TestPropostaMEIHandler_UpdateStatusBulk_Success(t *testing.T) {
+	id1 := uuid.New()
+	id2 := uuid.New()
+
+	mockService := &MockPropostaMEIService{}
+	router := setupRouter(mockService)
+
+	requestBody := map[string]interface{}{
+		"proposta_ids": []string{id1.String(), id2.String()},
+		"status":       "approved",
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/status", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if response["success"] != true {
+		t.Error("Expected success to be true")
+	}
+
+	data := response["data"].(map[string]interface{})
+	if data["updated_count"] != float64(2) {
+		t.Errorf("Expected updated_count 2, got %v", data["updated_count"])
+	}
+
+	if data["status"] != "approved" {
+		t.Errorf("Expected status 'approved', got %v", data["status"])
+	}
+}
+
+func TestPropostaMEIHandler_UpdateStatusBulk_InvalidOportunidadeID(t *testing.T) {
+	mockService := &MockPropostaMEIService{}
+	router := setupRouter(mockService)
+
+	requestBody := map[string]interface{}{
+		"proposta_ids": []string{uuid.New().String()},
+		"status":       "approved",
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/invalid/propostas/status", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if response["error"] != "ID da oportunidade inválido" {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_UpdateStatusBulk_InvalidJSON(t *testing.T) {
+	mockService := &MockPropostaMEIService{}
+	router := setupRouter(mockService)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/status", bytes.NewBuffer([]byte("invalid json")))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if !strings.Contains(response["error"].(string), "Dados inválidos") {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_UpdateStatusBulk_ServiceError(t *testing.T) {
+	mockService := &MockPropostaMEIService{
+		updateError: errors.New("database error"),
+	}
+	router := setupRouter(mockService)
+
+	requestBody := map[string]interface{}{
+		"proposta_ids": []string{uuid.New().String()},
+		"status":       "approved",
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/status", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if !strings.Contains(response["error"].(string), "Erro ao atualizar status") {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_UpdateStatusBulk_EmptyArray(t *testing.T) {
+	mockService := &MockPropostaMEIService{}
+	router := setupRouter(mockService)
+
+	requestBody := map[string]interface{}{
+		"proposta_ids": []string{},
+		"status":       "approved",
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/status", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	data := response["data"].(map[string]interface{})
+	if data["updated_count"] != float64(0) {
+		t.Errorf("Expected updated_count 0, got %v", data["updated_count"])
+	}
+}
+
+func TestPropostaMEIHandler_UpdateStatusBulk_RejectedStatus(t *testing.T) {
+	id1 := uuid.New()
+
+	mockService := &MockPropostaMEIService{}
+	router := setupRouter(mockService)
+
+	requestBody := map[string]interface{}{
+		"proposta_ids": []string{id1.String()},
+		"status":       "rejected",
+	}
+	body, _ := json.Marshal(requestBody)
+
+	req, _ := http.NewRequest("PUT", "/api/v1/oportunidades-mei/1/propostas/status", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	data := response["data"].(map[string]interface{})
+	if data["status"] != "rejected" {
+		t.Errorf("Expected status 'rejected', got %v", data["status"])
+	}
+}
+
+// ===================================
+// Delete Tests (expanding coverage)
+// ===================================
+
+func TestPropostaMEIHandler_Delete_InvalidUUID(t *testing.T) {
+	mockService := &MockPropostaMEIService{}
+	router := setupRouter(mockService)
+
+	req, _ := http.NewRequest("DELETE", "/api/v1/oportunidades-mei/1/propostas/invalid-uuid", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if response["error"] != "UUID da proposta inválido" {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_Delete_GetByIDError(t *testing.T) {
+	mockService := &MockPropostaMEIService{
+		getError: errors.New("database error"),
+	}
+	router := setupRouter(mockService)
+
+	propostaID := uuid.New()
+	req, _ := http.NewRequest("DELETE", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if !strings.Contains(response["error"].(string), "Erro ao buscar proposta") {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_Delete_PropostaNotFound(t *testing.T) {
+	mockService := &MockPropostaMEIService{
+		proposta: nil, // Not found
+	}
+	router := setupRouter(mockService)
+
+	propostaID := uuid.New()
+	req, _ := http.NewRequest("DELETE", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if response["error"] != "Proposta não encontrada" {
+		t.Errorf("Unexpected error message: %v", response["error"])
+	}
+}
+
+func TestPropostaMEIHandler_Delete_ServiceError(t *testing.T) {
+	propostaID := uuid.New()
+	mockService := &MockPropostaMEIService{
+		proposta: &models.PropostaMEI{
+			ID:           propostaID,
+			MEIEmpresaID: "12345678000190",
+		},
+		deleteError: errors.New("delete service error"),
+	}
+	router := setupRouter(mockService)
+
+	req, _ := http.NewRequest("DELETE", "/api/v1/oportunidades-mei/1/propostas/"+propostaID.String(), nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if !strings.Contains(response["error"].(string), "Erro ao excluir proposta") {
 		t.Errorf("Unexpected error message: %v", response["error"])
 	}
 }

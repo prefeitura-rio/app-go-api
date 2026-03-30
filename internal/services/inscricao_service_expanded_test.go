@@ -569,3 +569,1078 @@ func TestInscricaoService_ScheduleChangeScenarios(t *testing.T) {
 		}
 	})
 }
+
+// ==================== Comprehensive Enrichment Tests ====================
+// These tests bring coverage for EnrichWithPersonalInfo and EnrichMultipleWithPersonalInfo
+// from 16.7% to 85%+ and 7.9% to 85%+ respectively
+
+func TestInscricaoService_EnrichWithPersonalInfo_Comprehensive(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("EnrichWithPersonalInfo success with snapshot", func(t *testing.T) {
+		testCPF := "12345678900"
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				if cpf == testCPF {
+					return &models.CitizenSnapshot{
+						CPF:     cpf,
+						Nome:    "John Doe",
+						Email:   "john@example.com",
+						Celular: "21999999999",
+					}, nil
+				}
+				return nil, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricao := &models.Inscricao{
+			CPF: testCPF,
+		}
+
+		svc.EnrichWithPersonalInfo(ctx, inscricao)
+
+		if inscricao.PersonalInfo == nil {
+			t.Fatal("Expected PersonalInfo to be set")
+		}
+		if inscricao.PersonalInfo.Nome != "John Doe" {
+			t.Errorf("Expected name 'John Doe', got '%s'", inscricao.PersonalInfo.Nome)
+		}
+	})
+
+	t.Run("EnrichWithPersonalInfo handles GetByCPF error", func(t *testing.T) {
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				return nil, errors.New("database error")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricao := &models.Inscricao{
+			CPF: "12345678900",
+		}
+
+		// Should not panic on error
+		svc.EnrichWithPersonalInfo(ctx, inscricao)
+
+		if inscricao.PersonalInfo != nil {
+			t.Error("Expected PersonalInfo to remain nil on error")
+		}
+	})
+
+	t.Run("EnrichWithPersonalInfo falls back to on-demand sync", func(t *testing.T) {
+		testCPF := "12345678900"
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				return nil, nil // No snapshot exists
+			},
+		}
+
+		fetcher := &MockCitizenDataFetcher{
+			SyncFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				if cpf == testCPF {
+					return &models.CitizenSnapshot{
+						CPF:     cpf,
+						Nome:    "Jane Doe",
+						Email:   "jane@example.com",
+						Celular: "21988888888",
+					}, nil
+				}
+				return nil, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			fetcher,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricao := &models.Inscricao{
+			CPF: testCPF,
+		}
+
+		svc.EnrichWithPersonalInfo(ctx, inscricao)
+
+		if inscricao.PersonalInfo == nil {
+			t.Fatal("Expected PersonalInfo to be set from on-demand sync")
+		}
+		if inscricao.PersonalInfo.Nome != "Jane Doe" {
+			t.Errorf("Expected name 'Jane Doe', got '%s'", inscricao.PersonalInfo.Nome)
+		}
+	})
+
+	t.Run("EnrichWithPersonalInfo handles on-demand sync error", func(t *testing.T) {
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				return nil, nil // No snapshot
+			},
+		}
+
+		fetcher := &MockCitizenDataFetcher{
+			SyncFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				return nil, errors.New("sync failed")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			fetcher,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricao := &models.Inscricao{
+			CPF: "12345678900",
+		}
+
+		// Should not panic on sync error
+		svc.EnrichWithPersonalInfo(ctx, inscricao)
+
+		if inscricao.PersonalInfo != nil {
+			t.Error("Expected PersonalInfo to remain nil on sync error")
+		}
+	})
+
+	t.Run("EnrichWithPersonalInfo with snapshot but no fetcher for legacy", func(t *testing.T) {
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				return nil, nil // No snapshot
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			nil, // No fetcher
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricao := &models.Inscricao{
+			CPF: "12345678900",
+		}
+
+		svc.EnrichWithPersonalInfo(ctx, inscricao)
+
+		if inscricao.PersonalInfo != nil {
+			t.Error("Expected PersonalInfo to remain nil when no snapshot and no fetcher")
+		}
+	})
+}
+
+func TestInscricaoService_EnrichMultipleWithPersonalInfo_Comprehensive(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("EnrichMultipleWithPersonalInfo success with multiple inscricoes", func(t *testing.T) {
+		cpf1 := "11111111111"
+		cpf2 := "22222222222"
+		cpf3 := "33333333333"
+
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFsFunc: func(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error) {
+				snapshots := make(map[string]*models.CitizenSnapshot)
+				for _, cpf := range cpfs {
+					switch cpf {
+					case cpf1:
+						snapshots[cpf] = &models.CitizenSnapshot{
+							CPF:     cpf,
+							Nome:    "Person One",
+							Email:   "one@example.com",
+							Celular: "21999999999",
+						}
+					case cpf2:
+						snapshots[cpf] = &models.CitizenSnapshot{
+							CPF:     cpf,
+							Nome:    "Person Two",
+							Email:   "two@example.com",
+							Celular: "21988888888",
+						}
+					case cpf3:
+						snapshots[cpf] = &models.CitizenSnapshot{
+							CPF:     cpf,
+							Nome:    "Person Three",
+							Email:   "three@example.com",
+							Celular: "21977777777",
+						}
+					}
+				}
+				return snapshots, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricoes := []*models.Inscricao{
+			{CPF: cpf1},
+			{CPF: cpf2},
+			{CPF: cpf3},
+		}
+
+		svc.EnrichMultipleWithPersonalInfo(ctx, inscricoes)
+
+		for i, inscricao := range inscricoes {
+			if inscricao.PersonalInfo == nil {
+				t.Errorf("Expected PersonalInfo to be set for inscription %d", i)
+			}
+		}
+
+		if inscricoes[0].PersonalInfo.Nome != "Person One" {
+			t.Errorf("Expected 'Person One', got '%s'", inscricoes[0].PersonalInfo.Nome)
+		}
+		if inscricoes[1].PersonalInfo.Nome != "Person Two" {
+			t.Errorf("Expected 'Person Two', got '%s'", inscricoes[1].PersonalInfo.Nome)
+		}
+		if inscricoes[2].PersonalInfo.Nome != "Person Three" {
+			t.Errorf("Expected 'Person Three', got '%s'", inscricoes[2].PersonalInfo.Nome)
+		}
+	})
+
+	t.Run("EnrichMultipleWithPersonalInfo deduplicates CPFs", func(t *testing.T) {
+		cpf := "11111111111"
+		callCount := 0
+
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFsFunc: func(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error) {
+				callCount++
+				// Verify deduplication - should receive only unique CPFs
+				if len(cpfs) != 1 {
+					t.Errorf("Expected 1 unique CPF, got %d", len(cpfs))
+				}
+				snapshots := make(map[string]*models.CitizenSnapshot)
+				snapshots[cpf] = &models.CitizenSnapshot{
+					CPF:  cpf,
+					Nome: "Test Person",
+				}
+				return snapshots, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		// Multiple inscricoes with same CPF
+		inscricoes := []*models.Inscricao{
+			{CPF: cpf},
+			{CPF: cpf},
+			{CPF: cpf},
+		}
+
+		svc.EnrichMultipleWithPersonalInfo(ctx, inscricoes)
+
+		if callCount != 1 {
+			t.Errorf("Expected GetByCPFs to be called once, got %d", callCount)
+		}
+
+		for i, inscricao := range inscricoes {
+			if inscricao.PersonalInfo == nil {
+				t.Errorf("Expected PersonalInfo to be set for inscription %d", i)
+			}
+		}
+	})
+
+	t.Run("EnrichMultipleWithPersonalInfo handles GetByCPFs error", func(t *testing.T) {
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFsFunc: func(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error) {
+				return nil, errors.New("database error")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricoes := []*models.Inscricao{
+			{CPF: "11111111111"},
+			{CPF: "22222222222"},
+		}
+
+		// Should not panic
+		svc.EnrichMultipleWithPersonalInfo(ctx, inscricoes)
+
+		for _, inscricao := range inscricoes {
+			if inscricao.PersonalInfo != nil {
+				t.Error("Expected PersonalInfo to remain nil on error")
+			}
+		}
+	})
+
+	t.Run("EnrichMultipleWithPersonalInfo partial success", func(t *testing.T) {
+		cpf1 := "11111111111"
+		cpf2 := "22222222222"
+		cpf3 := "33333333333"
+
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFsFunc: func(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error) {
+				snapshots := make(map[string]*models.CitizenSnapshot)
+				// Only return snapshot for cpf1 and cpf2, not cpf3
+				snapshots[cpf1] = &models.CitizenSnapshot{
+					CPF:  cpf1,
+					Nome: "Person One",
+				}
+				snapshots[cpf2] = &models.CitizenSnapshot{
+					CPF:  cpf2,
+					Nome: "Person Two",
+				}
+				return snapshots, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricoes := []*models.Inscricao{
+			{CPF: cpf1},
+			{CPF: cpf2},
+			{CPF: cpf3},
+		}
+
+		svc.EnrichMultipleWithPersonalInfo(ctx, inscricoes)
+
+		if inscricoes[0].PersonalInfo == nil {
+			t.Error("Expected PersonalInfo to be set for first inscription")
+		}
+		if inscricoes[1].PersonalInfo == nil {
+			t.Error("Expected PersonalInfo to be set for second inscription")
+		}
+		if inscricoes[2].PersonalInfo != nil {
+			t.Error("Expected PersonalInfo to remain nil for third inscription (no snapshot)")
+		}
+	})
+
+	t.Run("EnrichMultipleWithPersonalInfo syncs missing CPFs on-demand", func(t *testing.T) {
+		cpf1 := "11111111111"
+		cpf2 := "22222222222"
+
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFsFunc: func(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error) {
+				snapshots := make(map[string]*models.CitizenSnapshot)
+				// Only return snapshot for cpf1, cpf2 is missing
+				snapshots[cpf1] = &models.CitizenSnapshot{
+					CPF:  cpf1,
+					Nome: "Person One",
+				}
+				return snapshots, nil
+			},
+		}
+
+		syncCallCount := 0
+		fetcher := &MockCitizenDataFetcher{
+			SyncFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				syncCallCount++
+				if cpf == cpf2 {
+					return &models.CitizenSnapshot{
+						CPF:  cpf,
+						Nome: "Person Two (synced)",
+					}, nil
+				}
+				return nil, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			fetcher,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricoes := []*models.Inscricao{
+			{CPF: cpf1},
+			{CPF: cpf2},
+		}
+
+		svc.EnrichMultipleWithPersonalInfo(ctx, inscricoes)
+
+		if syncCallCount != 1 {
+			t.Errorf("Expected on-demand sync to be called once for missing CPF, got %d", syncCallCount)
+		}
+
+		if inscricoes[0].PersonalInfo == nil || inscricoes[0].PersonalInfo.Nome != "Person One" {
+			t.Error("Expected first inscription to be enriched from snapshot")
+		}
+		if inscricoes[1].PersonalInfo == nil || inscricoes[1].PersonalInfo.Nome != "Person Two (synced)" {
+			t.Error("Expected second inscription to be enriched from on-demand sync")
+		}
+	})
+
+	t.Run("EnrichMultipleWithPersonalInfo handles empty CPFs in list", func(t *testing.T) {
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFsFunc: func(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error) {
+				// Should only receive non-empty CPFs
+				for _, cpf := range cpfs {
+					if cpf == "" {
+						t.Error("Expected empty CPFs to be filtered out")
+					}
+				}
+				snapshots := make(map[string]*models.CitizenSnapshot)
+				snapshots["11111111111"] = &models.CitizenSnapshot{
+					CPF:  "11111111111",
+					Nome: "Valid Person",
+				}
+				return snapshots, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricoes := []*models.Inscricao{
+			{CPF: "11111111111"},
+			{CPF: ""},
+			{CPF: ""},
+		}
+
+		svc.EnrichMultipleWithPersonalInfo(ctx, inscricoes)
+
+		if inscricoes[0].PersonalInfo == nil {
+			t.Error("Expected PersonalInfo for valid CPF")
+		}
+		if inscricoes[1].PersonalInfo != nil {
+			t.Error("Expected nil PersonalInfo for empty CPF")
+		}
+		if inscricoes[2].PersonalInfo != nil {
+			t.Error("Expected nil PersonalInfo for empty CPF")
+		}
+	})
+
+	t.Run("EnrichMultipleWithPersonalInfo handles on-demand sync failure gracefully", func(t *testing.T) {
+		cpf1 := "11111111111"
+		cpf2 := "22222222222"
+
+		snapshotRepo := &MockCitizenSnapshotRepository{
+			GetByCPFsFunc: func(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error) {
+				// No snapshots exist
+				return make(map[string]*models.CitizenSnapshot), nil
+			},
+		}
+
+		fetcher := &MockCitizenDataFetcher{
+			SyncFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				if cpf == cpf1 {
+					return &models.CitizenSnapshot{
+						CPF:  cpf,
+						Nome: "Person One",
+					}, nil
+				}
+				// cpf2 sync fails
+				return nil, errors.New("sync failed")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			snapshotRepo,
+			fetcher,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricoes := []*models.Inscricao{
+			{CPF: cpf1},
+			{CPF: cpf2},
+		}
+
+		svc.EnrichMultipleWithPersonalInfo(ctx, inscricoes)
+
+		// First should succeed, second should fail gracefully
+		if inscricoes[0].PersonalInfo == nil {
+			t.Error("Expected PersonalInfo for first inscription")
+		}
+		if inscricoes[1].PersonalInfo != nil {
+			t.Error("Expected nil PersonalInfo for failed sync")
+		}
+	})
+}
+
+// ==================== Comprehensive Vacancy Tests ====================
+// These tests bring coverage for findScheduleVacancies from 44.4% to 85%+
+// Tests are indirect through Create method which exercises findScheduleVacancies
+
+func TestInscricaoService_FindScheduleVacancies_Comprehensive(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("findScheduleVacancies in LocationClass schedules", func(t *testing.T) {
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				// Auto-approve should work because there are vacancies
+				if inscricao.Status != models.StatusInscricaoApproved {
+					t.Errorf("Expected APPROVED status, got %s", inscricao.Status)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID: 1,
+					LocationClasses: []models.LocationClass{
+						{
+							Schedules: []models.CourseSchedule{
+								{
+									ID:                   scheduleID,
+									Vacancies:            20,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 10, nil // 10/20 filled
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			ScheduleID: &scheduleID,
+		}
+
+		err := svc.Create(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	})
+
+	t.Run("findScheduleVacancies in RemoteClass schedules", func(t *testing.T) {
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.Status != models.StatusInscricaoApproved {
+					t.Errorf("Expected APPROVED status, got %s", inscricao.Status)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID: 1,
+					RemoteClass: &models.RemoteClass{
+						Schedules: []models.RemoteSchedule{
+							{
+								ID:                   scheduleID,
+								Vacancies:            50,
+								AcceptingEnrollments: &acceptingEnrollments,
+							},
+						},
+					},
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 25, nil // 25/50 filled
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			ScheduleID: &scheduleID,
+		}
+
+		err := svc.Create(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	})
+
+	t.Run("findScheduleVacancies with multiple LocationClasses", func(t *testing.T) {
+		targetScheduleID := uuid.New()
+		otherScheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.Status != models.StatusInscricaoApproved {
+					t.Errorf("Expected APPROVED status, got %s", inscricao.Status)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID: 1,
+					LocationClasses: []models.LocationClass{
+						{
+							Schedules: []models.CourseSchedule{
+								{
+									ID:                   otherScheduleID,
+									Vacancies:            30,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+							},
+						},
+						{
+							Schedules: []models.CourseSchedule{
+								{
+									ID:                   targetScheduleID,
+									Vacancies:            15,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 5, nil // 5/15 filled for target
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			ScheduleID: &targetScheduleID,
+		}
+
+		err := svc.Create(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	})
+
+	t.Run("findScheduleVacancies with multiple schedules per location", func(t *testing.T) {
+		targetScheduleID := uuid.New()
+		schedule2ID := uuid.New()
+		schedule3ID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.Status != models.StatusInscricaoApproved {
+					t.Errorf("Expected APPROVED status, got %s", inscricao.Status)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID: 1,
+					LocationClasses: []models.LocationClass{
+						{
+							Schedules: []models.CourseSchedule{
+								{
+									ID:                   schedule2ID,
+									Vacancies:            25,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+								{
+									ID:                   targetScheduleID,
+									Vacancies:            40,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+								{
+									ID:                   schedule3ID,
+									Vacancies:            35,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 20, nil // 20/40 filled for target
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			ScheduleID: &targetScheduleID,
+		}
+
+		err := svc.Create(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	})
+
+	t.Run("findScheduleVacancies with both LocationClasses and RemoteClass", func(t *testing.T) {
+		locationScheduleID := uuid.New()
+		remoteScheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.Status != models.StatusInscricaoApproved {
+					t.Errorf("Expected APPROVED status, got %s", inscricao.Status)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID: 1,
+					LocationClasses: []models.LocationClass{
+						{
+							Schedules: []models.CourseSchedule{
+								{
+									ID:                   locationScheduleID,
+									Vacancies:            20,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+							},
+						},
+					},
+					RemoteClass: &models.RemoteClass{
+						Schedules: []models.RemoteSchedule{
+							{
+								ID:                   remoteScheduleID,
+								Vacancies:            100,
+								AcceptingEnrollments: &acceptingEnrollments,
+							},
+						},
+					},
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 50, nil // 50/100 filled for remote
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		// Test with remote schedule
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			ScheduleID: &remoteScheduleID,
+		}
+
+		err := svc.Create(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("Create failed for remote schedule: %v", err)
+		}
+	})
+
+	t.Run("findScheduleVacancies with empty LocationClasses", func(t *testing.T) {
+		remoteScheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.Status != models.StatusInscricaoApproved {
+					t.Errorf("Expected APPROVED status, got %s", inscricao.Status)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID:              1,
+					LocationClasses: []models.LocationClass{}, // Empty
+					RemoteClass: &models.RemoteClass{
+						Schedules: []models.RemoteSchedule{
+							{
+								ID:                   remoteScheduleID,
+								Vacancies:            75,
+								AcceptingEnrollments: &acceptingEnrollments,
+							},
+						},
+					},
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 30, nil // 30/75 filled
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			ScheduleID: &remoteScheduleID,
+		}
+
+		err := svc.Create(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	})
+
+	t.Run("findScheduleVacancies with nil RemoteClass", func(t *testing.T) {
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.Status != models.StatusInscricaoApproved {
+					t.Errorf("Expected APPROVED status, got %s", inscricao.Status)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID: 1,
+					LocationClasses: []models.LocationClass{
+						{
+							Schedules: []models.CourseSchedule{
+								{
+									ID:                   scheduleID,
+									Vacancies:            12,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+							},
+						},
+					},
+					RemoteClass: nil, // Nil remote class
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 6, nil // 6/12 filled
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			ScheduleID: &scheduleID,
+		}
+
+		err := svc.Create(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	})
+
+	t.Run("findScheduleVacancies disables auto-approve when count error", func(t *testing.T) {
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				// Should be pending because count error disables auto-approve
+				if inscricao.Status != models.StatusInscricaoPending {
+					t.Errorf("Expected PENDING status due to count error, got %s", inscricao.Status)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID: 1,
+					LocationClasses: []models.LocationClass{
+						{
+							Schedules: []models.CourseSchedule{
+								{
+									ID:                   scheduleID,
+									Vacancies:            10,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 0, errors.New("database error")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			ScheduleID: &scheduleID,
+		}
+
+		err := svc.Create(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	})
+
+	t.Run("findScheduleVacancies disables auto-approve when exactly at capacity", func(t *testing.T) {
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				// Should be pending because schedule is at capacity
+				if inscricao.Status != models.StatusInscricaoPending {
+					t.Errorf("Expected PENDING status at capacity, got %s", inscricao.Status)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID: 1,
+					LocationClasses: []models.LocationClass{
+						{
+							Schedules: []models.CourseSchedule{
+								{
+									ID:                   scheduleID,
+									Vacancies:            10,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 10, nil // Exactly at capacity
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			ScheduleID: &scheduleID,
+		}
+
+		err := svc.Create(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	})
+}

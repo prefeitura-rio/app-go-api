@@ -280,3 +280,272 @@ func TestCRUDHandler_List_PaginationDefaults(t *testing.T) {
 		t.Errorf("List: expected page=1 pageSize=10, got page=%d pageSize=%d", out.Meta.Page, out.Meta.PageSize)
 	}
 }
+
+func TestCRUDHandler_WithCache(t *testing.T) {
+	mock := &mockCRUDService{}
+	h := common.NewCRUDHandler(mock, "Categoria")
+	result := h.WithCache(nil)
+	if result == nil {
+		t.Error("WithCache: expected non-nil handler")
+	}
+}
+
+func TestCRUDHandler_List_InvalidPage(t *testing.T) {
+	mock := &mockCRUDService{listTotal: 0}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodGet, "/categorias?page=0", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("List invalid page: expected 200, got %d", w.Code)
+	}
+	var out struct {
+		Meta struct {
+			Page int `json:"page"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("List: unmarshal: %v", err)
+	}
+	if out.Meta.Page != 1 {
+		t.Errorf("List: expected page normalized to 1, got %d", out.Meta.Page)
+	}
+}
+
+func TestCRUDHandler_List_InvalidPageSize(t *testing.T) {
+	mock := &mockCRUDService{listTotal: 0}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodGet, "/categorias?pageSize=2000", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("List invalid pageSize: expected 200, got %d", w.Code)
+	}
+	var out struct {
+		Meta struct {
+			PageSize int `json:"page_size"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("List: unmarshal: %v", err)
+	}
+	if out.Meta.PageSize != 10 {
+		t.Errorf("List: expected pageSize normalized to 10, got %d", out.Meta.PageSize)
+	}
+}
+
+func TestCRUDHandler_List_NegativePageSize(t *testing.T) {
+	mock := &mockCRUDService{listTotal: 0}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodGet, "/categorias?pageSize=-5", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("List negative pageSize: expected 200, got %d", w.Code)
+	}
+	var out struct {
+		Meta struct {
+			PageSize int `json:"page_size"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("List: unmarshal: %v", err)
+	}
+	if out.Meta.PageSize != 10 {
+		t.Errorf("List: expected pageSize normalized to 10, got %d", out.Meta.PageSize)
+	}
+}
+
+func TestCRUDHandler_List_ServiceError(t *testing.T) {
+	mock := &mockCRUDService{listErr: errors.New("database error")}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodGet, "/categorias", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("List service error: expected 500, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_GetByID_ServiceError(t *testing.T) {
+	mock := &mockCRUDService{getErr: errors.New("database error")}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodGet, "/categorias/1", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("GetByID service error: expected 500, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_Update_InvalidJSON(t *testing.T) {
+	mock := &mockCRUDService{}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodPut, "/categorias/1", bytes.NewReader([]byte("invalid")))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Update invalid JSON: expected 400, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_Update_ServiceError(t *testing.T) {
+	mock := &mockCRUDService{updateErr: errors.New("database error")}
+	router := setupCRUDRouter(mock)
+	body := []byte(`{"nome":"TI"}`)
+	req := httptest.NewRequest(http.MethodPut, "/categorias/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Update service error: expected 500, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_Delete_ServiceError(t *testing.T) {
+	mock := &mockCRUDService{deleteErr: errors.New("database error")}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodDelete, "/categorias/1", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Delete service error: expected 500, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_GetByID_FloatID(t *testing.T) {
+	mock := &mockCRUDService{}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodGet, "/categorias/1.5", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("GetByID float id: expected 400, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_Update_FloatID(t *testing.T) {
+	mock := &mockCRUDService{}
+	router := setupCRUDRouter(mock)
+	body := []byte(`{"nome":"TI"}`)
+	req := httptest.NewRequest(http.MethodPut, "/categorias/1.5", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Update float id: expected 400, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_Delete_FloatID(t *testing.T) {
+	mock := &mockCRUDService{}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodDelete, "/categorias/1.5", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Delete float id: expected 400, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_List_LargePageNumber(t *testing.T) {
+	mock := &mockCRUDService{
+		listItems: []*models.Categoria{},
+		listTotal: 5,
+	}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodGet, "/categorias?page=100&pageSize=10", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("List large page: expected 200, got %d", w.Code)
+	}
+	var out struct {
+		Data []*models.Categoria `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("List: unmarshal: %v", err)
+	}
+	if len(out.Data) != 0 {
+		t.Errorf("List large page: expected 0 items, got %d", len(out.Data))
+	}
+}
+
+func TestCRUDHandler_GetByID_ZeroID(t *testing.T) {
+	mock := &mockCRUDService{entity: nil}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodGet, "/categorias/0", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("GetByID zero id: expected 404, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_Update_ZeroID(t *testing.T) {
+	mock := &mockCRUDService{}
+	router := setupCRUDRouter(mock)
+	body := []byte(`{"nome":"TI"}`)
+	req := httptest.NewRequest(http.MethodPut, "/categorias/0", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Zero ID is accepted by strconv.Atoi, so response depends on service
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("Update zero id: expected 200 or 500, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_Delete_ZeroID(t *testing.T) {
+	mock := &mockCRUDService{}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodDelete, "/categorias/0", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Zero ID is accepted by strconv.Atoi, so response depends on service
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("Delete zero id: expected 200 or 500, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_Create_EmptyBody(t *testing.T) {
+	mock := &mockCRUDService{}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodPost, "/categorias", nil)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Create empty body: expected 400, got %d", w.Code)
+	}
+}
+
+func TestCRUDHandler_Update_EmptyBody(t *testing.T) {
+	mock := &mockCRUDService{}
+	router := setupCRUDRouter(mock)
+	req := httptest.NewRequest(http.MethodPut, "/categorias/1", nil)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Update empty body: expected 400, got %d", w.Code)
+	}
+}

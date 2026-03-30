@@ -733,3 +733,212 @@ func TestOportunidadeMEIHandler_ListDrafts_ServiceError(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
+// Test CreateDraft - Service Error
+func TestOportunidadeMEIHandler_CreateDraft_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockOportunidadeMEIService)
+	handler := v1.NewOportunidadeMEIHandler(mockService)
+
+	r := gin.New()
+	r.POST("/api/v1/oportunidades-mei/draft", handler.CreateDraft)
+
+	oportunidade := models.OportunidadeMEI{
+		Titulo: "Test Draft",
+	}
+
+	mockService.On("Create", mock.Anything, mock.Anything, true).Return(0, errors.New("validation failed: missing required fields"))
+
+	body, _ := json.Marshal(oportunidade)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/oportunidades-mei/draft", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "validation failed")
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List - With OrgaoID Filter
+func TestOportunidadeMEIHandler_List_WithOrgaoIDFilter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockOportunidadeMEIService)
+	handler := v1.NewOportunidadeMEIHandler(mockService)
+
+	r := gin.New()
+	r.GET("/api/v1/oportunidades-mei", handler.List)
+
+	oportunidades := []*models.OportunidadeMEI{
+		{ID: 1, Titulo: "Oportunidade Org", OrgaoID: "org123", Status: models.StatusOportunidadeActive},
+	}
+
+	mockService.On("List", mock.Anything, mock.MatchedBy(func(filters map[string]interface{}) bool {
+		return filters["orgao_id"] == "org123" && filters["status"] == models.StatusOportunidadeActive
+	}), "", 1, 10).Return(oportunidades, 1, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/oportunidades-mei?orgaoId=org123", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List - With Titulo Search
+func TestOportunidadeMEIHandler_List_WithTituloSearch(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockOportunidadeMEIService)
+	handler := v1.NewOportunidadeMEIHandler(mockService)
+
+	r := gin.New()
+	r.GET("/api/v1/oportunidades-mei", handler.List)
+
+	oportunidades := []*models.OportunidadeMEI{
+		{ID: 1, Titulo: "Desenvolvedor", Status: models.StatusOportunidadeActive},
+	}
+
+	mockService.On("List", mock.Anything, mock.MatchedBy(func(filters map[string]interface{}) bool {
+		return filters["status"] == models.StatusOportunidadeActive
+	}), "Desenvolvedor", 1, 10).Return(oportunidades, 1, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/oportunidades-mei?titulo=Desenvolvedor", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List - With Expired Status
+func TestOportunidadeMEIHandler_List_WithExpiredStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockOportunidadeMEIService)
+	handler := v1.NewOportunidadeMEIHandler(mockService)
+
+	r := gin.New()
+	r.GET("/api/v1/oportunidades-mei", handler.List)
+
+	oportunidades := []*models.OportunidadeMEI{
+		{ID: 1, Titulo: "Expired Oportunidade", Status: models.StatusOportunidadeExpired},
+	}
+
+	mockService.On("List", mock.Anything, mock.MatchedBy(func(filters map[string]interface{}) bool {
+		return filters["status"] == models.StatusOportunidadeExpired
+	}), "", 1, 10).Return(oportunidades, 1, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/oportunidades-mei?status=expired", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List - Invalid Pagination Values
+func TestOportunidadeMEIHandler_List_InvalidPagination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockOportunidadeMEIService)
+	handler := v1.NewOportunidadeMEIHandler(mockService)
+
+	r := gin.New()
+	r.GET("/api/v1/oportunidades-mei", handler.List)
+
+	oportunidades := []*models.OportunidadeMEI{}
+
+	// Should normalize page to 1 and pageSize to 10
+	mockService.On("List", mock.Anything, mock.Anything, "", 1, 10).Return(oportunidades, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/oportunidades-mei?page=-5&pageSize=5000", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test List - Empty Result Set
+func TestOportunidadeMEIHandler_List_EmptyResult(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockOportunidadeMEIService)
+	handler := v1.NewOportunidadeMEIHandler(mockService)
+
+	r := gin.New()
+	r.GET("/api/v1/oportunidades-mei", handler.List)
+
+	oportunidades := []*models.OportunidadeMEI{}
+
+	mockService.On("List", mock.Anything, mock.Anything, "", 1, 10).Return(oportunidades, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/oportunidades-mei", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, int(response["meta"].(map[string]interface{})["total"].(float64)))
+
+	mockService.AssertExpectations(t)
+}
+
+// Test ListDrafts - Invalid Pagination
+func TestOportunidadeMEIHandler_ListDrafts_InvalidPagination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockOportunidadeMEIService)
+	handler := v1.NewOportunidadeMEIHandler(mockService)
+
+	r := gin.New()
+	r.GET("/api/v1/oportunidades-mei/drafts", handler.ListDrafts)
+
+	drafts := []*models.OportunidadeMEI{}
+
+	// Should normalize page to 1 and pageSize to 10
+	mockService.On("ListDrafts", mock.Anything, "", "", 1, 10).Return(drafts, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/oportunidades-mei/drafts?page=0&pageSize=2000", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+
+// Test Publish - Not Found After Successful Publish
+func TestOportunidadeMEIHandler_Publish_NotFoundAfterPublish(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockOportunidadeMEIService)
+	handler := v1.NewOportunidadeMEIHandler(mockService)
+
+	r := gin.New()
+	r.PUT("/api/v1/oportunidades-mei/:id/publish", handler.Publish)
+
+	mockService.On("Publish", mock.Anything, 1).Return(nil)
+	mockService.On("GetByID", mock.Anything, 1).Return(nil, nil)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/oportunidades-mei/1/publish", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	// This is an edge case - publish succeeded but GetByID returns nil
+	// Handler returns 200 with nil body (JSON serialization will show null)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	mockService.AssertExpectations(t)
+}
+

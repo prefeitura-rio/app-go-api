@@ -704,3 +704,20 @@ func TestOportunidadeMEIService_UpdateExpiredOpportunities(t *testing.T) {
 		}
 	})
 }
+
+func TestNewOportunidadeMEIService(t *testing.T) {
+	service := services.NewOportunidadeMEIService(nil)
+
+	if service == nil {
+		t.Error("NewOportunidadeMEIService() returned nil")
+	}
+}
+
+func TestNewOportunidadeMEIServiceWithInterface(t *testing.T) {
+	repo := &mockOportunidadeMEIRepo{}
+	service := services.NewOportunidadeMEIServiceWithInterface(repo)
+
+	if service == nil {
+		t.Error("NewOportunidadeMEIServiceWithInterface() returned nil")
+	}
+}

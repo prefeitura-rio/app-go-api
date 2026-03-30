@@ -281,3 +281,223 @@ func TestNewEmpregoHandler(t *testing.T) {
 
 	assert.NotNil(t, handler)
 }
+
+// Test Delete - GetByID error
+func TestEmpregoHandler_Delete_GetByIDError(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		getErr: errors.New("database connection error"),
+	}
+	router := setupEmpregoRouter(repo)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/empregos/1", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao buscar emprego")
+}
+
+// Test Delete - Delete service error
+func TestEmpregoHandler_Delete_DeleteError(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		entity:    &models.Emprego{ID: 1},
+		deleteErr: errors.New("foreign key constraint"),
+	}
+	router := setupEmpregoRouter(repo)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/empregos/1", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao excluir emprego")
+}
+
+// Test Delete - Invalid ID
+func TestEmpregoHandler_Delete_InvalidID(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{}
+	router := setupEmpregoRouter(repo)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/empregos/abc", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "ID inválido")
+}
+
+// Test Create - Database error (not validation)
+func TestEmpregoHandler_Create_DatabaseError(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		createErr: errors.New("database connection failed"),
+	}
+	router := setupEmpregoRouter(repo)
+
+	body := []byte(`{
+		"titulo": "Desenvolvedor",
+		"status": "ABERTO",
+		"tipo_contratacao": "CLT"
+	}`)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/empregos", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Database errors go through ParseDatabaseError which returns appropriate status
+	assert.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusInternalServerError)
+}
+
+// Test Update - Validation error
+func TestEmpregoHandler_Update_ValidationError(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		updateErr: errors.New("campo obrigatório"),
+	}
+	router := setupEmpregoRouter(repo)
+
+	body := []byte(`{"titulo": ""}`)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/empregos/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// Test Update - Database error
+func TestEmpregoHandler_Update_DatabaseError(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		updateErr: errors.New("constraint violation"),
+	}
+	router := setupEmpregoRouter(repo)
+
+	body := []byte(`{"titulo": "Updated"}`)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/empregos/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// Test Update - Invalid JSON
+func TestEmpregoHandler_Update_InvalidJSON(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{}
+	router := setupEmpregoRouter(repo)
+
+	body := []byte(`{invalid}`)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/empregos/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// Test GetByID - Service error
+func TestEmpregoHandler_GetByID_ServiceError(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		getErr: errors.New("database timeout"),
+	}
+	router := setupEmpregoRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/empregos/1", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao buscar emprego")
+}
+
+// Test List - Service error
+func TestEmpregoHandler_List_ServiceError(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		listErr: errors.New("database error"),
+	}
+	router := setupEmpregoRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/empregos?page=1&pageSize=10", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao listar empregos")
+}
+
+// Test List - empresa_id filter
+func TestEmpregoHandler_List_WithEmpresaIDFilter(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		listItems: []*models.Emprego{{ID: 1, Titulo: "Test"}},
+		listTotal: 1,
+	}
+	router := setupEmpregoRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/empregos?empresa_id=42", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// Test List - escolaridade_id filter
+func TestEmpregoHandler_List_WithEscolaridadeIDFilter(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		listItems: []*models.Emprego{{ID: 1, Titulo: "Test"}},
+		listTotal: 1,
+	}
+	router := setupEmpregoRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/empregos?escolaridade_id=5", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// Test List - tipo_contratacao filter
+func TestEmpregoHandler_List_WithTipoContratacaoFilter(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		listItems: []*models.Emprego{{ID: 1, Titulo: "Test"}},
+		listTotal: 1,
+	}
+	router := setupEmpregoRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/empregos?tipo_contratacao=CLT", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// Test List - jornada_trabalho filter
+func TestEmpregoHandler_List_WithJornadaTrabalhoFilter(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		listItems: []*models.Emprego{{ID: 1, Titulo: "Test"}},
+		listTotal: 1,
+	}
+	router := setupEmpregoRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/empregos?jornada_trabalho=INTEGRAL", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// Test List - multiple filters
+func TestEmpregoHandler_List_WithMultipleFilters(t *testing.T) {
+	repo := &mockEmpregoRepoForHandler{
+		listItems: []*models.Emprego{},
+		listTotal: 0,
+	}
+	router := setupEmpregoRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/empregos?status=ABERTO&tipo_contratacao=CLT&empresa_id=10", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}

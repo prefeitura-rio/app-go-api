@@ -718,6 +718,174 @@ func TestInscricaoService_UpdateMultipleStatus(t *testing.T) {
 			t.Errorf("Expected count 2, got %d", count)
 		}
 	})
+
+	t.Run("UpdateMultipleStatus to concluded status", func(t *testing.T) {
+		ids := []uuid.UUID{uuid.New(), uuid.New()}
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      id,
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+			UpdateMultipleStatusFunc: func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+				if status != models.StatusInscricaoConcluded {
+					t.Errorf("Expected status CONCLUDED, got %s", status)
+				}
+				return len(inscricaoIDs), nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		count, err := svc.UpdateMultipleStatus(ctx, ids, models.StatusInscricaoConcluded, "", "Curso concluído")
+		if err != nil {
+			t.Fatalf("UpdateMultipleStatus failed: %v", err)
+		}
+		if count != 2 {
+			t.Errorf("Expected count 2, got %d", count)
+		}
+	})
+
+	t.Run("UpdateMultipleStatus without email service doesn't call GetByID", func(t *testing.T) {
+		ids := []uuid.UUID{uuid.New(), uuid.New()}
+
+		callCount := 0
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				callCount++
+				return &models.Inscricao{
+					ID:      id,
+					CursoID: 1,
+					Status:  models.StatusInscricaoPending,
+				}, nil
+			},
+			UpdateMultipleStatusFunc: func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+				return len(inscricaoIDs), nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		// No email notification service
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		count, err := svc.UpdateMultipleStatus(ctx, ids, models.StatusInscricaoApproved, "", "")
+		if err != nil {
+			t.Fatalf("UpdateMultipleStatus failed: %v", err)
+		}
+		if count != 2 {
+			t.Errorf("Expected count 2, got %d", count)
+		}
+		// GetByID should not be called when email service is nil
+		if callCount != 0 {
+			t.Errorf("Expected GetByID not to be called without email service, called %d times", callCount)
+		}
+	})
+
+	t.Run("UpdateMultipleStatus with zero updates", func(t *testing.T) {
+		ids := []uuid.UUID{uuid.New()}
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      id,
+					CursoID: 1,
+					Status:  models.StatusInscricaoPending,
+				}, nil
+			},
+			UpdateMultipleStatusFunc: func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+				// Simulate zero rows updated (maybe due to concurrent update or constraint)
+				return 0, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		count, err := svc.UpdateMultipleStatus(ctx, ids, models.StatusInscricaoApproved, "", "")
+		if err != nil {
+			t.Fatalf("UpdateMultipleStatus failed: %v", err)
+		}
+		if count != 0 {
+			t.Errorf("Expected count 0, got %d", count)
+		}
+	})
+
+	t.Run("UpdateMultipleStatus with all same status (no email sent)", func(t *testing.T) {
+		ids := []uuid.UUID{uuid.New(), uuid.New()}
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      id,
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved, // Already approved
+				}, nil
+			},
+			UpdateMultipleStatusFunc: func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+				return len(inscricaoIDs), nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{ID: 1, Titulo: "Test Course"}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		// Update to same status - should collect emails but skip sending
+		count, err := svc.UpdateMultipleStatus(ctx, ids, models.StatusInscricaoApproved, "", "")
+		if err != nil {
+			t.Fatalf("UpdateMultipleStatus failed: %v", err)
+		}
+		if count != 2 {
+			t.Errorf("Expected count 2, got %d", count)
+		}
+	})
+
+	t.Run("UpdateMultipleStatus with curso lookup failure during email", func(t *testing.T) {
+		ids := []uuid.UUID{uuid.New()}
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      id,
+					CursoID: 1,
+					Status:  models.StatusInscricaoPending,
+					Email:   "user@example.com",
+				}, nil
+			},
+			UpdateMultipleStatusFunc: func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+				return 1, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return nil, errors.New("curso not found")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		// Should still succeed even if curso lookup fails during email sending
+		count, err := svc.UpdateMultipleStatus(ctx, ids, models.StatusInscricaoApproved, "", "")
+		if err != nil {
+			t.Fatalf("UpdateMultipleStatus should succeed even if curso lookup fails: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("Expected count 1, got %d", count)
+		}
+	})
 }
 
 // TestInscricaoService_Delete tests the Delete method
@@ -1140,4 +1308,2079 @@ func TestInscricaoService_UpdateInscricao(t *testing.T) {
 			t.Error("Expected error when curso ID mismatch")
 		}
 	})
+}
+
+// TestInscricaoService_CreateManual tests the CreateManual method
+func TestInscricaoService_CreateManual(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("CreateManual bypasses enrollment period", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.Status != models.StatusInscricaoApproved {
+					t.Errorf("Expected status APPROVED, got %s", inscricao.Status)
+				}
+				if inscricao.Email != "admin@example.com" {
+					t.Errorf("Expected admin-provided email, got %s", inscricao.Email)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		// Simulate expired enrollment period
+		pastDate := time.Now().Add(-24 * time.Hour)
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, &pastDate, true, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:     "12345678900",
+			CursoID: 1,
+			Name:    "Admin Created User",
+			Email:   "admin@example.com",
+		}
+
+		err := svc.CreateManual(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("CreateManual failed: %v", err)
+		}
+	})
+
+	t.Run("CreateManual does not fetch citizen data", func(t *testing.T) {
+		citizenDataFetcherCalled := false
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				// Should preserve admin-provided data
+				if inscricao.Email != "admin@example.com" {
+					t.Errorf("Expected admin email to be preserved, got %s", inscricao.Email)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, false, nil
+			},
+		}
+
+		citizenFetcher := &MockCitizenDataFetcher{
+			SyncFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				citizenDataFetcherCalled = true
+				return &models.CitizenSnapshot{
+					Email: "should-not-override@example.com",
+				}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, citizenFetcher, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:     "12345678900",
+			CursoID: 1,
+			Name:    "Manual User",
+			Email:   "admin@example.com",
+		}
+
+		err := svc.CreateManual(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("CreateManual failed: %v", err)
+		}
+
+		if citizenDataFetcherCalled {
+			t.Error("Citizen data fetcher should not be called in CreateManual")
+		}
+	})
+
+	t.Run("CreateManual fails when curso not opened", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoDraft), nil, nil, false, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:     "12345678900",
+			CursoID: 1,
+		}
+
+		err := svc.CreateManual(ctx, inscricao)
+		if err == nil {
+			t.Error("Expected error when curso not opened")
+		}
+	})
+
+	t.Run("CreateManual with schedule validation", func(t *testing.T) {
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID: 1,
+					LocationClasses: []models.LocationClass{
+						{
+							Schedules: []models.CourseSchedule{
+								{
+									ID:                   scheduleID,
+									Vacancies:            10,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 5, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			Name:       "Test User",
+			Email:      "test@example.com",
+			ScheduleID: &scheduleID,
+		}
+
+		err := svc.CreateManual(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("CreateManual failed: %v", err)
+		}
+	})
+
+	t.Run("CreateManual with full schedule disables auto-approve", func(t *testing.T) {
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				// Should be pending since schedule is full
+				if inscricao.Status != models.StatusInscricaoPending {
+					t.Errorf("Expected status PENDING due to full schedule, got %s", inscricao.Status)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				acceptingEnrollments := true
+				return &models.Curso{
+					ID: 1,
+					LocationClasses: []models.LocationClass{
+						{
+							Schedules: []models.CourseSchedule{
+								{
+									ID:                   scheduleID,
+									Vacancies:            10,
+									AcceptingEnrollments: &acceptingEnrollments,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			CountEnrollmentsByScheduleIDFunc: func(ctx context.Context, sid uuid.UUID) (int64, error) {
+				return 10, nil // Full schedule
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			Name:       "Test User",
+			Email:      "test@example.com",
+			ScheduleID: &scheduleID,
+		}
+
+		err := svc.CreateManual(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("CreateManual failed: %v", err)
+		}
+	})
+
+	t.Run("CreateManual fails with invalid schedule", func(t *testing.T) {
+		invalidScheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, false, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID:              1,
+					LocationClasses: []models.LocationClass{},
+				}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:        "12345678900",
+			CursoID:    1,
+			ScheduleID: &invalidScheduleID,
+		}
+
+		err := svc.CreateManual(ctx, inscricao)
+		if err == nil {
+			t.Error("Expected error with invalid schedule ID")
+		}
+	})
+
+	t.Run("CreateManual validates email with SanitizeEmail", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				// Valid email should be preserved
+				if inscricao.Email != "test@example.com" {
+					t.Errorf("Expected valid email 'test@example.com', got %s", inscricao.Email)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, false, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:     "12345678900",
+			CursoID: 1,
+			Name:    "Test User",
+			Email:   "test@example.com", // Valid email
+		}
+
+		err := svc.CreateManual(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("CreateManual failed: %v", err)
+		}
+	})
+
+	t.Run("CreateManual handles invalid email", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				// Invalid email should be sanitized to empty string
+				if inscricao.Email != "" {
+					t.Errorf("Expected invalid email to be sanitized to empty string, got %s", inscricao.Email)
+				}
+				return nil
+			},
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
+				return string(models.StatusCursoOpened), nil, nil, false, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		inscricao := &models.Inscricao{
+			CPF:     "12345678900",
+			CursoID: 1,
+			Name:    "Test User",
+			Email:   "not-a-valid-email", // Invalid email format
+		}
+
+		err := svc.CreateManual(ctx, inscricao)
+		if err != nil {
+			t.Fatalf("CreateManual failed: %v", err)
+		}
+	})
+}
+
+// MockCitizenSnapshotRepository for testing - implements CitizenSnapshotRepositoryInterface
+type MockCitizenSnapshotRepository struct {
+	GetByCPFFunc            func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+	GetByCPFsFunc           func(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error)
+	UpsertFunc              func(ctx context.Context, snapshot *models.CitizenSnapshot) error
+	BatchUpsertFunc         func(ctx context.Context, snapshots []*models.CitizenSnapshot) error
+	GetStaleSnapshotsFunc   func(ctx context.Context, staleThreshold time.Duration, limit int) ([]*models.CitizenSnapshot, error)
+	GetCPFsWithEnrollmentsFunc func(ctx context.Context, staleThreshold time.Duration, limit int) ([]string, error)
+	DeleteFunc              func(ctx context.Context, cpf string) error
+	CountFunc               func(ctx context.Context) (int64, error)
+}
+
+func (m *MockCitizenSnapshotRepository) GetByCPF(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+	if m.GetByCPFFunc != nil {
+		return m.GetByCPFFunc(ctx, cpf)
+	}
+	return nil, nil
+}
+
+func (m *MockCitizenSnapshotRepository) GetByCPFs(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error) {
+	if m.GetByCPFsFunc != nil {
+		return m.GetByCPFsFunc(ctx, cpfs)
+	}
+	return make(map[string]*models.CitizenSnapshot), nil
+}
+
+func (m *MockCitizenSnapshotRepository) Upsert(ctx context.Context, snapshot *models.CitizenSnapshot) error {
+	if m.UpsertFunc != nil {
+		return m.UpsertFunc(ctx, snapshot)
+	}
+	return nil
+}
+
+func (m *MockCitizenSnapshotRepository) BatchUpsert(ctx context.Context, snapshots []*models.CitizenSnapshot) error {
+	if m.BatchUpsertFunc != nil {
+		return m.BatchUpsertFunc(ctx, snapshots)
+	}
+	return nil
+}
+
+func (m *MockCitizenSnapshotRepository) GetStaleSnapshots(ctx context.Context, staleThreshold time.Duration, limit int) ([]*models.CitizenSnapshot, error) {
+	if m.GetStaleSnapshotsFunc != nil {
+		return m.GetStaleSnapshotsFunc(ctx, staleThreshold, limit)
+	}
+	return []*models.CitizenSnapshot{}, nil
+}
+
+func (m *MockCitizenSnapshotRepository) GetCPFsWithEnrollments(ctx context.Context, staleThreshold time.Duration, limit int) ([]string, error) {
+	if m.GetCPFsWithEnrollmentsFunc != nil {
+		return m.GetCPFsWithEnrollmentsFunc(ctx, staleThreshold, limit)
+	}
+	return []string{}, nil
+}
+
+func (m *MockCitizenSnapshotRepository) Delete(ctx context.Context, cpf string) error {
+	if m.DeleteFunc != nil {
+		return m.DeleteFunc(ctx, cpf)
+	}
+	return nil
+}
+
+func (m *MockCitizenSnapshotRepository) Count(ctx context.Context) (int64, error) {
+	if m.CountFunc != nil {
+		return m.CountFunc(ctx)
+	}
+	return 0, nil
+}
+
+// TestInscricaoService_EnrichWithPersonalInfo tests the EnrichWithPersonalInfo method
+func TestInscricaoService_EnrichWithPersonalInfo(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("EnrichWithPersonalInfo returns when citizenSnapshotRepo is nil", func(t *testing.T) {
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			nil, // nil snapshot repo
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricao := &models.Inscricao{
+			CPF: "12345678900",
+		}
+
+		// Should not panic with nil repo
+		svc.EnrichWithPersonalInfo(ctx, inscricao)
+
+		if inscricao.PersonalInfo != nil {
+			t.Error("Expected PersonalInfo to remain nil when repo is nil")
+		}
+	})
+
+	t.Run("EnrichWithPersonalInfo handles nil inscricao", func(t *testing.T) {
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			nil,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		// Should not panic with nil inscricao
+		svc.EnrichWithPersonalInfo(ctx, nil)
+	})
+
+	t.Run("EnrichWithPersonalInfo handles empty CPF", func(t *testing.T) {
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			nil,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricao := &models.Inscricao{
+			CPF: "",
+		}
+
+		svc.EnrichWithPersonalInfo(ctx, inscricao)
+
+		if inscricao.PersonalInfo != nil {
+			t.Error("Expected PersonalInfo to remain nil for empty CPF")
+		}
+	})
+}
+
+// TestInscricaoService_EnrichMultipleWithPersonalInfo tests the EnrichMultipleWithPersonalInfo method
+func TestInscricaoService_EnrichMultipleWithPersonalInfo(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("EnrichMultipleWithPersonalInfo handles empty list", func(t *testing.T) {
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			nil,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricoes := []*models.Inscricao{}
+
+		// Should not panic with empty list
+		svc.EnrichMultipleWithPersonalInfo(ctx, inscricoes)
+	})
+
+	t.Run("EnrichMultipleWithPersonalInfo returns when repo is nil", func(t *testing.T) {
+		svc := services.NewInscricaoServiceWithInterface(
+			&MockInscricaoRepository{},
+			&MockCursoRepository{},
+			nil,
+			nil,
+			nil,
+			&config.AppConfig{},
+		)
+
+		inscricoes := []*models.Inscricao{
+			{CPF: "11111111111"},
+		}
+
+		// Should return early when repo is nil
+		svc.EnrichMultipleWithPersonalInfo(ctx, inscricoes)
+
+		if inscricoes[0].PersonalInfo != nil {
+			t.Error("Expected PersonalInfo to remain nil when repo is nil")
+		}
+	})
+}
+
+// TestInscricaoService_ChangeSchedule tests the ChangeSchedule method
+func TestInscricaoService_ChangeSchedule(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("ChangeSchedule success", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		newScheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+			UpdateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.ScheduleID == nil || *inscricao.ScheduleID != newScheduleID {
+					t.Error("Expected schedule ID to be updated")
+				}
+				return nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{
+					newScheduleID: 5, // 5 enrolled, has space
+				}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, scheduleID uuid.UUID) (*models.CourseSchedule, error) {
+				acceptingEnrollments := true
+				return &models.CourseSchedule{
+					ID:                   scheduleID,
+					Vacancies:            10,
+					AcceptingEnrollments: &acceptingEnrollments,
+				}, nil
+			},
+		}
+
+		futureDate := time.Now().Add(72 * time.Hour) // 3 days from now
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &newScheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				ID: "unit-1",
+				Schedules: []models.EnrolledUnitSchedule{
+					{
+						ID:             newScheduleID.String(),
+						ClassStartDate: futureDate.Format(time.RFC3339),
+					},
+				},
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{
+			Enrollment: config.EnrollmentSettings{
+				ScheduleChangeDeadlineHours: 48,
+			},
+		})
+
+		result, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err != nil {
+			t.Fatalf("ChangeSchedule failed: %v", err)
+		}
+		if result == nil {
+			t.Fatal("Expected inscricao result")
+		}
+	})
+
+	t.Run("ChangeSchedule fails when user CPF doesn't match", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{
+					{ClassStartDate: futureDate.Format(time.RFC3339)},
+				},
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "99999999999", request)
+		if err == nil {
+			t.Error("Expected error when CPF doesn't match")
+		}
+	})
+
+	t.Run("ChangeSchedule fails for cancelled enrollment", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoCancelled,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{
+					{ClassStartDate: futureDate.Format(time.RFC3339)},
+				},
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error for cancelled enrollment")
+		}
+	})
+
+	t.Run("ChangeSchedule fails within deadline", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		// Class starts in 24 hours, but deadline is 48 hours
+		nearFutureDate := time.Now().Add(24 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{
+					{ClassStartDate: nearFutureDate.Format(time.RFC3339)},
+				},
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{
+			Enrollment: config.EnrollmentSettings{
+				ScheduleChangeDeadlineHours: 48,
+			},
+		})
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when changing schedule within deadline")
+		}
+	})
+
+	t.Run("ChangeSchedule fails when schedule is full", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		newScheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{
+					newScheduleID: 10, // Full
+				}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, scheduleID uuid.UUID) (*models.CourseSchedule, error) {
+				acceptingEnrollments := true
+				return &models.CourseSchedule{
+					ID:                   scheduleID,
+					Vacancies:            10,
+					AcceptingEnrollments: &acceptingEnrollments,
+				}, nil
+			},
+		}
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &newScheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{
+					{ClassStartDate: futureDate.Format(time.RFC3339)},
+				},
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{
+			Enrollment: config.EnrollmentSettings{
+				ScheduleChangeDeadlineHours: 48,
+			},
+		})
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when schedule is full")
+		}
+	})
+
+	t.Run("ChangeSchedule with remote schedule", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		remoteScheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+			UpdateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{
+					remoteScheduleID: 3,
+				}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, scheduleID uuid.UUID) (*models.CourseSchedule, error) {
+				return nil, nil // Not a course schedule
+			},
+			GetRemoteScheduleByIDFunc: func(ctx context.Context, scheduleID uuid.UUID) (*models.RemoteSchedule, error) {
+				acceptingEnrollments := true
+				return &models.RemoteSchedule{
+					ID:                   scheduleID,
+					Vacancies:            10,
+					AcceptingEnrollments: &acceptingEnrollments,
+				}, nil
+			},
+		}
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &remoteScheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{
+					{ClassStartDate: futureDate.Format(time.RFC3339)},
+				},
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{
+			Enrollment: config.EnrollmentSettings{
+				ScheduleChangeDeadlineHours: 48,
+			},
+		})
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err != nil {
+			t.Fatalf("ChangeSchedule with remote schedule failed: %v", err)
+		}
+	})
+
+	t.Run("ChangeSchedule fails when schedule not accepting enrollments", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{scheduleID: 0}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.CourseSchedule, error) {
+				acceptingEnrollments := false
+				return &models.CourseSchedule{
+					ID:                   sid,
+					Vacancies:            10,
+					AcceptingEnrollments: &acceptingEnrollments,
+				}, nil
+			},
+		}
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{
+					{ClassStartDate: futureDate.Format(time.RFC3339)},
+				},
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{
+			Enrollment: config.EnrollmentSettings{
+				ScheduleChangeDeadlineHours: 48,
+			},
+		})
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when schedule not accepting enrollments")
+		}
+	})
+
+	t.Run("ChangeSchedule fails with invalid date format", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		request := &models.ScheduleChangeRequest{
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{
+					{ClassStartDate: "invalid-date-format"},
+				},
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error with invalid date format")
+		}
+	})
+
+	t.Run("ChangeSchedule uses default deadline when config missing", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+			UpdateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{scheduleID: 0}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.CourseSchedule, error) {
+				acceptingEnrollments := true
+				return &models.CourseSchedule{
+					ID:                   sid,
+					Vacancies:            10,
+					AcceptingEnrollments: &acceptingEnrollments,
+				}, nil
+			},
+		}
+
+		// 72 hours should be enough for default 48 hour deadline
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{
+					{ClassStartDate: futureDate.Format(time.RFC3339)},
+				},
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, nil)
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err != nil {
+			t.Fatalf("ChangeSchedule should use default 48h deadline: %v", err)
+		}
+	})
+}
+
+// Additional tests to improve coverage
+
+// TestInscricaoService_UpdateCertificate_AdditionalCases tests missing branches
+func TestInscricaoService_UpdateCertificate_AdditionalCases(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("UpdateCertificate with GetByID error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return nil, errors.New("database connection failed")
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.UpdateCertificate(ctx, 1, inscricaoID, "https://example.com/cert.pdf")
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+		if !strings.Contains(err.Error(), "erro ao verificar inscrição") {
+			t.Errorf("Expected verification error message, got: %v", err)
+		}
+	})
+
+	t.Run("UpdateCertificate when inscricao not found", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return nil, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.UpdateCertificate(ctx, 1, inscricaoID, "https://example.com/cert.pdf")
+		if err == nil {
+			t.Error("Expected error when inscricao not found")
+		}
+		if !strings.Contains(err.Error(), "inscrição não encontrada") {
+			t.Errorf("Expected not found error, got: %v", err)
+		}
+	})
+
+	t.Run("UpdateCertificate for concluded inscricao", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CursoID: 1,
+					Status:  models.StatusInscricaoConcluded,
+				}, nil
+			},
+			UpdateCertificateFunc: func(ctx context.Context, id uuid.UUID, certificateURL string) error {
+				return nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.UpdateCertificate(ctx, 1, inscricaoID, "https://example.com/cert.pdf")
+		if err != nil {
+			t.Fatalf("UpdateCertificate should work for concluded status: %v", err)
+		}
+	})
+
+	t.Run("UpdateCertificate with repository update error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+			UpdateCertificateFunc: func(ctx context.Context, id uuid.UUID, certificateURL string) error {
+				return errors.New("database write failed")
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.UpdateCertificate(ctx, 1, inscricaoID, "https://example.com/cert.pdf")
+		if err == nil {
+			t.Error("Expected error when repository update fails")
+		}
+	})
+
+	t.Run("UpdateCertificate for rejected status should fail", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CursoID: 1,
+					Status:  models.StatusInscricaoRejected,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.UpdateCertificate(ctx, 1, inscricaoID, "https://example.com/cert.pdf")
+		if err == nil {
+			t.Error("Expected error for rejected status")
+		}
+		if !strings.Contains(err.Error(), "certificado só pode ser atribuído") {
+			t.Errorf("Expected status validation error, got: %v", err)
+		}
+	})
+}
+
+// TestInscricaoService_Delete_AdditionalCases tests missing branches
+func TestInscricaoService_Delete_AdditionalCases(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Delete with GetByID error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return nil, errors.New("connection timeout")
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.Delete(ctx, inscricaoID)
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+		if !strings.Contains(err.Error(), "erro ao verificar inscrição") {
+			t.Errorf("Expected verification error, got: %v", err)
+		}
+	})
+
+	t.Run("Delete with repository error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{ID: inscricaoID}, nil
+			},
+			DeleteFunc: func(ctx context.Context, id uuid.UUID) error {
+				return errors.New("foreign key constraint violation")
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.Delete(ctx, inscricaoID)
+		if err == nil {
+			t.Error("Expected error when Delete fails")
+		}
+		if !strings.Contains(err.Error(), "foreign key constraint") {
+			t.Errorf("Expected constraint error, got: %v", err)
+		}
+	})
+}
+
+// TestInscricaoService_UpdateInscricao_AdditionalCases tests missing branches
+func TestInscricaoService_UpdateInscricao_AdditionalCases(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("UpdateInscricao with GetByID error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return nil, errors.New("query failed")
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		updateData := &models.InscricaoUpdateRequest{}
+		err := svc.UpdateInscricao(ctx, inscricaoID, 1, updateData)
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+		if !strings.Contains(err.Error(), "erro ao verificar inscrição") {
+			t.Errorf("Expected verification error, got: %v", err)
+		}
+	})
+
+	t.Run("UpdateInscricao with repository update error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CursoID: 1,
+				}, nil
+			},
+			UpdateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return errors.New("update failed")
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		newName := "Test"
+		updateData := &models.InscricaoUpdateRequest{
+			Name: &newName,
+		}
+		err := svc.UpdateInscricao(ctx, inscricaoID, 1, updateData)
+		if err == nil {
+			t.Error("Expected error when Update fails")
+		}
+	})
+
+	t.Run("UpdateInscricao updates all fields correctly", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		newName := "New Name"
+		newEmail := "new@example.com"
+		newPhone := "1234567890"
+		newAdminNotes := "Admin note"
+		enrolledUnit := &models.EnrolledUnit{ID: "unit-1"}
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CursoID: 1,
+					Name:    "Old Name",
+					Email:   "old@example.com",
+					Phone:   "0000000000",
+				}, nil
+			},
+			UpdateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.Name != newName {
+					t.Errorf("Expected name %s, got %s", newName, inscricao.Name)
+				}
+				if inscricao.Email != newEmail {
+					t.Errorf("Expected email %s, got %s", newEmail, inscricao.Email)
+				}
+				if inscricao.Phone != newPhone {
+					t.Errorf("Expected phone %s, got %s", newPhone, inscricao.Phone)
+				}
+				if inscricao.AdminNotes != newAdminNotes {
+					t.Errorf("Expected admin notes %s, got %s", newAdminNotes, inscricao.AdminNotes)
+				}
+				if inscricao.CustomFieldsData == nil || len(inscricao.CustomFieldsData) == 0 {
+					t.Error("Expected custom fields to be updated")
+				}
+				if inscricao.EnrolledUnit == nil || inscricao.EnrolledUnit.ID != "unit-1" {
+					t.Error("Expected enrolled unit to be updated")
+				}
+				return nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		customFields := []byte(`{"field1":"value1"}`)
+		updateData := &models.InscricaoUpdateRequest{
+			Name:             &newName,
+			Email:            &newEmail,
+			Phone:            &newPhone,
+			AdminNotes:       &newAdminNotes,
+			CustomFieldsData: customFields,
+			EnrolledUnit:     enrolledUnit,
+		}
+
+		err := svc.UpdateInscricao(ctx, inscricaoID, 1, updateData)
+		if err != nil {
+			t.Fatalf("UpdateInscricao failed: %v", err)
+		}
+	})
+
+	t.Run("UpdateInscricao with nil fields does not update", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		originalName := "Original Name"
+		originalEmail := "original@example.com"
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CursoID: 1,
+					Name:    originalName,
+					Email:   originalEmail,
+				}, nil
+			},
+			UpdateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.Name != originalName {
+					t.Errorf("Name should not change, got %s", inscricao.Name)
+				}
+				if inscricao.Email != originalEmail {
+					t.Errorf("Email should not change, got %s", inscricao.Email)
+				}
+				return nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		updateData := &models.InscricaoUpdateRequest{
+			// All fields are nil
+		}
+
+		err := svc.UpdateInscricao(ctx, inscricaoID, 1, updateData)
+		if err != nil {
+			t.Fatalf("UpdateInscricao failed: %v", err)
+		}
+	})
+}
+
+// TestInscricaoService_UpdateStatus_AdditionalCases tests missing branches
+func TestInscricaoService_UpdateStatus_AdditionalCases(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("UpdateStatus with curso fetch error during email", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CursoID: 1,
+					Status:  models.StatusInscricaoPending,
+				}, nil
+			},
+			UpdateStatusFunc: func(ctx context.Context, id uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error {
+				return nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return nil, errors.New("curso fetch failed")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		// Should succeed despite curso fetch error (email is best-effort)
+		err := svc.UpdateStatus(ctx, inscricaoID, models.StatusInscricaoApproved, "", "")
+		if err != nil {
+			t.Fatalf("UpdateStatus should succeed even if email fails: %v", err)
+		}
+	})
+
+	t.Run("UpdateStatus to cancelled status", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+			UpdateStatusFunc: func(ctx context.Context, id uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error {
+				if status != models.StatusInscricaoCancelled {
+					t.Errorf("Expected status CANCELLED, got %s", status)
+				}
+				return nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{ID: 1}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.UpdateStatus(ctx, inscricaoID, models.StatusInscricaoCancelled, "User requested", "")
+		if err != nil {
+			t.Fatalf("UpdateStatus failed: %v", err)
+		}
+	})
+
+	t.Run("UpdateStatus to concluded status", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+			UpdateStatusFunc: func(ctx context.Context, id uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error {
+				if status != models.StatusInscricaoConcluded {
+					t.Errorf("Expected status CONCLUDED, got %s", status)
+				}
+				return nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.UpdateStatus(ctx, inscricaoID, models.StatusInscricaoConcluded, "", "")
+		if err != nil {
+			t.Fatalf("UpdateStatus failed: %v", err)
+		}
+	})
+}
+
+// TestInscricaoService_UpdateMultipleStatus_AdditionalCases tests missing branches
+func TestInscricaoService_UpdateMultipleStatus_AdditionalCases(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("UpdateMultipleStatus to cancelled status", func(t *testing.T) {
+		ids := []uuid.UUID{uuid.New(), uuid.New()}
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      id,
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+			UpdateMultipleStatusFunc: func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+				return len(inscricaoIDs), nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		// Cancelled status should not trigger email collection
+		count, err := svc.UpdateMultipleStatus(ctx, ids, models.StatusInscricaoCancelled, "", "")
+		if err != nil {
+			t.Fatalf("UpdateMultipleStatus failed: %v", err)
+		}
+		if count != 2 {
+			t.Errorf("Expected count 2, got %d", count)
+		}
+	})
+
+	t.Run("UpdateMultipleStatus with curso fetch error during email", func(t *testing.T) {
+		ids := []uuid.UUID{uuid.New()}
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      id,
+					CursoID: 1,
+					Status:  models.StatusInscricaoPending,
+				}, nil
+			},
+			UpdateMultipleStatusFunc: func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+				return len(inscricaoIDs), nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return nil, errors.New("curso not found")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		// Should succeed despite curso fetch error (email is best-effort)
+		count, err := svc.UpdateMultipleStatus(ctx, ids, models.StatusInscricaoApproved, "", "")
+		if err != nil {
+			t.Fatalf("UpdateMultipleStatus should succeed even if email fails: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("Expected count 1, got %d", count)
+		}
+	})
+
+	t.Run("UpdateMultipleStatus to rejected with reason", func(t *testing.T) {
+		ids := []uuid.UUID{uuid.New()}
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      id,
+					CursoID: 1,
+					Status:  models.StatusInscricaoPending,
+				}, nil
+			},
+			UpdateMultipleStatusFunc: func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+				if reason != "Failed requirements" {
+					t.Errorf("Expected reason 'Failed requirements', got %s", reason)
+				}
+				return len(inscricaoIDs), nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{ID: 1}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		count, err := svc.UpdateMultipleStatus(ctx, ids, models.StatusInscricaoRejected, "Failed requirements", "Internal notes")
+		if err != nil {
+			t.Fatalf("UpdateMultipleStatus failed: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("Expected count 1, got %d", count)
+		}
+	})
+
+	t.Run("UpdateMultipleStatus no email service configured", func(t *testing.T) {
+		ids := []uuid.UUID{uuid.New()}
+
+		inscricaoRepo := &MockInscricaoRepository{
+			UpdateMultipleStatusFunc: func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+				return len(inscricaoIDs), nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		// No email service configured
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		count, err := svc.UpdateMultipleStatus(ctx, ids, models.StatusInscricaoApproved, "", "")
+		if err != nil {
+			t.Fatalf("UpdateMultipleStatus should work without email service: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("Expected count 1, got %d", count)
+		}
+	})
+}
+
+// TestInscricaoService_ChangeSchedule_AdditionalCases tests missing branches
+func TestInscricaoService_ChangeSchedule_AdditionalCases(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("ChangeSchedule with GetByID error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return nil, errors.New("database timeout")
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		request := &models.ScheduleChangeRequest{
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: time.Now().Add(72 * time.Hour).Format(time.RFC3339)}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+		if !strings.Contains(err.Error(), "erro ao buscar inscrição") {
+			t.Errorf("Expected fetch error, got: %v", err)
+		}
+	})
+
+	t.Run("ChangeSchedule for concluded enrollment", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoConcluded,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		request := &models.ScheduleChangeRequest{
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: time.Now().Add(72 * time.Hour).Format(time.RFC3339)}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error for concluded enrollment")
+		}
+	})
+
+	t.Run("ChangeSchedule without enrolled unit", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		request := &models.ScheduleChangeRequest{
+			EnrolledUnit: nil,
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when enrolled unit is nil")
+		}
+	})
+
+	t.Run("ChangeSchedule with empty schedules", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		request := &models.ScheduleChangeRequest{
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when schedules are empty")
+		}
+	})
+
+	t.Run("ChangeSchedule with missing class start date", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		request := &models.ScheduleChangeRequest{
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: ""}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when class start date is missing")
+		}
+	})
+
+	t.Run("ChangeSchedule with enrollment count error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return nil, errors.New("count query failed")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: futureDate.Format(time.RFC3339)}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when enrollment count fails")
+		}
+	})
+
+	t.Run("ChangeSchedule with GetCourseScheduleByID error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{scheduleID: 5}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.CourseSchedule, error) {
+				return nil, errors.New("schedule fetch failed")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: futureDate.Format(time.RFC3339)}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when GetCourseScheduleByID fails")
+		}
+	})
+
+	t.Run("ChangeSchedule with remote schedule not accepting enrollments", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{scheduleID: 5}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.CourseSchedule, error) {
+				return nil, nil // Not found in course schedules
+			},
+			GetRemoteScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.RemoteSchedule, error) {
+				acceptingEnrollments := false
+				return &models.RemoteSchedule{
+					ID:                   sid,
+					Vacancies:            10,
+					AcceptingEnrollments: &acceptingEnrollments,
+				}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: futureDate.Format(time.RFC3339)}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when remote schedule not accepting enrollments")
+		}
+	})
+
+	t.Run("ChangeSchedule with remote schedule full", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{scheduleID: 10}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.CourseSchedule, error) {
+				return nil, nil
+			},
+			GetRemoteScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.RemoteSchedule, error) {
+				acceptingEnrollments := true
+				return &models.RemoteSchedule{
+					ID:                   sid,
+					Vacancies:            10,
+					AcceptingEnrollments: &acceptingEnrollments,
+				}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: futureDate.Format(time.RFC3339)}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when remote schedule is full")
+		}
+	})
+
+	t.Run("ChangeSchedule with course schedule not accepting enrollments", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{scheduleID: 5}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.CourseSchedule, error) {
+				acceptingEnrollments := false
+				return &models.CourseSchedule{
+					ID:                   sid,
+					Vacancies:            10,
+					AcceptingEnrollments: &acceptingEnrollments,
+				}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: futureDate.Format(time.RFC3339)}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when course schedule not accepting enrollments")
+		}
+	})
+
+	t.Run("ChangeSchedule with repository update error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+			UpdateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return errors.New("update failed")
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{scheduleID: 5}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.CourseSchedule, error) {
+				acceptingEnrollments := true
+				return &models.CourseSchedule{
+					ID:                   sid,
+					Vacancies:            10,
+					AcceptingEnrollments: &acceptingEnrollments,
+				}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: futureDate.Format(time.RFC3339)}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when Update fails")
+		}
+		if !strings.Contains(err.Error(), "erro ao atualizar inscrição") {
+			t.Errorf("Expected update error, got: %v", err)
+		}
+	})
+
+	t.Run("ChangeSchedule with remote schedule success", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+			UpdateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				if inscricao.ScheduleID == nil || *inscricao.ScheduleID != scheduleID {
+					t.Error("Expected schedule ID to be updated")
+				}
+				return nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{scheduleID: 3}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.CourseSchedule, error) {
+				return nil, nil // Not found in course schedules
+			},
+			GetRemoteScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.RemoteSchedule, error) {
+				acceptingEnrollments := true
+				return &models.RemoteSchedule{
+					ID:                   sid,
+					Vacancies:            10,
+					AcceptingEnrollments: &acceptingEnrollments,
+				}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: futureDate.Format(time.RFC3339)}},
+			},
+		}
+
+		result, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err != nil {
+			t.Fatalf("ChangeSchedule failed: %v", err)
+		}
+		if result == nil {
+			t.Fatal("Expected inscricao result")
+		}
+	})
+
+	t.Run("ChangeSchedule with GetRemoteScheduleByID error", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{scheduleID: 5}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.CourseSchedule, error) {
+				return nil, nil
+			},
+			GetRemoteScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.RemoteSchedule, error) {
+				return nil, errors.New("remote schedule fetch failed")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: futureDate.Format(time.RFC3339)}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when GetRemoteScheduleByID fails")
+		}
+	})
+
+	t.Run("ChangeSchedule with both schedules not found", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		scheduleID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
+				return map[uuid.UUID]int64{scheduleID: 5}, nil
+			},
+			GetCourseScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.CourseSchedule, error) {
+				return nil, nil
+			},
+			GetRemoteScheduleByIDFunc: func(ctx context.Context, sid uuid.UUID) (*models.RemoteSchedule, error) {
+				return nil, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			ScheduleID: &scheduleID,
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{{ClassStartDate: futureDate.Format(time.RFC3339)}},
+			},
+		}
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when schedule not found")
+		}
+		if !strings.Contains(err.Error(), "turma não encontrada") {
+			t.Errorf("Expected not found error, got: %v", err)
+		}
+	})
+}
+
+func TestNewInscricaoService(t *testing.T) {
+	service := services.NewInscricaoService(nil, nil, nil, nil, nil, &config.AppConfig{})
+
+	if service == nil {
+		t.Error("NewInscricaoService() returned nil")
+	}
+}
+
+func TestNewInscricaoServiceWithInterface(t *testing.T) {
+	inscricaoRepo := &MockInscricaoRepository{}
+	cursoRepo := &MockCursoRepository{}
+	service := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+	if service == nil {
+		t.Error("NewInscricaoServiceWithInterface() returned nil")
+	}
 }

@@ -226,3 +226,125 @@ func TestRegimeContratacaoHandler_Delete_Error(t *testing.T) {
 		t.Error("expected error status")
 	}
 }
+
+func TestModeloTrabalhoHandler_Delete_Error(t *testing.T) {
+	repo := &mockModeloTrabalhoRepoH{err: errTest}
+	r := setupModeloTrabalhoRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/modelos/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestTipoPCDHandler_Update_BadJSON(t *testing.T) {
+	repo := &mockTipoPCDRepoH{}
+	r := setupTipoPCDRouter(repo)
+	body := bodyOf(`invalid`)
+	req := httptest.NewRequest(http.MethodPut, "/tipos-pcd/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestTipoPCDHandler_Update_Error(t *testing.T) {
+	repo := &mockTipoPCDRepoH{err: errTest}
+	r := setupTipoPCDRouter(repo)
+	body := bodyOf(`{"descricao":"Visual"}`)
+	req := httptest.NewRequest(http.MethodPut, "/tipos-pcd/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestTipoPCDHandler_Delete_Error(t *testing.T) {
+	repo := &mockTipoPCDRepoH{err: errTest}
+	r := setupTipoPCDRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/tipos-pcd/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestTipoConquistaHandler_Update_BadJSON(t *testing.T) {
+	repo := &mockTipoConquistaRepoH{}
+	r := setupTipoConquistaRouter(repo)
+	body := bodyOf(`invalid`)
+	req := httptest.NewRequest(http.MethodPut, "/tipos-conquista/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestTipoConquistaHandler_Update_Error(t *testing.T) {
+	repo := &mockTipoConquistaRepoH{err: errTest}
+	r := setupTipoConquistaRouter(repo)
+	body := bodyOf(`{"descricao":"Premio"}`)
+	req := httptest.NewRequest(http.MethodPut, "/tipos-conquista/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestTipoConquistaHandler_Delete_Error(t *testing.T) {
+	repo := &mockTipoConquistaRepoH{err: errTest}
+	r := setupTipoConquistaRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/tipos-conquista/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestSituacaoAtualHandler_Update_BadJSON(t *testing.T) {
+	repo := &mockSituacaoAtualRepoH{}
+	r := setupSituacaoAtualRouter(repo)
+	body := bodyOf(`invalid`)
+	req := httptest.NewRequest(http.MethodPut, "/situacoes/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestSituacaoAtualHandler_Update_Error(t *testing.T) {
+	repo := &mockSituacaoAtualRepoH{err: errTest}
+	r := setupSituacaoAtualRouter(repo)
+	body := bodyOf(`{"descricao":"Empregado"}`)
+	req := httptest.NewRequest(http.MethodPut, "/situacoes/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestSituacaoAtualHandler_Delete_Error(t *testing.T) {
+	repo := &mockSituacaoAtualRepoH{err: errTest}
+	r := setupSituacaoAtualRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/situacoes/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}

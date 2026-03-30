@@ -553,3 +553,22 @@ func TestEmpresaService_ConcurrentOperations(t *testing.T) {
 		}
 	})
 }
+
+// ==================== Constructor Tests ====================
+
+func TestNewEmpresaService(t *testing.T) {
+	service := services.NewEmpresaService(nil)
+
+	if service == nil {
+		t.Error("NewEmpresaService() returned nil")
+	}
+}
+
+func TestNewEmpresaServiceWithInterface(t *testing.T) {
+	mockRepo := NewMockEmpresaRepo()
+	service := services.NewEmpresaServiceWithInterface(mockRepo)
+
+	if service == nil {
+		t.Error("NewEmpresaServiceWithInterface() returned nil")
+	}
+}

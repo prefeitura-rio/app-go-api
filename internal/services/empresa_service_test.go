@@ -473,12 +473,27 @@ func TestEmpresaService_List_OffsetCalculation(t *testing.T) {
 	}
 }
 
-func TestEmpresaService_NewEmpresaService(t *testing.T) {
-	// Test that NewEmpresaService accepts repo correctly
+func TestNewEmpresaService(t *testing.T) {
+	service := services.NewEmpresaService(nil)
+
+	if service == nil {
+		t.Error("NewEmpresaService() returned nil")
+	}
+}
+
+func TestNewEmpresaServiceWithInterface(t *testing.T) {
 	repo := &mockEmpresaRepo{}
-	svc := services.NewEmpresaServiceWithInterface(repo)
-	if svc == nil {
+	service := services.NewEmpresaServiceWithInterface(repo)
+
+	if service == nil {
 		t.Error("NewEmpresaServiceWithInterface() returned nil")
+	}
+
+	// Verify service can perform basic operations
+	ctx := context.Background()
+	_, _, err := service.List(ctx, map[string]interface{}{}, 1, 10)
+	if err != nil {
+		t.Errorf("NewEmpresaServiceWithInterface() service not properly initialized: %v", err)
 	}
 }
 
