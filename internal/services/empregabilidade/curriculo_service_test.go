@@ -674,7 +674,7 @@ func TestCurriculoService_GetCurriculoCompleto_WithData(t *testing.T) {
 			{CPF: "12345678900", NomeInstituicao: "UFRJ"},
 		},
 		idiomas: []*empregabilidade.CurriculoIdioma{
-			{CPF: "12345678900", Idioma: "Inglês"},
+			{CPF: "12345678900"},
 		},
 		cursos: []*empregabilidade.CurriculoCursoComplementar{
 			{CPF: "12345678900", NomeCurso: "Go Avancado"},
@@ -735,18 +735,11 @@ func TestCurriculoService_GetCurriculoCompleto_ErrorFormacoes(t *testing.T) {
 }
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorIdiomas(t *testing.T) {
-	repo := &mockCurriculoRepo{
-		formacoes: []*empregabilidade.CurriculoFormacao{},
-	}
-	svc := services.NewCurriculoServiceWithInterface(repo)
-
-	// First call succeeds to get formacoes, then we set error for idiomas
-	// We need a different approach - create custom mock
 	customRepo := &mockCurriculoRepoWithSequentialErrors{
-		step: 1, // Will fail on idiomas (step 2)
+		step: 2, // Will fail on idiomas (step 2)
 	}
-	svc2 := services.NewCurriculoServiceWithInterface(customRepo)
-	result, err := svc2.GetCurriculoCompleto(context.Background(), "12345678900")
+	svc := services.NewCurriculoServiceWithInterface(customRepo)
+	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
 	if err == nil {
 		t.Error("expected error from idiomas, got nil")
 	}
@@ -757,7 +750,7 @@ func TestCurriculoService_GetCurriculoCompleto_ErrorIdiomas(t *testing.T) {
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorCursos(t *testing.T) {
 	customRepo := &mockCurriculoRepoWithSequentialErrors{
-		step: 2, // Will fail on cursos (step 3)
+		step: 3, // Will fail on cursos (step 3)
 	}
 	svc := services.NewCurriculoServiceWithInterface(customRepo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
@@ -771,7 +764,7 @@ func TestCurriculoService_GetCurriculoCompleto_ErrorCursos(t *testing.T) {
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorExperiencias(t *testing.T) {
 	customRepo := &mockCurriculoRepoWithSequentialErrors{
-		step: 3, // Will fail on experiencias (step 4)
+		step: 4, // Will fail on experiencias (step 4)
 	}
 	svc := services.NewCurriculoServiceWithInterface(customRepo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
@@ -785,7 +778,7 @@ func TestCurriculoService_GetCurriculoCompleto_ErrorExperiencias(t *testing.T) {
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorConquistas(t *testing.T) {
 	customRepo := &mockCurriculoRepoWithSequentialErrors{
-		step: 4, // Will fail on conquistas (step 5)
+		step: 5, // Will fail on conquistas (step 5)
 	}
 	svc := services.NewCurriculoServiceWithInterface(customRepo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")

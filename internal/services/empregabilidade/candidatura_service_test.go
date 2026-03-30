@@ -24,6 +24,7 @@ type MockCandidaturaRepo struct {
 	checkError      error
 	listError       error
 	updateStatusErr error
+	bulkGetError    error
 }
 
 func NewMockCandidaturaRepo() *MockCandidaturaRepo {
@@ -102,6 +103,9 @@ func (m *MockCandidaturaRepo) BulkUpdateStatus(ctx context.Context, vagaID uuid.
 }
 
 func (m *MockCandidaturaRepo) BulkGetByCPFs(ctx context.Context, vagaID uuid.UUID, cpfs []string) ([]*empregabilidade.Candidatura, error) {
+	if m.bulkGetError != nil {
+		return nil, m.bulkGetError
+	}
 	var result []*empregabilidade.Candidatura
 	for _, c := range m.candidaturas {
 		if c.IDVaga != vagaID {
@@ -1241,7 +1245,7 @@ func TestCandidaturaService_BulkUpdateStatus_Errors(t *testing.T) {
 
 	t.Run("BulkGetByCPFs error", func(t *testing.T) {
 		mockCandidaturaRepo := NewMockCandidaturaRepo()
-		mockCandidaturaRepo.listError = errors.New("database error")
+		mockCandidaturaRepo.bulkGetError = errors.New("database error")
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
@@ -1407,7 +1411,7 @@ func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
 
 	t.Run("Error when BulkGetByCPFs fails", func(t *testing.T) {
 		mockCandidaturaRepo := NewMockCandidaturaRepo()
-		mockCandidaturaRepo.listError = errors.New("database error")
+		mockCandidaturaRepo.bulkGetError = errors.New("database error")
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
