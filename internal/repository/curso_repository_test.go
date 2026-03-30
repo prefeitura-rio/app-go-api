@@ -3,38 +3,13 @@ package repository
 import (
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-func setupMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, func()) {
-	sqlDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create sqlmock: %v", err)
-	}
-
-	gormDB, err := gorm.Open(postgres.New(postgres.Config{
-		Conn: sqlDB,
-	}), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
-	})
-	if err != nil {
-		t.Fatalf("failed to open gorm db: %v", err)
-	}
-
-	cleanup := func() {
-		sqlDB.Close()
-	}
-
-	return gormDB, mock, cleanup
-}
-
 func TestCursoRepository_applyFilters(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	repo := NewCursoRepository(db)
@@ -140,7 +115,7 @@ func TestCursoRepository_applyFilters(t *testing.T) {
 }
 
 func TestCursoRepository_applyFilters_AllFilterTypes(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	repo := NewCursoRepository(db)
@@ -174,7 +149,7 @@ func TestCursoRepository_applyFilters_AllFilterTypes(t *testing.T) {
 }
 
 func TestCursoRepository_applyFilters_DefaultBehavior(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	repo := NewCursoRepository(db)

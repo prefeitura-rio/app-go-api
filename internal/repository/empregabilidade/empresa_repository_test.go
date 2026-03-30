@@ -4,25 +4,26 @@ import (
 	"testing"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 )
 
 func TestEmpresaRepository_List_ApplyFilters(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	tests := []struct {
-		name                string
-		filter              empregabilidade.EmpresaFilter
-		expectedConditions  []string
-		description         string
+		name               string
+		filter             empregabilidade.EmpresaFilter
+		expectedConditions []string
+		description        string
 	}{
 		{
-			name: "empty filter",
-			filter: empregabilidade.EmpresaFilter{},
+			name:               "empty filter",
+			filter:             empregabilidade.EmpresaFilter{},
 			expectedConditions: []string{},
-			description: "No filter should generate no WHERE clauses",
+			description:        "No filter should generate no WHERE clauses",
 		},
 		{
 			name: "filter by CNPJ exact match",
@@ -30,7 +31,7 @@ func TestEmpresaRepository_List_ApplyFilters(t *testing.T) {
 				CNPJ: "12345678000190",
 			},
 			expectedConditions: []string{"cnpj =", "12345678000190"},
-			description: "CNPJ filter should generate exact match condition",
+			description:        "CNPJ filter should generate exact match condition",
 		},
 		{
 			name: "filter by Search in razao_social and nome_fantasia",
@@ -92,13 +93,13 @@ func TestEmpresaRepository_List_ApplyFilters(t *testing.T) {
 }
 
 func TestEmpresaRepository_List_SearchORLogic(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	tests := []struct {
-		name           string
-		searchTerm     string
-		description    string
+		name        string
+		searchTerm  string
+		description string
 	}{
 		{
 			name:        "search with company name",
@@ -147,7 +148,7 @@ func TestEmpresaRepository_List_SearchORLogic(t *testing.T) {
 }
 
 func TestEmpresaRepository_List_EmptyStringFilters(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	t.Run("empty CNPJ should not filter", func(t *testing.T) {
@@ -198,7 +199,7 @@ func TestEmpresaRepository_List_EmptyStringFilters(t *testing.T) {
 }
 
 func TestEmpresaRepository_List_CNPJExactMatch(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	// Test that CNPJ uses exact match, not ILIKE

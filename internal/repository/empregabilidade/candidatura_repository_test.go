@@ -5,28 +5,29 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 )
 
 func TestCandidaturaRepository_List_ApplyFilters(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	vagaID := uuid.New()
 	etapaID := uuid.New()
 
 	tests := []struct {
-		name                string
-		filter              empregabilidade.CandidaturaFilter
-		expectedConditions  []string
-		description         string
+		name               string
+		filter             empregabilidade.CandidaturaFilter
+		expectedConditions []string
+		description        string
 	}{
 		{
-			name: "empty filter",
-			filter: empregabilidade.CandidaturaFilter{},
+			name:               "empty filter",
+			filter:             empregabilidade.CandidaturaFilter{},
 			expectedConditions: []string{},
-			description: "No filter should generate no WHERE clauses",
+			description:        "No filter should generate no WHERE clauses",
 		},
 		{
 			name: "filter by CPF",
@@ -34,7 +35,7 @@ func TestCandidaturaRepository_List_ApplyFilters(t *testing.T) {
 				CPF: "12345678900",
 			},
 			expectedConditions: []string{"cpf =", "12345678900"},
-			description: "CPF filter should generate cpf = condition",
+			description:        "CPF filter should generate cpf = condition",
 		},
 		{
 			name: "filter by VagaID",
@@ -42,7 +43,7 @@ func TestCandidaturaRepository_List_ApplyFilters(t *testing.T) {
 				VagaID: &vagaID,
 			},
 			expectedConditions: []string{"id_vaga ="},
-			description: "VagaID filter should generate id_vaga = condition",
+			description:        "VagaID filter should generate id_vaga = condition",
 		},
 		{
 			name: "filter by Status",
@@ -50,7 +51,7 @@ func TestCandidaturaRepository_List_ApplyFilters(t *testing.T) {
 				Status: string(empregabilidade.StatusCandidaturaAprovada),
 			},
 			expectedConditions: []string{"status =", "aprovada"},
-			description: "Status filter should generate status = condition",
+			description:        "Status filter should generate status = condition",
 		},
 		{
 			name: "filter by EtapaID",
@@ -58,7 +59,7 @@ func TestCandidaturaRepository_List_ApplyFilters(t *testing.T) {
 				EtapaID: &etapaID,
 			},
 			expectedConditions: []string{"id_etapa_atual ="},
-			description: "EtapaID filter should generate id_etapa_atual = condition",
+			description:        "EtapaID filter should generate id_etapa_atual = condition",
 		},
 		{
 			name: "filter by Search",
@@ -135,14 +136,14 @@ func TestCandidaturaRepository_List_ApplyFilters(t *testing.T) {
 }
 
 func TestCandidaturaRepository_List_SearchORLogic(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	tests := []struct {
-		name           string
-		searchTerm     string
-		expectedOR     []string
-		description    string
+		name        string
+		searchTerm  string
+		expectedOR  []string
+		description string
 	}{
 		{
 			name:       "search generates OR conditions",
@@ -213,7 +214,7 @@ func TestCandidaturaRepository_List_SearchORLogic(t *testing.T) {
 }
 
 func TestCandidaturaRepository_List_NullableFilters(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	t.Run("nil VagaID should not filter", func(t *testing.T) {
@@ -288,13 +289,13 @@ func TestCandidaturaRepository_List_NullableFilters(t *testing.T) {
 }
 
 func TestCandidaturaRepository_List_EmptyStringFilters(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	tests := []struct {
-		name        string
-		filter      empregabilidade.CandidaturaFilter
-		shouldSkip  []string
+		name       string
+		filter     empregabilidade.CandidaturaFilter
+		shouldSkip []string
 	}{
 		{
 			name: "empty CPF should not filter",
@@ -357,7 +358,7 @@ func TestCandidaturaRepository_List_EmptyStringFilters(t *testing.T) {
 }
 
 func TestCandidaturaRepository_CountByStatus_ApplyFilters(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	vagaID := uuid.New()
@@ -365,10 +366,10 @@ func TestCandidaturaRepository_CountByStatus_ApplyFilters(t *testing.T) {
 
 	// Test that CountByStatus uses the same filter logic but ignores Status field
 	tests := []struct {
-		name                string
-		filter              empregabilidade.CandidaturaFilter
-		shouldContain       []string
-		shouldNotContain    []string
+		name             string
+		filter           empregabilidade.CandidaturaFilter
+		shouldContain    []string
+		shouldNotContain []string
 	}{
 		{
 			name: "filters are applied except status",

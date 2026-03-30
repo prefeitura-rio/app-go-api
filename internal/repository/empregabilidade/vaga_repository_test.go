@@ -3,51 +3,27 @@ package empregabilidade
 import (
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-func setupMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, func()) {
-	sqlDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create sqlmock: %v", err)
-	}
-
-	gormDB, err := gorm.Open(postgres.New(postgres.Config{
-		Conn: sqlDB,
-	}), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
-	})
-	if err != nil {
-		t.Fatalf("failed to open gorm db: %v", err)
-	}
-
-	cleanup := func() {
-		sqlDB.Close()
-	}
-
-	return gormDB, mock, cleanup
-}
-
 func TestVagaRepository_List_ApplyFilters(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	tests := []struct {
-		name                string
-		filter              empregabilidade.VagaFilter
-		expectedConditions  []string
-		description         string
+		name               string
+		filter             empregabilidade.VagaFilter
+		expectedConditions []string
+		description        string
 	}{
 		{
-			name: "empty filter",
-			filter: empregabilidade.VagaFilter{},
+			name:               "empty filter",
+			filter:             empregabilidade.VagaFilter{},
 			expectedConditions: []string{},
-			description: "No filter should generate no WHERE clauses",
+			description:        "No filter should generate no WHERE clauses",
 		},
 		{
 			name: "filter by contratante",
@@ -55,7 +31,7 @@ func TestVagaRepository_List_ApplyFilters(t *testing.T) {
 				Contratante: "12345678000190",
 			},
 			expectedConditions: []string{"id_contratante ="},
-			description: "Contratante filter should generate id_contratante = condition",
+			description:        "Contratante filter should generate id_contratante = condition",
 		},
 		{
 			name: "filter by orgao parceiro",
@@ -63,7 +39,7 @@ func TestVagaRepository_List_ApplyFilters(t *testing.T) {
 				OrgaoParceiroID: "orgao-123",
 			},
 			expectedConditions: []string{"id_orgao_parceiro ="},
-			description: "OrgaoParceiroID filter should generate id_orgao_parceiro = condition",
+			description:        "OrgaoParceiroID filter should generate id_orgao_parceiro = condition",
 		},
 		{
 			name: "filter by search term",
@@ -71,7 +47,7 @@ func TestVagaRepository_List_ApplyFilters(t *testing.T) {
 				Search: "desenvolvedor",
 			},
 			expectedConditions: []string{"titulo ILIKE"},
-			description: "Search filter should generate titulo ILIKE condition",
+			description:        "Search filter should generate titulo ILIKE condition",
 		},
 		{
 			name: "filter by status - em_edicao",
@@ -79,7 +55,7 @@ func TestVagaRepository_List_ApplyFilters(t *testing.T) {
 				Status: string(empregabilidade.StatusVagaEmEdicao),
 			},
 			expectedConditions: []string{"status =", "em_edicao"},
-			description: "Status em_edicao should generate status = condition",
+			description:        "Status em_edicao should generate status = condition",
 		},
 		{
 			name: "filter by status - publicado_ativo (active jobs)",
@@ -112,7 +88,7 @@ func TestVagaRepository_List_ApplyFilters(t *testing.T) {
 				Status: string(empregabilidade.StatusVagaCongelada),
 			},
 			expectedConditions: []string{"status =", "vaga_congelada"},
-			description: "Status congelada should generate status = condition",
+			description:        "Status congelada should generate status = condition",
 		},
 		{
 			name: "multiple filters combined",
@@ -176,15 +152,15 @@ func TestVagaRepository_List_ApplyFilters(t *testing.T) {
 }
 
 func TestVagaRepository_List_StatusLogic(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	tests := []struct {
-		name            string
-		status          string
-		expectActive    bool
-		expectExpired   bool
-		expectOther     bool
+		name          string
+		status        string
+		expectActive  bool
+		expectExpired bool
+		expectOther   bool
 	}{
 		{
 			name:         "publicado_ativo filters active jobs",
@@ -249,13 +225,13 @@ func TestVagaRepository_List_StatusLogic(t *testing.T) {
 }
 
 func TestVagaRepository_List_SearchFormatting(t *testing.T) {
-	db, _, cleanup := setupMockDB(t)
+	db, _, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	tests := []struct {
-		name           string
-		searchTerm     string
-		expectedLike   string
+		name         string
+		searchTerm   string
+		expectedLike string
 	}{
 		{
 			name:         "search term gets wrapped with %",
