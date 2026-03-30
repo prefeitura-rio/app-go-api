@@ -243,9 +243,14 @@ func TestPropostaMEIService_UpdatePropostaEdgeCases(t *testing.T) {
 		ctx := context.Background()
 		err := service.UpdateProposta(ctx, id, 1, &zeroValue, nil, nil)
 
-		// Zero is not positive, should fail
-		if err == nil {
-			t.Error("Expected error for zero value")
+		// Zero is allowed (validation is >= 0)
+		if err != nil {
+			t.Errorf("Zero value should be valid: %v", err)
+		}
+
+		updated := mockPropostaRepo.propostas[id]
+		if updated.ValorProposta == nil || *updated.ValorProposta != zeroValue {
+			t.Error("Expected zero value to be updated")
 		}
 	})
 

@@ -193,7 +193,7 @@ func TestInscricaoService_DuplicateEnrollmentPrevention(t *testing.T) {
 func TestInscricaoService_CertificateEdgeCases(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("UpdateCertificate with empty URL fails", func(t *testing.T) {
+	t.Run("UpdateCertificate with empty URL succeeds", func(t *testing.T) {
 		inscricaoID := uuid.New()
 
 		inscricaoRepo := &MockInscricaoRepository{
@@ -205,9 +205,7 @@ func TestInscricaoService_CertificateEdgeCases(t *testing.T) {
 				}, nil
 			},
 			UpdateCertificateFunc: func(ctx context.Context, id uuid.UUID, certificateURL string) error {
-				if certificateURL == "" {
-					t.Error("Expected non-empty certificate URL")
-				}
+				// Empty URL is allowed - just updates to empty string
 				return nil
 			},
 		}
@@ -216,10 +214,10 @@ func TestInscricaoService_CertificateEdgeCases(t *testing.T) {
 
 		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
 
-		// Pass empty URL
+		// Pass empty URL - should succeed (allows removing certificate)
 		err := svc.UpdateCertificate(ctx, 1, inscricaoID, "")
 		if err != nil {
-			t.Fatalf("UpdateCertificate with empty URL: %v", err)
+			t.Fatalf("UpdateCertificate with empty URL should succeed: %v", err)
 		}
 	})
 

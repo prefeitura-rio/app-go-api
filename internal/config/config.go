@@ -536,7 +536,12 @@ func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 	}
 	// Fallback para os.Getenv diretamente
 	if value := os.Getenv(key); value != "" {
-		return strings.ToLower(value) == "true"
+		lowerVal := strings.ToLower(value)
+		if lowerVal == "true" || lowerVal == "1" {
+			return true
+		} else if lowerVal == "false" || lowerVal == "0" {
+			return false
+		}
 	}
 	return defaultValue
 }
