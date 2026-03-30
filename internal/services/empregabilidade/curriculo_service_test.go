@@ -8,7 +8,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestNewCurriculoService(t *testing.T) {
+	mockRepo := &mockCurriculoRepo{}
+	service := services.NewCurriculoServiceWithInterface(mockRepo)
+	assert.NotNil(t, service)
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Mock Curriculo Repository

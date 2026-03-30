@@ -8,7 +8,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestNewVagaService(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	mockEmpresaRepo := NewMockEmpresaRepo()
+	mockCandidaturaRepo := NewMockCandidaturaRepo()
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+	assert.NotNil(t, service)
+}
 
 // Mock Vaga Repository for VagaService tests
 type MockVagaRepoForService struct {
