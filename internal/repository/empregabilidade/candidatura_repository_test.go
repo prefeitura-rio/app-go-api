@@ -1,14 +1,21 @@
 package empregabilidade
 
 import (
+	"context"
+	"regexp"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 )
+
+func stringPtr(s string) *string {
+	return &s
+}
 
 func TestCandidaturaRepository_List_ApplyFilters(t *testing.T) {
 	db, _, cleanup := repository.SetupMockDB(t)
@@ -429,4 +436,585 @@ func TestCandidaturaRepository_CountByStatus_ApplyFilters(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCandidaturaRepository_Create(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("create success", func(t *testing.T) {
+		vagaID := uuid.New()
+		candidatura := &empregabilidade.Candidatura{
+			ID:      uuid.New(),
+			CPF:     "12345678900",
+			Nome:    stringPtr("João Silva"),
+			Email:   stringPtr("joao@example.com"),
+			IDVaga:  vagaID,
+			Status:  empregabilidade.StatusCandidaturaEnviada,
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_candidaturas"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(candidatura.ID))
+		mock.ExpectCommit()
+
+		id, err := repo.Create(ctx, candidatura)
+		assert.NoError(t, err)
+		assert.Equal(t, candidatura.ID, id)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("create error", func(t *testing.T) {
+		vagaID := uuid.New()
+		candidatura := &empregabilidade.Candidatura{
+			ID:     uuid.New(),
+			CPF:    "12345678900",
+			IDVaga: vagaID,
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_candidaturas"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		id, err := repo.Create(ctx, candidatura)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao criar candidatura")
+		assert.Equal(t, uuid.Nil, id)
+	})
+}
+
+func TestCandidaturaRepository_GetByID(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("get by id found", func(t *testing.T) {
+		id := uuid.New()
+		vagaID := uuid.New()
+		rows := sqlmock.NewRows([]string{"id", "cpf", "nome", "email", "id_vaga", "status"}).
+			AddRow(id, "12345678900", "João Silva", "joao@example.com", vagaID, empregabilidade.StatusCandidaturaEnviada)
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidaturas"`)).
+			WillReturnRows(rows)
+
+		// Preload queries - order may vary, so match any
+		mock.ExpectQuery(`SELECT \* FROM "emp_vagas"`).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		mock.ExpectQuery(`SELECT \* FROM "emp_contratantes"`).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		mock.ExpectQuery(`SELECT \* FROM "emp_etapas"`).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		mock.ExpectQuery(`SELECT \* FROM "emp_etapas"`).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		candidatura, err := repo.GetByID(ctx, id)
+		assert.NoError(t, err)
+		assert.NotNil(t, candidatura)
+		assert.Equal(t, id, candidatura.ID)
+	})
+}
+
+func TestCandidaturaRepository_Update(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("update success", func(t *testing.T) {
+		vagaID := uuid.New()
+		candidatura := &empregabilidade.Candidatura{
+			ID:     uuid.New(),
+			CPF:    "12345678900",
+			Nome:   stringPtr("João Silva Updated"),
+			IDVaga: vagaID,
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.Update(ctx, candidatura)
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("update error", func(t *testing.T) {
+		vagaID := uuid.New()
+		candidatura := &empregabilidade.Candidatura{
+			ID:     uuid.New(),
+			CPF:    "12345678900",
+			IDVaga: vagaID,
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.Update(ctx, candidatura)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao atualizar candidatura")
+	})
+}
+
+func TestCandidaturaRepository_Delete(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("delete success", func(t *testing.T) {
+		id := uuid.New()
+
+		mock.ExpectBegin()
+		// GORM soft delete uses UPDATE not DELETE
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.Delete(ctx, id)
+		assert.NoError(t, err)
+	})
+
+	t.Run("delete not found", func(t *testing.T) {
+		id := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectCommit()
+
+		err := repo.Delete(ctx, id)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "não encontrada")
+	})
+
+	t.Run("delete database error", func(t *testing.T) {
+		id := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.Delete(ctx, id)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao excluir candidatura")
+	})
+}
+
+func TestCandidaturaRepository_BulkUpdateStatus(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("bulk update all cpfs found", func(t *testing.T) {
+		vagaID := uuid.New()
+		cpf1 := "12345678900"
+		cpf2 := "98765432100"
+		cpfs := []string{cpf1, cpf2}
+
+		candidaturaID1 := uuid.New()
+		candidaturaID2 := uuid.New()
+
+		// Mock the query to find candidaturas
+		rows := sqlmock.NewRows([]string{"id", "cpf", "id_vaga"}).
+			AddRow(candidaturaID1, cpf1, vagaID).
+			AddRow(candidaturaID2, cpf2, vagaID)
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidaturas"`)).
+			WillReturnRows(rows)
+
+		// Mock the bulk update
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectCommit()
+
+		result, err := repo.BulkUpdateStatus(ctx, vagaID, cpfs, empregabilidade.StatusCandidaturaAprovada)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, result.Updated)
+		assert.Empty(t, result.FailedCPFs)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("bulk update some cpfs not found", func(t *testing.T) {
+		vagaID := uuid.New()
+		cpf1 := "12345678900"
+		cpf2 := "98765432100"
+		cpf3 := "11111111111" // This one will not be found
+		cpfs := []string{cpf1, cpf2, cpf3}
+
+		candidaturaID1 := uuid.New()
+		candidaturaID2 := uuid.New()
+
+		// Mock the query to find candidaturas (only 2 found)
+		rows := sqlmock.NewRows([]string{"id", "cpf", "id_vaga"}).
+			AddRow(candidaturaID1, cpf1, vagaID).
+			AddRow(candidaturaID2, cpf2, vagaID)
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidaturas"`)).
+			WillReturnRows(rows)
+
+		// Mock the bulk update
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectCommit()
+
+		result, err := repo.BulkUpdateStatus(ctx, vagaID, cpfs, empregabilidade.StatusCandidaturaAprovada)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, result.Updated)
+		assert.Contains(t, result.FailedCPFs, cpf3)
+		assert.Len(t, result.FailedCPFs, 1)
+	})
+
+	t.Run("bulk update no cpfs found", func(t *testing.T) {
+		vagaID := uuid.New()
+		cpfs := []string{"12345678900", "98765432100"}
+
+		// Mock the query to find candidaturas (none found)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidaturas"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id", "cpf", "id_vaga"}))
+
+		result, err := repo.BulkUpdateStatus(ctx, vagaID, cpfs, empregabilidade.StatusCandidaturaAprovada)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, result.Updated)
+		assert.Len(t, result.FailedCPFs, 2)
+	})
+
+	t.Run("bulk update query error", func(t *testing.T) {
+		vagaID := uuid.New()
+		cpfs := []string{"12345678900"}
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidaturas"`)).
+			WillReturnError(assert.AnError)
+
+		result, err := repo.BulkUpdateStatus(ctx, vagaID, cpfs, empregabilidade.StatusCandidaturaAprovada)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao buscar candidaturas")
+		assert.Equal(t, 0, result.Updated)
+	})
+
+	t.Run("bulk update execution error", func(t *testing.T) {
+		vagaID := uuid.New()
+		cpf1 := "12345678900"
+		cpfs := []string{cpf1}
+
+		candidaturaID1 := uuid.New()
+
+		rows := sqlmock.NewRows([]string{"id", "cpf", "id_vaga"}).
+			AddRow(candidaturaID1, cpf1, vagaID)
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidaturas"`)).
+			WillReturnRows(rows)
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		_, err := repo.BulkUpdateStatus(ctx, vagaID, cpfs, empregabilidade.StatusCandidaturaAprovada)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao atualizar status em lote")
+	})
+}
+
+func TestCandidaturaRepository_BulkSaveAndUpdateStatusByVagaID(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("freeze candidaturas success", func(t *testing.T) {
+		vagaID := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE emp_candidaturas SET status_anterior = status, status = .*, updated_at = NOW\(\) WHERE id_vaga = .* AND deleted_at IS NULL`).
+			WithArgs(string(empregabilidade.StatusCandidaturaVagaCongelada), vagaID).
+			WillReturnResult(sqlmock.NewResult(0, 5))
+		mock.ExpectCommit()
+
+		err := repo.BulkSaveAndUpdateStatusByVagaID(ctx, vagaID, empregabilidade.StatusCandidaturaVagaCongelada)
+		assert.NoError(t, err)
+	})
+
+	t.Run("discontinue candidaturas success", func(t *testing.T) {
+		vagaID := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE emp_candidaturas SET status_anterior = status, status = .*, updated_at = NOW\(\) WHERE id_vaga = .* AND deleted_at IS NULL`).
+			WithArgs(string(empregabilidade.StatusCandidaturaDescontinuada), vagaID).
+			WillReturnResult(sqlmock.NewResult(0, 3))
+		mock.ExpectCommit()
+
+		err := repo.BulkSaveAndUpdateStatusByVagaID(ctx, vagaID, empregabilidade.StatusCandidaturaDescontinuada)
+		assert.NoError(t, err)
+	})
+
+	t.Run("freeze candidaturas error", func(t *testing.T) {
+		vagaID := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE emp_candidaturas SET status_anterior = status, status = .*, updated_at = NOW\(\) WHERE id_vaga = .* AND deleted_at IS NULL`).
+			WithArgs(string(empregabilidade.StatusCandidaturaVagaCongelada), vagaID).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.BulkSaveAndUpdateStatusByVagaID(ctx, vagaID, empregabilidade.StatusCandidaturaVagaCongelada)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao congelar/descontinuar candidaturas")
+	})
+}
+
+func TestCandidaturaRepository_BulkRestoreStatusByVagaID(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("restore candidaturas success", func(t *testing.T) {
+		vagaID := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE emp_candidaturas SET status = status_anterior, status_anterior = NULL, updated_at = NOW\(\) WHERE id_vaga = .* AND deleted_at IS NULL AND status_anterior IS NOT NULL`).
+			WithArgs(vagaID).
+			WillReturnResult(sqlmock.NewResult(0, 5))
+		mock.ExpectCommit()
+
+		err := repo.BulkRestoreStatusByVagaID(ctx, vagaID)
+		assert.NoError(t, err)
+	})
+
+	t.Run("restore candidaturas error", func(t *testing.T) {
+		vagaID := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE emp_candidaturas SET status = status_anterior, status_anterior = NULL, updated_at = NOW\(\) WHERE id_vaga = .* AND deleted_at IS NULL AND status_anterior IS NOT NULL`).
+			WithArgs(vagaID).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.BulkRestoreStatusByVagaID(ctx, vagaID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao restaurar status das candidaturas")
+	})
+
+	t.Run("restore candidaturas no rows affected", func(t *testing.T) {
+		vagaID := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE emp_candidaturas SET status = status_anterior, status_anterior = NULL, updated_at = NOW\(\) WHERE id_vaga = .* AND deleted_at IS NULL AND status_anterior IS NOT NULL`).
+			WithArgs(vagaID).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectCommit()
+
+		err := repo.BulkRestoreStatusByVagaID(ctx, vagaID)
+		assert.NoError(t, err)
+	})
+}
+
+func TestCandidaturaRepository_CheckExistingCandidatura(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("candidatura exists", func(t *testing.T) {
+		cpf := "12345678900"
+		vagaID := uuid.New()
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "emp_candidaturas"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+		exists, err := repo.CheckExistingCandidatura(ctx, cpf, vagaID)
+		assert.NoError(t, err)
+		assert.True(t, exists)
+	})
+
+	t.Run("candidatura does not exist", func(t *testing.T) {
+		cpf := "12345678900"
+		vagaID := uuid.New()
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "emp_candidaturas"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+		exists, err := repo.CheckExistingCandidatura(ctx, cpf, vagaID)
+		assert.NoError(t, err)
+		assert.False(t, exists)
+	})
+
+	t.Run("check error", func(t *testing.T) {
+		cpf := "12345678900"
+		vagaID := uuid.New()
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "emp_candidaturas"`)).
+			WillReturnError(assert.AnError)
+
+		exists, err := repo.CheckExistingCandidatura(ctx, cpf, vagaID)
+		assert.Error(t, err)
+		assert.False(t, exists)
+		assert.Contains(t, err.Error(), "erro ao verificar candidatura existente")
+	})
+}
+
+func TestCandidaturaRepository_UpdateStatus(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("update status success", func(t *testing.T) {
+		id := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
+		assert.NoError(t, err)
+	})
+
+	t.Run("update status error", func(t *testing.T) {
+		id := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao atualizar status da candidatura")
+	})
+}
+
+func TestCandidaturaRepository_BulkGetByCPFs(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("get by cpfs success", func(t *testing.T) {
+		vagaID := uuid.New()
+		cpf1 := "12345678900"
+		cpf2 := "98765432100"
+		cpfs := []string{cpf1, cpf2}
+
+		rows := sqlmock.NewRows([]string{"id", "cpf", "id_vaga"}).
+			AddRow(uuid.New(), cpf1, vagaID).
+			AddRow(uuid.New(), cpf2, vagaID)
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidaturas"`)).
+			WillReturnRows(rows)
+
+		candidaturas, err := repo.BulkGetByCPFs(ctx, vagaID, cpfs)
+		assert.NoError(t, err)
+		assert.Len(t, candidaturas, 2)
+	})
+
+	t.Run("get by cpfs error", func(t *testing.T) {
+		vagaID := uuid.New()
+		cpfs := []string{"12345678900"}
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidaturas"`)).
+			WillReturnError(assert.AnError)
+
+		candidaturas, err := repo.BulkGetByCPFs(ctx, vagaID, cpfs)
+		assert.Error(t, err)
+		assert.Nil(t, candidaturas)
+		assert.Contains(t, err.Error(), "erro ao buscar candidaturas")
+	})
+}
+
+func TestCandidaturaRepository_BulkUpdateEtapa(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("bulk update etapa success", func(t *testing.T) {
+		id1 := uuid.New()
+		id2 := uuid.New()
+		ids := []uuid.UUID{id1, id2}
+		etapaID := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectCommit()
+
+		err := repo.BulkUpdateEtapa(ctx, ids, etapaID)
+		assert.NoError(t, err)
+	})
+
+	t.Run("bulk update etapa error", func(t *testing.T) {
+		ids := []uuid.UUID{uuid.New()}
+		etapaID := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.BulkUpdateEtapa(ctx, ids, etapaID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao atualizar etapa em lote")
+	})
+}
+
+func TestCandidaturaRepository_UpdateEtapa(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	ctx := context.Background()
+
+	t.Run("update etapa success", func(t *testing.T) {
+		id := uuid.New()
+		etapaID := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.UpdateEtapa(ctx, id, etapaID)
+		assert.NoError(t, err)
+	})
+
+	t.Run("update etapa error", func(t *testing.T) {
+		id := uuid.New()
+		etapaID := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.UpdateEtapa(ctx, id, etapaID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao atualizar etapa da candidatura")
+	})
 }

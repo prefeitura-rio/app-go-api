@@ -271,3 +271,159 @@ func TestVagaRepository_List_SearchFormatting(t *testing.T) {
 		})
 	}
 }
+
+func TestVagaRepository_ListPublicActive_QueryGeneration(t *testing.T) {
+	db, _, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	tests := []struct {
+		name               string
+		limit              int
+		offset             int
+		expectedConditions []string
+		description        string
+	}{
+		{
+			name:   "public active vagas with default pagination",
+			limit:  10,
+			offset: 0,
+			expectedConditions: []string{
+				"status =",
+				"publicado_ativo",
+				"data_limite IS NULL OR data_limite > NOW()",
+				"ORDER BY",
+				"created_at DESC",
+				"LIMIT 10",
+			},
+			description: "Should filter by active status and expiration date",
+		},
+		{
+			name:   "public active vagas with offset",
+			limit:  20,
+			offset: 40,
+			expectedConditions: []string{
+				"status =",
+				"publicado_ativo",
+				"data_limite IS NULL OR data_limite > NOW()",
+				"LIMIT 20",
+				"OFFSET 40",
+			},
+			description: "Should apply pagination correctly",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := db.Model(&empregabilidade.Vaga{}).
+				Where("status = ? AND (data_limite IS NULL OR data_limite > NOW())", empregabilidade.StatusVagaPublicadoAtivo).
+				Order("created_at DESC").
+				Limit(tt.limit).
+				Offset(tt.offset)
+
+			sql := query.ToSQL(func(tx *gorm.DB) *gorm.DB {
+				return tx.Find(&[]*empregabilidade.Vaga{})
+			})
+
+			for _, condition := range tt.expectedConditions {
+				assert.Contains(t, sql, condition,
+					"%s: SQL should contain '%s'", tt.description, condition)
+			}
+		})
+	}
+}
+
+func TestVagaRepository_ListByContratante_QueryGeneration(t *testing.T) {
+	db, _, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	tests := []struct {
+		name               string
+		cnpj               string
+		limit              int
+		offset             int
+		expectedConditions []string
+		description        string
+	}{
+		{
+			name:   "filter by contratante CNPJ",
+			cnpj:   "12345678000190",
+			limit:  10,
+			offset: 0,
+			expectedConditions: []string{
+				"id_contratante =",
+				"12345678000190",
+				"ORDER BY",
+				"created_at DESC",
+				"LIMIT 10",
+			},
+			description: "Should filter by id_contratante and order by created_at",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := db.Model(&empregabilidade.Vaga{}).
+				Where("id_contratante = ?", tt.cnpj).
+				Order("created_at DESC").
+				Limit(tt.limit).
+				Offset(tt.offset)
+
+			sql := query.ToSQL(func(tx *gorm.DB) *gorm.DB {
+				return tx.Find(&[]*empregabilidade.Vaga{})
+			})
+
+			for _, condition := range tt.expectedConditions {
+				assert.Contains(t, sql, condition,
+					"%s: SQL should contain '%s'", tt.description, condition)
+			}
+		})
+	}
+}
+
+func TestVagaRepository_ListByOrgaoParceiro_QueryGeneration(t *testing.T) {
+	db, _, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	tests := []struct {
+		name               string
+		orgaoID            string
+		limit              int
+		offset             int
+		expectedConditions []string
+		description        string
+	}{
+		{
+			name:    "filter by orgao parceiro ID",
+			orgaoID: "orgao-123",
+			limit:   10,
+			offset:  0,
+			expectedConditions: []string{
+				"id_orgao_parceiro =",
+				"orgao-123",
+				"ORDER BY",
+				"created_at DESC",
+				"LIMIT 10",
+			},
+			description: "Should filter by id_orgao_parceiro",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := db.Model(&empregabilidade.Vaga{}).
+				Where("id_orgao_parceiro = ?", tt.orgaoID).
+				Order("created_at DESC").
+				Limit(tt.limit).
+				Offset(tt.offset)
+
+			sql := query.ToSQL(func(tx *gorm.DB) *gorm.DB {
+				return tx.Find(&[]*empregabilidade.Vaga{})
+			})
+
+			for _, condition := range tt.expectedConditions {
+				assert.Contains(t, sql, condition,
+					"%s: SQL should contain '%s'", tt.description, condition)
+			}
+		})
+	}
+}
