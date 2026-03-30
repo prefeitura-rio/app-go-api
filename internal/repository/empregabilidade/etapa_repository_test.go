@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/uuid"
@@ -157,4 +158,131 @@ func TestEtapaRepository_ListByVaga_EmptyResult(t *testing.T) {
 func TestEtapaRepository_TableName(t *testing.T) {
 	tableName := empregabilidade.Etapa{}.TableName()
 	assert.Equal(t, "emp_etapas", tableName, "Should use correct table name")
+}
+
+// Error path tests
+
+func TestEtapaRepository_Create_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+	ctx := context.Background()
+
+	entity := &empregabilidade.Etapa{
+		IDVaga:    uuid.New(),
+		Titulo:    "Entrevista",
+		Descricao: "Entrevista com RH",
+		Ordem:     1,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`INSERT INTO "emp_etapas"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	_, err := repo.Create(ctx, entity)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao criar etapa")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestEtapaRepository_GetByID_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+	ctx := context.Background()
+	id := uuid.New()
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_etapas"`).
+		WillReturnError(assert.AnError)
+
+	result, err := repo.GetByID(ctx, id)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "erro ao buscar etapa")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestEtapaRepository_Update_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+	ctx := context.Background()
+
+	entity := &empregabilidade.Etapa{
+		ID:        uuid.New(),
+		IDVaga:    uuid.New(),
+		Titulo:    "Entrevista Atualizada",
+		Descricao: "Entrevista com RH",
+		Ordem:     1,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_etapas"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.Update(ctx, entity)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao atualizar etapa")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestEtapaRepository_Delete_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+	ctx := context.Background()
+	id := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.Delete(ctx, id)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao excluir etapa")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestEtapaRepository_ListByVaga_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_etapas"`).
+		WillReturnError(assert.AnError)
+
+	result, err := repo.ListByVaga(ctx, vagaID)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "erro ao listar etapas")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestEtapaRepository_DeleteByVaga_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.DeleteByVaga(ctx, vagaID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao excluir etapas da vaga")
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
