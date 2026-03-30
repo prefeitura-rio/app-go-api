@@ -474,6 +474,112 @@ func TestSendEnrollmentApprovedEmail_OnlineCourse(t *testing.T) {
 	}
 }
 
+func TestSendEnrollmentApprovedEmail_Disabled(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	service := NewEmailNotificationService(
+		mockClient,
+		nil,
+		nil,
+		nil,
+		false, // disabled
+		"oportunidades.rio",
+	)
+
+	inscricao := &models.Inscricao{
+		ID:    uuid.New(),
+		Name:  "Test User",
+		Email: "test@test.com",
+	}
+
+	curso := &models.Curso{
+		ID:     1,
+		Titulo: "Test Course",
+	}
+
+	ctx := context.Background()
+	err := service.SendEnrollmentApprovedEmail(ctx, inscricao, curso)
+	if err != nil {
+		t.Fatalf("Expected no error when disabled, got: %v", err)
+	}
+
+	if len(mockClient.sentEmails) != 0 {
+		t.Errorf("Expected no emails when disabled, got %d", len(mockClient.sentEmails))
+	}
+}
+
+func TestSendEnrollmentApprovedEmail_NoEmail(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	service := NewEmailNotificationService(
+		mockClient,
+		nil,
+		nil,
+		nil,
+		true,
+		"oportunidades.rio",
+	)
+
+	inscricao := &models.Inscricao{
+		ID:    uuid.New(),
+		Name:  "Test User",
+		Email: "", // No email
+		CPF:   "12345678901",
+	}
+
+	curso := &models.Curso{
+		ID:     1,
+		Titulo: "Test Course",
+	}
+
+	ctx := context.Background()
+	err := service.SendEnrollmentApprovedEmail(ctx, inscricao, curso)
+	if err != nil {
+		t.Fatalf("Expected no error with missing email, got: %v", err)
+	}
+
+	if len(mockClient.sentEmails) != 0 {
+		t.Errorf("Expected no emails with missing email address, got %d", len(mockClient.sentEmails))
+	}
+}
+
+func TestSendEnrollmentApprovedEmail_DataRelayError(t *testing.T) {
+	expectedErr := errors.New("data relay connection failed")
+	mockClient := &MockDataRelayClient{
+		sendEmailFunc: func(ctx context.Context, req *clients.EmailRequest) error {
+			return expectedErr
+		},
+	}
+
+	service := NewEmailNotificationService(
+		mockClient,
+		nil,
+		nil,
+		nil,
+		true,
+		"oportunidades.rio",
+	)
+
+	inscricao := &models.Inscricao{
+		ID:    uuid.New(),
+		Name:  "Test User",
+		Email: "test@test.com",
+	}
+
+	curso := &models.Curso{
+		ID:     1,
+		Titulo: "Test Course",
+	}
+
+	ctx := context.Background()
+	err := service.SendEnrollmentApprovedEmail(ctx, inscricao, curso)
+	if err == nil {
+		t.Fatal("Expected error when DataRelay fails")
+	}
+
+	if !strings.Contains(err.Error(), "failed to send enrollment approved email") {
+		t.Errorf("Expected proper error wrapping, got: %v", err)
+	}
+}
+
 func TestSendEnrollmentRejectedEmail_Success(t *testing.T) {
 	mockClient := &MockDataRelayClient{}
 	service := NewEmailNotificationService(
@@ -560,6 +666,79 @@ func TestSendEnrollmentRejectedEmail_Disabled(t *testing.T) {
 
 	if len(mockClient.sentEmails) != 0 {
 		t.Errorf("Expected no emails when disabled, got %d", len(mockClient.sentEmails))
+	}
+}
+
+func TestSendEnrollmentRejectedEmail_NoEmail(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	service := NewEmailNotificationService(
+		mockClient,
+		nil,
+		nil,
+		nil,
+		true,
+		"oportunidades.rio",
+	)
+
+	inscricao := &models.Inscricao{
+		ID:    uuid.New(),
+		Name:  "Test User",
+		Email: "", // No email
+		CPF:   "12345678901",
+	}
+
+	curso := &models.Curso{
+		ID:     5,
+		Titulo: "Test Course",
+	}
+
+	ctx := context.Background()
+	err := service.SendEnrollmentRejectedEmail(ctx, inscricao, curso)
+	if err != nil {
+		t.Fatalf("Expected no error with missing email, got: %v", err)
+	}
+
+	if len(mockClient.sentEmails) != 0 {
+		t.Errorf("Expected no emails with missing email address, got %d", len(mockClient.sentEmails))
+	}
+}
+
+func TestSendEnrollmentRejectedEmail_DataRelayError(t *testing.T) {
+	expectedErr := errors.New("data relay connection failed")
+	mockClient := &MockDataRelayClient{
+		sendEmailFunc: func(ctx context.Context, req *clients.EmailRequest) error {
+			return expectedErr
+		},
+	}
+
+	service := NewEmailNotificationService(
+		mockClient,
+		nil,
+		nil,
+		nil,
+		true,
+		"oportunidades.rio",
+	)
+
+	inscricao := &models.Inscricao{
+		ID:    uuid.New(),
+		Name:  "Test User",
+		Email: "test@test.com",
+	}
+
+	curso := &models.Curso{
+		ID:     5,
+		Titulo: "Test Course",
+	}
+
+	ctx := context.Background()
+	err := service.SendEnrollmentRejectedEmail(ctx, inscricao, curso)
+	if err == nil {
+		t.Fatal("Expected error when DataRelay fails")
+	}
+
+	if !strings.Contains(err.Error(), "failed to send enrollment rejected email") {
+		t.Errorf("Expected proper error wrapping, got: %v", err)
 	}
 }
 

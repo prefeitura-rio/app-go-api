@@ -3,7 +3,6 @@ package empregabilidade_test
 import (
 	"testing"
 
-	"github.com/prefeitura-rio/app-go-api/internal/auth"
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
@@ -12,10 +11,10 @@ import (
 
 func TestNewCNPJConsultaService(t *testing.T) {
 	rmiClient := &clients.RMIClient{}
-	tokenManager := &auth.ServiceAccountTokenManager{}
-	service := services.NewCNPJConsultaService(rmiClient, tokenManager)
+	service := services.NewCNPJConsultaService(rmiClient, nil)
 	assert.NotNil(t, service)
 }
+
 
 func TestLegalEntityFull_ToConsultaResponse(t *testing.T) {
 	t.Run("Converts full entity to simplified response", func(t *testing.T) {
