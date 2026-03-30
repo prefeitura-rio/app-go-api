@@ -634,3 +634,21 @@ func TestEmpregoService_Create_AllJornadaTrabalho(t *testing.T) {
 		})
 	}
 }
+
+func TestNewEmpregoService(t *testing.T) {
+	repo := &mockEmpregoRepo{}
+	service := services.NewEmpregoServiceWithInterface(repo)
+
+	if service == nil {
+		t.Error("NewEmpregoService() returned nil")
+	}
+}
+
+func TestNewEmpregoServiceWithInterface(t *testing.T) {
+	repo := &mockEmpregoRepo{}
+	service := services.NewEmpregoServiceWithInterface(repo)
+
+	if service == nil {
+		t.Error("NewEmpregoServiceWithInterface() returned nil")
+	}
+}

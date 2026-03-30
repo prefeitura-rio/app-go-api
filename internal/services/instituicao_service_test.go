@@ -509,11 +509,20 @@ func TestInstituicaoService_List_OffsetCalculation(t *testing.T) {
 	}
 }
 
-func TestInstituicaoService_NewInstituicaoService(t *testing.T) {
-	// Test that NewInstituicaoService accepts repo correctly
+func TestNewInstituicaoService(t *testing.T) {
 	repo := &mockInstituicaoRepo{}
-	svc := services.NewInstituicaoServiceWithInterface(repo)
-	if svc == nil {
+	service := services.NewInstituicaoServiceWithInterface(repo)
+
+	if service == nil {
+		t.Error("NewInstituicaoService() returned nil")
+	}
+}
+
+func TestNewInstituicaoServiceWithInterface(t *testing.T) {
+	repo := &mockInstituicaoRepo{}
+	service := services.NewInstituicaoServiceWithInterface(repo)
+
+	if service == nil {
 		t.Error("NewInstituicaoServiceWithInterface() returned nil")
 	}
 }

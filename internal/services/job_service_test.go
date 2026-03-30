@@ -719,3 +719,21 @@ func TestJobService_List_OffsetCalculation(t *testing.T) {
 		})
 	}
 }
+
+func TestNewJobService(t *testing.T) {
+	repo := &mockJobRepo{}
+	service := services.NewJobServiceWithInterface(repo)
+
+	if service == nil {
+		t.Error("NewJobService() returned nil")
+	}
+}
+
+func TestNewJobServiceWithInterface(t *testing.T) {
+	repo := &mockJobRepo{}
+	service := services.NewJobServiceWithInterface(repo)
+
+	if service == nil {
+		t.Error("NewJobServiceWithInterface() returned nil")
+	}
+}

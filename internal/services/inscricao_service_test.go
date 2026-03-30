@@ -3366,3 +3366,23 @@ func TestInscricaoService_ChangeSchedule_AdditionalCases(t *testing.T) {
 		}
 	})
 }
+
+func TestNewInscricaoService(t *testing.T) {
+	inscricaoRepo := &MockInscricaoRepository{}
+	cursoRepo := &MockCursoRepository{}
+	service := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+	if service == nil {
+		t.Error("NewInscricaoService() returned nil")
+	}
+}
+
+func TestNewInscricaoServiceWithInterface(t *testing.T) {
+	inscricaoRepo := &MockInscricaoRepository{}
+	cursoRepo := &MockCursoRepository{}
+	service := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+	if service == nil {
+		t.Error("NewInscricaoServiceWithInterface() returned nil")
+	}
+}
