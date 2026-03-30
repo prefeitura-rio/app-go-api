@@ -256,6 +256,22 @@ func TestPropostaMEIRepository_ListByOportunidade(t *testing.T) {
 		assert.Equal(t, 1, total)
 		assert.Len(t, propostas, 1)
 	})
+
+	t.Run("database error on find", func(t *testing.T) {
+		oportunidadeID := 1
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "propostas_mei"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "propostas_mei"`)).
+			WillReturnError(assert.AnError)
+
+		propostas, total, err := repo.ListByOportunidade(ctx, oportunidadeID, "", "", "", 10, 0)
+		assert.Error(t, err)
+		assert.Nil(t, propostas)
+		assert.Equal(t, 0, total)
+		assert.Contains(t, err.Error(), "erro ao listar propostas MEI por oportunidade")
+	})
 }
 
 func TestPropostaMEIRepository_ListByMEIEmpresa(t *testing.T) {
@@ -287,6 +303,22 @@ func TestPropostaMEIRepository_ListByMEIEmpresa(t *testing.T) {
 		assert.Equal(t, 3, total)
 		assert.Len(t, propostas, 3)
 	})
+
+	t.Run("database error on find", func(t *testing.T) {
+		meiEmpresaID := "12345678000190"
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "propostas_mei"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "propostas_mei"`)).
+			WillReturnError(assert.AnError)
+
+		propostas, total, err := repo.ListByMEIEmpresa(ctx, meiEmpresaID, 10, 0)
+		assert.Error(t, err)
+		assert.Nil(t, propostas)
+		assert.Equal(t, 0, total)
+		assert.Contains(t, err.Error(), "erro ao listar propostas MEI por empresa")
+	})
 }
 
 func TestPropostaMEIRepository_ListByStatus(t *testing.T) {
@@ -316,6 +348,22 @@ func TestPropostaMEIRepository_ListByStatus(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 2, total)
 		assert.Len(t, propostas, 2)
+	})
+
+	t.Run("database error on find", func(t *testing.T) {
+		status := models.StatusPropostaCidadao("pending")
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "propostas_mei"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "propostas_mei"`)).
+			WillReturnError(assert.AnError)
+
+		propostas, total, err := repo.ListByStatus(ctx, status, 10, 0)
+		assert.Error(t, err)
+		assert.Nil(t, propostas)
+		assert.Equal(t, 0, total)
+		assert.Contains(t, err.Error(), "erro ao listar propostas MEI por status")
 	})
 }
 
@@ -348,6 +396,19 @@ func TestPropostaMEIRepository_CheckExistingProposta(t *testing.T) {
 		exists, err := repo.CheckExistingProposta(ctx, oportunidadeID, meiEmpresaID)
 		assert.NoError(t, err)
 		assert.False(t, exists)
+	})
+
+	t.Run("database error on count", func(t *testing.T) {
+		oportunidadeID := 1
+		meiEmpresaID := "12345678000190"
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "propostas_mei"`)).
+			WillReturnError(assert.AnError)
+
+		exists, err := repo.CheckExistingProposta(ctx, oportunidadeID, meiEmpresaID)
+		assert.Error(t, err)
+		assert.False(t, exists)
+		assert.Contains(t, err.Error(), "erro ao verificar proposta existente")
 	})
 }
 
