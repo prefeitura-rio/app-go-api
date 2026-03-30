@@ -14,19 +14,19 @@ import (
 
 // MockCursoRepository implements CursoRepositoryInterface for testing
 type MockCursoRepository struct {
-	CreateFunc                       func(ctx context.Context, curso *models.Curso) (int, error)
-	GetByIDFunc                      func(ctx context.Context, id int) (*models.Curso, error)
-	UpdateFunc                       func(ctx context.Context, curso *models.Curso) error
-	DeleteFunc                       func(ctx context.Context, id int) error
-	ListFunc                         func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error)
-	CreateCustomFieldsFunc           func(ctx context.Context, fields []models.CustomField) error
-	CreateRemoteClassFunc            func(ctx context.Context, remoteClass *models.RemoteClass) error
-	CreateLocationClassesFunc        func(ctx context.Context, locations []models.LocationClass) error
-	ValidateForEnrollmentFunc        func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error)
-	CountEnrollmentsByScheduleIDFunc func(ctx context.Context, scheduleID uuid.UUID) (int64, error)
+	CreateFunc                        func(ctx context.Context, curso *models.Curso) (int, error)
+	GetByIDFunc                       func(ctx context.Context, id int) (*models.Curso, error)
+	UpdateFunc                        func(ctx context.Context, curso *models.Curso) error
+	DeleteFunc                        func(ctx context.Context, id int) error
+	ListFunc                          func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error)
+	CreateCustomFieldsFunc            func(ctx context.Context, fields []models.CustomField) error
+	CreateRemoteClassFunc             func(ctx context.Context, remoteClass *models.RemoteClass) error
+	CreateLocationClassesFunc         func(ctx context.Context, locations []models.LocationClass) error
+	ValidateForEnrollmentFunc         func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error)
+	CountEnrollmentsByScheduleIDFunc  func(ctx context.Context, scheduleID uuid.UUID) (int64, error)
 	CountEnrollmentsByScheduleIDsFunc func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error)
-	GetCourseScheduleByIDFunc        func(ctx context.Context, scheduleID uuid.UUID) (*models.CourseSchedule, error)
-	GetRemoteScheduleByIDFunc        func(ctx context.Context, scheduleID uuid.UUID) (*models.RemoteSchedule, error)
+	GetCourseScheduleByIDFunc         func(ctx context.Context, scheduleID uuid.UUID) (*models.CourseSchedule, error)
+	GetRemoteScheduleByIDFunc         func(ctx context.Context, scheduleID uuid.UUID) (*models.RemoteSchedule, error)
 }
 
 func (m *MockCursoRepository) Create(ctx context.Context, curso *models.Curso) (int, error) {
@@ -120,6 +120,421 @@ func (m *MockCursoRepository) GetRemoteScheduleByID(ctx context.Context, schedul
 	return nil, nil
 }
 
+// TestNewCursoService tests the NewCursoService constructor
+func TestNewCursoService(t *testing.T) {
+	// This test validates the constructor works with a mock repository
+	// In production, NewCursoService is called with a concrete repository.NewCursoRepository
+	// which requires a *gorm.DB. For unit testing, we verify the constructor pattern.
+	t.Run("Constructor accepts repository", func(t *testing.T) {
+		// We can't easily create a real gorm.DB in unit tests without a real database
+		// So we test that the interface-based constructor works and the concrete one exists
+		mockRepo := &MockCursoRepository{}
+
+		// This uses the interface-based constructor (which the concrete one delegates to internally)
+		svc := services.NewCursoServiceWithInterface(mockRepo)
+		if svc == nil {
+			t.Fatal("NewCursoServiceWithInterface returned nil")
+		}
+	})
+
+	t.Run("Concrete constructor exists", func(t *testing.T) {
+		// Verify the function signature exists at compile time
+		// This ensures NewCursoService(repo *repository.CursoRepository) is available
+		_ = services.NewCursoService
+	})
+}
+
+// TestNewCursoServiceWithInterface tests the NewCursoServiceWithInterface constructor
+func TestNewCursoServiceWithInterface(t *testing.T) {
+	t.Run("With mock repository", func(t *testing.T) {
+		mockRepo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(mockRepo)
+		if svc == nil {
+			t.Fatal("NewCursoServiceWithInterface returned nil")
+		}
+	})
+
+	t.Run("Service is functional after creation", func(t *testing.T) {
+		mockRepo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				return []*models.Curso{}, 0, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(mockRepo)
+		ctx := context.Background()
+
+		// Verify service can be used immediately
+		_, _, err := svc.List(ctx, nil, 1, 10)
+		if err != nil {
+			t.Errorf("Service should be functional after creation: %v", err)
+		}
+	})
+}
+
+// TestCursoService_List_WithFilters tests the List method with various filter scenarios
+func TestCursoService_List_WithFilters(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Filter by status", func(t *testing.T) {
+		expectedFilter := map[string]interface{}{
+			"status": "OPENED",
+		}
+		var capturedFilter map[string]interface{}
+
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				capturedFilter = filter
+				return []*models.Curso{
+					{ID: 1, Titulo: "Opened Course", Status: models.StatusCursoOpened},
+				}, 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		results, total, err := svc.List(ctx, expectedFilter, 1, 10)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if total != 1 {
+			t.Errorf("Expected total 1, got %d", total)
+		}
+		if len(results) != 1 {
+			t.Errorf("Expected 1 curso, got %d", len(results))
+		}
+		if capturedFilter["status"] != "OPENED" {
+			t.Errorf("Filter was not passed correctly: %v", capturedFilter)
+		}
+	})
+
+	t.Run("Filter by modalidade", func(t *testing.T) {
+		expectedFilter := map[string]interface{}{
+			"modalidade": "PRESENCIAL",
+		}
+		var capturedFilter map[string]interface{}
+
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				capturedFilter = filter
+				return []*models.Curso{
+					{ID: 1, Titulo: "Presential Course", Modalidade: models.ModalidadePresencial},
+				}, 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		_, total, err := svc.List(ctx, expectedFilter, 1, 10)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if total != 1 {
+			t.Errorf("Expected total 1, got %d", total)
+		}
+		if capturedFilter["modalidade"] != "PRESENCIAL" {
+			t.Errorf("Filter was not passed correctly: %v", capturedFilter)
+		}
+	})
+
+	t.Run("Filter by organization", func(t *testing.T) {
+		expectedFilter := map[string]interface{}{
+			"organization": "Test Org",
+		}
+		var capturedFilter map[string]interface{}
+
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				capturedFilter = filter
+				return []*models.Curso{
+					{ID: 1, Titulo: "Org Course", Organization: "Test Org"},
+				}, 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		_, total, err := svc.List(ctx, expectedFilter, 1, 10)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if total != 1 {
+			t.Errorf("Expected total 1, got %d", total)
+		}
+		if capturedFilter["organization"] != "Test Org" {
+			t.Errorf("Filter was not passed correctly: %v", capturedFilter)
+		}
+	})
+
+	t.Run("Multiple filters combined", func(t *testing.T) {
+		expectedFilter := map[string]interface{}{
+			"status":       "OPENED",
+			"modalidade":   "REMOTO",
+			"organization": "Test Org",
+		}
+		var capturedFilter map[string]interface{}
+
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				capturedFilter = filter
+				return []*models.Curso{
+					{
+						ID:           1,
+						Titulo:       "Filtered Course",
+						Status:       models.StatusCursoOpened,
+						Modalidade:   models.ModalidadeRemoto,
+						Organization: "Test Org",
+					},
+				}, 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		cursos, total, err := svc.List(ctx, expectedFilter, 1, 10)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if total != 1 {
+			t.Errorf("Expected total 1, got %d", total)
+		}
+		if len(cursos) != 1 {
+			t.Errorf("Expected 1 curso, got %d", len(cursos))
+		}
+		if capturedFilter["status"] != "OPENED" {
+			t.Errorf("Status filter was not passed correctly")
+		}
+		if capturedFilter["modalidade"] != "REMOTO" {
+			t.Errorf("Modalidade filter was not passed correctly")
+		}
+		if capturedFilter["organization"] != "Test Org" {
+			t.Errorf("Organization filter was not passed correctly")
+		}
+	})
+
+	t.Run("Empty filter returns all", func(t *testing.T) {
+		var capturedFilter map[string]interface{}
+
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				capturedFilter = filter
+				return []*models.Curso{
+					{ID: 1, Titulo: "Course 1"},
+					{ID: 2, Titulo: "Course 2"},
+					{ID: 3, Titulo: "Course 3"},
+				}, 3, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		cursos, total, err := svc.List(ctx, nil, 1, 10)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if total != 3 {
+			t.Errorf("Expected total 3, got %d", total)
+		}
+		if len(cursos) != 3 {
+			t.Errorf("Expected 3 cursos, got %d", len(cursos))
+		}
+		if capturedFilter != nil {
+			t.Logf("Filter passed as nil is acceptable: %v", capturedFilter)
+		}
+	})
+
+	t.Run("Nil filter is handled", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				// Nil filter should be acceptable
+				return []*models.Curso{}, 0, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		_, _, err := svc.List(ctx, nil, 1, 10)
+		if err != nil {
+			t.Errorf("List should handle nil filter: %v", err)
+		}
+	})
+}
+
+// TestCursoService_List_PaginationBoundaries tests pagination edge cases
+func TestCursoService_List_PaginationBoundaries(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("First page", func(t *testing.T) {
+		var capturedOffset int
+		var capturedLimit int
+
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				capturedLimit = limit
+				capturedOffset = offset
+				return []*models.Curso{
+					{ID: 1, Titulo: "Course 1"},
+					{ID: 2, Titulo: "Course 2"},
+				}, 10, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		cursos, total, err := svc.List(ctx, nil, 1, 10)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if total != 10 {
+			t.Errorf("Expected total 10, got %d", total)
+		}
+		if capturedOffset != 0 {
+			t.Errorf("First page should have offset 0, got %d", capturedOffset)
+		}
+		if capturedLimit != 10 {
+			t.Errorf("Expected limit 10, got %d", capturedLimit)
+		}
+		if len(cursos) != 2 {
+			t.Errorf("Expected 2 cursos, got %d", len(cursos))
+		}
+	})
+
+	t.Run("Second page", func(t *testing.T) {
+		var capturedOffset int
+		var capturedLimit int
+
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				capturedLimit = limit
+				capturedOffset = offset
+				return []*models.Curso{
+					{ID: 11, Titulo: "Course 11"},
+					{ID: 12, Titulo: "Course 12"},
+				}, 20, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		cursos, total, err := svc.List(ctx, nil, 2, 10)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if total != 20 {
+			t.Errorf("Expected total 20, got %d", total)
+		}
+		if capturedOffset != 10 {
+			t.Errorf("Second page with pageSize 10 should have offset 10, got %d", capturedOffset)
+		}
+		if capturedLimit != 10 {
+			t.Errorf("Expected limit 10, got %d", capturedLimit)
+		}
+		if len(cursos) != 2 {
+			t.Errorf("Expected 2 cursos, got %d", len(cursos))
+		}
+	})
+
+	t.Run("Large page size", func(t *testing.T) {
+		var capturedLimit int
+
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				capturedLimit = limit
+				items := make([]*models.Curso, limit)
+				for i := 0; i < limit; i++ {
+					items[i] = &models.Curso{ID: i + 1, Titulo: "Course"}
+				}
+				return items, 500, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		cursos, total, err := svc.List(ctx, nil, 1, 100)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if total != 500 {
+			t.Errorf("Expected total 500, got %d", total)
+		}
+		if capturedLimit != 100 {
+			t.Errorf("Expected limit 100, got %d", capturedLimit)
+		}
+		if len(cursos) != 100 {
+			t.Errorf("Expected 100 cursos, got %d", len(cursos))
+		}
+	})
+
+	t.Run("Small page size", func(t *testing.T) {
+		var capturedLimit int
+
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				capturedLimit = limit
+				return []*models.Curso{
+					{ID: 1, Titulo: "Course 1"},
+				}, 10, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		cursos, _, err := svc.List(ctx, nil, 1, 1)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if capturedLimit != 1 {
+			t.Errorf("Expected limit 1, got %d", capturedLimit)
+		}
+		if len(cursos) != 1 {
+			t.Errorf("Expected 1 curso, got %d", len(cursos))
+		}
+	})
+
+	t.Run("Last page partial results", func(t *testing.T) {
+		var capturedOffset int
+
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				capturedOffset = offset
+				// Total 25 items, page 3 with pageSize 10 should return 5 items
+				return []*models.Curso{
+					{ID: 21, Titulo: "Course 21"},
+					{ID: 22, Titulo: "Course 22"},
+					{ID: 23, Titulo: "Course 23"},
+					{ID: 24, Titulo: "Course 24"},
+					{ID: 25, Titulo: "Course 25"},
+				}, 25, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		cursos, total, err := svc.List(ctx, nil, 3, 10)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if total != 25 {
+			t.Errorf("Expected total 25, got %d", total)
+		}
+		if capturedOffset != 20 {
+			t.Errorf("Third page should have offset 20, got %d", capturedOffset)
+		}
+		if len(cursos) != 5 {
+			t.Errorf("Expected 5 cursos on last page, got %d", len(cursos))
+		}
+	})
+
+	t.Run("Empty page beyond results", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			ListFunc: func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
+				// Total 10 items, page 5 should return empty
+				return []*models.Curso{}, 10, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		cursos, total, err := svc.List(ctx, nil, 5, 10)
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+		if total != 10 {
+			t.Errorf("Expected total 10, got %d", total)
+		}
+		if len(cursos) != 0 {
+			t.Errorf("Expected 0 cursos beyond last page, got %d", len(cursos))
+		}
+	})
+}
+
 // TestCursoService_Create tests the Create method
 func TestCursoService_Create(t *testing.T) {
 	ctx := context.Background()
@@ -156,10 +571,10 @@ func TestCursoService_Create(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		curso := &models.Curso{
-			Titulo:      "Published Course",
-			Status:      models.StatusCursoOpened,
-			Modalidade:  models.ModalidadePresencial,
-			NumeroVagas: 50,
+			Titulo:       "Published Course",
+			Status:       models.StatusCursoOpened,
+			Modalidade:   models.ModalidadePresencial,
+			NumeroVagas:  50,
 			CargaHoraria: 40,
 		}
 
@@ -344,6 +759,230 @@ func TestCursoService_Create(t *testing.T) {
 			t.Errorf("Expected 1 location created, got %d", len(createdLocations))
 		}
 	})
+
+	t.Run("Create with multiple locations", func(t *testing.T) {
+		var createdLocations []models.LocationClass
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 500, nil
+			},
+			CreateLocationClassesFunc: func(ctx context.Context, locations []models.LocationClass) error {
+				createdLocations = locations
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		startDate := time.Now().Add(24 * time.Hour)
+		endDate := startDate.Add(72 * time.Hour)
+
+		curso := &models.Curso{
+			Titulo:     "Course with Multiple Locations",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			LocationClasses: []models.LocationClass{
+				{
+					Address:      "Test Address 123",
+					Neighborhood: "Test Neighborhood 1",
+					Schedules: []models.CourseSchedule{
+						{
+							Vacancies:      30,
+							ClassStartDate: startDate,
+							ClassEndDate:   endDate,
+							ClassTime:      "09:00-12:00",
+							ClassDays:      "Segunda a Sexta",
+						},
+					},
+				},
+				{
+					Address:      "Another Address 456",
+					Neighborhood: "Test Neighborhood 2",
+					Schedules: []models.CourseSchedule{
+						{
+							Vacancies:      25,
+							ClassStartDate: startDate,
+							ClassEndDate:   endDate,
+							ClassTime:      "14:00-17:00",
+							ClassDays:      "Terça e Quinta",
+						},
+					},
+				},
+			},
+		}
+
+		id, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if id != 500 {
+			t.Errorf("Expected ID 500, got %d", id)
+		}
+		if len(createdLocations) != 2 {
+			t.Errorf("Expected 2 locations created, got %d", len(createdLocations))
+		}
+	})
+
+	t.Run("Create assigns curso_id to relationships", func(t *testing.T) {
+		var createdFields []models.CustomField
+		createdID := 999
+
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return createdID, nil
+			},
+			CreateCustomFieldsFunc: func(ctx context.Context, fields []models.CustomField) error {
+				createdFields = fields
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:     "Course with Relations",
+			Status:     models.StatusCursoDraft,
+			Modalidade: models.ModalidadePresencial,
+			CustomFields: []models.CustomField{
+				{Title: "Field1", Required: true},
+				{Title: "Field2", Required: false},
+			},
+		}
+
+		id, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if id != createdID {
+			t.Errorf("Expected ID %d, got %d", createdID, id)
+		}
+
+		// Verify curso_id was assigned to custom fields
+		for i, field := range createdFields {
+			if field.CursoID != createdID {
+				t.Errorf("Custom field %d should have CursoID %d, got %d", i, createdID, field.CursoID)
+			}
+		}
+	})
+
+	t.Run("Create with custom fields error", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 600, nil
+			},
+			CreateCustomFieldsFunc: func(ctx context.Context, fields []models.CustomField) error {
+				return errors.New("custom fields creation failed")
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:     "Course with Custom Fields Error",
+			Status:     models.StatusCursoDraft,
+			Modalidade: models.ModalidadePresencial,
+			CustomFields: []models.CustomField{
+				{Title: "Field1", Required: true},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected custom fields error")
+		}
+		if !strings.Contains(err.Error(), "custom fields") {
+			t.Errorf("Expected custom fields error message, got: %v", err)
+		}
+	})
+
+	t.Run("Create with location classes error", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 700, nil
+			},
+			CreateLocationClassesFunc: func(ctx context.Context, locations []models.LocationClass) error {
+				return errors.New("location classes creation failed")
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		startDate := time.Now().Add(24 * time.Hour)
+		endDate := startDate.Add(72 * time.Hour)
+
+		curso := &models.Curso{
+			Titulo:     "Course with Location Error",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			LocationClasses: []models.LocationClass{
+				{
+					Address:      "Test Address 123",
+					Neighborhood: "Test Neighborhood",
+					Schedules: []models.CourseSchedule{
+						{
+							Vacancies:      30,
+							ClassStartDate: startDate,
+							ClassEndDate:   endDate,
+							ClassTime:      "09:00-12:00",
+							ClassDays:      "Segunda a Sexta",
+						},
+					},
+				},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected location classes error")
+		}
+		if !strings.Contains(err.Error(), "location classes") {
+			t.Errorf("Expected location classes error message, got: %v", err)
+		}
+	})
+
+	t.Run("Create draft with minimal fields", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 800, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo: "Minimal Draft",
+			Status: models.StatusCursoDraft,
+			// Modalidade is optional for draft
+		}
+
+		id, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create minimal draft should succeed: %v", err)
+		}
+		if id != 800 {
+			t.Errorf("Expected ID 800, got %d", id)
+		}
+	})
+
+	t.Run("Create normalizes titulo", func(t *testing.T) {
+		var createdCurso *models.Curso
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				createdCurso = curso
+				return 900, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:     "  Curso com espaços  ",
+			Status:     models.StatusCursoDraft,
+			Modalidade: models.ModalidadePresencial,
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if createdCurso.Titulo != "Curso com espaços" {
+			t.Errorf("Expected trimmed titulo, got '%s'", createdCurso.Titulo)
+		}
+	})
 }
 
 // TestCursoService_GetByID tests the GetByID method
@@ -471,6 +1110,105 @@ func TestCursoService_Update(t *testing.T) {
 		err := svc.Update(ctx, curso)
 		if err == nil {
 			t.Error("Expected database error")
+		}
+	})
+
+	t.Run("Update draft to published requires full validation", func(t *testing.T) {
+		var updatedCurso *models.Curso
+		repo := &MockCursoRepository{
+			UpdateFunc: func(ctx context.Context, curso *models.Curso) error {
+				updatedCurso = curso
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			ID:           1,
+			Titulo:       "Course Becoming Published",
+			Status:       models.StatusCursoOpened,
+			Modalidade:   models.ModalidadePresencial,
+			NumeroVagas:  30,
+			CargaHoraria: 40,
+		}
+
+		err := svc.Update(ctx, curso)
+		if err != nil {
+			t.Fatalf("Update should succeed: %v", err)
+		}
+		if updatedCurso == nil {
+			t.Fatal("Update was not called")
+		}
+		if updatedCurso.Status != models.StatusCursoOpened {
+			t.Errorf("Status should be OPENED, got %s", updatedCurso.Status)
+		}
+	})
+
+	t.Run("Update with invalid status transition", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			ID:         1,
+			Titulo:     "Test Course",
+			Status:     models.StatusCurso("INVALID_STATUS"),
+			Modalidade: models.ModalidadePresencial,
+		}
+
+		err := svc.Update(ctx, curso)
+		if err == nil {
+			t.Error("Expected validation error for invalid status")
+		}
+		if !strings.Contains(err.Error(), "status inválido") {
+			t.Errorf("Expected 'status inválido' error, got: %v", err)
+		}
+	})
+
+	t.Run("Update normalizes data", func(t *testing.T) {
+		var updatedCurso *models.Curso
+		repo := &MockCursoRepository{
+			UpdateFunc: func(ctx context.Context, curso *models.Curso) error {
+				updatedCurso = curso
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			ID:         1,
+			Titulo:     "  Course With Spaces  ",
+			Status:     models.StatusCursoDraft,
+			Modalidade: models.ModalidadePresencial,
+		}
+
+		err := svc.Update(ctx, curso)
+		if err != nil {
+			t.Fatalf("Update failed: %v", err)
+		}
+		if updatedCurso.Titulo != "Course With Spaces" {
+			t.Errorf("Titulo should be trimmed, got: '%s'", updatedCurso.Titulo)
+		}
+	})
+
+	t.Run("Update with numero_vagas boundary", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			UpdateFunc: func(ctx context.Context, curso *models.Curso) error {
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			ID:          1,
+			Titulo:      "Boundary Test",
+			Status:      models.StatusCursoOpened,
+			Modalidade:  models.ModalidadePresencial,
+			NumeroVagas: 0, // Edge case: zero vagas is valid
+		}
+
+		err := svc.Update(ctx, curso)
+		if err != nil {
+			t.Fatalf("Update with zero vagas should be valid: %v", err)
 		}
 	})
 }
@@ -817,12 +1555,12 @@ func TestCursoService_ValidationScenarios(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		curso := &models.Curso{
-			Titulo:                "Course Own Org",
-			Status:                models.StatusCursoOpened,
-			Modalidade:            models.ModalidadePresencial,
-			CourseManagementType:  models.CourseManagementOwnOrg,
-			ExternalPartnerName:   "", // Must be empty
-			ExternalPartnerURL:    "",
+			Titulo:               "Course Own Org",
+			Status:               models.StatusCursoOpened,
+			Modalidade:           models.ModalidadePresencial,
+			CourseManagementType: models.CourseManagementOwnOrg,
+			ExternalPartnerName:  "", // Must be empty
+			ExternalPartnerURL:   "",
 		}
 
 		id, err := svc.Create(ctx, curso)
@@ -839,11 +1577,11 @@ func TestCursoService_ValidationScenarios(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		curso := &models.Curso{
-			Titulo:                "Course Own Org",
-			Status:                models.StatusCursoOpened,
-			Modalidade:            models.ModalidadePresencial,
-			CourseManagementType:  models.CourseManagementOwnOrg,
-			ExternalPartnerName:   "Partner Name", // Should be empty
+			Titulo:               "Course Own Org",
+			Status:               models.StatusCursoOpened,
+			Modalidade:           models.ModalidadePresencial,
+			CourseManagementType: models.CourseManagementOwnOrg,
+			ExternalPartnerName:  "Partner Name", // Should be empty
 		}
 
 		_, err := svc.Create(ctx, curso)
@@ -857,11 +1595,11 @@ func TestCursoService_ValidationScenarios(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		curso := &models.Curso{
-			Titulo:                "External Course",
-			Status:                models.StatusCursoOpened,
-			Modalidade:            models.ModalidadePresencial,
-			CourseManagementType:  models.CourseManagementExternalManagedByOrg,
-			ExternalPartnerName:   "", // Required
+			Titulo:               "External Course",
+			Status:               models.StatusCursoOpened,
+			Modalidade:           models.ModalidadePresencial,
+			CourseManagementType: models.CourseManagementExternalManagedByOrg,
+			ExternalPartnerName:  "", // Required
 		}
 
 		_, err := svc.Create(ctx, curso)
@@ -875,12 +1613,12 @@ func TestCursoService_ValidationScenarios(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		curso := &models.Curso{
-			Titulo:                "External Course",
-			Status:                models.StatusCursoOpened,
-			Modalidade:            models.ModalidadePresencial,
-			CourseManagementType:  models.CourseManagementExternalManagedByPartner,
-			ExternalPartnerName:   "Partner Name",
-			ExternalPartnerURL:    "", // Required
+			Titulo:               "External Course",
+			Status:               models.StatusCursoOpened,
+			Modalidade:           models.ModalidadePresencial,
+			CourseManagementType: models.CourseManagementExternalManagedByPartner,
+			ExternalPartnerName:  "Partner Name",
+			ExternalPartnerURL:   "", // Required
 		}
 
 		_, err := svc.Create(ctx, curso)
@@ -929,9 +1667,9 @@ func TestCursoService_ValidationScenarios(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		curso := &models.Curso{
-			Titulo:      "Remote Course",
-			Status:      models.StatusCursoOpened,
-			Modalidade:  models.ModalidadeRemoto,
+			Titulo:     "Remote Course",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadeRemoto,
 			RemoteClass: &models.RemoteClass{
 				Schedules: []models.RemoteSchedule{},
 			},
