@@ -100,9 +100,9 @@ func TestOrgaoSyncWorker_discoverOrgaoIDs_FromCursos(t *testing.T) {
 	worker := NewOrgaoSyncWorker(db, nil, nil, nil, nil, nil, nil, cfg)
 
 	// Insert test data
-	db.Create(&models.Curso{OrgaoID: "orgao-1", Titulo: "Curso A"})
-	db.Create(&models.Curso{OrgaoID: "orgao-2", Titulo: "Curso B"})
-	db.Create(&models.Curso{OrgaoID: "orgao-1", Titulo: "Curso C"}) // Duplicate
+	require.NoError(t, db.Create(&models.Curso{OrgaoID: "orgao-1", Titulo: "Curso A"}).Error)
+	require.NoError(t, db.Create(&models.Curso{OrgaoID: "orgao-2", Titulo: "Curso B"}).Error)
+	require.NoError(t, db.Create(&models.Curso{OrgaoID: "orgao-1", Titulo: "Curso C"}).Error) // Duplicate
 
 	ctx := context.Background()
 	orgaoIDs, err := worker.discoverOrgaoIDs(ctx)
@@ -432,7 +432,7 @@ func TestOrgaoSyncWorker_discoverOrgaoIDs_LargeDataset(t *testing.T) {
 	assert.LessOrEqual(t, len(orgaoIDs), 10) // Should deduplicate
 }
 
-func TestOrgaoSyncWorker_discoverOrgaoIDs_NullOrgaoID(t *testing.T) {
+func TestOrgaoSyncWorker_discoverOrgaoIDs_EmptyOrgaoID(t *testing.T) {
 	db := setupTestDB(t)
 
 	cfg := &config.OrgaoSyncSettings{

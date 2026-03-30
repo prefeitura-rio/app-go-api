@@ -49,6 +49,7 @@ func TestOportunidadeMEIRepository_Create(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, 0, id)
 		assert.Contains(t, err.Error(), "erro ao criar oportunidade MEI")
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
 

@@ -12,6 +12,7 @@ import (
 // SetupMockDB creates a mock database connection for testing.
 // Returns the GORM DB instance, sqlmock instance, and a cleanup function.
 func SetupMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, func()) {
+	t.Helper()
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create sqlmock: %v", err)

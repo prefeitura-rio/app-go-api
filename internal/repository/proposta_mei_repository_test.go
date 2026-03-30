@@ -53,6 +53,7 @@ func TestPropostaMEIRepository_Create(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, uuid.Nil, id)
 		assert.Contains(t, err.Error(), "erro ao criar proposta MEI")
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
 
