@@ -2600,6 +2600,27 @@ func TestValidationFunctions_Coverage(t *testing.T) {
 		}
 	})
 
+	t.Run("isValidURL - valid https URL with whitespace", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:       "Test Course",
+			Status:       models.StatusCursoOpened,
+			Modalidade:   models.ModalidadeLivreFormacaoOnline,
+			FormacaoLink: "  https://example.com/course  ",
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Errorf("Valid HTTPS URL with whitespace should pass validation: %v", err)
+		}
+	})
+
 	// Tests for validateLocationClasses - targeting 100% coverage
 	t.Run("validateLocationClasses - address too long", func(t *testing.T) {
 		repo := &MockCursoRepository{}
@@ -3013,6 +3034,268 @@ func TestValidationFunctions_Coverage(t *testing.T) {
 			t.Error("AcceptingEnrollments should not be nil")
 		} else if *createdCurso.RemoteClass.Schedules[0].AcceptingEnrollments != true {
 			t.Error("AcceptingEnrollments should default to true")
+		}
+	})
+
+	// Additional edge cases for better coverage
+	t.Run("validatePublishedCurso - error from validateCourseManagementType propagates", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:               "Test",
+			Status:               models.StatusCursoOpened,
+			Modalidade:           models.ModalidadePresencial,
+			CourseManagementType: models.CourseManagementType("INVALID_TYPE"),
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected validation error from validateCourseManagementType")
+		}
+	})
+
+	t.Run("validatePublishedCurso - error from validateLivreFormacaoOnline propagates", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:       "Test",
+			Status:       models.StatusCursoOpened,
+			Modalidade:   models.ModalidadeLivreFormacaoOnline,
+			FormacaoLink: "", // Missing required link
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected validation error from validateLivreFormacaoOnline")
+		}
+	})
+
+	t.Run("validatePublishedCurso - error from validateLocationClasses propagates", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:     "Test",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			LocationClasses: []models.LocationClass{
+				{
+					Address:      "Short", // Too short
+					Neighborhood: "Test",
+					Schedules:    []models.CourseSchedule{},
+				},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected validation error from validateLocationClasses")
+		}
+		if !strings.Contains(err.Error(), "erro de validação em locations") {
+			t.Errorf("Expected wrapped error from validateLocationClasses, got: %v", err)
+		}
+	})
+
+	t.Run("validatePublishedCurso - error from validateRemoteClass propagates", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:     "Test",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadeRemoto,
+			RemoteClass: &models.RemoteClass{
+				Schedules: []models.RemoteSchedule{}, // Empty schedules
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected validation error from validateRemoteClass")
+		}
+		if !strings.Contains(err.Error(), "erro de validação em remote class") {
+			t.Errorf("Expected wrapped error from validateRemoteClass, got: %v", err)
+		}
+	})
+
+	t.Run("validateSchedules - zero vacancies", func(t *testing.T) {
+		repo := &MockCursoRepository{}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		startDate := time.Now().Add(24 * time.Hour)
+		endDate := startDate.Add(72 * time.Hour)
+
+		curso := &models.Curso{
+			Titulo:     "Test",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			LocationClasses: []models.LocationClass{
+				{
+					Address:      "Valid Address 123",
+					Neighborhood: "Test Neighborhood",
+					Schedules: []models.CourseSchedule{
+						{
+							Vacancies:      0, // Invalid
+							ClassStartDate: startDate,
+							ClassEndDate:   endDate,
+							ClassTime:      "09:00-12:00",
+							ClassDays:      "Segunda a Sexta",
+						},
+					},
+				},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err == nil {
+			t.Error("Expected validation error for zero vacancies")
+		}
+		if !strings.Contains(err.Error(), "número de vagas deve estar entre 1 e 1000") {
+			t.Errorf("Expected vacancies validation error, got: %v", err)
+		}
+	})
+
+	t.Run("validateCourseManagementType - empty type is valid", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:               "Test",
+			Status:               models.StatusCursoOpened,
+			Modalidade:           models.ModalidadePresencial,
+			CourseManagementType: "", // Will be normalized to OWN_ORG
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Errorf("Empty course management type should be valid (normalized): %v", err)
+		}
+	})
+
+	t.Run("validateCourseManagementType - EXTERNAL_MANAGED_BY_PARTNER valid", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:               "Test",
+			Status:               models.StatusCursoOpened,
+			Modalidade:           models.ModalidadePresencial,
+			CourseManagementType: models.CourseManagementExternalManagedByPartner,
+			ExternalPartnerName:  "Partner",
+			ExternalPartnerURL:   "https://partner.com",
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Errorf("Valid EXTERNAL_MANAGED_BY_PARTNER should pass: %v", err)
+		}
+	})
+
+	t.Run("validateCourseManagementType - EXTERNAL_MANAGED_BY_ORG valid", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 1, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo:               "Test",
+			Status:               models.StatusCursoOpened,
+			Modalidade:           models.ModalidadePresencial,
+			CourseManagementType: models.CourseManagementExternalManagedByOrg,
+			ExternalPartnerName:  "Partner",
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Errorf("Valid EXTERNAL_MANAGED_BY_ORG should pass: %v", err)
+		}
+	})
+
+	t.Run("validateSchedules - equal start and end dates valid", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 1, nil
+			},
+			CreateLocationClassesFunc: func(ctx context.Context, locations []models.LocationClass) error {
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		startDate := time.Now().Add(24 * time.Hour)
+		endDate := startDate // Equal dates should be valid
+
+		curso := &models.Curso{
+			Titulo:     "Test",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadePresencial,
+			LocationClasses: []models.LocationClass{
+				{
+					Address:      "Valid Address 123",
+					Neighborhood: "Test Neighborhood",
+					Schedules: []models.CourseSchedule{
+						{
+							Vacancies:      30,
+							ClassStartDate: startDate,
+							ClassEndDate:   endDate,
+							ClassTime:      "09:00-12:00",
+							ClassDays:      "Segunda a Sexta",
+						},
+					},
+				},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Errorf("Equal start and end dates should be valid: %v", err)
+		}
+	})
+
+	t.Run("validateRemoteSchedules - equal start and end dates valid for online", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 1, nil
+			},
+			CreateRemoteClassFunc: func(ctx context.Context, rc *models.RemoteClass) error {
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		startDate := time.Now().Add(24 * time.Hour)
+		endDate := startDate // Equal dates should be valid
+
+		curso := &models.Curso{
+			Titulo:     "Test",
+			Status:     models.StatusCursoOpened,
+			Modalidade: models.ModalidadeRemoto,
+			RemoteClass: &models.RemoteClass{
+				Schedules: []models.RemoteSchedule{
+					{
+						Vacancies:      30,
+						ClassStartDate: &startDate,
+						ClassEndDate:   &endDate,
+					},
+				},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Errorf("Equal start and end dates should be valid for online courses: %v", err)
 		}
 	})
 }
