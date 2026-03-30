@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
+	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -725,4 +727,973 @@ func TestInscricaoHandler_ListByUser_Forbidden(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+// --- Import Tests ---
+
+// Test Import with CSV file - validates request and creates job
+func TestInscricaoHandler_Import_CSV_ValidatesAndCreatesJob(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.POST("/api/v1/courses/:courseId/enrollments/import", handler.Import)
+
+	// Create multipart form with CSV file
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", "enrollments.csv")
+	part.Write([]byte("cpf,name,email\n12345678901,Test User,test@example.com"))
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	// Ensure GlobalJobProcessor is nil to test error handling
+	originalProcessor := jobs.GlobalJobProcessor
+	defer func() { jobs.GlobalJobProcessor = originalProcessor }()
+	jobs.GlobalJobProcessor = nil
+
+	jobID := uuid.New()
+	mockJobService.On("Create", mock.Anything, mock.AnythingOfType("*models.Job")).
+		Run(func(args mock.Arguments) {
+			job := args.Get(1).(*models.Job)
+			job.ID = jobID
+			job.Status = models.JobStatusPending
+			// Verify job metadata
+			assert.Equal(t, models.JobTypeEnrollmentImport, job.Type)
+		}).
+		Return(nil)
+
+	r.ServeHTTP(w, req)
+
+	// Should fail because GlobalJobProcessor is nil
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Processador de jobs não inicializado")
+	mockJobService.AssertExpectations(t)
+}
+
+// Test Import with XLSX file - validates request format
+func TestInscricaoHandler_Import_XLSX_ValidatesFormat(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.POST("/api/v1/courses/:courseId/enrollments/import", handler.Import)
+
+	// Create multipart form with XLSX file
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", "enrollments.xlsx")
+	part.Write([]byte("mock xlsx content"))
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	// Ensure GlobalJobProcessor is nil
+	originalProcessor := jobs.GlobalJobProcessor
+	defer func() { jobs.GlobalJobProcessor = originalProcessor }()
+	jobs.GlobalJobProcessor = nil
+
+	jobID := uuid.New()
+	mockJobService.On("Create", mock.Anything, mock.AnythingOfType("*models.Job")).
+		Run(func(args mock.Arguments) {
+			job := args.Get(1).(*models.Job)
+			job.ID = jobID
+		}).
+		Return(nil)
+
+	r.ServeHTTP(w, req)
+
+	// Should fail because GlobalJobProcessor is nil (but file validation passed)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	mockJobService.AssertExpectations(t)
+}
+
+// Test Import with no file - error
+func TestInscricaoHandler_Import_NoFile(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.POST("/api/v1/courses/:courseId/enrollments/import", handler.Import)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments/import", nil)
+	req.Header.Set("Content-Type", "multipart/form-data")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "Arquivo não fornecido ou inválido")
+}
+
+// Test Import with invalid file format - error
+func TestInscricaoHandler_Import_InvalidFormat(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.POST("/api/v1/courses/:courseId/enrollments/import", handler.Import)
+
+	// Create multipart form with invalid file format
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", "enrollments.pdf")
+	part.Write([]byte("invalid content"))
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "Formato de arquivo inválido")
+}
+
+// Test Import with file too large - error
+func TestInscricaoHandler_Import_FileTooLarge(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.POST("/api/v1/courses/:courseId/enrollments/import", handler.Import)
+
+	// Create multipart form with large file (> 10MB)
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", "enrollments.csv")
+	// Write more than 10MB
+	largeData := make([]byte, 11*1024*1024) // 11MB
+	part.Write(largeData)
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "Arquivo muito grande")
+}
+
+// Test Import with job creation error
+func TestInscricaoHandler_Import_JobCreationError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.POST("/api/v1/courses/:courseId/enrollments/import", handler.Import)
+
+	mockJobService.On("Create", mock.Anything, mock.AnythingOfType("*models.Job")).
+		Return(errors.New("database error"))
+
+	// Create multipart form with CSV file
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", "enrollments.csv")
+	part.Write([]byte("cpf,name,email\n12345678901,Test,test@example.com"))
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao criar job")
+	mockJobService.AssertExpectations(t)
+}
+
+// Test Import with GlobalJobProcessor not initialized
+func TestInscricaoHandler_Import_ProcessorNotInitialized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.POST("/api/v1/courses/:courseId/enrollments/import", handler.Import)
+
+	jobID := uuid.New()
+	mockJobService.On("Create", mock.Anything, mock.AnythingOfType("*models.Job")).
+		Run(func(args mock.Arguments) {
+			job := args.Get(1).(*models.Job)
+			job.ID = jobID
+		}).
+		Return(nil)
+
+	// Create multipart form with CSV file
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", "enrollments.csv")
+	part.Write([]byte("cpf,name\n12345678901,Test"))
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	// Ensure GlobalJobProcessor is nil
+	originalProcessor := jobs.GlobalJobProcessor
+	defer func() { jobs.GlobalJobProcessor = originalProcessor }()
+	jobs.GlobalJobProcessor = nil
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Processador de jobs não inicializado")
+	mockJobService.AssertExpectations(t)
+}
+
+// --- ChangeSchedule Tests ---
+
+// Test ChangeSchedule with success
+func TestInscricaoHandler_ChangeSchedule_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
+	r.PUT("/api/v1/enrollments/:enrollmentId/schedule", handler.ChangeSchedule)
+
+	enrollmentID := uuid.New()
+	scheduleID := uuid.New()
+	updatedInscricao := &models.Inscricao{
+		ID:      enrollmentID,
+		CursoID: 1,
+		CPF:     "12345678901",
+		Status:  models.StatusInscricaoPending,
+		EnrolledUnit: &models.EnrolledUnit{
+			ID: scheduleID.String(),
+		},
+	}
+
+	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
+		Return(updatedInscricao, nil)
+
+	reqBody := map[string]interface{}{
+		"schedule_id": scheduleID.String(),
+		"enrolled_unit": map[string]interface{}{
+			"id":      scheduleID.String(),
+			"address": "Test Address",
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/enrollments/"+enrollmentID.String()+"/schedule", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "success")
+	assert.Contains(t, w.Body.String(), "Turma alterada com sucesso")
+	mockService.AssertExpectations(t)
+}
+
+// Test ChangeSchedule with enrollment not found
+func TestInscricaoHandler_ChangeSchedule_NotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
+	r.PUT("/api/v1/enrollments/:enrollmentId/schedule", handler.ChangeSchedule)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
+		Return(nil, errors.New("inscrição não encontrada"))
+
+	reqBody := map[string]interface{}{
+		"enrolled_unit": map[string]interface{}{
+			"id": uuid.New().String(),
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/enrollments/"+enrollmentID.String()+"/schedule", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+// Test ChangeSchedule with forbidden access
+func TestInscricaoHandler_ChangeSchedule_Forbidden(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "98765432100")
+		c.Next()
+	})
+	r.PUT("/api/v1/enrollments/:enrollmentId/schedule", handler.ChangeSchedule)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "98765432100", mock.AnythingOfType("*models.ScheduleChangeRequest")).
+		Return(nil, errors.New("você só pode alterar suas próprias inscrições"))
+
+	reqBody := map[string]interface{}{
+		"enrolled_unit": map[string]interface{}{
+			"id": uuid.New().String(),
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/enrollments/"+enrollmentID.String()+"/schedule", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+// Test ChangeSchedule with no vacancies
+func TestInscricaoHandler_ChangeSchedule_NoVacancies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
+	r.PUT("/api/v1/enrollments/:enrollmentId/schedule", handler.ChangeSchedule)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
+		Return(nil, errors.New("não há vagas disponíveis para esta turma"))
+
+	reqBody := map[string]interface{}{
+		"enrolled_unit": map[string]interface{}{
+			"id": uuid.New().String(),
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/enrollments/"+enrollmentID.String()+"/schedule", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "não há vagas")
+	mockService.AssertExpectations(t)
+}
+
+// Test ChangeSchedule with timing restriction
+func TestInscricaoHandler_ChangeSchedule_TimingRestriction(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
+	r.PUT("/api/v1/enrollments/:enrollmentId/schedule", handler.ChangeSchedule)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
+		Return(nil, errors.New("não é possível trocar de turma com menos de 72h de antecedência"))
+
+	reqBody := map[string]interface{}{
+		"enrolled_unit": map[string]interface{}{
+			"id": uuid.New().String(),
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/enrollments/"+enrollmentID.String()+"/schedule", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "não é possível trocar de turma")
+	mockService.AssertExpectations(t)
+}
+
+// Test ChangeSchedule with invalid JSON
+func TestInscricaoHandler_ChangeSchedule_InvalidJSON(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
+	r.PUT("/api/v1/enrollments/:enrollmentId/schedule", handler.ChangeSchedule)
+
+	enrollmentID := uuid.New()
+
+	body := []byte(`{invalid json}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/enrollments/"+enrollmentID.String()+"/schedule", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "Dados inválidos")
+}
+
+// Test ChangeSchedule with service error
+func TestInscricaoHandler_ChangeSchedule_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
+	r.PUT("/api/v1/enrollments/:enrollmentId/schedule", handler.ChangeSchedule)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
+		Return(nil, errors.New("database connection failed"))
+
+	reqBody := map[string]interface{}{
+		"enrolled_unit": map[string]interface{}{
+			"id": uuid.New().String(),
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/enrollments/"+enrollmentID.String()+"/schedule", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao trocar de turma")
+	mockService.AssertExpectations(t)
+}
+
+// --- UpdateCertificate Tests ---
+
+// Test UpdateCertificate with success
+func TestInscricaoHandler_UpdateCertificate_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
+
+	enrollmentID := uuid.New()
+	certificateURL := "https://example.com/certificates/cert123.pdf"
+
+	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, certificateURL).
+		Return(nil)
+
+	reqBody := map[string]interface{}{
+		"certificate_url": certificateURL,
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1/enrollments/"+enrollmentID.String()+"/certificate", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "Certificado atualizado com sucesso")
+	assert.Contains(t, w.Body.String(), certificateURL)
+	mockService.AssertExpectations(t)
+}
+
+// Test UpdateCertificate with not found
+func TestInscricaoHandler_UpdateCertificate_NotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
+		Return(errors.New("inscrição não encontrada"))
+
+	reqBody := map[string]interface{}{
+		"certificate_url": "https://example.com/cert.pdf",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1/enrollments/"+enrollmentID.String()+"/certificate", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+// Test UpdateCertificate with wrong course
+func TestInscricaoHandler_UpdateCertificate_WrongCourse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
+		Return(errors.New("inscrição não pertence ao curso especificado"))
+
+	reqBody := map[string]interface{}{
+		"certificate_url": "https://example.com/cert.pdf",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1/enrollments/"+enrollmentID.String()+"/certificate", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "inscrição não pertence ao curso especificado")
+	mockService.AssertExpectations(t)
+}
+
+// Test UpdateCertificate with invalid status
+func TestInscricaoHandler_UpdateCertificate_InvalidStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
+		Return(errors.New("certificado só pode ser atribuído a inscrições aprovadas ou concluídas"))
+
+	reqBody := map[string]interface{}{
+		"certificate_url": "https://example.com/cert.pdf",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1/enrollments/"+enrollmentID.String()+"/certificate", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "certificado só pode ser atribuído")
+	mockService.AssertExpectations(t)
+}
+
+// Test UpdateCertificate with service error
+func TestInscricaoHandler_UpdateCertificate_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
+		Return(errors.New("database error"))
+
+	reqBody := map[string]interface{}{
+		"certificate_url": "https://example.com/cert.pdf",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1/enrollments/"+enrollmentID.String()+"/certificate", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao atualizar certificado")
+	mockService.AssertExpectations(t)
+}
+
+// --- populateRemainingVacanciesForEnrollment Tests ---
+
+// Test populateRemainingVacanciesForEnrollment with nil enrolled_unit
+func TestInscricaoHandler_PopulateRemainingVacancies_NilEnrolledUnit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
+	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
+
+	enrollmentID := uuid.New()
+	inscricao := &models.Inscricao{
+		ID:           enrollmentID,
+		CursoID:      1,
+		CPF:          "12345678901",
+		EnrolledUnit: nil, // No enrolled_unit
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
+	mockService.On("EnrichWithPersonalInfo", mock.Anything, inscricao).
+		Return()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+// Test populateRemainingVacanciesForEnrollment with empty schedules
+func TestInscricaoHandler_PopulateRemainingVacancies_EmptySchedules(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
+	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
+
+	enrollmentID := uuid.New()
+	inscricao := &models.Inscricao{
+		ID:      enrollmentID,
+		CursoID: 1,
+		CPF:     "12345678901",
+		EnrolledUnit: &models.EnrolledUnit{
+			ID:        uuid.New().String(),
+			Schedules: []models.EnrolledUnitSchedule{}, // Empty schedules
+		},
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
+	mockService.On("EnrichWithPersonalInfo", mock.Anything, inscricao).
+		Return()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+// Test populateRemainingVacanciesForEnrollment with valid schedules
+func TestInscricaoHandler_PopulateRemainingVacancies_ValidSchedules(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
+	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
+
+	enrollmentID := uuid.New()
+	scheduleID1 := uuid.New()
+	scheduleID2 := uuid.New()
+
+	inscricao := &models.Inscricao{
+		ID:      enrollmentID,
+		CursoID: 1,
+		CPF:     "12345678901",
+		EnrolledUnit: &models.EnrolledUnit{
+			ID: uuid.New().String(),
+			Schedules: []models.EnrolledUnitSchedule{
+				{
+					ID:        scheduleID1.String(),
+					Vacancies: 30,
+				},
+				{
+					ID:        scheduleID2.String(),
+					Vacancies: 20,
+				},
+			},
+		},
+	}
+
+	enrollmentCounts := map[uuid.UUID]int64{
+		scheduleID1: 25,
+		scheduleID2: 15,
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
+	mockCursoRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
+		return len(ids) == 2
+	})).
+		Return(enrollmentCounts, nil)
+	mockService.On("EnrichWithPersonalInfo", mock.Anything, inscricao).
+		Return()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+	mockCursoRepo.AssertExpectations(t)
+}
+
+// Test populateRemainingVacanciesForEnrollment with invalid schedule IDs
+func TestInscricaoHandler_PopulateRemainingVacancies_InvalidScheduleIDs(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
+	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
+
+	enrollmentID := uuid.New()
+
+	inscricao := &models.Inscricao{
+		ID:      enrollmentID,
+		CursoID: 1,
+		CPF:     "12345678901",
+		EnrolledUnit: &models.EnrolledUnit{
+			ID: uuid.New().String(),
+			Schedules: []models.EnrolledUnitSchedule{
+				{
+					ID:        "invalid-uuid",
+					Vacancies: 30,
+				},
+			},
+		},
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
+	mockService.On("EnrichWithPersonalInfo", mock.Anything, inscricao).
+		Return()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+// Test populateRemainingVacanciesForEnrollment with database error
+func TestInscricaoHandler_PopulateRemainingVacancies_DatabaseError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
+	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
+
+	enrollmentID := uuid.New()
+	scheduleID := uuid.New()
+
+	inscricao := &models.Inscricao{
+		ID:      enrollmentID,
+		CursoID: 1,
+		CPF:     "12345678901",
+		EnrolledUnit: &models.EnrolledUnit{
+			ID: uuid.New().String(),
+			Schedules: []models.EnrolledUnitSchedule{
+				{
+					ID:        scheduleID.String(),
+					Vacancies: 30,
+				},
+			},
+		},
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
+	mockCursoRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).
+		Return(nil, errors.New("database connection failed"))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao calcular vagas restantes")
+	mockService.AssertExpectations(t)
+	mockCursoRepo.AssertExpectations(t)
+}
+
+// Test populateRemainingVacanciesForEnrollment with negative remaining vacancies
+func TestInscricaoHandler_PopulateRemainingVacancies_NegativeVacancies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
+	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
+
+	enrollmentID := uuid.New()
+	scheduleID := uuid.New()
+
+	inscricao := &models.Inscricao{
+		ID:      enrollmentID,
+		CursoID: 1,
+		CPF:     "12345678901",
+		EnrolledUnit: &models.EnrolledUnit{
+			ID: uuid.New().String(),
+			Schedules: []models.EnrolledUnitSchedule{
+				{
+					ID:        scheduleID.String(),
+					Vacancies: 20, // Less than enrolled count
+				},
+			},
+		},
+	}
+
+	enrollmentCounts := map[uuid.UUID]int64{
+		scheduleID: 25, // More than vacancies
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
+	mockCursoRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).
+		Return(enrollmentCounts, nil)
+	mockService.On("EnrichWithPersonalInfo", mock.Anything, inscricao).
+		Return()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	// Verify that remaining vacancies is set to 0, not negative
+	mockService.AssertExpectations(t)
+	mockCursoRepo.AssertExpectations(t)
 }
