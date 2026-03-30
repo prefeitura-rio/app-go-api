@@ -147,3 +147,190 @@ func TestGetEnrollmentPendingEmailTemplate_WithOrgaoName(t *testing.T) {
 		t.Errorf("Subject incorreto. Esperado: %s, Recebido: %s", expectedSubject, template.Subject)
 	}
 }
+
+func TestGetEnrollmentRejectedEmailTemplate(t *testing.T) {
+	inscricao := &models.Inscricao{
+		Name:   "Carlos Oliveira",
+		Email:  "carlos@teste.com",
+		Reason: "Documentação incompleta",
+	}
+
+	curso := &models.Curso{
+		Titulo: "Curso de Gestão",
+	}
+
+	template := GetEnrollmentRejectedEmailTemplate(inscricao, curso, "oportunidades.rio")
+
+	// Verificar nome do usuário
+	if !strings.Contains(template.Body, "Carlos Oliveira") {
+		t.Error("Nome do usuário não encontrado no template de rejeição")
+	}
+
+	// Verificar título do curso
+	if !strings.Contains(template.Body, "Curso de Gestão") {
+		t.Error("Título do curso não encontrado no template de rejeição")
+	}
+
+	// Verificar mensagem de não aprovação
+	if !strings.Contains(template.Body, "sua inscrição não foi aprovada") {
+		t.Error("Mensagem de não aprovação não encontrada no template")
+	}
+
+	// Verificar subject
+	expectedSubject := "Informações sobre sua inscrição - Curso de Gestão"
+	if template.Subject != expectedSubject {
+		t.Errorf("Subject incorreto. Esperado: %s, Recebido: %s", expectedSubject, template.Subject)
+	}
+}
+
+func TestGetEnrollmentPendingEmailTemplate_WithOrgaoName2(t *testing.T) {
+	inscricao := &models.Inscricao{
+		Name:  "Fernanda Lima",
+		Email: "fernanda@teste.com",
+	}
+
+	curso := &models.Curso{
+		Titulo: "Curso de Informática",
+	}
+
+	template := GetEnrollmentPendingEmailTemplate(inscricao, curso, "SMTI", "oportunidades.rio")
+
+	// Verificar nome do usuário
+	if !strings.Contains(template.Body, "Fernanda Lima") {
+		t.Error("Nome do usuário não encontrado no template")
+	}
+
+	// Verificar título do curso
+	if !strings.Contains(template.Body, "Curso de Informática") {
+		t.Error("Título do curso não encontrado no template")
+	}
+
+	// Verificar orgão
+	if !strings.Contains(template.Body, "SMTI") {
+		t.Error("Nome do órgão não encontrado no template")
+	}
+
+	// Verificar subject
+	expectedSubject := "Inscrição recebida! - Curso de Informática"
+	if template.Subject != expectedSubject {
+		t.Errorf("Subject incorreto. Esperado: %s, Recebido: %s", expectedSubject, template.Subject)
+	}
+}
+
+func TestGetEnrollmentPendingEmailTemplate_WithOrgaoName3(t *testing.T) {
+	inscricao := &models.Inscricao{
+		Name:  "Roberto Costa",
+		Email: "roberto@teste.com",
+	}
+
+	curso := &models.Curso{
+		Titulo: "Curso de Segurança",
+	}
+
+	template := GetEnrollmentPendingEmailTemplate(inscricao, curso, "SEOP", "oportunidades.rio")
+
+	// Verificar nome do usuário
+	if !strings.Contains(template.Body, "Roberto Costa") {
+		t.Error("Nome do usuário não encontrado no template")
+	}
+
+	// Verificar orgão
+	if !strings.Contains(template.Body, "SEOP") {
+		t.Error("Nome do órgão não encontrado no template")
+	}
+}
+
+func TestEmailTemplate_EmptyFields(t *testing.T) {
+	inscricao := &models.Inscricao{
+		Name:  "",
+		Email: "test@example.com",
+	}
+
+	curso := &models.Curso{
+		Titulo: "",
+	}
+
+	// Should not panic with empty fields
+	template := GetEnrollmentPendingEmailTemplate(inscricao, curso, "", "oportunidades.rio")
+	if template.Subject == "" {
+		t.Error("Subject should not be empty")
+	}
+	if template.Body == "" {
+		t.Error("Body should not be empty")
+	}
+}
+
+func TestEmailTemplate_SpecialCharacters(t *testing.T) {
+	inscricao := &models.Inscricao{
+		Name:  "José & María <test>",
+		Email: "jose@example.com",
+	}
+
+	curso := &models.Curso{
+		Titulo: "Curso \"Especial\" & Avançado",
+	}
+
+	// Should handle special characters without breaking
+	template := GetEnrollmentPendingEmailTemplate(inscricao, curso, "Test & Co.", "oportunidades.rio")
+	if template.Body == "" {
+		t.Error("Body should not be empty with special characters")
+	}
+
+	// Verify special characters are preserved
+	if !strings.Contains(template.Body, "José & María") {
+		t.Error("Special characters in name should be preserved")
+	}
+}
+
+func TestScheduleInfo_NilValues(t *testing.T) {
+	inscricao := &models.Inscricao{
+		Name:  "Test User",
+		Email: "test@example.com",
+	}
+
+	curso := &models.Curso{
+		Titulo:     "Test Course",
+		Modalidade: models.ModalidadePresencial,
+	}
+
+	// Nil schedule info should use fallback
+	template := GetEnrollmentApprovedEmailTemplate(inscricao, curso, "Test Org", nil, "oportunidades.rio")
+
+	if template.Body == "" {
+		t.Error("Template body should not be empty with nil schedule")
+	}
+
+	// Should still contain user name and course title
+	if !strings.Contains(template.Body, "Test User") {
+		t.Error("Should contain user name even without schedule info")
+	}
+	if !strings.Contains(template.Body, "Test Course") {
+		t.Error("Should contain course title even without schedule info")
+	}
+}
+
+func TestScheduleInfo_EmptyStrings(t *testing.T) {
+	inscricao := &models.Inscricao{
+		Name:  "Test User",
+		Email: "test@example.com",
+	}
+
+	curso := &models.Curso{
+		Titulo:     "Test Course",
+		Modalidade: models.ModalidadePresencial,
+	}
+
+	scheduleInfo := &ScheduleInfo{
+		ClassTime:      "",
+		ClassStartDate: "",
+		ClassDays:      "",
+		Address:        "",
+	}
+
+	// Empty schedule info fields should not break template
+	template := GetEnrollmentApprovedEmailTemplate(inscricao, curso, "Test Org", scheduleInfo, "oportunidades.rio")
+
+	if template.Body == "" {
+		t.Error("Template body should not be empty with empty schedule fields")
+	}
+}

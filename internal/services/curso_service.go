@@ -10,10 +10,16 @@ import (
 )
 
 type CursoService struct {
-	repo *repository.CursoRepository
+	repo CursoRepositoryInterface
 }
 
 func NewCursoService(repo *repository.CursoRepository) *CursoService {
+	return &CursoService{
+		repo: repo,
+	}
+}
+
+func NewCursoServiceWithInterface(repo CursoRepositoryInterface) *CursoService {
 	return &CursoService{
 		repo: repo,
 	}

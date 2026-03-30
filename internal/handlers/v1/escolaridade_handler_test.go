@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,12 +17,20 @@ import (
 
 type mockEscolaridadeRepoForHandler struct {
 	createID  int
+	createErr error
 	entity    *models.Escolaridade
+	getErr    error
+	updateErr error
+	deleteErr error
 	listItems []*models.Escolaridade
 	listTotal int
+	listErr   error
 }
 
 func (m *mockEscolaridadeRepoForHandler) Create(_ context.Context, _ *models.Escolaridade) (int, error) {
+	if m.createErr != nil {
+		return 0, m.createErr
+	}
 	if m.createID == 0 {
 		m.createID = 1
 	}
@@ -29,18 +38,24 @@ func (m *mockEscolaridadeRepoForHandler) Create(_ context.Context, _ *models.Esc
 }
 
 func (m *mockEscolaridadeRepoForHandler) GetByID(_ context.Context, id int) (*models.Escolaridade, error) {
+	if m.getErr != nil {
+		return nil, m.getErr
+	}
 	return m.entity, nil
 }
 
 func (m *mockEscolaridadeRepoForHandler) Update(_ context.Context, _ *models.Escolaridade) error {
-	return nil
+	return m.updateErr
 }
 
 func (m *mockEscolaridadeRepoForHandler) Delete(_ context.Context, _ int) error {
-	return nil
+	return m.deleteErr
 }
 
 func (m *mockEscolaridadeRepoForHandler) List(_ context.Context, _ map[string]interface{}, _, _ int) ([]*models.Escolaridade, int, error) {
+	if m.listErr != nil {
+		return nil, 0, m.listErr
+	}
 	if m.listItems == nil {
 		return []*models.Escolaridade{}, 0, nil
 	}
@@ -99,5 +114,165 @@ func TestEscolaridadeHandler_List(t *testing.T) {
 	router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Errorf("List: expected 200, got %d", w.Code)
+	}
+}
+
+// Test Update - Success
+func TestEscolaridadeHandler_Update_Success(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{entity: &models.Escolaridade{ID: 1, Nivel: "Old"}}
+	router := setupEscolaridadeRouter(repo)
+	body := []byte(`{"nivel":"New"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/escolaridades/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("Update: expected 200, got %d", w.Code)
+	}
+}
+
+// Test Update - Invalid ID
+func TestEscolaridadeHandler_Update_InvalidID(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{}
+	router := setupEscolaridadeRouter(repo)
+	body := []byte(`{"nivel":"Test"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/escolaridades/invalid", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Update InvalidID: expected 400, got %d", w.Code)
+	}
+}
+
+// Test Update - Invalid JSON
+func TestEscolaridadeHandler_Update_InvalidJSON(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{}
+	router := setupEscolaridadeRouter(repo)
+	body := []byte(`{invalid}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/escolaridades/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Update InvalidJSON: expected 400, got %d", w.Code)
+	}
+}
+
+
+// Test Update - Service Error
+func TestEscolaridadeHandler_Update_ServiceError(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{
+		entity:    &models.Escolaridade{ID: 1, Nivel: "Test"},
+		updateErr: errors.New("database error"),
+	}
+	router := setupEscolaridadeRouter(repo)
+	body := []byte(`{"nivel":"Updated"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/escolaridades/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Update ServiceError: expected 500, got %d", w.Code)
+	}
+}
+
+// Test Delete - Success
+func TestEscolaridadeHandler_Delete_Success(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{}
+	router := setupEscolaridadeRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/escolaridades/1", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("Delete: expected 200, got %d", w.Code)
+	}
+}
+
+// Test Delete - Invalid ID
+func TestEscolaridadeHandler_Delete_InvalidID(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{}
+	router := setupEscolaridadeRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/escolaridades/invalid", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Delete InvalidID: expected 400, got %d", w.Code)
+	}
+}
+
+// Test Delete - Service Error
+func TestEscolaridadeHandler_Delete_ServiceError(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{deleteErr: errors.New("database error")}
+	router := setupEscolaridadeRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/escolaridades/1", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Delete ServiceError: expected 500, got %d", w.Code)
+	}
+}
+
+// Test GetByID - Not Found
+func TestEscolaridadeHandler_GetByID_NotFound(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{entity: nil}
+	router := setupEscolaridadeRouter(repo)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/escolaridades/999", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("GetByID NotFound: expected 404, got %d", w.Code)
+	}
+}
+
+// Test GetByID - Invalid ID
+func TestEscolaridadeHandler_GetByID_InvalidID(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{}
+	router := setupEscolaridadeRouter(repo)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/escolaridades/invalid", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("GetByID InvalidID: expected 400, got %d", w.Code)
+	}
+}
+
+// Test List - Service Error
+func TestEscolaridadeHandler_List_ServiceError(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{listErr: errors.New("database error")}
+	router := setupEscolaridadeRouter(repo)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/escolaridades", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("List ServiceError: expected 500, got %d", w.Code)
+	}
+}
+
+// Test Create - Invalid JSON
+func TestEscolaridadeHandler_Create_InvalidJSON(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{}
+	router := setupEscolaridadeRouter(repo)
+	body := []byte(`{invalid}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/escolaridades", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Create InvalidJSON: expected 400, got %d", w.Code)
+	}
+}
+
+// Test Create - Service Error
+func TestEscolaridadeHandler_Create_ServiceError(t *testing.T) {
+	repo := &mockEscolaridadeRepoForHandler{createErr: errors.New("database error")}
+	router := setupEscolaridadeRouter(repo)
+	body := []byte(`{"nivel":"Test"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/escolaridades", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Create ServiceError: expected 500, got %d", w.Code)
 	}
 }

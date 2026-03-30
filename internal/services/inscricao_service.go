@@ -18,8 +18,8 @@ type CitizenDataFetcher interface {
 }
 
 type InscricaoService struct {
-	repo                     *repository.InscricaoRepository
-	cursoRepo                *repository.CursoRepository
+	repo                     InscricaoRepositoryInterface
+	cursoRepo                CursoRepositoryInterface
 	citizenSnapshotRepo      *repository.CitizenSnapshotRepository
 	citizenDataFetcher       CitizenDataFetcher
 	emailNotificationService *EmailNotificationService
@@ -29,6 +29,24 @@ type InscricaoService struct {
 func NewInscricaoService(
 	repo *repository.InscricaoRepository,
 	cursoRepo *repository.CursoRepository,
+	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
+	citizenDataFetcher CitizenDataFetcher,
+	emailNotificationService *EmailNotificationService,
+	cfg *config.AppConfig,
+) *InscricaoService {
+	return &InscricaoService{
+		repo:                     repo,
+		cursoRepo:                cursoRepo,
+		citizenSnapshotRepo:      citizenSnapshotRepo,
+		citizenDataFetcher:       citizenDataFetcher,
+		emailNotificationService: emailNotificationService,
+		cfg:                      cfg,
+	}
+}
+
+func NewInscricaoServiceWithInterface(
+	repo InscricaoRepositoryInterface,
+	cursoRepo CursoRepositoryInterface,
 	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
 	citizenDataFetcher CitizenDataFetcher,
 	emailNotificationService *EmailNotificationService,

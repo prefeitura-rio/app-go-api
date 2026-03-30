@@ -12,7 +12,7 @@ type AcessibilidadeHandler struct {
 	*common.CRUDHandler[models.Acessibilidade]
 }
 
-func NewAcessibilidadeHandler(service *services.AcessibilidadeService) *AcessibilidadeHandler {
+func NewAcessibilidadeHandler(service services.AcessibilidadeServiceInterface) *AcessibilidadeHandler {
 	return &AcessibilidadeHandler{
 		CRUDHandler: common.NewCRUDHandler[models.Acessibilidade](service, "Acessibilidade"),
 	}

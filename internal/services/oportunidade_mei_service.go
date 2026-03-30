@@ -10,11 +10,19 @@ import (
 )
 
 type OportunidadeMEIService struct {
-	repo *repository.OportunidadeMEIRepository
+	repo OportunidadeMEIRepositoryInterface
 }
 
 func NewOportunidadeMEIService(
 	repo *repository.OportunidadeMEIRepository,
+) *OportunidadeMEIService {
+	return &OportunidadeMEIService{
+		repo: repo,
+	}
+}
+
+func NewOportunidadeMEIServiceWithInterface(
+	repo OportunidadeMEIRepositoryInterface,
 ) *OportunidadeMEIService {
 	return &OportunidadeMEIService{
 		repo: repo,

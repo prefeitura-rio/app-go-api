@@ -10,9 +10,14 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
+// EmailSender is an interface for sending emails
+type EmailSender interface {
+	SendEmail(ctx context.Context, req *clients.EmailRequest) error
+}
+
 // EmailNotificationService handles enrollment email notifications
 type EmailNotificationService struct {
-	dataRelayClient     *clients.DataRelayClient
+	dataRelayClient     EmailSender
 	cursoRepo           *repository.CursoRepository
 	orgaoSnapshotRepo   *repository.OrgaoSnapshotRepository
 	citizenSnapshotRepo *repository.CitizenSnapshotRepository
@@ -22,7 +27,7 @@ type EmailNotificationService struct {
 
 // NewEmailNotificationService creates a new email notification service
 func NewEmailNotificationService(
-	dataRelayClient *clients.DataRelayClient,
+	dataRelayClient EmailSender,
 	cursoRepo *repository.CursoRepository,
 	orgaoSnapshotRepo *repository.OrgaoSnapshotRepository,
 	citizenSnapshotRepo *repository.CitizenSnapshotRepository,

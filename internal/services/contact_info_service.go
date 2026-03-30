@@ -7,17 +7,21 @@ import (
 	"log"
 	"time"
 
-	"github.com/prefeitura-rio/app-go-api/internal/auth"
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/redis/go-redis/v9"
 )
 
+// TokenManager is an interface for getting service account tokens
+type TokenManager interface {
+	GetToken(ctx context.Context) (string, error)
+}
+
 // ContactInfoService handles fetching and caching of CNPJ owner contact information
 type ContactInfoService struct {
 	rmiClient    *clients.RMIClient
-	tokenManager *auth.ServiceAccountTokenManager
+	tokenManager TokenManager
 	redisClient  *redis.Client
 	cacheTTL     time.Duration
 }
@@ -25,7 +29,7 @@ type ContactInfoService struct {
 // NewContactInfoService creates a new contact info service
 func NewContactInfoService(
 	rmiClient *clients.RMIClient,
-	tokenManager *auth.ServiceAccountTokenManager,
+	tokenManager TokenManager,
 	redisClient *redis.Client,
 	cfg *config.AppConfig,
 ) *ContactInfoService {

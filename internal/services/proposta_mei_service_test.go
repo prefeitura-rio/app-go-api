@@ -114,6 +114,34 @@ func (m *MockOportunidadeRepo) GetByID(ctx context.Context, id int) (*models.Opo
 	return oportunidade, nil
 }
 
+func (m *MockOportunidadeRepo) Create(ctx context.Context, oportunidade *models.OportunidadeMEI) (int, error) {
+	return 0, errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) Update(ctx context.Context, oportunidade *models.OportunidadeMEI) error {
+	return errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) Delete(ctx context.Context, id int) error {
+	return errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) List(ctx context.Context, filters map[string]interface{}, titulo string, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) ListByStatus(ctx context.Context, status models.StatusOportunidadeMEI, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) ListByOrgao(ctx context.Context, orgaoID string, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func (m *MockOportunidadeRepo) UpdateExpiredOpportunities(ctx context.Context) error {
+	return errors.New("not implemented")
+}
+
 // Mock CNAE Validation Service
 type MockCNAEValidation struct {
 	validateError        error
@@ -559,6 +587,281 @@ func TestPropostaMEIService_Delete(t *testing.T) {
 		// Verify proposal was deleted
 		if _, exists := mockPropostaRepo.propostas[id]; exists {
 			t.Error("Expected proposal to be deleted")
+		}
+	})
+
+	t.Run("Delete non-existent proposal", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		ctx := context.Background()
+		err := service.Delete(ctx, uuid.New())
+
+		if err != nil {
+			t.Errorf("Expected no error for deleting non-existent proposal, got: %v", err)
+		}
+	})
+
+	t.Run("Delete with repository error", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockPropostaRepo.deleteError = errors.New("database error")
+
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		ctx := context.Background()
+		err := service.Delete(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error from repository")
+		}
+	})
+}
+
+func TestPropostaMEIService_GetByID(t *testing.T) {
+	t.Run("Get existing proposal", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		id := uuid.New()
+		mockPropostaRepo.propostas[id] = &models.PropostaMEI{
+			ID:                id,
+			OportunidadeMEIID: 1,
+			MEIEmpresaID:      "12345678000190",
+			StatusCidadao:     models.StatusPropostaCidadaoSubmitted,
+		}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		ctx := context.Background()
+		proposta, err := service.GetByID(ctx, id)
+
+		if err != nil {
+			t.Errorf("Expected successful retrieval, got error: %v", err)
+		}
+
+		if proposta == nil {
+			t.Error("Expected proposta to not be nil")
+		}
+
+		if proposta.ID != id {
+			t.Errorf("Expected ID %s, got %s", id, proposta.ID)
+		}
+	})
+
+	t.Run("Get non-existent proposal", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		ctx := context.Background()
+		proposta, err := service.GetByID(ctx, uuid.New())
+
+		if err != nil {
+			t.Errorf("Expected no error for non-existent proposal, got: %v", err)
+		}
+
+		if proposta != nil {
+			t.Error("Expected proposta to be nil")
+		}
+	})
+
+	t.Run("Get with repository error", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockPropostaRepo.getError = errors.New("database error")
+
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		ctx := context.Background()
+		_, err := service.GetByID(ctx, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error from repository")
+		}
+	})
+}
+
+func TestPropostaMEIService_Update(t *testing.T) {
+	t.Run("Update proposal successfully", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		id := uuid.New()
+		existingValue := 1000.0
+		mockPropostaRepo.propostas[id] = &models.PropostaMEI{
+			ID:                id,
+			OportunidadeMEIID: 1,
+			MEIEmpresaID:      "12345678000190",
+			ValorProposta:     &existingValue,
+		}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		newValue := 2000.0
+		proposta := &models.PropostaMEI{
+			ID:                id,
+			OportunidadeMEIID: 1,
+			MEIEmpresaID:      "12345678000190",
+			ValorProposta:     &newValue,
+		}
+
+		ctx := context.Background()
+		err := service.Update(ctx, proposta)
+
+		if err != nil {
+			t.Errorf("Expected successful update, got error: %v", err)
+		}
+
+		updated := mockPropostaRepo.propostas[id]
+		if updated.ValorProposta == nil || *updated.ValorProposta != 2000.0 {
+			t.Error("Expected valor_proposta to be updated to 2000.0")
+		}
+	})
+
+	t.Run("Update passes through to repository", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		id := uuid.New()
+		mockPropostaRepo.propostas[id] = &models.PropostaMEI{
+			ID:                id,
+			OportunidadeMEIID: 1,
+			MEIEmpresaID:      "12345678000190",
+		}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		// Update just passes through to repo - no validation
+		proposta := &models.PropostaMEI{
+			ID:                id,
+			OportunidadeMEIID: 1,
+			MEIEmpresaID:      "12345678000190",
+		}
+
+		ctx := context.Background()
+		err := service.Update(ctx, proposta)
+
+		if err != nil {
+			t.Errorf("Expected successful update, got error: %v", err)
+		}
+	})
+
+	t.Run("Update with repository error", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockPropostaRepo.updateError = errors.New("database error")
+
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		id := uuid.New()
+		value := 1500.0
+		mockPropostaRepo.propostas[id] = &models.PropostaMEI{
+			ID:                id,
+			OportunidadeMEIID: 1,
+			MEIEmpresaID:      "12345678000190",
+			ValorProposta:     &value,
+		}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		ctx := context.Background()
+		err := service.Update(ctx, mockPropostaRepo.propostas[id])
+
+		if err == nil {
+			t.Error("Expected error from repository")
+		}
+	})
+}
+
+func TestPropostaMEIService_Create_RepositoryErrors(t *testing.T) {
+	t.Run("Create with CheckExistingProposta error", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockPropostaRepo.checkError = errors.New("database error")
+
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		mockOportunidadeRepo.oportunidades[1] = &models.OportunidadeMEI{
+			ID:      1,
+			Status:  models.StatusOportunidadeActive,
+			CNAEIDs: []string{"4110700"},
+		}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		proposta := &models.PropostaMEI{
+			OportunidadeMEIID: 1,
+			MEIEmpresaID:      "12345678000190",
+		}
+
+		ctx := context.Background()
+		_, err := service.Create(ctx, proposta, "Bearer test-token")
+
+		if err == nil {
+			t.Error("Expected error from CheckExistingProposta")
+		}
+	})
+
+	t.Run("Create with repository Create error", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockPropostaRepo.createError = errors.New("database error")
+
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		mockOportunidadeRepo.oportunidades[1] = &models.OportunidadeMEI{
+			ID:      1,
+			Status:  models.StatusOportunidadeActive,
+			CNAEIDs: []string{"4110700"},
+		}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		proposta := &models.PropostaMEI{
+			OportunidadeMEIID: 1,
+			MEIEmpresaID:      "12345678000190",
+		}
+
+		ctx := context.Background()
+		_, err := service.Create(ctx, proposta, "Bearer test-token")
+
+		if err == nil {
+			t.Error("Expected error from Create")
+		}
+	})
+
+	t.Run("Create with GetByID error", func(t *testing.T) {
+		mockPropostaRepo := NewMockPropostaRepo()
+		mockOportunidadeRepo := NewMockOportunidadeRepo()
+		mockOportunidadeRepo.getError = errors.New("database error")
+
+		mockCNAEValidation := &MockCNAEValidation{}
+
+		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
+
+		proposta := &models.PropostaMEI{
+			OportunidadeMEIID: 1,
+			MEIEmpresaID:      "12345678000190",
+		}
+
+		ctx := context.Background()
+		_, err := service.Create(ctx, proposta, "Bearer test-token")
+
+		if err == nil {
+			t.Error("Expected error from GetByID")
 		}
 	})
 }

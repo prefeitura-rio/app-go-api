@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -75,7 +76,14 @@ type PropostaMEIRepositoryInterface interface {
 
 // OportunidadeMEIRepositoryInterface defines the interface for OportunidadeMEI repository
 type OportunidadeMEIRepositoryInterface interface {
+	Create(ctx context.Context, oportunidade *models.OportunidadeMEI) (int, error)
 	GetByID(ctx context.Context, id int) (*models.OportunidadeMEI, error)
+	Update(ctx context.Context, oportunidade *models.OportunidadeMEI) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filters map[string]interface{}, titulo string, limit, offset int) ([]*models.OportunidadeMEI, int, error)
+	ListByStatus(ctx context.Context, status models.StatusOportunidadeMEI, limit, offset int) ([]*models.OportunidadeMEI, int, error)
+	ListByOrgao(ctx context.Context, orgaoID string, limit, offset int) ([]*models.OportunidadeMEI, int, error)
+	UpdateExpiredOpportunities(ctx context.Context) error
 }
 
 // CategoriaRepositoryInterface defines the interface for Categoria repository
@@ -125,4 +133,116 @@ type PropostaMEIServiceInterface interface {
 	ListByMEIEmpresa(ctx context.Context, meiEmpresaID string, page, pageSize int) ([]*models.PropostaMEI, int, error)
 	ListByStatus(ctx context.Context, status models.StatusPropostaCidadao, page, pageSize int) ([]*models.PropostaMEI, int, error)
 	UpdateMultipleStatus(ctx context.Context, propostaIDs []uuid.UUID, status models.StatusPropostaCidadao) (int, error)
+}
+
+// CursoRepositoryInterface defines the interface for Curso repository
+type CursoRepositoryInterface interface {
+	Create(ctx context.Context, curso *models.Curso) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Curso, error)
+	Update(ctx context.Context, curso *models.Curso) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error)
+	CreateCustomFields(ctx context.Context, fields []models.CustomField) error
+	CreateRemoteClass(ctx context.Context, remoteClass *models.RemoteClass) error
+	CreateLocationClasses(ctx context.Context, locations []models.LocationClass) error
+	ValidateForEnrollment(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error)
+	CountEnrollmentsByScheduleID(ctx context.Context, scheduleID uuid.UUID) (int64, error)
+	CountEnrollmentsByScheduleIDs(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error)
+	GetCourseScheduleByID(ctx context.Context, scheduleID uuid.UUID) (*models.CourseSchedule, error)
+	GetRemoteScheduleByID(ctx context.Context, scheduleID uuid.UUID) (*models.RemoteSchedule, error)
+}
+
+// InscricaoRepositoryInterface defines the interface for Inscricao repository
+type InscricaoRepositoryInterface interface {
+	Create(ctx context.Context, inscricao *models.Inscricao) error
+	GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error)
+	Update(ctx context.Context, inscricao *models.Inscricao) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	ExistsByCPFAndCurso(ctx context.Context, cpf string, cursoID int) (bool, error)
+	GetByCursoID(ctx context.Context, cursoID int, filter map[string]interface{}, limit, offset int) ([]*models.Inscricao, int, error)
+	UpdateStatus(ctx context.Context, inscricaoID uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error
+	UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error)
+	GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error)
+	ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error)
+	UpdateCertificate(ctx context.Context, inscricaoID uuid.UUID, certificateURL string) error
+}
+
+// InscricaoServiceInterface defines the interface for Inscricao service
+type InscricaoServiceInterface interface {
+	Create(ctx context.Context, inscricao *models.Inscricao) error
+	CreateManual(ctx context.Context, inscricao *models.Inscricao) error
+	GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error)
+	GetByCursoID(ctx context.Context, cursoID int, filter map[string]interface{}, page, pageSize int) ([]*models.Inscricao, int, error)
+	UpdateStatus(ctx context.Context, inscricaoID uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error
+	UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error)
+	GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error)
+	UpdateCertificate(ctx context.Context, cursoID int, inscricaoID uuid.UUID, certificateURL string) error
+	UpdateInscricao(ctx context.Context, id uuid.UUID, cursoID int, updateData *models.InscricaoUpdateRequest) error
+	EnrichWithPersonalInfo(ctx context.Context, inscricao *models.Inscricao)
+	EnrichMultipleWithPersonalInfo(ctx context.Context, inscricoes []*models.Inscricao)
+	ChangeSchedule(ctx context.Context, inscricaoID uuid.UUID, userCPF string, request *models.ScheduleChangeRequest) (*models.Inscricao, error)
+}
+
+// CursoServiceInterface defines the interface for Curso service
+type CursoServiceInterface interface {
+	Create(ctx context.Context, curso *models.Curso) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Curso, error)
+	Update(ctx context.Context, curso *models.Curso) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Curso, int, error)
+}
+
+// JobServiceInterface defines the interface for Job service
+type JobServiceInterface interface {
+	Create(ctx context.Context, job *models.Job) error
+	GetByID(ctx context.Context, id uuid.UUID) (*models.Job, error)
+	Update(ctx context.Context, job *models.Job) error
+	UpdateStatus(ctx context.Context, id uuid.UUID, status models.JobStatus) error
+	UpdateProgress(ctx context.Context, id uuid.UUID, progress, successCount, errorCount int) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Job, int, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+// OportunidadeMEIServiceInterface defines the interface for OportunidadeMEI service
+type OportunidadeMEIServiceInterface interface {
+	Create(ctx context.Context, oportunidade *models.OportunidadeMEI, isDraft bool) (int, error)
+	GetByID(ctx context.Context, id int) (*models.OportunidadeMEI, error)
+	Update(ctx context.Context, oportunidade *models.OportunidadeMEI) error
+	Publish(ctx context.Context, id int) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filters map[string]interface{}, titulo string, page, pageSize int) ([]*models.OportunidadeMEI, int, error)
+	ListByStatus(ctx context.Context, status models.StatusOportunidadeMEI, page, pageSize int) ([]*models.OportunidadeMEI, int, error)
+	ListDrafts(ctx context.Context, orgaoID, titulo string, page, pageSize int) ([]*models.OportunidadeMEI, int, error)
+	ListActive(ctx context.Context, page, pageSize int) ([]*models.OportunidadeMEI, int, error)
+	ListByOrgao(ctx context.Context, orgaoID string, page, pageSize int) ([]*models.OportunidadeMEI, int, error)
+	UpdateExpiredOpportunities(ctx context.Context) error
+}
+
+// CategoriaServiceInterface defines the interface for Categoria service
+type CategoriaServiceInterface interface {
+	Create(ctx context.Context, categoria *models.Categoria) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Categoria, error)
+	Update(ctx context.Context, categoria *models.Categoria) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Categoria, int, error)
+}
+
+// AcessibilidadeServiceInterface defines the interface for Acessibilidade service
+type AcessibilidadeServiceInterface interface {
+	Create(ctx context.Context, acessibilidade *models.Acessibilidade) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Acessibilidade, error)
+	Update(ctx context.Context, acessibilidade *models.Acessibilidade) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Acessibilidade, int, error)
+}
+
+// EscolaridadeServiceInterface defines the interface for Escolaridade service
+type EscolaridadeServiceInterface interface {
+	Create(ctx context.Context, escolaridade *models.Escolaridade) (int, error)
+	GetByID(ctx context.Context, id int) (*models.Escolaridade, error)
+	Update(ctx context.Context, escolaridade *models.Escolaridade) error
+	Delete(ctx context.Context, id int) error
+	List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Escolaridade, int, error)
 }

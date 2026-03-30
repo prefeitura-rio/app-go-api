@@ -471,3 +471,507 @@ func TestCandidaturaHandler_UpdateEtapa_InvalidID(t *testing.T) {
 		t.Errorf("expected 400, got %d", w.Code)
 	}
 }
+
+func TestCandidaturaHandler_UpdateEtapa_BadJSON(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{bad}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID+"/etapa", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: Update
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestCandidaturaHandler_Update_InvalidID(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "user", false)
+	body := bodyOf(`{"id_vaga":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/bad-id", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_Update_NotFound(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{entity: nil}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "user", false)
+	body := bodyOf(`{"id_vaga":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_Update_Forbidden_NotOwner(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{
+		entity: &empmodels.Candidatura{
+			ID:  uuid.MustParse(validUUID),
+			CPF: "12345678900",
+		},
+	}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "99999999999", false)
+	body := bodyOf(`{"id_vaga":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_Update_Success_AsOwner(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{
+		entity: &empmodels.Candidatura{
+			ID:  uuid.MustParse(validUUID),
+			CPF: "12345678900",
+		},
+	}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	body := bodyOf(`{"id_vaga":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCandidaturaHandler_Update_Success_AsAdmin(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{
+		entity: &empmodels.Candidatura{
+			ID:  uuid.MustParse(validUUID),
+			CPF: "12345678900",
+		},
+	}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{"id_vaga":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCandidaturaHandler_Update_BadJSON(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{
+		entity: &empmodels.Candidatura{
+			ID:  uuid.MustParse(validUUID),
+			CPF: "12345678900",
+		},
+	}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	body := bodyOf(`{bad}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: UpdateStatus
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestCandidaturaHandler_UpdateStatus_InvalidID(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{"status":"em_processo"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/bad-id/status", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_UpdateStatus_BadJSON(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{bad}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID+"/status", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: Approve/Reject Success Cases
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestCandidaturaHandler_Approve_Success(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{
+		entity: &empmodels.Candidatura{
+			ID:     uuid.MustParse(validUUID),
+			CPF:    "12345678900",
+			IDVaga: uuid.MustParse(validUUID),
+			Status: empmodels.StatusCandidaturaEnviada,
+		},
+	}
+	vagaRepo := &mockVagaForCandidaturaH{
+		entity: &empmodels.Vaga{
+			ID:     uuid.MustParse(validUUID),
+			Status: empmodels.StatusVagaPublicadoAtivo,
+		},
+	}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID+"/approve", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCandidaturaHandler_Reject_Success(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{
+		entity: &empmodels.Candidatura{
+			ID:     uuid.MustParse(validUUID),
+			CPF:    "12345678900",
+			IDVaga: uuid.MustParse(validUUID),
+			Status: empmodels.StatusCandidaturaEnviada,
+		},
+	}
+	vagaRepo := &mockVagaForCandidaturaH{
+		entity: &empmodels.Vaga{
+			ID:     uuid.MustParse(validUUID),
+			Status: empmodels.StatusVagaPublicadoAtivo,
+		},
+	}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID+"/reject", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: BulkUpdateStatus Success
+// ──────────────────────────────────────────────────────────────────────────────
+
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: BulkUpdateEtapa Success
+// ──────────────────────────────────────────────────────────────────────────────
+
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Additional CandidaturaHandler Edge Case Tests
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestCandidaturaHandler_List_InvalidVagaID(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas?vagaId=bad-uuid", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_List_InvalidEtapaID(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas?etapa_id=bad-uuid", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_List_InvalidPageSize(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{listItems: []*empmodels.Candidatura{}, listTotal: 0}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas?pageSize=2000", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_List_InvalidPage(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{listItems: []*empmodels.Candidatura{}, listTotal: 0}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas?page=-1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_ListByCPF_InvalidVagaID_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas/usuario/12345678900?vagaId=bad-uuid", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_ListByCPF_InvalidEtapaID_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas/usuario/12345678900?etapa_id=bad-uuid", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_ListByCPF_ServiceError_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{err: errTest}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas/usuario/12345678900", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_ListByCPF_InvalidPageSize_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{listItems: []*empmodels.Candidatura{}, listTotal: 0}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas/usuario/12345678900?pageSize=2000", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_GetByID_ServiceError_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{err: errTest}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_Delete_ServiceError_EdgeCase(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	candRepo := &mockCandidaturaRepoH{
+		entity: &empmodels.Candidatura{ID: id, CPF: "12345678900"},
+		err:    errTest,
+	}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodDelete, "/candidaturas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_Delete_Forbidden_NotOwner_EdgeCase(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	candRepo := &mockCandidaturaRepoH{
+		entity: &empmodels.Candidatura{ID: id, CPF: "12345678900"},
+	}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "99999999999", false)
+	req := httptest.NewRequest(http.MethodDelete, "/candidaturas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_Delete_GetByIDError_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{err: errTest}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodDelete, "/candidaturas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_UpdateStatus_ServiceError_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{err: errTest}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{"status":"em_processo"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID+"/status", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_Approve_ServiceError_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{err: errTest}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID+"/approve", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_Reject_ServiceError_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{err: errTest}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID+"/reject", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_BulkUpdateStatus_ServiceError_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{err: errTest}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{"cpfs":["12345678900"],"vaga_id":"` + validUUID + `","status":"aprovado"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/bulk-status", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_BulkUpdateEtapa_ServiceError_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{err: errTest}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	etapaID := uuid.New().String()
+	body := bodyOf(`{"cpfs":["12345678900"],"vaga_id":"` + validUUID + `","id_etapa":"` + etapaID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/bulk-etapa", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_UpdateEtapa_ServiceError_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{err: errTest}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{"id_etapa_atual":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID+"/etapa", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_Update_ServiceError_EdgeCase(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	candRepo := &mockCandidaturaRepoH{
+		entity: &empmodels.Candidatura{ID: id, CPF: "12345678900"},
+		err:    errTest,
+	}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	body := bodyOf(`{"id_vaga":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_Update_GetByIDError_EdgeCase(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{err: errTest}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	body := bodyOf(`{"id_vaga":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_Create_ServiceError_EdgeCase(t *testing.T) {
+	activeVaga := &empmodels.Vaga{
+		ID:     uuid.MustParse(validUUID),
+		Status: empmodels.StatusVagaPublicadoAtivo,
+	}
+	vagaRepo := &mockVagaForCandidaturaH{entity: activeVaga}
+	candRepo := &mockCandidaturaRepoH{exists: false, err: errTest}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+	body := bodyOf(`{"id_vaga":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/candidaturas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusCreated {
+		t.Error("expected error status")
+	}
+}

@@ -485,3 +485,161 @@ func TestCNAEValidationService_EdgeCases(t *testing.T) {
 		}
 	})
 }
+
+func TestCNAEValidationService_CheckCNPJOwnership(t *testing.T) {
+	validToken := "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcmVmZXJyZWRfdXNlcm5hbWUiOiIxMjM0NTY3ODkwMCJ9.fake"
+
+	t.Run("CNPJ belongs to user", func(t *testing.T) {
+		mockRMI := &MockRMIClient{
+			entities: []models.LegalEntity{
+				{
+					CNPJ:            "12345678000190",
+					CNAEFiscal:      "4110700",
+					CNAESecundarias: []string{},
+					RazaoSocial:     "Test Company LTDA",
+				},
+			},
+		}
+		mockCache := NewMockCache()
+
+		service := services.NewCNAEValidationService(mockRMI, mockCache)
+
+		ctx := context.Background()
+		isOwner, err := service.CheckCNPJOwnership(ctx, validToken, "12345678900", "12345678000190")
+
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+
+		if !isOwner {
+			t.Error("Expected CNPJ to belong to user")
+		}
+	})
+
+	t.Run("CNPJ does not belong to user", func(t *testing.T) {
+		mockRMI := &MockRMIClient{
+			entities: []models.LegalEntity{
+				{
+					CNPJ:            "98765432000199",
+					CNAEFiscal:      "4110700",
+					CNAESecundarias: []string{},
+					RazaoSocial:     "Other Company LTDA",
+				},
+			},
+		}
+		mockCache := NewMockCache()
+
+		service := services.NewCNAEValidationService(mockRMI, mockCache)
+
+		ctx := context.Background()
+		isOwner, err := service.CheckCNPJOwnership(ctx, validToken, "12345678900", "12345678000190")
+
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+
+		if isOwner {
+			t.Error("Expected CNPJ to not belong to user")
+		}
+	})
+
+	t.Run("User has no CNPJs", func(t *testing.T) {
+		mockRMI := &MockRMIClient{
+			entities: []models.LegalEntity{},
+		}
+		mockCache := NewMockCache()
+
+		service := services.NewCNAEValidationService(mockRMI, mockCache)
+
+		ctx := context.Background()
+		isOwner, err := service.CheckCNPJOwnership(ctx, validToken, "12345678900", "12345678000190")
+
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+
+		if isOwner {
+			t.Error("Expected CNPJ to not belong to user when user has no CNPJs")
+		}
+	})
+
+	t.Run("RMI API error", func(t *testing.T) {
+		mockRMI := &MockRMIClient{
+			err: errors.New("RMI API connection failed"),
+		}
+		mockCache := NewMockCache()
+
+		service := services.NewCNAEValidationService(mockRMI, mockCache)
+
+		ctx := context.Background()
+		_, err := service.CheckCNPJOwnership(ctx, validToken, "12345678900", "12345678000190")
+
+		if err == nil {
+			t.Error("Expected error from RMI API")
+		}
+	})
+
+	t.Run("Cache hit", func(t *testing.T) {
+		mockRMI := &MockRMIClient{
+			entities: []models.LegalEntity{
+				{
+					CNPJ:            "12345678000190",
+					CNAEFiscal:      "4110700",
+					CNAESecundarias: []string{},
+					RazaoSocial:     "Test Company LTDA",
+				},
+			},
+		}
+		mockCache := NewMockCache()
+
+		// Pre-populate cache
+		mockCache.Set(context.Background(), "12345678900", []models.LegalEntity{
+			{
+				CNPJ:            "12345678000190",
+				CNAEFiscal:      "4110700",
+				CNAESecundarias: []string{},
+				RazaoSocial:     "Test Company LTDA",
+			},
+		})
+
+		service := services.NewCNAEValidationService(mockRMI, mockCache)
+
+		ctx := context.Background()
+		isOwner, err := service.CheckCNPJOwnership(ctx, validToken, "12345678900", "12345678000190")
+
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+
+		if !isOwner {
+			t.Error("Expected CNPJ to belong to user from cache")
+		}
+	})
+
+	t.Run("CNPJ normalization works", func(t *testing.T) {
+		mockRMI := &MockRMIClient{
+			entities: []models.LegalEntity{
+				{
+					CNPJ:            "12.345.678/0001-90", // Formatted
+					CNAEFiscal:      "4110700",
+					CNAESecundarias: []string{},
+					RazaoSocial:     "Test Company LTDA",
+				},
+			},
+		}
+		mockCache := NewMockCache()
+
+		service := services.NewCNAEValidationService(mockRMI, mockCache)
+
+		ctx := context.Background()
+		isOwner, err := service.CheckCNPJOwnership(ctx, validToken, "12345678900", "12345678000190") // Raw
+
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+
+		if !isOwner {
+			t.Error("Expected CNPJ to belong to user with normalized CNPJ")
+		}
+	})
+}

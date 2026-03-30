@@ -12,7 +12,7 @@ type EscolaridadeHandler struct {
 	*common.CRUDHandler[models.Escolaridade]
 }
 
-func NewEscolaridadeHandler(service *services.EscolaridadeService) *EscolaridadeHandler {
+func NewEscolaridadeHandler(service services.EscolaridadeServiceInterface) *EscolaridadeHandler {
 	return &EscolaridadeHandler{
 		CRUDHandler: common.NewCRUDHandler[models.Escolaridade](service, "Escolaridade"),
 	}

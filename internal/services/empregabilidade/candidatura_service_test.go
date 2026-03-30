@@ -771,3 +771,312 @@ func TestCandidaturaService_Create_CurriculoSnapshot(t *testing.T) {
 		}
 	})
 }
+
+// ==================== UpdateEtapa Tests ====================
+
+func TestCandidaturaService_UpdateEtapa_Success(t *testing.T) {
+	t.Run("Successfully update etapa", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		candID := uuid.New()
+		vagaID := uuid.New()
+		etapaID := uuid.New()
+
+		mockCandidaturaRepo.candidaturas[candID] = &empregabilidade.Candidatura{
+			ID:     candID,
+			IDVaga: vagaID,
+		}
+
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID: vagaID,
+			Etapas: []empregabilidade.Etapa{
+				{ID: etapaID, Titulo: "Entrevista"},
+			},
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.UpdateEtapa(ctx, candID, etapaID)
+
+		if err != nil {
+			t.Errorf("Expected successful etapa update, got error: %v", err)
+		}
+	})
+}
+
+func TestCandidaturaService_UpdateEtapa_Errors(t *testing.T) {
+	t.Run("Error when candidatura not found", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.UpdateEtapa(ctx, uuid.New(), uuid.New())
+
+		if err == nil || err.Error() != "candidatura não encontrada" {
+			t.Errorf("Expected 'candidatura não encontrada', got: %v", err)
+		}
+	})
+
+	t.Run("Error when etapa not belongs to vaga", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		candID := uuid.New()
+		vagaID := uuid.New()
+		etapaID := uuid.New()
+
+		mockCandidaturaRepo.candidaturas[candID] = &empregabilidade.Candidatura{
+			ID:     candID,
+			IDVaga: vagaID,
+		}
+
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Etapas: []empregabilidade.Etapa{},
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.UpdateEtapa(ctx, candID, etapaID)
+
+		if err == nil {
+			t.Error("Expected error when etapa doesn't belong to vaga")
+		}
+	})
+}
+
+// ==================== BulkUpdateStatus Tests ====================
+
+func TestCandidaturaService_BulkUpdateStatus_Success(t *testing.T) {
+	t.Run("Successfully bulk update status", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		vagaID := uuid.New()
+		cpf1 := "11111111111"
+		cpf2 := "22222222222"
+
+		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
+			CPF:    cpf1,
+			IDVaga: vagaID,
+			Status: empregabilidade.StatusCandidaturaEnviada,
+		}
+		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
+			CPF:    cpf2,
+			IDVaga: vagaID,
+			Status: empregabilidade.StatusCandidaturaEnviada,
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		result, err := service.BulkUpdateStatus(ctx, vagaID, []string{cpf1, cpf2}, empregabilidade.StatusCandidaturaAprovada)
+
+		if err != nil {
+			t.Errorf("Expected successful bulk update, got error: %v", err)
+		}
+
+		if result.Updated != 2 {
+			t.Errorf("Expected 2 updates, got %d", result.Updated)
+		}
+	})
+}
+
+func TestCandidaturaService_BulkUpdateStatus_Errors(t *testing.T) {
+	t.Run("Error with invalid status", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		_, err := service.BulkUpdateStatus(ctx, uuid.New(), []string{"12345678901"}, "invalid_status")
+
+		if err == nil {
+			t.Error("Expected error with invalid status")
+		}
+	})
+
+	t.Run("Error with empty CPF list", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		_, err := service.BulkUpdateStatus(ctx, uuid.New(), []string{}, empregabilidade.StatusCandidaturaAprovada)
+
+		if err == nil || err.Error() != "lista de CPFs não pode ser vazia" {
+			t.Errorf("Expected 'lista de CPFs não pode ser vazia', got: %v", err)
+		}
+	})
+}
+
+// ==================== BulkUpdateEtapa Tests ====================
+
+func TestCandidaturaService_BulkUpdateEtapa_Success(t *testing.T) {
+	t.Run("Successfully bulk update etapa", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		vagaID := uuid.New()
+		etapaID := uuid.New()
+		cpf1 := "11111111111"
+		cpf2 := "22222222222"
+
+		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
+			CPF:    cpf1,
+			IDVaga: vagaID,
+		}
+		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
+			CPF:    cpf2,
+			IDVaga: vagaID,
+		}
+
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID: vagaID,
+			Etapas: []empregabilidade.Etapa{
+				{ID: etapaID, Titulo: "Entrevista"},
+			},
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		result, err := service.BulkUpdateEtapa(ctx, vagaID, []string{cpf1, cpf2}, etapaID)
+
+		if err != nil {
+			t.Errorf("Expected successful bulk update, got error: %v", err)
+		}
+
+		if result.Updated != 2 {
+			t.Errorf("Expected 2 updates, got %d", result.Updated)
+		}
+	})
+}
+
+func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
+	t.Run("Error when vaga not found", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		_, err := service.BulkUpdateEtapa(ctx, uuid.New(), []string{"12345678901"}, uuid.New())
+
+		if err == nil {
+			t.Error("Expected error when vaga not found")
+		}
+	})
+
+	t.Run("Error when etapa not belongs to vaga", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Etapas: []empregabilidade.Etapa{},
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		_, err := service.BulkUpdateEtapa(ctx, vagaID, []string{"12345678901"}, uuid.New())
+
+		if err == nil || err.Error() != "etapa não pertence à vaga" {
+			t.Errorf("Expected 'etapa não pertence à vaga', got: %v", err)
+		}
+	})
+}
+
+// ==================== Delete Tests ====================
+
+func TestCandidaturaService_Delete_Success(t *testing.T) {
+	t.Run("Successfully delete candidatura", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		id := uuid.New()
+		mockCandidaturaRepo.candidaturas[id] = &empregabilidade.Candidatura{
+			ID: id,
+		}
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		err := service.Delete(ctx, id)
+
+		if err != nil {
+			t.Errorf("Expected successful delete, got error: %v", err)
+		}
+
+		if _, exists := mockCandidaturaRepo.candidaturas[id]; exists {
+			t.Error("Expected candidatura to be deleted")
+		}
+	})
+}
+
+// ==================== List and CountByStatus Tests ====================
+
+func TestCandidaturaService_List_Success(t *testing.T) {
+	t.Run("Successfully list candidaturas", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		result, total, err := service.List(ctx, empregabilidade.CandidaturaFilter{}, 1, 10)
+
+		if err != nil {
+			t.Errorf("Expected successful list, got error: %v", err)
+		}
+
+		if result == nil {
+			t.Error("Expected non-nil result")
+		}
+
+		if total < 0 {
+			t.Errorf("Expected non-negative total, got %d", total)
+		}
+	})
+}
+
+func TestCandidaturaService_CountByStatus_Success(t *testing.T) {
+	t.Run("Successfully count by status", func(t *testing.T) {
+		mockCandidaturaRepo := NewMockCandidaturaRepo()
+		mockVagaRepo := NewMockVagaRepo()
+		mockCurriculoService := NewMockCurriculoService()
+
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+
+		ctx := context.Background()
+		result, err := service.CountByStatus(ctx, empregabilidade.CandidaturaFilter{})
+
+		if err != nil {
+			t.Errorf("Expected successful count, got error: %v", err)
+		}
+
+		if result == nil {
+			t.Error("Expected non-nil result")
+		}
+	})
+}

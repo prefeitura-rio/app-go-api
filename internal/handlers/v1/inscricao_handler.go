@@ -17,17 +17,16 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
-	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
 type InscricaoHandler struct {
-	service    *services.InscricaoService
-	jobService *services.JobService
-	cursoRepo  *repository.CursoRepository
+	service    services.InscricaoServiceInterface
+	jobService services.JobServiceInterface
+	cursoRepo  services.CursoRepositoryInterface
 }
 
-func NewInscricaoHandler(service *services.InscricaoService, jobService *services.JobService, cursoRepo *repository.CursoRepository) *InscricaoHandler {
+func NewInscricaoHandler(service services.InscricaoServiceInterface, jobService services.JobServiceInterface, cursoRepo services.CursoRepositoryInterface) *InscricaoHandler {
 	return &InscricaoHandler{
 		service:    service,
 		jobService: jobService,

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -330,9 +331,10 @@ func Initialize() error {
 		}
 	}
 
-	// Carregar configuração inicial
-	_, err := Get()
-	return err
+	// Note: We don't call Get() here to avoid circular dependency
+	// Get() -> once.Do(Load) -> Load() -> Initialize() -> Get() would deadlock
+	// The caller (Load or Get) will handle loading the config
+	return nil
 }
 
 // Load carrega configurações de variáveis de ambiente e arquivo .env
@@ -498,11 +500,21 @@ func getEnv(v *viper.Viper, key, defaultValue string) string {
 
 func getInt(v *viper.Viper, key string, defaultValue int) int {
 	if v.IsSet(key) {
+		strVal := v.GetString(key)
+		if strVal != "" {
+			// Use strconv.Atoi for proper parsing of string values
+			if val, err := strconv.Atoi(strings.TrimSpace(strVal)); err == nil {
+				return val
+			}
+			// Parse error - use default
+			return defaultValue
+		}
+		// Empty string - try GetInt in case value is numeric type
 		return v.GetInt(key)
 	}
 	// Fallback para os.Getenv diretamente
 	if value := os.Getenv(key); value != "" {
-		if val, err := fmt.Sscanf(value, "%d", new(int)); err == nil && val > 0 {
+		if val, err := strconv.Atoi(strings.TrimSpace(value)); err == nil {
 			return val
 		}
 	}
@@ -511,18 +523,48 @@ func getInt(v *viper.Viper, key string, defaultValue int) int {
 
 func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 	if v.IsSet(key) {
-		return v.GetBool(key)
+		strVal := strings.TrimSpace(v.GetString(key))
+		lowerVal := strings.ToLower(strVal)
+		// Only accept explicit true/false values
+		if lowerVal == "true" || lowerVal == "1" {
+			return true
+		} else if lowerVal == "false" || lowerVal == "0" {
+			return false
+		}
+		// Invalid boolean value - use default
+		return defaultValue
 	}
 	// Fallback para os.Getenv diretamente
 	if value := os.Getenv(key); value != "" {
-		return strings.ToLower(value) == "true"
+		lowerVal := strings.ToLower(strings.TrimSpace(value))
+		if lowerVal == "true" || lowerVal == "1" {
+			return true
+		} else if lowerVal == "false" || lowerVal == "0" {
+			return false
+		}
 	}
 	return defaultValue
 }
 
 func getDuration(v *viper.Viper, key string, defaultValue time.Duration) time.Duration {
 	if v.IsSet(key) {
-		return v.GetDuration(key)
+		val := v.Get(key)
+		switch t := val.(type) {
+		case time.Duration:
+			return t
+		case int:
+			return time.Duration(t) * time.Second
+		case int64:
+			return time.Duration(t) * time.Second
+		case float64:
+			return time.Duration(t * float64(time.Second))
+		case string:
+			if d, err := time.ParseDuration(t); err == nil {
+				return d
+			}
+		}
+		// Parse error - use default
+		return defaultValue
 	}
 	// Fallback para os.Getenv diretamente
 	if value := os.Getenv(key); value != "" {
@@ -534,8 +576,24 @@ func getDuration(v *viper.Viper, key string, defaultValue time.Duration) time.Du
 }
 
 func getStringSlice(v *viper.Viper, key string) []string {
-	// Try viper first
+	// Viper's GetStringSlice doesn't parse comma-separated values from env vars
+	// We need to handle this manually
 	if v.IsSet(key) {
+		// First try to get as string and parse manually
+		strVal := v.GetString(key)
+		if strVal != "" {
+			// Split by comma and trim spaces
+			parts := strings.Split(strVal, ",")
+			result := make([]string, 0, len(parts))
+			for _, part := range parts {
+				trimmed := strings.TrimSpace(part)
+				if trimmed != "" {
+					result = append(result, trimmed)
+				}
+			}
+			return result
+		}
+		// Fallback to GetStringSlice for array values from config files
 		return v.GetStringSlice(key)
 	}
 	// Fallback para os.Getenv com parse de comma-separated values

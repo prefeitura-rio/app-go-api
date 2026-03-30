@@ -760,3 +760,264 @@ func TestVagaService_Update_RepositoryErrors(t *testing.T) {
 		}
 	})
 }
+
+// ==================== FreezeVaga Tests ====================
+
+func TestVagaService_FreezeVaga_Success(t *testing.T) {
+	t.Run("Successfully freeze active vaga", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		mockCandidaturaRepo := &MockCandidaturaRepoForVaga{}
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaPublicadoAtivo,
+		}
+
+		ctx := context.Background()
+		err := service.FreezeVaga(ctx, vagaID)
+
+		if err != nil {
+			t.Errorf("Expected successful freeze, got error: %v", err)
+		}
+
+		if mockVagaRepo.vagas[vagaID].Status != empregabilidade.StatusVagaCongelada {
+			t.Errorf("Expected status vaga_congelada, got %s", mockVagaRepo.vagas[vagaID].Status)
+		}
+	})
+}
+
+func TestVagaService_FreezeVaga_Errors(t *testing.T) {
+	t.Run("Error when vaga not found", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		ctx := context.Background()
+		err := service.FreezeVaga(ctx, uuid.New())
+
+		if err == nil || err.Error() != "vaga não encontrada" {
+			t.Errorf("Expected 'vaga não encontrada', got: %v", err)
+		}
+	})
+
+	t.Run("Error when vaga not active", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaEmEdicao,
+		}
+
+		ctx := context.Background()
+		err := service.FreezeVaga(ctx, vagaID)
+
+		if err == nil {
+			t.Error("Expected error when vaga not active")
+		}
+	})
+}
+
+// ==================== UnfreezeVaga Tests ====================
+
+func TestVagaService_UnfreezeVaga_Success(t *testing.T) {
+	t.Run("Successfully unfreeze frozen vaga", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		mockCandidaturaRepo := &MockCandidaturaRepoForVaga{}
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaCongelada,
+		}
+
+		ctx := context.Background()
+		err := service.UnfreezeVaga(ctx, vagaID)
+
+		if err != nil {
+			t.Errorf("Expected successful unfreeze, got error: %v", err)
+		}
+
+		if mockVagaRepo.vagas[vagaID].Status != empregabilidade.StatusVagaPublicadoAtivo {
+			t.Errorf("Expected status publicado_ativo, got %s", mockVagaRepo.vagas[vagaID].Status)
+		}
+	})
+}
+
+func TestVagaService_UnfreezeVaga_Errors(t *testing.T) {
+	t.Run("Error when vaga not frozen", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaPublicadoAtivo,
+		}
+
+		ctx := context.Background()
+		err := service.UnfreezeVaga(ctx, vagaID)
+
+		if err == nil {
+			t.Error("Expected error when vaga not frozen")
+		}
+	})
+}
+
+// ==================== DiscontinueVaga Tests ====================
+
+func TestVagaService_DiscontinueVaga_Success(t *testing.T) {
+	testCases := []struct {
+		name   string
+		status empregabilidade.StatusVaga
+	}{
+		{"Discontinue active vaga", empregabilidade.StatusVagaPublicadoAtivo},
+		{"Discontinue expired vaga", empregabilidade.StatusVagaPublicadoExpirado},
+		{"Discontinue frozen vaga", empregabilidade.StatusVagaCongelada},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockVagaRepo := NewMockVagaRepoForService()
+			mockEmpresaRepo := NewMockEmpresaRepoForService()
+			mockCandidaturaRepo := &MockCandidaturaRepoForVaga{}
+			service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+
+			vagaID := uuid.New()
+			mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+				ID:     vagaID,
+				Status: tc.status,
+			}
+
+			ctx := context.Background()
+			err := service.DiscontinueVaga(ctx, vagaID)
+
+			if err != nil {
+				t.Errorf("Expected successful discontinue, got error: %v", err)
+			}
+
+			if mockVagaRepo.vagas[vagaID].Status != empregabilidade.StatusVagaDescontinuada {
+				t.Errorf("Expected status vaga_descontinuada, got %s", mockVagaRepo.vagas[vagaID].Status)
+			}
+		})
+	}
+}
+
+func TestVagaService_DiscontinueVaga_Errors(t *testing.T) {
+	t.Run("Error when vaga in draft", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaEmEdicao,
+		}
+
+		ctx := context.Background()
+		err := service.DiscontinueVaga(ctx, vagaID)
+
+		if err == nil {
+			t.Error("Expected error when discontinuing draft vaga")
+		}
+	})
+}
+
+// ==================== ReactivateVaga Tests ====================
+
+func TestVagaService_ReactivateVaga_Success(t *testing.T) {
+	t.Run("Successfully reactivate discontinued vaga", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		mockCandidaturaRepo := &MockCandidaturaRepoForVaga{}
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, mockCandidaturaRepo)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaDescontinuada,
+		}
+
+		ctx := context.Background()
+		err := service.ReactivateVaga(ctx, vagaID)
+
+		if err != nil {
+			t.Errorf("Expected successful reactivate, got error: %v", err)
+		}
+
+		if mockVagaRepo.vagas[vagaID].Status != empregabilidade.StatusVagaPublicadoAtivo {
+			t.Errorf("Expected status publicado_ativo, got %s", mockVagaRepo.vagas[vagaID].Status)
+		}
+	})
+}
+
+func TestVagaService_ReactivateVaga_Errors(t *testing.T) {
+	t.Run("Error when vaga not discontinued", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaPublicadoAtivo,
+		}
+
+		ctx := context.Background()
+		err := service.ReactivateVaga(ctx, vagaID)
+
+		if err == nil {
+			t.Error("Expected error when reactivating non-discontinued vaga")
+		}
+	})
+}
+
+// ==================== Delete Tests ====================
+
+func TestVagaService_Delete_Success(t *testing.T) {
+	t.Run("Successfully delete vaga", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID: vagaID,
+		}
+
+		ctx := context.Background()
+		err := service.Delete(ctx, vagaID)
+
+		if err != nil {
+			t.Errorf("Expected successful delete, got error: %v", err)
+		}
+
+		if _, exists := mockVagaRepo.vagas[vagaID]; exists {
+			t.Error("Expected vaga to be deleted")
+		}
+	})
+}
+
+// ==================== Mock Candidatura Repo for Vaga ====================
+
+type MockCandidaturaRepoForVaga struct {
+	saveError    error
+	restoreError error
+}
+
+func (m *MockCandidaturaRepoForVaga) BulkSaveAndUpdateStatusByVagaID(ctx context.Context, vagaID uuid.UUID, status empregabilidade.StatusCandidatura) error {
+	return m.saveError
+}
+
+func (m *MockCandidaturaRepoForVaga) BulkRestoreStatusByVagaID(ctx context.Context, vagaID uuid.UUID) error {
+	return m.restoreError
+}

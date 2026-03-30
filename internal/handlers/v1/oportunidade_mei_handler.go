@@ -11,10 +11,10 @@ import (
 )
 
 type OportunidadeMEIHandler struct {
-	service *services.OportunidadeMEIService
+	service services.OportunidadeMEIServiceInterface
 }
 
-func NewOportunidadeMEIHandler(service *services.OportunidadeMEIService) *OportunidadeMEIHandler {
+func NewOportunidadeMEIHandler(service services.OportunidadeMEIServiceInterface) *OportunidadeMEIHandler {
 	return &OportunidadeMEIHandler{
 		service: service,
 	}

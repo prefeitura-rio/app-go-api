@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/lib/pq"
@@ -158,5 +159,82 @@ func TestDatabaseError_GetHTTPStatusCode(t *testing.T) {
 		if got := de.GetHTTPStatusCode(); got != tt.want {
 			t.Errorf("Type %d: got %d, want %d", tt.typ, got, tt.want)
 		}
+	}
+}
+
+func TestParseNotNullError_AllFieldMappings(t *testing.T) {
+	tests := []struct {
+		column   string
+		wantName string
+	}{
+		{"titulo", "título"},
+		{"nome", "nome"},
+		{"email", "email"},
+		{"cpf", "CPF"},
+		{"modalidade", "modalidade"},
+		{"status", "status"},
+		{"organization", "organização"},
+		{"descricao", "descrição"},
+		{"unknown_field", "unknown_field"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.column, func(t *testing.T) {
+			err := &pq.Error{Code: pq.ErrorCode("23502"), Column: tt.column}
+			out := ParseDatabaseError(err)
+			if out == nil {
+				t.Fatal("expected non-nil")
+			}
+			if out.Type != NotNullViolation {
+				t.Errorf("expected NotNullViolation, got %d", out.Type)
+			}
+			if !strings.Contains(out.Message, tt.wantName) {
+				t.Errorf("Message %q should contain %q", out.Message, tt.wantName)
+			}
+		})
+	}
+}
+
+func TestParseCheckViolationError_AllConstraints(t *testing.T) {
+	tests := []struct {
+		constraint string
+		wantField  string
+		wantInMsg  string
+	}{
+		{"chk_modalidade_valid", "modalidade", "Modalidade inválida"},
+		{"check_status", "status", "Status inválido"},
+		{"other_check", "", "Valor inválido"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.constraint, func(t *testing.T) {
+			err := &pq.Error{Code: pq.ErrorCode("23514"), Constraint: tt.constraint}
+			out := ParseDatabaseError(err)
+			if out == nil {
+				t.Fatal("expected non-nil")
+			}
+			if out.Type != CheckViolation {
+				t.Errorf("expected CheckViolation, got %d", out.Type)
+			}
+			if tt.wantField != "" && out.Field != tt.wantField {
+				t.Errorf("Field: got %s, want %s", out.Field, tt.wantField)
+			}
+			if !strings.Contains(out.Message, tt.wantInMsg) {
+				t.Errorf("Message %q should contain %q", out.Message, tt.wantInMsg)
+			}
+		})
+	}
+}
+
+func TestParseDatabaseError_UnknownCode(t *testing.T) {
+	// Test an unknown PostgreSQL error code
+	err := &pq.Error{Code: pq.ErrorCode("99999"), Message: "Some unknown error"}
+	out := ParseDatabaseError(err)
+	if out == nil {
+		t.Fatal("expected non-nil")
+	}
+	if out.Type != UnknownError {
+		t.Errorf("expected UnknownError, got %d", out.Type)
+	}
+	if out.Message != "Erro interno do servidor" {
+		t.Errorf("unexpected Message: %s", out.Message)
 	}
 }
