@@ -17,6 +17,7 @@ type MockCursoRepository struct {
 	CreateFunc                        func(ctx context.Context, curso *models.Curso) (int, error)
 	GetByIDFunc                       func(ctx context.Context, id int) (*models.Curso, error)
 	UpdateFunc                        func(ctx context.Context, curso *models.Curso) error
+	UpdateStatusFunc                  func(ctx context.Context, id int, status models.StatusCurso) error
 	DeleteFunc                        func(ctx context.Context, id int) error
 	ListFunc                          func(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error)
 	CreateCustomFieldsFunc            func(ctx context.Context, fields []models.CustomField) error
@@ -46,6 +47,13 @@ func (m *MockCursoRepository) GetByID(ctx context.Context, id int) (*models.Curs
 func (m *MockCursoRepository) Update(ctx context.Context, curso *models.Curso) error {
 	if m.UpdateFunc != nil {
 		return m.UpdateFunc(ctx, curso)
+	}
+	return nil
+}
+
+func (m *MockCursoRepository) UpdateStatus(ctx context.Context, id int, status models.StatusCurso) error {
+	if m.UpdateStatusFunc != nil {
+		return m.UpdateStatusFunc(ctx, id, status)
 	}
 	return nil
 }
@@ -1141,8 +1149,8 @@ func TestCursoService_Update(t *testing.T) {
 		if updatedCurso == nil {
 			t.Fatal("Update was not called")
 		}
-		if updatedCurso.Status != models.StatusCursoOpened {
-			t.Errorf("Status should be OPENED, got %s", updatedCurso.Status)
+		if updatedCurso.Status != models.StatusCursoPublished {
+			t.Errorf("Status should be PUBLISHED (opened normalizes to published), got %s", updatedCurso.Status)
 		}
 	})
 

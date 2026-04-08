@@ -107,6 +107,17 @@ func (r *CursoRepository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
+func (r *CursoRepository) UpdateStatus(ctx context.Context, id int, status models.StatusCurso) error {
+	result := r.db.WithContext(ctx).Model(&models.Curso{}).Where("id = ?", id).Update("status", status)
+	if result.Error != nil {
+		return fmt.Errorf("erro ao atualizar status do curso: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("curso não encontrado")
+	}
+	return nil
+}
+
 func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error) {
 	var cursos []*models.Curso
 	var total int64

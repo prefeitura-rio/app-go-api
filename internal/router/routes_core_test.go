@@ -35,8 +35,8 @@ func TestRegisterCoreRoutes(t *testing.T) {
 	// - Oportunidades MEI group = 15 routes (8 oportunidades + 7 propostas)
 	// - Propostas MEI group = 1 route
 	// - Public routes = 4 routes
-	// Total = 75 routes
-	expectedRoutes := 75
+	// Total = 80 routes (75 original + 5 curation transition endpoints)
+	expectedRoutes := 80
 	assert.Len(t, routes, expectedRoutes, "Should have all core routes registered")
 }
 
@@ -517,7 +517,7 @@ func TestRegisterCoreRoutes_PublicVsPrivate(t *testing.T) {
 	}
 
 	assert.Equal(t, 4, publicCount, "Should have exactly 4 public routes")
-	assert.Equal(t, 71, privateCount, "Should have exactly 71 private routes")
+	assert.Equal(t, 76, privateCount, "Should have exactly 76 private routes")
 }
 
 // Helper function to create a mock ApplicationContainer with all handlers

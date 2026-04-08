@@ -79,9 +79,9 @@ func TestStatusCurso_Normalize(t *testing.T) {
 		expected StatusCurso
 	}{
 		{"criado_maps_to_draft", "CRIADO", StatusCursoDraft},
-		{"aberto_maps_to_opened", "ABERTO", StatusCursoOpened},
+		{"aberto_maps_to_published", "ABERTO", StatusCursoPublished},
 		{"encerrado_maps_to_closed", "ENCERRADO", StatusCursoClosed},
-		{"already_normalized", StatusCursoOpened, StatusCursoOpened},
+		{"opened_maps_to_published", StatusCursoOpened, StatusCursoPublished},
 		{"unknown_stays_same", "UNKNOWN", "UNKNOWN"},
 	}
 

@@ -54,6 +54,31 @@ func (m *MockCursoService) List(ctx context.Context, filter map[string]interface
 	return args.Get(0).([]*models.Curso), args.Int(1), args.Error(2)
 }
 
+func (m *MockCursoService) SendToReview(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockCursoService) Approve(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockCursoService) Publish(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockCursoService) RequestChanges(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockCursoService) RequestDeletion(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
 // MockInscricaoServiceForCourse is a minimal mock for InscricaoServiceInterface used in CourseHandler
 type MockInscricaoServiceForCourse struct {
 	mock.Mock
@@ -227,6 +252,11 @@ func (m *MockCursoRepositoryForCourseHandler) GetRemoteScheduleByID(ctx context.
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.RemoteSchedule), args.Error(1)
+}
+
+func (m *MockCursoRepositoryForCourseHandler) UpdateStatus(ctx context.Context, id int, status models.StatusCurso) error {
+	args := m.Called(ctx, id, status)
+	return args.Error(0)
 }
 
 // Test basic handler initialization

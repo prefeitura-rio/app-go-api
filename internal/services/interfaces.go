@@ -140,6 +140,7 @@ type CursoRepositoryInterface interface {
 	Create(ctx context.Context, curso *models.Curso) (int, error)
 	GetByID(ctx context.Context, id int) (*models.Curso, error)
 	Update(ctx context.Context, curso *models.Curso) error
+	UpdateStatus(ctx context.Context, id int, status models.StatusCurso) error
 	Delete(ctx context.Context, id int) error
 	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Curso, int, error)
 	CreateCustomFields(ctx context.Context, fields []models.CustomField) error
@@ -192,6 +193,11 @@ type CursoServiceInterface interface {
 	Update(ctx context.Context, curso *models.Curso) error
 	Delete(ctx context.Context, id int) error
 	List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Curso, int, error)
+	SendToReview(ctx context.Context, id int) error
+	Approve(ctx context.Context, id int) error
+	Publish(ctx context.Context, id int) error
+	RequestChanges(ctx context.Context, id int) error
+	RequestDeletion(ctx context.Context, id int) error
 }
 
 // JobServiceInterface defines the interface for Job service
