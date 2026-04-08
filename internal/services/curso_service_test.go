@@ -3,6 +3,7 @@ package services_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -4021,6 +4022,176 @@ func TestCursoService_NormalizationEdgeCases(t *testing.T) {
 			t.Error("AcceptingEnrollments should not be nil")
 		} else if *createdCurso.RemoteClass.Schedules[0].AcceptingEnrollments != true {
 			t.Errorf("Expected AcceptingEnrollments to be true, got %v", *createdCurso.RemoteClass.Schedules[0].AcceptingEnrollments)
+		}
+	})
+}
+func TestCursoService_CurationTransitions(t *testing.T) {
+	ctx := context.Background()
+
+	buildFullCurso := func(id int, status models.StatusCurso) *models.Curso {
+		return &models.Curso{
+			ID:           id,
+			Titulo:       "Curso Completo",
+			Status:       status,
+			Modalidade:   models.ModalidadePresencial,
+			NumeroVagas:  10,
+			CargaHoraria: 20,
+		}
+	}
+
+	t.Run("SendToReview_from_draft_success", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return buildFullCurso(id, models.StatusCursoDraft), nil
+			},
+			UpdateStatusFunc: func(ctx context.Context, id int, status models.StatusCurso) error {
+				if status != models.StatusCursoInReview {
+					return fmt.Errorf("unexpected status: %s", status)
+				}
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+		err := svc.SendToReview(ctx, 1)
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("SendToReview_from_invalid_state_fails", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return buildFullCurso(id, models.StatusCursoPublished), nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+		err := svc.SendToReview(ctx, 1)
+		if err == nil {
+			t.Error("expected error for invalid transition, got nil")
+		}
+	})
+
+	t.Run("SendToReview_course_not_found", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return nil, nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+		err := svc.SendToReview(ctx, 99)
+		if err == nil {
+			t.Error("expected error for missing course, got nil")
+		}
+	})
+
+	t.Run("Approve_from_in_review_success", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return buildFullCurso(id, models.StatusCursoInReview), nil
+			},
+			UpdateStatusFunc: func(ctx context.Context, id int, status models.StatusCurso) error {
+				if status != models.StatusCursoApproved {
+					return fmt.Errorf("unexpected status: %s", status)
+				}
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+		if err := svc.Approve(ctx, 1); err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("Approve_from_invalid_state_fails", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return buildFullCurso(id, models.StatusCursoDraft), nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+		if err := svc.Approve(ctx, 1); err == nil {
+			t.Error("expected error for invalid transition")
+		}
+	})
+
+	t.Run("Publish_from_approved_success", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return buildFullCurso(id, models.StatusCursoApproved), nil
+			},
+			UpdateStatusFunc: func(ctx context.Context, id int, status models.StatusCurso) error {
+				if status != models.StatusCursoPublished {
+					return fmt.Errorf("unexpected status: %s", status)
+				}
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+		if err := svc.Publish(ctx, 1); err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("RequestChanges_from_published_success", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return buildFullCurso(id, models.StatusCursoPublished), nil
+			},
+			UpdateStatusFunc: func(ctx context.Context, id int, status models.StatusCurso) error {
+				if status != models.StatusCursoNeedsChanges {
+					return fmt.Errorf("unexpected status: %s", status)
+				}
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+		if err := svc.RequestChanges(ctx, 1); err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("RequestChanges_from_invalid_state_fails", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return buildFullCurso(id, models.StatusCursoDraft), nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+		if err := svc.RequestChanges(ctx, 1); err == nil {
+			t.Error("expected error for invalid transition")
+		}
+	})
+
+	t.Run("RequestDeletion_from_published_success", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return buildFullCurso(id, models.StatusCursoPublished), nil
+			},
+			UpdateStatusFunc: func(ctx context.Context, id int, status models.StatusCurso) error {
+				if status != models.StatusCursoPendingDeletion {
+					return fmt.Errorf("unexpected status: %s", status)
+				}
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+		if err := svc.RequestDeletion(ctx, 1); err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("RequestDeletion_from_closed_success", func(t *testing.T) {
+		repo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return buildFullCurso(id, models.StatusCursoClosed), nil
+			},
+			UpdateStatusFunc: func(ctx context.Context, id int, status models.StatusCurso) error {
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+		if err := svc.RequestDeletion(ctx, 1); err != nil {
+			t.Errorf("expected no error for closed → pending_deletion, got %v", err)
 		}
 	})
 }

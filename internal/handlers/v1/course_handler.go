@@ -910,6 +910,8 @@ func handleCursoTransitionError(c *gin.Context, err error) {
 		c.JSON(http.StatusNotFound, gin.H{"error": msg})
 	case strings.Contains(msg, "não está em estado"):
 		c.JSON(http.StatusConflict, gin.H{"error": msg})
+	case strings.Contains(msg, "curso incompleto"):
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
 	default:
 		dbErr := utils.ParseDatabaseError(err)
 		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})

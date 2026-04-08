@@ -116,3 +116,54 @@ func TestCourseManagementType_IsValid(t *testing.T) {
 		})
 	}
 }
+
+func TestStatusCurso_CanTransitionTo(t *testing.T) {
+	tests := []struct {
+		from     StatusCurso
+		to       StatusCurso
+		expected bool
+	}{
+		// draft transitions
+		{StatusCursoDraft, StatusCursoInReview, true},
+		{StatusCursoDraft, StatusCursoPendingDeletion, true},
+		{StatusCursoDraft, StatusCursoApproved, false},
+		{StatusCursoDraft, StatusCursoPublished, false},
+		// needs_changes transitions
+		{StatusCursoNeedsChanges, StatusCursoInReview, true},
+		{StatusCursoNeedsChanges, StatusCursoPendingDeletion, true},
+		{StatusCursoNeedsChanges, StatusCursoApproved, false},
+		// in_review transitions
+		{StatusCursoInReview, StatusCursoApproved, true},
+		{StatusCursoInReview, StatusCursoPendingDeletion, true},
+		{StatusCursoInReview, StatusCursoPublished, false},
+		{StatusCursoInReview, StatusCursoDraft, false},
+		// approved transitions
+		{StatusCursoApproved, StatusCursoPublished, true},
+		{StatusCursoApproved, StatusCursoPendingDeletion, true},
+		{StatusCursoApproved, StatusCursoInReview, false},
+		// published transitions
+		{StatusCursoPublished, StatusCursoNeedsChanges, true},
+		{StatusCursoPublished, StatusCursoPendingDeletion, true},
+		{StatusCursoPublished, StatusCursoClosed, true},
+		{StatusCursoPublished, StatusCursoCanceled, true},
+		{StatusCursoPublished, StatusCursoDraft, false},
+		// closed/canceled → pending_deletion
+		{StatusCursoClosed, StatusCursoPendingDeletion, true},
+		{StatusCursoClosed, StatusCursoPublished, false},
+		{StatusCursoCanceled, StatusCursoPendingDeletion, true},
+		{StatusCursoCanceled, StatusCursoPublished, false},
+		// legacy values normalize correctly
+		{StatusCursoOpened, StatusCursoNeedsChanges, true},    // opened → published → needs_changes
+		{StatusCursoOpened, StatusCursoPendingDeletion, true},  // opened → published → pending_deletion
+		{StatusCursoAberto, StatusCursoNeedsChanges, true},    // ABERTO → published → needs_changes
+		{StatusCursoCriado, StatusCursoInReview, true},        // CRIADO → draft → in_review
+	}
+
+	for _, tt := range tests {
+		name := string(tt.from) + "_to_" + string(tt.to)
+		t.Run(name, func(t *testing.T) {
+			result := tt.from.CanTransitionTo(tt.to)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

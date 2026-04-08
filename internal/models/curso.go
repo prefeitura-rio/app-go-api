@@ -162,17 +162,22 @@ func (s StatusCurso) IsValid() bool {
 }
 
 // CanTransitionTo returns true if transitioning from the current status to `to` is allowed.
+// Both statuses are normalized before comparison to handle legacy values (ABERTO, ENCERRADO, etc).
 func (s StatusCurso) CanTransitionTo(to StatusCurso) bool {
+	from := s.Normalize()
+	target := to.Normalize()
+
 	allowed := map[StatusCurso][]StatusCurso{
-		StatusCursoDraft:          {StatusCursoInReview, StatusCursoPendingDeletion},
-		StatusCursoNeedsChanges:   {StatusCursoInReview, StatusCursoPendingDeletion},
-		StatusCursoInReview:       {StatusCursoApproved, StatusCursoPendingDeletion},
-		StatusCursoApproved:       {StatusCursoPublished, StatusCursoPendingDeletion},
-		StatusCursoPublished:      {StatusCursoNeedsChanges, StatusCursoPendingDeletion, StatusCursoClosed, StatusCursoCanceled},
-		StatusCursoOpened:         {StatusCursoNeedsChanges, StatusCursoPendingDeletion, StatusCursoClosed, StatusCursoCanceled},
+		StatusCursoDraft:        {StatusCursoInReview, StatusCursoPendingDeletion},
+		StatusCursoNeedsChanges: {StatusCursoInReview, StatusCursoPendingDeletion},
+		StatusCursoInReview:     {StatusCursoApproved, StatusCursoPendingDeletion},
+		StatusCursoApproved:     {StatusCursoPublished, StatusCursoPendingDeletion},
+		StatusCursoPublished:    {StatusCursoNeedsChanges, StatusCursoPendingDeletion, StatusCursoClosed, StatusCursoCanceled},
+		StatusCursoClosed:       {StatusCursoPendingDeletion},
+		StatusCursoCanceled:     {StatusCursoPendingDeletion},
 	}
-	for _, t := range allowed[s] {
-		if t == to {
+	for _, t := range allowed[from] {
+		if t == target {
 			return true
 		}
 	}
