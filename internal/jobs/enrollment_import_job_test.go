@@ -1346,6 +1346,12 @@ func (m *MockCursoService) List(ctx context.Context, filter map[string]interface
 	return args.Get(0).([]*models.Curso), args.Int(1), args.Error(2)
 }
 
+func (m *MockCursoService) SendToReview(ctx context.Context, id int) error { return nil }
+func (m *MockCursoService) Approve(ctx context.Context, id int) error       { return nil }
+func (m *MockCursoService) Publish(ctx context.Context, id int) error       { return nil }
+func (m *MockCursoService) RequestChanges(ctx context.Context, id int) error { return nil }
+func (m *MockCursoService) RequestDeletion(ctx context.Context, id int) error { return nil }
+
 type MockDB struct {
 	*gorm.DB
 	mock.Mock

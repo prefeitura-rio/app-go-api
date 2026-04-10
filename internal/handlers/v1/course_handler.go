@@ -902,3 +902,83 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
+func handleCursoTransitionError(c *gin.Context, err error) {
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "não encontrado"):
+		c.JSON(http.StatusNotFound, gin.H{"error": msg})
+	case strings.Contains(msg, "não está em estado"):
+		c.JSON(http.StatusConflict, gin.H{"error": msg})
+	case strings.Contains(msg, "curso incompleto"):
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+	default:
+		dbErr := utils.ParseDatabaseError(err)
+		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
+	}
+}
+
+func (h *CourseHandler) SendToReview(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if err := h.cursoService.SendToReview(c.Request.Context(), id); err != nil {
+		handleCursoTransitionError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Curso enviado para revisão com sucesso"})
+}
+
+func (h *CourseHandler) Approve(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if err := h.cursoService.Approve(c.Request.Context(), id); err != nil {
+		handleCursoTransitionError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Curso aprovado com sucesso"})
+}
+
+func (h *CourseHandler) Publish(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if err := h.cursoService.Publish(c.Request.Context(), id); err != nil {
+		handleCursoTransitionError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Curso publicado com sucesso"})
+}
+
+func (h *CourseHandler) RequestChanges(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if err := h.cursoService.RequestChanges(c.Request.Context(), id); err != nil {
+		handleCursoTransitionError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Solicitação de edição enviada com sucesso"})
+}
+
+func (h *CourseHandler) RequestDeletion(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if err := h.cursoService.RequestDeletion(c.Request.Context(), id); err != nil {
+		handleCursoTransitionError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Solicitação de exclusão enviada com sucesso"})
+}

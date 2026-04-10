@@ -94,6 +94,79 @@ func (s *CursoService) List(ctx context.Context, filter map[string]interface{}, 
 	return s.repo.List(ctx, filter, pageSize, offset)
 }
 
+func (s *CursoService) SendToReview(ctx context.Context, id int) error {
+	curso, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if curso == nil {
+		return fmt.Errorf("curso não encontrado")
+	}
+	if !curso.Status.CanTransitionTo(models.StatusCursoInReview) {
+		return fmt.Errorf("curso não está em estado válido para ser enviado para revisão")
+	}
+	if err := s.validatePublishedCurso(curso); err != nil {
+		return fmt.Errorf("curso incompleto para envio de revisão: %w", err)
+	}
+	return s.repo.UpdateStatus(ctx, id, models.StatusCursoInReview)
+}
+
+func (s *CursoService) Approve(ctx context.Context, id int) error {
+	curso, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if curso == nil {
+		return fmt.Errorf("curso não encontrado")
+	}
+	if !curso.Status.CanTransitionTo(models.StatusCursoApproved) {
+		return fmt.Errorf("curso não está em estado válido para aprovação")
+	}
+	return s.repo.UpdateStatus(ctx, id, models.StatusCursoApproved)
+}
+
+func (s *CursoService) Publish(ctx context.Context, id int) error {
+	curso, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if curso == nil {
+		return fmt.Errorf("curso não encontrado")
+	}
+	if !curso.Status.CanTransitionTo(models.StatusCursoPublished) {
+		return fmt.Errorf("curso não está em estado válido para publicação")
+	}
+	return s.repo.UpdateStatus(ctx, id, models.StatusCursoPublished)
+}
+
+func (s *CursoService) RequestChanges(ctx context.Context, id int) error {
+	curso, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if curso == nil {
+		return fmt.Errorf("curso não encontrado")
+	}
+	if !curso.Status.CanTransitionTo(models.StatusCursoNeedsChanges) {
+		return fmt.Errorf("curso não está em estado válido para solicitação de edição")
+	}
+	return s.repo.UpdateStatus(ctx, id, models.StatusCursoNeedsChanges)
+}
+
+func (s *CursoService) RequestDeletion(ctx context.Context, id int) error {
+	curso, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if curso == nil {
+		return fmt.Errorf("curso não encontrado")
+	}
+	if !curso.Status.CanTransitionTo(models.StatusCursoPendingDeletion) {
+		return fmt.Errorf("curso não está em estado válido para solicitação de exclusão")
+	}
+	return s.repo.UpdateStatus(ctx, id, models.StatusCursoPendingDeletion)
+}
+
 // validateCurso performs business logic validation
 func (s *CursoService) validateCurso(curso *models.Curso) error {
 	if curso.Status == models.StatusCursoDraft {

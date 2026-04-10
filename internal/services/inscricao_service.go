@@ -76,7 +76,8 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	}
 
 	// Check if enrollment is open
-	if models.StatusCurso(status) != models.StatusCursoOpened {
+	normalizedStatus := models.StatusCurso(status).Normalize()
+	if normalizedStatus != models.StatusCursoOpened && normalizedStatus != models.StatusCursoPublished {
 		return fmt.Errorf("curso não está aberto para inscrições")
 	}
 
@@ -195,7 +196,8 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 	}
 
 	// Course must still be in opened status
-	if models.StatusCurso(status) != models.StatusCursoOpened {
+	normalizedStatus := models.StatusCurso(status).Normalize()
+	if normalizedStatus != models.StatusCursoOpened && normalizedStatus != models.StatusCursoPublished {
 		return fmt.Errorf("curso não está aberto para inscrições")
 	}
 
