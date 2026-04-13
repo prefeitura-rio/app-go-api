@@ -170,7 +170,7 @@ func (s StatusCurso) CanTransitionTo(to StatusCurso) bool {
 	allowed := map[StatusCurso][]StatusCurso{
 		StatusCursoDraft:        {StatusCursoInReview, StatusCursoPendingDeletion},
 		StatusCursoNeedsChanges: {StatusCursoInReview, StatusCursoPendingDeletion},
-		StatusCursoInReview:     {StatusCursoApproved, StatusCursoPendingDeletion},
+		StatusCursoInReview:     {StatusCursoApproved, StatusCursoNeedsChanges, StatusCursoPendingDeletion},
 		StatusCursoApproved:     {StatusCursoPublished, StatusCursoPendingDeletion},
 		StatusCursoPublished:    {StatusCursoNeedsChanges, StatusCursoPendingDeletion, StatusCursoClosed, StatusCursoCanceled},
 		StatusCursoClosed:       {StatusCursoPendingDeletion},
