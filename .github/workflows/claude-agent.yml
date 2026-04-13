@@ -24,6 +24,11 @@ jobs:
       issues: write
       id-token: write
 
+    env:
+      CLAUDE_CODE_USE_VERTEX: "1"
+      ANTHROPIC_VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      CLOUD_ML_REGION: "us-east5"
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,7 +50,4 @@ jobs:
         with:
           github_token: ${{ steps.app-token.outputs.token }}
         env:
-          CLAUDE_CODE_USE_VERTEX: "1"
-          ANTHROPIC_VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          CLOUD_ML_REGION: "us-east5"
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
