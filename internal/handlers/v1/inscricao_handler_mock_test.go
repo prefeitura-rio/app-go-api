@@ -233,6 +233,11 @@ func (m *MockCursoRepository) GetRemoteScheduleByID(ctx context.Context, schedul
 	return args.Get(0).(*models.RemoteSchedule), args.Error(1)
 }
 
+func (m *MockCursoRepository) UpdateStatus(ctx context.Context, id int, status models.StatusCurso) error {
+	args := m.Called(ctx, id, status)
+	return args.Error(0)
+}
+
 // Test Create with service success
 func TestInscricaoHandler_Create_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)

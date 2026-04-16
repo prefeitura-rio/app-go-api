@@ -54,6 +54,31 @@ func (m *MockCursoService) List(ctx context.Context, filter map[string]interface
 	return args.Get(0).([]*models.Curso), args.Int(1), args.Error(2)
 }
 
+func (m *MockCursoService) SendToReview(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockCursoService) Approve(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockCursoService) Publish(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockCursoService) RequestChanges(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockCursoService) RequestDeletion(ctx context.Context, id int) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
 // MockInscricaoServiceForCourse is a minimal mock for InscricaoServiceInterface used in CourseHandler
 type MockInscricaoServiceForCourse struct {
 	mock.Mock
@@ -227,6 +252,11 @@ func (m *MockCursoRepositoryForCourseHandler) GetRemoteScheduleByID(ctx context.
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.RemoteSchedule), args.Error(1)
+}
+
+func (m *MockCursoRepositoryForCourseHandler) UpdateStatus(ctx context.Context, id int, status models.StatusCurso) error {
+	args := m.Called(ctx, id, status)
+	return args.Error(0)
 }
 
 // Test basic handler initialization
@@ -2782,4 +2812,153 @@ func TestCourseHandler_CreateDraft_ValidationError(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "título muito curto")
 
 	mockService.AssertExpectations(t)
+}
+
+func setupTransitionHandler(t *testing.T) (*MockCursoService, *MockCursoRepositoryForCourseHandler, *v1.CourseHandler) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+	h := v1.NewCourseHandler(mockService, nil, mockRepo)
+	return mockService, mockRepo, h
+}
+
+func TestCourseHandler_SendToReview(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("SendToReview", mock.Anything, 1).Return(nil)
+		r := gin.New()
+		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/1/send-to-review", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "revisão")
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("invalid_id", func(t *testing.T) {
+		_, _, h := setupTransitionHandler(t)
+		r := gin.New()
+		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/abc/send-to-review", nil))
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("conflict_invalid_state", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("SendToReview", mock.Anything, 1).Return(errors.New("curso não está em estado válido"))
+		r := gin.New()
+		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/1/send-to-review", nil))
+		assert.Equal(t, http.StatusConflict, w.Code)
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("not_found", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("SendToReview", mock.Anything, 1).Return(errors.New("curso não encontrado"))
+		r := gin.New()
+		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/1/send-to-review", nil))
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("bad_request_incomplete_course", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("SendToReview", mock.Anything, 1).Return(errors.New("curso incompleto para envio de revisão: modalidade inválida"))
+		r := gin.New()
+		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/1/send-to-review", nil))
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		mockService.AssertExpectations(t)
+	})
+}
+
+func TestCourseHandler_Approve(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("Approve", mock.Anything, 2).Return(nil)
+		r := gin.New()
+		r.PUT("/courses/:courseId/approve", h.Approve)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/2/approve", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("conflict", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("Approve", mock.Anything, 2).Return(errors.New("curso não está em estado válido para aprovação"))
+		r := gin.New()
+		r.PUT("/courses/:courseId/approve", h.Approve)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/2/approve", nil))
+		assert.Equal(t, http.StatusConflict, w.Code)
+		mockService.AssertExpectations(t)
+	})
+}
+
+func TestCourseHandler_Publish(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("Publish", mock.Anything, 3).Return(nil)
+		r := gin.New()
+		r.PUT("/courses/:courseId/publish", h.Publish)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/3/publish", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		mockService.AssertExpectations(t)
+	})
+}
+
+func TestCourseHandler_RequestChanges(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("RequestChanges", mock.Anything, 4).Return(nil)
+		r := gin.New()
+		r.PUT("/courses/:courseId/request-changes", h.RequestChanges)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/4/request-changes", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("conflict", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("RequestChanges", mock.Anything, 4).Return(errors.New("curso não está em estado válido para solicitação de edição"))
+		r := gin.New()
+		r.PUT("/courses/:courseId/request-changes", h.RequestChanges)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/4/request-changes", nil))
+		assert.Equal(t, http.StatusConflict, w.Code)
+		mockService.AssertExpectations(t)
+	})
+}
+
+func TestCourseHandler_RequestDeletion(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("RequestDeletion", mock.Anything, 5).Return(nil)
+		r := gin.New()
+		r.PUT("/courses/:courseId/request-deletion", h.RequestDeletion)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/5/request-deletion", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("not_found", func(t *testing.T) {
+		mockService, _, h := setupTransitionHandler(t)
+		mockService.On("RequestDeletion", mock.Anything, 5).Return(errors.New("curso não encontrado"))
+		r := gin.New()
+		r.PUT("/courses/:courseId/request-deletion", h.RequestDeletion)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/5/request-deletion", nil))
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		mockService.AssertExpectations(t)
+	})
 }

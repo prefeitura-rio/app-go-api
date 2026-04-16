@@ -28,6 +28,13 @@ const (
 	StatusCursoClosed   StatusCurso = "closed"
 	StatusCursoCanceled StatusCurso = "canceled"
 
+	// Curation flow statuses
+	StatusCursoInReview        StatusCurso = "in_review"
+	StatusCursoNeedsChanges    StatusCurso = "needs_changes"
+	StatusCursoApproved        StatusCurso = "approved"
+	StatusCursoPublished       StatusCurso = "published"
+	StatusCursoPendingDeletion StatusCurso = "pending_deletion"
+
 	// Legacy values for backwards compatibility
 	StatusCursoCriado    StatusCurso = "CRIADO"
 	StatusCursoAberto    StatusCurso = "ABERTO"
@@ -143,10 +150,34 @@ func (m Modalidade) IsValid() bool {
 func (s StatusCurso) IsValid() bool {
 	validValues := []string{
 		"draft", "opened", "closed", "canceled",
+		"in_review", "needs_changes", "approved", "published", "pending_deletion",
 		"CRIADO", "ABERTO", "ENCERRADO",
 	}
 	for _, v := range validValues {
 		if string(s) == v {
+			return true
+		}
+	}
+	return false
+}
+
+// CanTransitionTo returns true if transitioning from the current status to `to` is allowed.
+// Both statuses are normalized before comparison to handle legacy values (ABERTO, ENCERRADO, etc).
+func (s StatusCurso) CanTransitionTo(to StatusCurso) bool {
+	from := s.Normalize()
+	target := to.Normalize()
+
+	allowed := map[StatusCurso][]StatusCurso{
+		StatusCursoDraft:        {StatusCursoInReview, StatusCursoPendingDeletion},
+		StatusCursoNeedsChanges: {StatusCursoInReview, StatusCursoPendingDeletion},
+		StatusCursoInReview:     {StatusCursoApproved, StatusCursoNeedsChanges, StatusCursoPendingDeletion},
+		StatusCursoApproved:     {StatusCursoPublished, StatusCursoPendingDeletion},
+		StatusCursoPublished:    {StatusCursoNeedsChanges, StatusCursoPendingDeletion, StatusCursoClosed, StatusCursoCanceled},
+		StatusCursoClosed:       {StatusCursoPendingDeletion},
+		StatusCursoCanceled:     {StatusCursoPendingDeletion},
+	}
+	for _, t := range allowed[from] {
+		if t == target {
 			return true
 		}
 	}
@@ -183,8 +214,8 @@ func (s StatusCurso) Normalize() StatusCurso {
 	switch strings.ToUpper(string(s)) {
 	case "CRIADO":
 		return StatusCursoDraft
-	case "ABERTO":
-		return StatusCursoOpened
+	case "ABERTO", "OPENED":
+		return StatusCursoPublished
 	case "ENCERRADO":
 		return StatusCursoClosed
 	default:

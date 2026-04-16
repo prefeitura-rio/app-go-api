@@ -176,14 +176,14 @@ func TestStatusCurso_EdgeCases(t *testing.T) {
 	t.Run("normalize_handles_all_legacy_values", func(t *testing.T) {
 		// Test all legacy mappings
 		assert.Equal(t, StatusCursoDraft, StatusCurso("CRIADO").Normalize())
-		assert.Equal(t, StatusCursoOpened, StatusCurso("ABERTO").Normalize())
+		assert.Equal(t, StatusCursoPublished, StatusCurso("ABERTO").Normalize())
 		assert.Equal(t, StatusCursoClosed, StatusCurso("ENCERRADO").Normalize())
 	})
 
 	t.Run("normalize_case_insensitive", func(t *testing.T) {
 		// Normalize should handle different cases
 		assert.Equal(t, StatusCursoDraft, StatusCurso("criado").Normalize())
-		assert.Equal(t, StatusCursoOpened, StatusCurso("aberto").Normalize())
+		assert.Equal(t, StatusCursoPublished, StatusCurso("aberto").Normalize())
 		assert.Equal(t, StatusCursoClosed, StatusCurso("encerrado").Normalize())
 	})
 }
