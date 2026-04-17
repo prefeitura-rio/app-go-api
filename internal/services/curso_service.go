@@ -122,20 +122,7 @@ func (s *CursoService) Approve(ctx context.Context, id int) error {
 	if !curso.Status.CanTransitionTo(models.StatusCursoApproved) {
 		return fmt.Errorf("curso não está em estado válido para aprovação")
 	}
-	return s.repo.UpdateStatus(ctx, id, models.StatusCursoApproved)
-}
-
-func (s *CursoService) Publish(ctx context.Context, id int) error {
-	curso, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	if curso == nil {
-		return fmt.Errorf("curso não encontrado")
-	}
-	if !curso.Status.CanTransitionTo(models.StatusCursoPublished) {
-		return fmt.Errorf("curso não está em estado válido para publicação")
-	}
+	// Aprovação implica publicação imediata (approved → published automaticamente)
 	return s.repo.UpdateStatus(ctx, id, models.StatusCursoPublished)
 }
 

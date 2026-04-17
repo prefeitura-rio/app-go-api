@@ -64,11 +64,6 @@ func (m *MockCursoService) Approve(ctx context.Context, id int) error {
 	return args.Error(0)
 }
 
-func (m *MockCursoService) Publish(ctx context.Context, id int) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
 func (m *MockCursoService) RequestChanges(ctx context.Context, id int) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
@@ -2898,19 +2893,6 @@ func TestCourseHandler_Approve(t *testing.T) {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/2/approve", nil))
 		assert.Equal(t, http.StatusConflict, w.Code)
-		mockService.AssertExpectations(t)
-	})
-}
-
-func TestCourseHandler_Publish(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
-		mockService.On("Publish", mock.Anything, 3).Return(nil)
-		r := gin.New()
-		r.PUT("/courses/:courseId/publish", h.Publish)
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/3/publish", nil))
-		assert.Equal(t, http.StatusOK, w.Code)
 		mockService.AssertExpectations(t)
 	})
 }

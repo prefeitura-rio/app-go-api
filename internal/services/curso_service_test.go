@@ -4084,14 +4084,14 @@ func TestCursoService_CurationTransitions(t *testing.T) {
 		}
 	})
 
-	t.Run("Approve_from_in_review_success", func(t *testing.T) {
+	t.Run("Approve_from_in_review_success_goes_to_published", func(t *testing.T) {
 		repo := &MockCursoRepository{
 			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
 				return buildFullCurso(id, models.StatusCursoInReview), nil
 			},
 			UpdateStatusFunc: func(ctx context.Context, id int, status models.StatusCurso) error {
-				if status != models.StatusCursoApproved {
-					return fmt.Errorf("unexpected status: %s", status)
+				if status != models.StatusCursoPublished {
+					return fmt.Errorf("Approve deve ir direto para published, got: %s", status)
 				}
 				return nil
 			},
@@ -4111,24 +4111,6 @@ func TestCursoService_CurationTransitions(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 		if err := svc.Approve(ctx, 1); err == nil {
 			t.Error("expected error for invalid transition")
-		}
-	})
-
-	t.Run("Publish_from_approved_success", func(t *testing.T) {
-		repo := &MockCursoRepository{
-			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
-				return buildFullCurso(id, models.StatusCursoApproved), nil
-			},
-			UpdateStatusFunc: func(ctx context.Context, id int, status models.StatusCurso) error {
-				if status != models.StatusCursoPublished {
-					return fmt.Errorf("unexpected status: %s", status)
-				}
-				return nil
-			},
-		}
-		svc := services.NewCursoServiceWithInterface(repo)
-		if err := svc.Publish(ctx, 1); err != nil {
-			t.Errorf("expected no error, got %v", err)
 		}
 	})
 
