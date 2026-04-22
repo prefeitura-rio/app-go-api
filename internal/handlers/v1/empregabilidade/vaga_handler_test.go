@@ -1028,3 +1028,18 @@ func TestVagaHandler_Update_PublishedForbiddenForUnrelatedRole(t *testing.T) {
 		t.Errorf("expected 403 for unrelated role, got %d", w.Code)
 	}
 }
+
+func TestVagaHandler_Update_PublishedForbiddenForEditorComCuradoria(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouterWithRoles(vagaRepo, empresaRepo, []string{"go:empregabilidade:editor_com_curadoria"})
+	body := bodyOf(`{"titulo":"Dev Editor Com Curadoria"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for editor_com_curadoria on published vaga, got %d", w.Code)
+	}
+}
