@@ -309,3 +309,5 @@ just test-pkg <pkg> # Testar pacote específico
 ## Licença
 
 Este projeto está licenciado sob a [Licença MIT](LICENSE).
+
+<!-- Fix #80 -->
