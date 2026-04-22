@@ -2,6 +2,7 @@ package models_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 )
@@ -158,6 +159,148 @@ func TestStatusCurso_CanTransitionTo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.from.CanTransitionTo(tt.to); got != tt.want {
 				t.Errorf("StatusCurso(%q).CanTransitionTo(%q) = %v, want %v", tt.from, tt.to, got, tt.want)
+			}
+		})
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
+
+func TestCurso_DeriveStatus(t *testing.T) {
+	now := time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC)
+	past := now.Add(-30 * 24 * time.Hour)
+	future := now.Add(30 * 24 * time.Hour)
+	farFuture := now.Add(60 * 24 * time.Hour)
+
+	classStart := now.Add(-10 * 24 * time.Hour)
+	classEnd := now.Add(10 * 24 * time.Hour)
+	classEndPast := now.Add(-5 * 24 * time.Hour)
+
+	tests := []struct {
+		name  string
+		curso models.Curso
+		want  models.StatusCurso
+	}{
+		{
+			name:  "non-published stays unchanged",
+			curso: models.Curso{Status: models.StatusCursoDraft},
+			want:  models.StatusCursoDraft,
+		},
+		{
+			name:  "non-published needs_changes stays unchanged",
+			curso: models.Curso{Status: models.StatusCursoNeedsChanges},
+			want:  models.StatusCursoNeedsChanges,
+		},
+		{
+			name: "scheduled: enrollment_start in the future",
+			curso: models.Curso{
+				Status:              models.StatusCursoPublished,
+				EnrollmentStartDate: ptr(future),
+			},
+			want: models.StatusCursoScheduled,
+		},
+		{
+			name: "accepting_enrollments: within enrollment window",
+			curso: models.Curso{
+				Status:              models.StatusCursoPublished,
+				EnrollmentStartDate: ptr(past),
+				EnrollmentEndDate:   ptr(future),
+			},
+			want: models.StatusCursoAcceptingEnrollments,
+		},
+		{
+			name: "in_progress: presencial with ongoing class dates",
+			curso: models.Curso{
+				Status:              models.StatusCursoPublished,
+				EnrollmentStartDate: ptr(past),
+				EnrollmentEndDate:   ptr(past.Add(5 * 24 * time.Hour)),
+				Modalidade:          models.ModalidadePresencial,
+				LocationClasses: []models.LocationClass{
+					{Schedules: []models.CourseSchedule{
+						{ClassStartDate: classStart, ClassEndDate: classEnd},
+					}},
+				},
+			},
+			want: models.StatusCursoInProgress,
+		},
+		{
+			name: "finished: presencial with past class dates",
+			curso: models.Curso{
+				Status:              models.StatusCursoPublished,
+				EnrollmentStartDate: ptr(past),
+				EnrollmentEndDate:   ptr(past.Add(5 * 24 * time.Hour)),
+				Modalidade:          models.ModalidadePresencial,
+				LocationClasses: []models.LocationClass{
+					{Schedules: []models.CourseSchedule{
+						{ClassStartDate: classStart, ClassEndDate: classEndPast},
+					}},
+				},
+			},
+			want: models.StatusCursoFinished,
+		},
+		{
+			name: "in_progress: LIVRE_FORMACAO_ONLINE after enrollment end",
+			curso: models.Curso{
+				Status:              models.StatusCursoPublished,
+				EnrollmentStartDate: ptr(past),
+				EnrollmentEndDate:   ptr(now.Add(-1 * time.Hour)),
+				Modalidade:          models.ModalidadeLivreFormacaoOnline,
+			},
+			want: models.StatusCursoInProgress,
+		},
+		{
+			name: "LIVRE_FORMACAO_ONLINE accepting_enrollments takes priority over in_progress check",
+			curso: models.Curso{
+				Status:              models.StatusCursoPublished,
+				EnrollmentStartDate: ptr(past),
+				EnrollmentEndDate:   ptr(future),
+				Modalidade:          models.ModalidadeLivreFormacaoOnline,
+			},
+			want: models.StatusCursoAcceptingEnrollments,
+		},
+		{
+			name:  "published with no dates stays published",
+			curso: models.Curso{Status: models.StatusCursoPublished},
+			want:  models.StatusCursoPublished,
+		},
+		{
+			name: "remote class in_progress",
+			curso: models.Curso{
+				Status:              models.StatusCursoPublished,
+				EnrollmentStartDate: ptr(past),
+				EnrollmentEndDate:   ptr(past.Add(5 * 24 * time.Hour)),
+				Modalidade:          models.ModalidadeRemoto,
+				RemoteClass: &models.RemoteClass{
+					Schedules: []models.RemoteSchedule{
+						{ClassStartDate: ptr(classStart), ClassEndDate: ptr(classEnd)},
+					},
+				},
+			},
+			want: models.StatusCursoInProgress,
+		},
+		{
+			name: "scheduled takes priority over class dates",
+			curso: models.Curso{
+				Status:              models.StatusCursoPublished,
+				EnrollmentStartDate: ptr(future),
+				EnrollmentEndDate:   ptr(farFuture),
+				Modalidade:          models.ModalidadePresencial,
+				LocationClasses: []models.LocationClass{
+					{Schedules: []models.CourseSchedule{
+						{ClassStartDate: classStart, ClassEndDate: classEnd},
+					}},
+				},
+			},
+			want: models.StatusCursoScheduled,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := tt.curso
+			c.DeriveStatus(now)
+			if c.Status != tt.want {
+				t.Errorf("DeriveStatus() = %q, want %q", c.Status, tt.want)
 			}
 		})
 	}

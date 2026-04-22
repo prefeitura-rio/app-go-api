@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
@@ -72,7 +73,12 @@ func (s *CursoService) Create(ctx context.Context, curso *models.Curso) (int, er
 }
 
 func (s *CursoService) GetByID(ctx context.Context, id int) (*models.Curso, error) {
-	return s.repo.GetByID(ctx, id)
+	curso, err := s.repo.GetByID(ctx, id)
+	if err != nil || curso == nil {
+		return curso, err
+	}
+	curso.DeriveStatus(time.Now())
+	return curso, nil
 }
 
 func (s *CursoService) Update(ctx context.Context, curso *models.Curso) error {
@@ -91,7 +97,15 @@ func (s *CursoService) Delete(ctx context.Context, id int) error {
 
 func (s *CursoService) List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Curso, int, error) {
 	offset := (page - 1) * pageSize
-	return s.repo.List(ctx, filter, pageSize, offset)
+	cursos, total, err := s.repo.List(ctx, filter, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	now := time.Now()
+	for _, c := range cursos {
+		c.DeriveStatus(now)
+	}
+	return cursos, total, nil
 }
 
 func (s *CursoService) SendToReview(ctx context.Context, id int) error {

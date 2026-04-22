@@ -35,6 +35,12 @@ const (
 	StatusCursoPublished       StatusCurso = "published"
 	StatusCursoPendingDeletion StatusCurso = "pending_deletion"
 
+	// Derived statuses — computed at read time from dates, never stored in DB
+	StatusCursoScheduled            StatusCurso = "scheduled"
+	StatusCursoAcceptingEnrollments StatusCurso = "accepting_enrollments"
+	StatusCursoInProgress           StatusCurso = "in_progress"
+	StatusCursoFinished             StatusCurso = "finished"
+
 	// Legacy values for backwards compatibility
 	StatusCursoCriado    StatusCurso = "CRIADO"
 	StatusCursoAberto    StatusCurso = "ABERTO"
@@ -242,6 +248,74 @@ func (f FormatoAula) Normalize() FormatoAula {
 		return ""
 	}
 	return FormatoAula(normalized)
+}
+
+// DeriveStatus computes the effective status for published courses based on enrollment and class dates.
+// For non-published courses it is a no-op. The result is only used in API responses — it is never
+// persisted to the database.
+func (c *Curso) DeriveStatus(now time.Time) {
+	if c.Status != StatusCursoPublished {
+		return
+	}
+
+	if c.EnrollmentStartDate != nil && now.Before(*c.EnrollmentStartDate) {
+		c.Status = StatusCursoScheduled
+		return
+	}
+
+	if c.EnrollmentStartDate != nil && c.EnrollmentEndDate != nil &&
+		!now.Before(*c.EnrollmentStartDate) && !now.After(*c.EnrollmentEndDate) {
+		c.Status = StatusCursoAcceptingEnrollments
+		return
+	}
+
+	if c.Modalidade == ModalidadeLivreFormacaoOnline {
+		if c.EnrollmentEndDate != nil && now.After(*c.EnrollmentEndDate) {
+			c.Status = StatusCursoInProgress
+		}
+		return
+	}
+
+	minStart, maxEnd, hasSchedules := collectClassDateRange(c)
+	if !hasSchedules {
+		return
+	}
+	if !now.Before(minStart) && !now.After(maxEnd) {
+		c.Status = StatusCursoInProgress
+		return
+	}
+	if now.After(maxEnd) {
+		c.Status = StatusCursoFinished
+	}
+}
+
+func collectClassDateRange(c *Curso) (minStart, maxEnd time.Time, has bool) {
+	apply := func(start, end time.Time) {
+		if !has {
+			minStart, maxEnd, has = start, end, true
+			return
+		}
+		if start.Before(minStart) {
+			minStart = start
+		}
+		if end.After(maxEnd) {
+			maxEnd = end
+		}
+	}
+
+	for _, loc := range c.LocationClasses {
+		for _, s := range loc.Schedules {
+			apply(s.ClassStartDate, s.ClassEndDate)
+		}
+	}
+	if c.RemoteClass != nil {
+		for _, s := range c.RemoteClass.Schedules {
+			if s.ClassStartDate != nil && s.ClassEndDate != nil {
+				apply(*s.ClassStartDate, *s.ClassEndDate)
+			}
+		}
+	}
+	return
 }
 
 // Validate validates a course instance
