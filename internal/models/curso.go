@@ -157,6 +157,8 @@ func (s StatusCurso) IsValid() bool {
 	validValues := []string{
 		"draft", "opened", "closed", "canceled",
 		"in_review", "needs_changes", "approved", "published", "pending_deletion",
+		// derived statuses — returned by the API, normalized to published on write
+		"scheduled", "accepting_enrollments", "in_progress", "finished",
 		"CRIADO", "ABERTO", "ENCERRADO",
 	}
 	for _, v := range validValues {
@@ -224,6 +226,9 @@ func (s StatusCurso) Normalize() StatusCurso {
 		return StatusCursoPublished
 	case "ENCERRADO":
 		return StatusCursoClosed
+	// derived statuses are aliases of published — normalize back so they are never persisted
+	case "SCHEDULED", "ACCEPTING_ENROLLMENTS", "IN_PROGRESS", "FINISHED":
+		return StatusCursoPublished
 	default:
 		return s
 	}
