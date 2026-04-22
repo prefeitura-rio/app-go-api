@@ -135,7 +135,7 @@ func TestStatusCurso_CanTransitionTo(t *testing.T) {
 		// in_review transitions
 		{StatusCursoInReview, StatusCursoApproved, true},
 		{StatusCursoInReview, StatusCursoPendingDeletion, true},
-		{StatusCursoInReview, StatusCursoPublished, false},
+		{StatusCursoInReview, StatusCursoPublished, true},
 		{StatusCursoInReview, StatusCursoDraft, false},
 		// approved transitions
 		{StatusCursoApproved, StatusCursoPublished, true},

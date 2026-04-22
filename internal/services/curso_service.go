@@ -77,8 +77,9 @@ func (s *CursoService) GetByID(ctx context.Context, id int) (*models.Curso, erro
 	if err != nil || curso == nil {
 		return curso, err
 	}
-	curso.DeriveStatus(time.Now())
-	return curso, nil
+	out := *curso
+	out.Status = out.DeriveStatus(time.Now())
+	return &out, nil
 }
 
 func (s *CursoService) Update(ctx context.Context, curso *models.Curso) error {
@@ -102,10 +103,13 @@ func (s *CursoService) List(ctx context.Context, filter map[string]interface{}, 
 		return nil, 0, err
 	}
 	now := time.Now()
-	for _, c := range cursos {
-		c.DeriveStatus(now)
+	result := make([]*models.Curso, len(cursos))
+	for i, c := range cursos {
+		out := *c
+		out.Status = out.DeriveStatus(now)
+		result[i] = &out
 	}
-	return cursos, total, nil
+	return result, total, nil
 }
 
 func (s *CursoService) SendToReview(ctx context.Context, id int) error {
@@ -133,10 +137,10 @@ func (s *CursoService) Approve(ctx context.Context, id int) error {
 	if curso == nil {
 		return fmt.Errorf("curso não encontrado")
 	}
-	if !curso.Status.CanTransitionTo(models.StatusCursoApproved) {
+	if !curso.Status.CanTransitionTo(models.StatusCursoPublished) {
 		return fmt.Errorf("curso não está em estado válido para aprovação")
 	}
-	// Aprovação implica publicação imediata (approved → published automaticamente)
+	// Aprovação publica diretamente: in_review → published (ou approved → published para dados legados)
 	return s.repo.UpdateStatus(ctx, id, models.StatusCursoPublished)
 }
 

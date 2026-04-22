@@ -176,7 +176,7 @@ func (s StatusCurso) CanTransitionTo(to StatusCurso) bool {
 	allowed := map[StatusCurso][]StatusCurso{
 		StatusCursoDraft:        {StatusCursoInReview, StatusCursoPendingDeletion},
 		StatusCursoNeedsChanges: {StatusCursoInReview, StatusCursoPendingDeletion},
-		StatusCursoInReview:     {StatusCursoApproved, StatusCursoNeedsChanges, StatusCursoPendingDeletion},
+		StatusCursoInReview:     {StatusCursoApproved, StatusCursoPublished, StatusCursoNeedsChanges, StatusCursoPendingDeletion},
 		StatusCursoApproved:     {StatusCursoPublished, StatusCursoPendingDeletion},
 		StatusCursoPublished:    {StatusCursoNeedsChanges, StatusCursoPendingDeletion, StatusCursoClosed, StatusCursoCanceled},
 		StatusCursoClosed:       {StatusCursoPendingDeletion},
@@ -250,43 +250,41 @@ func (f FormatoAula) Normalize() FormatoAula {
 	return FormatoAula(normalized)
 }
 
-// DeriveStatus computes the effective status for published courses based on enrollment and class dates.
-// For non-published courses it is a no-op. The result is only used in API responses — it is never
-// persisted to the database.
-func (c *Curso) DeriveStatus(now time.Time) {
+// DeriveStatus computes the effective status for a published course based on enrollment and class
+// dates. Returns the derived status without mutating the receiver. Non-published courses return
+// their current status unchanged.
+func (c *Curso) DeriveStatus(now time.Time) StatusCurso {
 	if c.Status != StatusCursoPublished {
-		return
+		return c.Status
 	}
 
 	if c.EnrollmentStartDate != nil && now.Before(*c.EnrollmentStartDate) {
-		c.Status = StatusCursoScheduled
-		return
+		return StatusCursoScheduled
 	}
 
 	if c.EnrollmentStartDate != nil && c.EnrollmentEndDate != nil &&
 		!now.Before(*c.EnrollmentStartDate) && !now.After(*c.EnrollmentEndDate) {
-		c.Status = StatusCursoAcceptingEnrollments
-		return
+		return StatusCursoAcceptingEnrollments
 	}
 
 	if c.Modalidade == ModalidadeLivreFormacaoOnline {
 		if c.EnrollmentEndDate != nil && now.After(*c.EnrollmentEndDate) {
-			c.Status = StatusCursoInProgress
+			return StatusCursoInProgress
 		}
-		return
+		return c.Status
 	}
 
 	minStart, maxEnd, hasSchedules := collectClassDateRange(c)
 	if !hasSchedules {
-		return
+		return c.Status
 	}
 	if !now.Before(minStart) && !now.After(maxEnd) {
-		c.Status = StatusCursoInProgress
-		return
+		return StatusCursoInProgress
 	}
 	if now.After(maxEnd) {
-		c.Status = StatusCursoFinished
+		return StatusCursoFinished
 	}
+	return c.Status
 }
 
 func collectClassDateRange(c *Curso) (minStart, maxEnd time.Time, has bool) {

@@ -119,7 +119,7 @@ func TestStatusCurso_CanTransitionTo(t *testing.T) {
 		{"in_review → approved", models.StatusCursoInReview, models.StatusCursoApproved, true},
 		{"in_review → needs_changes", models.StatusCursoInReview, models.StatusCursoNeedsChanges, true},
 		{"in_review → pending_deletion", models.StatusCursoInReview, models.StatusCursoPendingDeletion, true},
-		{"in_review → published (invalid)", models.StatusCursoInReview, models.StatusCursoPublished, false},
+		{"in_review → published", models.StatusCursoInReview, models.StatusCursoPublished, true},
 		{"in_review → draft (invalid)", models.StatusCursoInReview, models.StatusCursoDraft, false},
 
 		// needs_changes transitions
@@ -298,9 +298,13 @@ func TestCurso_DeriveStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := tt.curso
-			c.DeriveStatus(now)
-			if c.Status != tt.want {
-				t.Errorf("DeriveStatus() = %q, want %q", c.Status, tt.want)
+			got := c.DeriveStatus(now)
+			if got != tt.want {
+				t.Errorf("DeriveStatus() = %q, want %q", got, tt.want)
+			}
+			// must not mutate the receiver
+			if c.Status != tt.curso.Status {
+				t.Errorf("DeriveStatus() mutated c.Status to %q", c.Status)
 			}
 		})
 	}
