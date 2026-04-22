@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
@@ -501,6 +502,13 @@ func (h *CourseHandler) List(c *gin.Context) {
 		"status NOT": models.StatusCursoDraft,
 	}
 
+	// Secretaria-level filter: go:cursos:editor sees only their own orgao
+	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+			filter["orgao_id"] = orgaoID
+		}
+	}
+
 	// Add additional filters
 	if status := c.Query("status"); status != "" {
 		filter["status"] = status
@@ -619,6 +627,13 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 	// Build filters - only drafts
 	filter := map[string]interface{}{
 		"status": models.StatusCursoDraft,
+	}
+
+	// Secretaria-level filter: go:cursos:editor sees only their own orgao
+	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+			filter["orgao_id"] = orgaoID
+		}
 	}
 
 	if organization := c.Query("organization"); organization != "" {

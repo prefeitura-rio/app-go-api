@@ -686,6 +686,44 @@ func TestHasRole_NilRoles(t *testing.T) {
 	assert.False(t, HasRole(c, "any-role"))
 }
 
+func TestGetUserOrgaoID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		groups []string
+		want   string
+	}{
+		{"sem grupos", nil, ""},
+		{"grupo orgao presente", []string{"go:cursos:editor", "go:orgao:53157"}, "53157"},
+		{"apenas role sem orgao", []string{"go:cursos:editor"}, ""},
+		{"orgao com ID alfanumerico", []string{"go:orgao:casa_civil"}, "casa_civil"},
+		{"múltiplos orgaos retorna o primeiro", []string{"go:orgao:100", "go:orgao:200"}, "100"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			if tt.groups != nil {
+				c.Set(UserGroupsKey, tt.groups)
+			}
+			assert.Equal(t, tt.want, GetUserOrgaoID(c))
+		})
+	}
+}
+
+func TestGetUserGroups(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	assert.Nil(t, GetUserGroups(c))
+
+	c.Set(UserGroupsKey, []string{"go:cursos:editor", "go:orgao:53157"})
+	assert.Equal(t, []string{"go:cursos:editor", "go:orgao:53157"}, GetUserGroups(c))
+}
+
 func TestIsEmpregabilidadeRole_EdgeCases(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
