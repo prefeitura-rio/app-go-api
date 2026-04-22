@@ -146,16 +146,16 @@ func TestExtractDigits_Unicode(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"Arabic-Indic numerals", "١٢٣٤٥", "١٢٣٤٥"},    // unicode.IsDigit accepts these
-		{"Mixed unicode", "123٤٥٦", "123٤٥٦"},         // All unicode digits
-		{"Chinese numerals", "一二三四", ""},               // Not digits
-		{"Emoji with numbers", "🔢123🔢", "123"},        // Extracts ASCII digits
+		{"Arabic-Indic numerals", "١٢٣٤٥", "١٢٣٤٥"}, // unicode.IsDigit accepts these
+		{"Mixed unicode", "123٤٥٦", "123٤٥٦"},       // All unicode digits
+		{"Chinese numerals", "一二三四", ""},            // Not digits
+		{"Emoji with numbers", "🔢123🔢", "123"},      // Extracts ASCII digits
 		{"Full-width digits", "１２３４５", "１２３４５"},     // unicode.IsDigit accepts these
-		{"Subscript digits", "₁₂₃₄₅", ""},              // Not considered digits
-		{"Superscript digits", "¹²³⁴⁵", ""},            // Not considered digits
-		{"Roman numerals", "ⅠⅡⅢⅣⅤ", ""},               // Not digits
-		{"Letters and numbers", "abc123def", "123"},   // Only digits extracted
-		{"Special chars", "!@#$%123^&*", "123"},       // Only digits extracted
+		{"Subscript digits", "₁₂₃₄₅", ""},           // Not considered digits
+		{"Superscript digits", "¹²³⁴⁵", ""},         // Not considered digits
+		{"Roman numerals", "ⅠⅡⅢⅣⅤ", ""},             // Not digits
+		{"Letters and numbers", "abc123def", "123"}, // Only digits extracted
+		{"Special chars", "!@#$%123^&*", "123"},     // Only digits extracted
 	}
 
 	for _, tt := range tests {

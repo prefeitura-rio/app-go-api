@@ -35,6 +35,12 @@ const (
 	StatusCursoPublished       StatusCurso = "published"
 	StatusCursoPendingDeletion StatusCurso = "pending_deletion"
 
+	// Derived statuses — computed at read time from dates, never stored in DB
+	StatusCursoScheduled            StatusCurso = "scheduled"
+	StatusCursoAcceptingEnrollments StatusCurso = "accepting_enrollments"
+	StatusCursoInProgress           StatusCurso = "in_progress"
+	StatusCursoFinished             StatusCurso = "finished"
+
 	// Legacy values for backwards compatibility
 	StatusCursoCriado    StatusCurso = "CRIADO"
 	StatusCursoAberto    StatusCurso = "ABERTO"
@@ -151,6 +157,8 @@ func (s StatusCurso) IsValid() bool {
 	validValues := []string{
 		"draft", "opened", "closed", "canceled",
 		"in_review", "needs_changes", "approved", "published", "pending_deletion",
+		// derived statuses — returned by the API, normalized to published on write
+		"scheduled", "accepting_enrollments", "in_progress", "finished",
 		"CRIADO", "ABERTO", "ENCERRADO",
 	}
 	for _, v := range validValues {
@@ -170,7 +178,7 @@ func (s StatusCurso) CanTransitionTo(to StatusCurso) bool {
 	allowed := map[StatusCurso][]StatusCurso{
 		StatusCursoDraft:        {StatusCursoInReview, StatusCursoPendingDeletion},
 		StatusCursoNeedsChanges: {StatusCursoInReview, StatusCursoPendingDeletion},
-		StatusCursoInReview:     {StatusCursoApproved, StatusCursoNeedsChanges, StatusCursoPendingDeletion},
+		StatusCursoInReview:     {StatusCursoApproved, StatusCursoPublished, StatusCursoNeedsChanges, StatusCursoPendingDeletion},
 		StatusCursoApproved:     {StatusCursoPublished, StatusCursoPendingDeletion},
 		StatusCursoPublished:    {StatusCursoNeedsChanges, StatusCursoPendingDeletion, StatusCursoClosed, StatusCursoCanceled},
 		StatusCursoClosed:       {StatusCursoPendingDeletion},
@@ -218,6 +226,9 @@ func (s StatusCurso) Normalize() StatusCurso {
 		return StatusCursoPublished
 	case "ENCERRADO":
 		return StatusCursoClosed
+	// derived statuses are aliases of published — normalize back so they are never persisted
+	case "SCHEDULED", "ACCEPTING_ENROLLMENTS", "IN_PROGRESS", "FINISHED":
+		return StatusCursoPublished
 	default:
 		return s
 	}
@@ -242,6 +253,72 @@ func (f FormatoAula) Normalize() FormatoAula {
 		return ""
 	}
 	return FormatoAula(normalized)
+}
+
+// DeriveStatus computes the effective status for a published course based on enrollment and class
+// dates. Returns the derived status without mutating the receiver. Non-published courses return
+// their current status unchanged.
+func (c *Curso) DeriveStatus(now time.Time) StatusCurso {
+	if c.Status != StatusCursoPublished {
+		return c.Status
+	}
+
+	if c.EnrollmentStartDate != nil && now.Before(*c.EnrollmentStartDate) {
+		return StatusCursoScheduled
+	}
+
+	if c.EnrollmentStartDate != nil && c.EnrollmentEndDate != nil &&
+		!now.Before(*c.EnrollmentStartDate) && !now.After(*c.EnrollmentEndDate) {
+		return StatusCursoAcceptingEnrollments
+	}
+
+	if c.Modalidade == ModalidadeLivreFormacaoOnline {
+		if c.EnrollmentEndDate != nil && now.After(*c.EnrollmentEndDate) {
+			return StatusCursoInProgress
+		}
+		return c.Status
+	}
+
+	minStart, maxEnd, hasSchedules := collectClassDateRange(c)
+	if !hasSchedules {
+		return c.Status
+	}
+	if !now.Before(minStart) && !now.After(maxEnd) {
+		return StatusCursoInProgress
+	}
+	if now.After(maxEnd) {
+		return StatusCursoFinished
+	}
+	return c.Status
+}
+
+func collectClassDateRange(c *Curso) (minStart, maxEnd time.Time, has bool) {
+	apply := func(start, end time.Time) {
+		if !has {
+			minStart, maxEnd, has = start, end, true
+			return
+		}
+		if start.Before(minStart) {
+			minStart = start
+		}
+		if end.After(maxEnd) {
+			maxEnd = end
+		}
+	}
+
+	for _, loc := range c.LocationClasses {
+		for _, s := range loc.Schedules {
+			apply(s.ClassStartDate, s.ClassEndDate)
+		}
+	}
+	if c.RemoteClass != nil {
+		for _, s := range c.RemoteClass.Schedules {
+			if s.ClassStartDate != nil && s.ClassEndDate != nil {
+				apply(*s.ClassStartDate, *s.ClassEndDate)
+			}
+		}
+	}
+	return
 }
 
 // Validate validates a course instance

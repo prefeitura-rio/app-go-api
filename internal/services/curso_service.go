@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
@@ -72,7 +73,13 @@ func (s *CursoService) Create(ctx context.Context, curso *models.Curso) (int, er
 }
 
 func (s *CursoService) GetByID(ctx context.Context, id int) (*models.Curso, error) {
-	return s.repo.GetByID(ctx, id)
+	curso, err := s.repo.GetByID(ctx, id)
+	if err != nil || curso == nil {
+		return curso, err
+	}
+	out := *curso
+	out.Status = out.DeriveStatus(time.Now())
+	return &out, nil
 }
 
 func (s *CursoService) Update(ctx context.Context, curso *models.Curso) error {
@@ -91,7 +98,18 @@ func (s *CursoService) Delete(ctx context.Context, id int) error {
 
 func (s *CursoService) List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Curso, int, error) {
 	offset := (page - 1) * pageSize
-	return s.repo.List(ctx, filter, pageSize, offset)
+	cursos, total, err := s.repo.List(ctx, filter, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	now := time.Now()
+	result := make([]*models.Curso, len(cursos))
+	for i, c := range cursos {
+		out := *c
+		out.Status = out.DeriveStatus(now)
+		result[i] = &out
+	}
+	return result, total, nil
 }
 
 func (s *CursoService) SendToReview(ctx context.Context, id int) error {
@@ -119,23 +137,10 @@ func (s *CursoService) Approve(ctx context.Context, id int) error {
 	if curso == nil {
 		return fmt.Errorf("curso não encontrado")
 	}
-	if !curso.Status.CanTransitionTo(models.StatusCursoApproved) {
+	if !curso.Status.CanTransitionTo(models.StatusCursoPublished) {
 		return fmt.Errorf("curso não está em estado válido para aprovação")
 	}
-	return s.repo.UpdateStatus(ctx, id, models.StatusCursoApproved)
-}
-
-func (s *CursoService) Publish(ctx context.Context, id int) error {
-	curso, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	if curso == nil {
-		return fmt.Errorf("curso não encontrado")
-	}
-	if !curso.Status.CanTransitionTo(models.StatusCursoPublished) {
-		return fmt.Errorf("curso não está em estado válido para publicação")
-	}
+	// Aprovação publica diretamente: in_review → published (ou approved → published para dados legados)
 	return s.repo.UpdateStatus(ctx, id, models.StatusCursoPublished)
 }
 

@@ -346,15 +346,15 @@ func TestSearchDocumentsResponse_Structure(t *testing.T) {
 			Page:  1,
 			Hits: []map[string]interface{}{
 				{
-					"id":      "doc1",
-					"titulo":  "Curso de Go",
-					"action":  "read",
+					"id":         "doc1",
+					"titulo":     "Curso de Go",
+					"action":     "read",
 					"highlights": []interface{}{},
 				},
 				{
-					"id":      "doc2",
-					"titulo":  "Curso de Python",
-					"action":  "read",
+					"id":         "doc2",
+					"titulo":     "Curso de Python",
+					"action":     "read",
 					"highlights": []interface{}{},
 				},
 			},

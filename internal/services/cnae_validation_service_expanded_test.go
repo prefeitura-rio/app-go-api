@@ -48,8 +48,8 @@ func TestCNAEValidationService_ComplexOwnershipScenarios(t *testing.T) {
 
 		// Validate each CNPJ with its CNAE
 		testCases := []struct {
-			cnpj      string
-			cnaeIDs   []string
+			cnpj       string
+			cnaeIDs    []string
 			shouldFail bool
 		}{
 			{"11111111000111", []string{"4110700"}, false},
@@ -186,9 +186,9 @@ func TestCNAEValidationService_MultipleCNPJChecking(t *testing.T) {
 		ctx := context.Background()
 
 		testCases := []string{
-			"12345678000190",       // Raw
-			"12.345.678/0001-90",   // Formatted
-			" 12345678000190 ",     // With spaces
+			"12345678000190",     // Raw
+			"12.345.678/0001-90", // Formatted
+			" 12345678000190 ",   // With spaces
 		}
 
 		for _, cnpj := range testCases {

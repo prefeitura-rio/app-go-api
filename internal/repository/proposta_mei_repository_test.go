@@ -132,7 +132,7 @@ func TestPropostaMEIRepository_Update(t *testing.T) {
 
 	t.Run("update error", func(t *testing.T) {
 		proposta := &models.PropostaMEI{
-			ID:           uuid.New(),
+			ID:            uuid.New(),
 			StatusCidadao: "rejected",
 		}
 

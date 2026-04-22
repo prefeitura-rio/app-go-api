@@ -11,19 +11,19 @@ import (
 )
 
 type mockJobRepo struct {
-	createErr          error
-	entity             *models.Job
-	getErr             error
-	updateErr          error
-	updateStatusErr    error
-	updateProgressErr  error
-	deleteErr          error
-	listItems          []*models.Job
-	listTotal          int
-	listErr            error
-	getCalls           int
-	updateCalls        int
-	updateStatusCalls  int
+	createErr           error
+	entity              *models.Job
+	getErr              error
+	updateErr           error
+	updateStatusErr     error
+	updateProgressErr   error
+	deleteErr           error
+	listItems           []*models.Job
+	listTotal           int
+	listErr             error
+	getCalls            int
+	updateCalls         int
+	updateStatusCalls   int
 	updateProgressCalls int
 }
 
@@ -76,11 +76,11 @@ func (m *mockJobRepo) List(ctx context.Context, filter map[string]interface{}, l
 
 func TestJobService_Create(t *testing.T) {
 	tests := []struct {
-		name      string
-		job       *models.Job
-		repoErr   error
-		wantErr   bool
-		checkJob  func(*testing.T, *models.Job)
+		name     string
+		job      *models.Job
+		repoErr  error
+		wantErr  bool
+		checkJob func(*testing.T, *models.Job)
 	}{
 		{
 			name: "success - sets defaults",
@@ -103,8 +103,8 @@ func TestJobService_Create(t *testing.T) {
 			},
 		},
 		{
-			name: "error - missing type",
-			job:  &models.Job{},
+			name:    "error - missing type",
+			job:     &models.Job{},
 			wantErr: true,
 		},
 		{
@@ -292,14 +292,14 @@ func TestJobService_UpdateStatus(t *testing.T) {
 	existingID := uuid.New()
 
 	tests := []struct {
-		name             string
-		id               uuid.UUID
-		status           models.JobStatus
-		existingJob      *models.Job
-		getErr           error
-		updateStatusErr  error
-		wantErr          bool
-		errContains      string
+		name            string
+		id              uuid.UUID
+		status          models.JobStatus
+		existingJob     *models.Job
+		getErr          error
+		updateStatusErr error
+		wantErr         bool
+		errContains     string
 	}{
 		{
 			name:   "success - pending to processing",
@@ -386,16 +386,16 @@ func TestJobService_UpdateProgress(t *testing.T) {
 	existingID := uuid.New()
 
 	tests := []struct {
-		name               string
-		id                 uuid.UUID
-		progress           int
-		successCount       int
-		errorCount         int
-		existingJob        *models.Job
-		getErr             error
-		updateProgressErr  error
-		wantErr            bool
-		errContains        string
+		name              string
+		id                uuid.UUID
+		progress          int
+		successCount      int
+		errorCount        int
+		existingJob       *models.Job
+		getErr            error
+		updateProgressErr error
+		wantErr           bool
+		errContains       string
 	}{
 		{
 			name:         "success - initial progress",
@@ -578,16 +578,16 @@ func TestJobService_List(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		filter     map[string]interface{}
-		page       int
-		pageSize   int
-		listItems  []*models.Job
-		listTotal  int
-		listErr    error
-		wantLen    int
-		wantTotal  int
-		wantErr    bool
+		name      string
+		filter    map[string]interface{}
+		page      int
+		pageSize  int
+		listItems []*models.Job
+		listTotal int
+		listErr   error
+		wantLen   int
+		wantTotal int
+		wantErr   bool
 	}{
 		{
 			name:      "success - empty list",
@@ -677,10 +677,10 @@ func TestJobService_List(t *testing.T) {
 
 func TestJobService_List_OffsetCalculation(t *testing.T) {
 	tests := []struct {
-		name         string
-		page         int
-		pageSize     int
-		wantOffset   int
+		name       string
+		page       int
+		pageSize   int
+		wantOffset int
 	}{
 		{
 			name:       "page 1, size 10",

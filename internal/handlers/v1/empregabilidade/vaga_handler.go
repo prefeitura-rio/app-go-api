@@ -187,8 +187,11 @@ func (h *VagaHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if isPublishedStatus(existing.Status) && !middlewares.IsAdmin(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores podem editar vagas publicadas"})
+	canEditPublished := middlewares.IsAdmin(c) ||
+		middlewares.HasRole(c, "go:empregabilidade:admin") ||
+		middlewares.HasRole(c, "go:empregabilidade:editor_sem_curadoria")
+	if isPublishedStatus(existing.Status) && !canEditPublished {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores, empregabilidade:admin ou editor_sem_curadoria podem editar vagas publicadas"})
 		return
 	}
 

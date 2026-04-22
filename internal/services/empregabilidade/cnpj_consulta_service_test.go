@@ -15,7 +15,6 @@ func TestNewCNPJConsultaService(t *testing.T) {
 	assert.NotNil(t, service)
 }
 
-
 func TestLegalEntityFull_ToConsultaResponse(t *testing.T) {
 	t.Run("Converts full entity to simplified response", func(t *testing.T) {
 		nomeFantasia := "Test Company"

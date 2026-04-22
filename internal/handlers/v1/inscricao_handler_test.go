@@ -385,19 +385,41 @@ func (m *mockInscricaoService) CreateManual(ctx context.Context, inscricao *mode
 }
 
 // Dummy implementations for other interface methods (not used in CreateManual tests)
-func (m *mockInscricaoService) Create(ctx context.Context, inscricao *models.Inscricao) error { return nil }
-func (m *mockInscricaoService) GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) { return nil, nil }
-func (m *mockInscricaoService) GetByCursoID(ctx context.Context, cursoID int, filter map[string]interface{}, page, pageSize int) ([]*models.Inscricao, int, error) { return nil, 0, nil }
-func (m *mockInscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error { return nil }
-func (m *mockInscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) { return 0, nil }
-func (m *mockInscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) { return nil, nil }
+func (m *mockInscricaoService) Create(ctx context.Context, inscricao *models.Inscricao) error {
+	return nil
+}
+func (m *mockInscricaoService) GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+	return nil, nil
+}
+func (m *mockInscricaoService) GetByCursoID(ctx context.Context, cursoID int, filter map[string]interface{}, page, pageSize int) ([]*models.Inscricao, int, error) {
+	return nil, 0, nil
+}
+func (m *mockInscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error {
+	return nil
+}
+func (m *mockInscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
+	return 0, nil
+}
+func (m *mockInscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) {
+	return nil, nil
+}
 func (m *mockInscricaoService) Delete(ctx context.Context, id uuid.UUID) error { return nil }
-func (m *mockInscricaoService) ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error) { return nil, 0, nil }
-func (m *mockInscricaoService) UpdateCertificate(ctx context.Context, cursoID int, inscricaoID uuid.UUID, certificateURL string) error { return nil }
-func (m *mockInscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cursoID int, updateData *models.InscricaoUpdateRequest) error { return nil }
-func (m *mockInscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao *models.Inscricao) {}
-func (m *mockInscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, inscricoes []*models.Inscricao) {}
-func (m *mockInscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.UUID, userCPF string, request *models.ScheduleChangeRequest) (*models.Inscricao, error) { return nil, nil }
+func (m *mockInscricaoService) ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error) {
+	return nil, 0, nil
+}
+func (m *mockInscricaoService) UpdateCertificate(ctx context.Context, cursoID int, inscricaoID uuid.UUID, certificateURL string) error {
+	return nil
+}
+func (m *mockInscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cursoID int, updateData *models.InscricaoUpdateRequest) error {
+	return nil
+}
+func (m *mockInscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao *models.Inscricao) {
+}
+func (m *mockInscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, inscricoes []*models.Inscricao) {
+}
+func (m *mockInscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.UUID, userCPF string, request *models.ScheduleChangeRequest) (*models.Inscricao, error) {
+	return nil, nil
+}
 
 // Test CreateManual endpoint with conflict error (CPF already enrolled)
 func TestInscricaoHandler_CreateManual_ConflictError(t *testing.T) {

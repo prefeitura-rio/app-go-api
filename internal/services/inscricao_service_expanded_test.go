@@ -390,10 +390,10 @@ func TestInscricaoService_StatusTransitionValidation(t *testing.T) {
 	ctx := context.Background()
 
 	testCases := []struct {
-		name           string
-		currentStatus  models.StatusInscricao
-		newStatus      models.StatusInscricao
-		shouldSucceed  bool
+		name          string
+		currentStatus models.StatusInscricao
+		newStatus     models.StatusInscricao
+		shouldSucceed bool
 	}{
 		{
 			name:          "Pending to Approved",

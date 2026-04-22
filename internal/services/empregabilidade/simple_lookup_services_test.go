@@ -167,7 +167,7 @@ func TestDisponibilidadeService_GetByID(t *testing.T) {
 
 func TestDisponibilidadeService_Update(t *testing.T) {
 	entity := &empregabilidade.Disponibilidade{
-		ID:   uuid.New(),
+		ID:        uuid.New(),
 		Descricao: "Meio Período",
 	}
 
@@ -214,9 +214,9 @@ func TestEtapaService_Create(t *testing.T) {
 	id := uuid.New()
 	vagaID := uuid.New()
 	entity := &empregabilidade.Etapa{
-		IDVaga:    vagaID,
-		Titulo:    "Entrevista",
-		Ordem:     1,
+		IDVaga: vagaID,
+		Titulo: "Entrevista",
+		Ordem:  1,
 	}
 
 	mockRepo := new(MockEtapaRepository)
@@ -343,12 +343,12 @@ func TestOnboardingService_IsFirstLogin(t *testing.T) {
 		expectedError  error
 	}{
 		{
-			name: "returns error when GetByCPF fails",
-			cpf:  "12345678901",
-			onboarding: nil,
-			repoErr: errors.New("not found"),
+			name:           "returns error when GetByCPF fails",
+			cpf:            "12345678901",
+			onboarding:     nil,
+			repoErr:        errors.New("not found"),
 			expectedResult: false,
-			expectedError: errors.New("not found"),
+			expectedError:  errors.New("not found"),
 		},
 		{
 			name: "returns true when IsEmpregabilidadeFirstLogin is true",
@@ -356,9 +356,9 @@ func TestOnboardingService_IsFirstLogin(t *testing.T) {
 			onboarding: &empregabilidade.Onboarding{
 				IsEmpregabilidadeFirstLogin: true,
 			},
-			repoErr: nil,
+			repoErr:        nil,
 			expectedResult: true,
-			expectedError: nil,
+			expectedError:  nil,
 		},
 		{
 			name: "returns false when IsEmpregabilidadeFirstLogin is false",
@@ -366,9 +366,9 @@ func TestOnboardingService_IsFirstLogin(t *testing.T) {
 			onboarding: &empregabilidade.Onboarding{
 				IsEmpregabilidadeFirstLogin: false,
 			},
-			repoErr: nil,
+			repoErr:        nil,
 			expectedResult: false,
-			expectedError: nil,
+			expectedError:  nil,
 		},
 	}
 
@@ -445,12 +445,12 @@ func TestTermosUsoService_HasAcceptedTerms(t *testing.T) {
 		expectedError  error
 	}{
 		{
-			name: "returns error when GetByCPF fails",
-			cpf:  "12345678901",
-			termos: nil,
-			repoErr: errors.New("not found"),
+			name:           "returns error when GetByCPF fails",
+			cpf:            "12345678901",
+			termos:         nil,
+			repoErr:        errors.New("not found"),
 			expectedResult: false,
-			expectedError: errors.New("not found"),
+			expectedError:  errors.New("not found"),
 		},
 		{
 			name: "returns true when UserConsent is true",
@@ -458,9 +458,9 @@ func TestTermosUsoService_HasAcceptedTerms(t *testing.T) {
 			termos: &empregabilidade.TermosUso{
 				UserConsent: true,
 			},
-			repoErr: nil,
+			repoErr:        nil,
 			expectedResult: true,
-			expectedError: nil,
+			expectedError:  nil,
 		},
 		{
 			name: "returns false when UserConsent is false",
@@ -468,9 +468,9 @@ func TestTermosUsoService_HasAcceptedTerms(t *testing.T) {
 			termos: &empregabilidade.TermosUso{
 				UserConsent: false,
 			},
-			repoErr: nil,
+			repoErr:        nil,
 			expectedResult: false,
-			expectedError: nil,
+			expectedError:  nil,
 		},
 	}
 

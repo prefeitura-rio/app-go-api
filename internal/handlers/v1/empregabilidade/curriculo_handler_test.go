@@ -1238,7 +1238,7 @@ func TestCurriculoHandler_ReplaceAllCursosComplementaresByCPF_Success(t *testing
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Additional CurriculoHandler Edge Case Tests  
+// Additional CurriculoHandler Edge Case Tests
 // ──────────────────────────────────────────────────────────────────────────────
 
 func TestCurriculoHandler_GetCurriculoCompleto_ServiceError(t *testing.T) {

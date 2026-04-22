@@ -195,7 +195,6 @@ type CursoServiceInterface interface {
 	List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Curso, int, error)
 	SendToReview(ctx context.Context, id int) error
 	Approve(ctx context.Context, id int) error
-	Publish(ctx context.Context, id int) error
 	RequestChanges(ctx context.Context, id int) error
 	RequestDeletion(ctx context.Context, id int) error
 }

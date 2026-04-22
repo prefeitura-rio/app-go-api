@@ -571,12 +571,12 @@ func TestCursoRepository_List(t *testing.T) {
 		mock2.MatchExpectationsInOrder(false)
 
 		filter := map[string]interface{}{
-			"status NOT":         "archived",
-			"title ILIKE":        "%golang%",
-			"categoria_id":       1,
-			"acessibilidade_id":  2,
-			"neighborhood_zone":  "Zona Sul",
-			"instituicao_id":     3,
+			"status NOT":        "archived",
+			"title ILIKE":       "%golang%",
+			"categoria_id":      1,
+			"acessibilidade_id": 2,
+			"neighborhood_zone": "Zona Sul",
+			"instituicao_id":    3,
 		}
 
 		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "cursos"`)).

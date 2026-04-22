@@ -107,9 +107,9 @@ func TestPropostaMEIService_DocumentValidation(t *testing.T) {
 		service := services.NewPropostaMEIService(mockPropostaRepo, mockOportunidadeRepo, mockCNAEValidation, nil)
 
 		testCases := []string{
-			"12345678000190",          // Raw
-			"12.345.678/0001-90",      // Formatted
-			" 12345678000190 ",        // With spaces
+			"12345678000190",     // Raw
+			"12.345.678/0001-90", // Formatted
+			" 12345678000190 ",   // With spaces
 		}
 
 		for _, cnpj := range testCases {
@@ -139,7 +139,7 @@ func TestPropostaMEIService_DocumentValidation(t *testing.T) {
 
 		// Missing required fields
 		proposta := &models.PropostaMEI{
-			OportunidadeMEIID: 0, // Invalid
+			OportunidadeMEIID: 0,  // Invalid
 			MEIEmpresaID:      "", // Invalid
 		}
 

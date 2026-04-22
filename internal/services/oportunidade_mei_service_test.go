@@ -12,23 +12,23 @@ import (
 
 // mockOportunidadeMEIRepo implements repository methods for OportunidadeMEI
 type mockOportunidadeMEIRepo struct {
-	createID                   int
-	createErr                  error
-	entity                     *models.OportunidadeMEI
-	getErr                     error
-	updateErr                  error
-	deleteErr                  error
-	listItems                  []*models.OportunidadeMEI
-	listTotal                  int
-	listErr                    error
-	listByStatusItems          []*models.OportunidadeMEI
-	listByStatusTotal          int
-	listByStatusErr            error
-	listByOrgaoItems           []*models.OportunidadeMEI
-	listByOrgaoTotal           int
-	listByOrgaoErr             error
-	updateExpiredErr           error
-	updateExpiredCallCount     int
+	createID               int
+	createErr              error
+	entity                 *models.OportunidadeMEI
+	getErr                 error
+	updateErr              error
+	deleteErr              error
+	listItems              []*models.OportunidadeMEI
+	listTotal              int
+	listErr                error
+	listByStatusItems      []*models.OportunidadeMEI
+	listByStatusTotal      int
+	listByStatusErr        error
+	listByOrgaoItems       []*models.OportunidadeMEI
+	listByOrgaoTotal       int
+	listByOrgaoErr         error
+	updateExpiredErr       error
+	updateExpiredCallCount int
 }
 
 func (m *mockOportunidadeMEIRepo) Create(ctx context.Context, oportunidade *models.OportunidadeMEI) (int, error) {
@@ -95,19 +95,19 @@ func (m *mockOportunidadeMEIRepo) UpdateExpiredOpportunities(ctx context.Context
 func validOportunidade() *models.OportunidadeMEI {
 	dataExpiracao := time.Now().Add(30 * 24 * time.Hour)
 	return &models.OportunidadeMEI{
-		ID:                1,
-		Titulo:            "Serviço de Limpeza",
-		DescricaoServico:  "Limpeza de prédios públicos",
-		OrgaoID:           "org-123",
-		CNAEIDs:           []string{"8121-4/00"},
-		DataExpiracao:     &dataExpiracao,
-		Status:            models.StatusOportunidadeActive,
-		Logradouro:        "Rua ABC",
-		Numero:            "123",
-		Bairro:            "Centro",
-		Cidade:            "Rio de Janeiro",
-		Estado:            "RJ",
-		PrazoPagamento:    "30 dias após conclusão",
+		ID:               1,
+		Titulo:           "Serviço de Limpeza",
+		DescricaoServico: "Limpeza de prédios públicos",
+		OrgaoID:          "org-123",
+		CNAEIDs:          []string{"8121-4/00"},
+		DataExpiracao:    &dataExpiracao,
+		Status:           models.StatusOportunidadeActive,
+		Logradouro:       "Rua ABC",
+		Numero:           "123",
+		Bairro:           "Centro",
+		Cidade:           "Rio de Janeiro",
+		Estado:           "RJ",
+		PrazoPagamento:   "30 dias após conclusão",
 	}
 }
 

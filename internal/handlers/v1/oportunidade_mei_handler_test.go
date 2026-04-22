@@ -300,7 +300,7 @@ func TestOportunidadeMEIHandler_CreateDraft_Success(t *testing.T) {
 	r.POST("/api/v1/oportunidades-mei/draft", handler.CreateDraft)
 
 	oportunidade := models.OportunidadeMEI{
-		Titulo:    "Draft Oportunidade",
+		Titulo:           "Draft Oportunidade",
 		DescricaoServico: "Draft Description",
 	}
 
@@ -333,8 +333,8 @@ func TestOportunidadeMEIHandler_GetByID_Success(t *testing.T) {
 	r.GET("/api/v1/oportunidades-mei/:id", handler.GetByID)
 
 	oportunidade := &models.OportunidadeMEI{
-		ID:        1,
-		Titulo:    "Test Oportunidade",
+		ID:               1,
+		Titulo:           "Test Oportunidade",
 		DescricaoServico: "Test Description",
 	}
 
@@ -941,4 +941,3 @@ func TestOportunidadeMEIHandler_Publish_NotFoundAfterPublish(t *testing.T) {
 
 	mockService.AssertExpectations(t)
 }
-
