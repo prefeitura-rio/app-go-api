@@ -198,7 +198,6 @@ func TestCategoriaHandler_Update_InvalidJSON(t *testing.T) {
 	}
 }
 
-
 // Test Update - Service Error
 func TestCategoriaHandler_Update_ServiceError(t *testing.T) {
 	repo := &mockCategoriaRepoForHandler{

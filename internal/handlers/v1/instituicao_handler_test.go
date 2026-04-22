@@ -112,7 +112,6 @@ func TestInstituicaoHandler_Create_InvalidJSON(t *testing.T) {
 	}
 }
 
-
 // Test Create - Service Error
 func TestInstituicaoHandler_Create_ServiceError(t *testing.T) {
 	repo := &mockInstituicaoRepoForHandler{createErr: errors.New("database error")}
@@ -274,7 +273,6 @@ func TestInstituicaoHandler_Update_InvalidJSON(t *testing.T) {
 		t.Errorf("Update InvalidJSON: expected 400, got %d", w.Code)
 	}
 }
-
 
 // Test Update - Service Error
 func TestInstituicaoHandler_Update_ServiceError(t *testing.T) {

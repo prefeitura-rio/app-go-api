@@ -411,7 +411,7 @@ func TestCourseHandler_Create_MalformedJSON(t *testing.T) {
 	h := v1.NewCourseHandler(nil, nil, nil)
 	r.POST("/api/v1/courses", h.Create)
 
-	testCases := []struct{
+	testCases := []struct {
 		body string
 		desc string
 	}{
@@ -1822,8 +1822,8 @@ func TestCourseHandler_CalculateRemainingVacanciesForCourses_MixedScheduleTypes(
 			},
 		},
 		{
-			ID:              2,
-			Titulo:          "Location Only",
+			ID:     2,
+			Titulo: "Location Only",
 			LocationClasses: []models.LocationClass{
 				{
 					Schedules: []models.CourseSchedule{

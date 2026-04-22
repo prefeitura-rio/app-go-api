@@ -58,13 +58,13 @@ func (m *mockEmpregoRepo) List(ctx context.Context, filter map[string]interface{
 
 func TestEmpregoService_Create(t *testing.T) {
 	tests := []struct {
-		name      string
-		emprego   *models.Emprego
-		repoID    int
-		repoErr   error
-		wantID    int
-		wantErr   bool
-		errMsg    string
+		name    string
+		emprego *models.Emprego
+		repoID  int
+		repoErr error
+		wantID  int
+		wantErr bool
+		errMsg  string
 	}{
 		{
 			name: "success - valid CLT job",
@@ -269,11 +269,11 @@ func TestEmpregoService_GetByID(t *testing.T) {
 
 func TestEmpregoService_Update(t *testing.T) {
 	tests := []struct {
-		name      string
-		emprego   *models.Emprego
-		repoErr   error
-		wantErr   bool
-		errMsg    string
+		name    string
+		emprego *models.Emprego
+		repoErr error
+		wantErr bool
+		errMsg  string
 	}{
 		{
 			name: "success",

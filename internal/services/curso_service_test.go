@@ -2469,14 +2469,14 @@ func TestValidationFunctions_Coverage(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		curso := &models.Curso{
-			Titulo:                   "Test Course",
-			Status:                   models.StatusCursoOpened,
-			Modalidade:               models.ModalidadePresencial,
-			CourseManagementType:     models.CourseManagementOwnOrg,
-			ExternalPartnerLogoURL:   "https://example.com/logo.png",
-			ExternalPartnerName:      "",
-			ExternalPartnerURL:       "",
-			ExternalPartnerContact:   "",
+			Titulo:                 "Test Course",
+			Status:                 models.StatusCursoOpened,
+			Modalidade:             models.ModalidadePresencial,
+			CourseManagementType:   models.CourseManagementOwnOrg,
+			ExternalPartnerLogoURL: "https://example.com/logo.png",
+			ExternalPartnerName:    "",
+			ExternalPartnerURL:     "",
+			ExternalPartnerContact: "",
 		}
 
 		_, err := svc.Create(ctx, curso)
@@ -2493,14 +2493,14 @@ func TestValidationFunctions_Coverage(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		curso := &models.Curso{
-			Titulo:                   "Test Course",
-			Status:                   models.StatusCursoOpened,
-			Modalidade:               models.ModalidadePresencial,
-			CourseManagementType:     models.CourseManagementOwnOrg,
-			ExternalPartnerContact:   "contact@example.com",
-			ExternalPartnerName:      "",
-			ExternalPartnerURL:       "",
-			ExternalPartnerLogoURL:   "",
+			Titulo:                 "Test Course",
+			Status:                 models.StatusCursoOpened,
+			Modalidade:             models.ModalidadePresencial,
+			CourseManagementType:   models.CourseManagementOwnOrg,
+			ExternalPartnerContact: "contact@example.com",
+			ExternalPartnerName:    "",
+			ExternalPartnerURL:     "",
+			ExternalPartnerLogoURL: "",
 		}
 
 		_, err := svc.Create(ctx, curso)
@@ -2721,26 +2721,26 @@ func TestValidationFunctions_Coverage(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		curso := &models.Curso{
-			Titulo:          "  Test Title  ",
-			Status:          models.StatusCursoDraft,
-			Modalidade:      models.ModalidadePresencial,
-			Organization:    "  Org  ",
-			Theme:           "  Theme  ",
-			Workload:        "  Workload  ",
-			TargetAudience:  "  Audience  ",
-			PreRequisitos:   "  PreReqs  ",
-			Facilitator:     "  Facilitator  ",
-			Objectives:      "  Objectives  ",
-			ExpectedResults: "  Results  ",
-			ProgramContent:  "  Content  ",
-			Methodology:     "  Method  ",
-			ResourcesUsed:   "  Resources  ",
-			MaterialUsed:    "  Materials  ",
-			TeachingMaterial: "  Teaching  ",
-			Accessibility:   "  Access  ",
-			FormacaoLink:    "  https://example.com  ",
-			ExternalPartnerName: "  Partner  ",
-			ExternalPartnerURL: "  https://partner.com  ",
+			Titulo:                 "  Test Title  ",
+			Status:                 models.StatusCursoDraft,
+			Modalidade:             models.ModalidadePresencial,
+			Organization:           "  Org  ",
+			Theme:                  "  Theme  ",
+			Workload:               "  Workload  ",
+			TargetAudience:         "  Audience  ",
+			PreRequisitos:          "  PreReqs  ",
+			Facilitator:            "  Facilitator  ",
+			Objectives:             "  Objectives  ",
+			ExpectedResults:        "  Results  ",
+			ProgramContent:         "  Content  ",
+			Methodology:            "  Method  ",
+			ResourcesUsed:          "  Resources  ",
+			MaterialUsed:           "  Materials  ",
+			TeachingMaterial:       "  Teaching  ",
+			Accessibility:          "  Access  ",
+			FormacaoLink:           "  https://example.com  ",
+			ExternalPartnerName:    "  Partner  ",
+			ExternalPartnerURL:     "  https://partner.com  ",
 			ExternalPartnerLogoURL: "  https://partner.com/logo  ",
 			ExternalPartnerContact: "  contact@partner.com  ",
 		}
@@ -2855,12 +2855,12 @@ func TestValidationFunctions_Coverage(t *testing.T) {
 
 		isExternal := true
 		curso := &models.Curso{
-			Titulo:            "Test",
-			Status:            models.StatusCursoDraft,
-			Modalidade:        models.ModalidadePresencial,
-			IsExternalPartner: &isExternal,
+			Titulo:              "Test",
+			Status:              models.StatusCursoDraft,
+			Modalidade:          models.ModalidadePresencial,
+			IsExternalPartner:   &isExternal,
 			ExternalPartnerName: "Partner",
-			ExternalPartnerURL: "", // No URL
+			ExternalPartnerURL:  "", // No URL
 		}
 
 		_, err := svc.Create(ctx, curso)
@@ -3401,8 +3401,8 @@ func TestCursoService_Create_AdditionalValidationEdgeCases(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		curso := &models.Curso{
-			Titulo:              "Draft with Invalid Management Type",
-			Status:              models.StatusCursoDraft,
+			Titulo:               "Draft with Invalid Management Type",
+			Status:               models.StatusCursoDraft,
 			CourseManagementType: models.CourseManagementType("INVALID_TYPE"),
 		}
 
@@ -3807,11 +3807,11 @@ func TestCursoService_NormalizationEdgeCases(t *testing.T) {
 
 		isExternal := true
 		curso := &models.Curso{
-			Titulo:               "Course with External Partner URL",
-			Status:               models.StatusCursoDraft,
-			IsExternalPartner:    &isExternal,
-			ExternalPartnerURL:   "https://partner.com",
-			ExternalPartnerName:  "Partner Name",
+			Titulo:              "Course with External Partner URL",
+			Status:              models.StatusCursoDraft,
+			IsExternalPartner:   &isExternal,
+			ExternalPartnerURL:  "https://partner.com",
+			ExternalPartnerName: "Partner Name",
 		}
 
 		_, err := svc.Create(ctx, curso)

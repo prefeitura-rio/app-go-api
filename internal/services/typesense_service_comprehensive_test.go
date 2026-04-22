@@ -497,9 +497,9 @@ func TestSearchCursos_RecordProcessing(t *testing.T) {
 			"id":     "doc123",
 			"action": "read",
 			"record": map[string]interface{}{
-				"titulo":        "Curso de Go",
-				"descricao":     "Aprenda Go",
-				"created_at":    "2024-01-01",
+				"titulo":         "Curso de Go",
+				"descricao":      "Aprenda Go",
+				"created_at":     "2024-01-01",
 				"instituicao_id": 5,
 			},
 			"highlights": []interface{}{},
@@ -534,10 +534,10 @@ func TestSearchCursos_RecordProcessing(t *testing.T) {
 	t.Run("Handle missing record field", func(t *testing.T) {
 		// Hit without record field should be handled gracefully
 		hit := map[string]interface{}{
-			"id":          "doc456",
-			"action":      "read",
-			"titulo":      "Direct titulo",
-			"highlights":  []interface{}{},
+			"id":         "doc456",
+			"action":     "read",
+			"titulo":     "Direct titulo",
+			"highlights": []interface{}{},
 		}
 
 		// If no record exists, should not panic
@@ -586,13 +586,13 @@ func TestSearchEmpregos_RecordProcessing(t *testing.T) {
 			"id":     "emp123",
 			"action": "read",
 			"record": map[string]interface{}{
-				"titulo":            "Desenvolvedor Go",
-				"descricao":         "Vaga para dev Go",
-				"empresa_id":        10,
-				"salario_min":       8000,
-				"salario_max":       12000,
-				"tipo_contratacao":  "CLT",
-				"status":            "aberto",
+				"titulo":           "Desenvolvedor Go",
+				"descricao":        "Vaga para dev Go",
+				"empresa_id":       10,
+				"salario_min":      8000,
+				"salario_max":      12000,
+				"tipo_contratacao": "CLT",
+				"status":           "aberto",
 			},
 		}
 

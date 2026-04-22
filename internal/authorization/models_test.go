@@ -264,7 +264,7 @@ func TestResourceInfo_Structure(t *testing.T) {
 		Kind: "document",
 		ID:   "doc-123",
 		Attr: map[string]interface{}{
-			"owner": "user-456",
+			"owner":  "user-456",
 			"public": true,
 		},
 	}
@@ -298,7 +298,7 @@ func TestPrincipal_Structure(t *testing.T) {
 		Roles:         []string{"admin", "user"},
 		PolicyVersion: "default",
 		Attr: map[string]interface{}{
-			"cpf": "12345678900",
+			"cpf":        "12345678900",
 			"department": "IT",
 		},
 	}

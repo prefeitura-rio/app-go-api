@@ -154,7 +154,7 @@ func TestStatusCurso_CanTransitionTo(t *testing.T) {
 		{StatusCursoCanceled, StatusCursoPublished, false},
 		// legacy values normalize correctly
 		{StatusCursoOpened, StatusCursoNeedsChanges, true},    // opened → published → needs_changes
-		{StatusCursoOpened, StatusCursoPendingDeletion, true},  // opened → published → pending_deletion
+		{StatusCursoOpened, StatusCursoPendingDeletion, true}, // opened → published → pending_deletion
 		{StatusCursoAberto, StatusCursoNeedsChanges, true},    // ABERTO → published → needs_changes
 		{StatusCursoCriado, StatusCursoInReview, true},        // CRIADO → draft → in_review
 	}

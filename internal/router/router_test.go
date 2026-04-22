@@ -69,8 +69,8 @@ func TestRegisterCurriculoSection(t *testing.T) {
 
 	// Check paths
 	expectedPaths := map[string]bool{
-		"/curriculo/formacoes":     false,
-		"/curriculo/formacoes/:id": false,
+		"/curriculo/formacoes":      false,
+		"/curriculo/formacoes/:id":  false,
 		"/curriculo/:cpf/formacoes": false,
 	}
 
