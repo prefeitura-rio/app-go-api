@@ -14,12 +14,13 @@ import (
 )
 
 const (
-	UserCPFKey   = "user_cpf"
-	UserRoleKey  = "user_role"
-	UserRolesKey = "user_roles"
-	UserIDKey    = "user_id"
-	UserNameKey  = "user_name"
-	UserEmailKey = "user_email"
+	UserCPFKey    = "user_cpf"
+	UserRoleKey   = "user_role"
+	UserRolesKey  = "user_roles"
+	UserGroupsKey = "user_groups"
+	UserIDKey     = "user_id"
+	UserNameKey   = "user_name"
+	UserEmailKey  = "user_email"
 )
 
 // JWTClaims representa as claims do JWT que nos interessam
@@ -163,6 +164,7 @@ func ExtractUserContext(heimdallBaseURL string) gin.HandlerFunc {
 			userInfo, err := fetchHeimdallUserInfo(c.Request.Context(), heimdallBaseURL, authHeader)
 			if err == nil && userInfo != nil {
 				c.Set(UserRolesKey, userInfo.Roles)
+				c.Set(UserGroupsKey, userInfo.Groups)
 				for _, r := range userInfo.Roles {
 					if r == "go:admin" || r == "admin" || r == "superadmin" {
 						role = "ADMIN"
@@ -263,6 +265,27 @@ func HasRole(c *gin.Context, role string) bool {
 		}
 	}
 	return false
+}
+
+// GetUserGroups retorna todos os grupos do usuário autenticado
+func GetUserGroups(c *gin.Context) []string {
+	if groups, exists := c.Get(UserGroupsKey); exists {
+		if groupsSlice, ok := groups.([]string); ok {
+			return groupsSlice
+		}
+	}
+	return nil
+}
+
+// GetUserOrgaoID retorna o orgao_id do usuário extraído do grupo go:orgao:{id}.
+// Retorna string vazia se o usuário não pertencer a nenhum grupo de orgao.
+func GetUserOrgaoID(c *gin.Context) string {
+	for _, g := range GetUserGroups(c) {
+		if strings.HasPrefix(g, "go:orgao:") {
+			return strings.TrimPrefix(g, "go:orgao:")
+		}
+	}
+	return ""
 }
 
 // IsEmpregabilidadeRole verifica se o usuário possui qualquer role de empregabilidade (prefixo go:empregabilidade:)
