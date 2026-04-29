@@ -259,7 +259,7 @@ func (f FormatoAula) Normalize() FormatoAula {
 // dates. Returns the derived status without mutating the receiver. Non-published courses return
 // their current status unchanged.
 func (c *Curso) DeriveStatus(now time.Time) StatusCurso {
-	if c.Status != StatusCursoPublished {
+	if c.Status.Normalize() != StatusCursoPublished {
 		return c.Status
 	}
 
