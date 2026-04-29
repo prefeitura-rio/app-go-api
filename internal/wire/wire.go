@@ -27,9 +27,9 @@ type ApplicationContainer struct {
 	Config *config.AppConfig
 
 	// Infrastructure
-	RedisClient    *redis.Client
-	RMIClient      *clients.RMIClient
-	TokenManager   *auth.ServiceAccountTokenManager
+	RedisClient     *redis.Client
+	RMIClient       *clients.RMIClient
+	TokenManager    *auth.ServiceAccountTokenManager
 	DataRelayClient *clients.DataRelayClient
 
 	// Caches

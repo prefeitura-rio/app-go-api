@@ -8,7 +8,6 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
 
-
 // createMockAppContainer creates a minimal ApplicationContainer with mock handlers.
 // We only need the handlers to satisfy interface requirements for route registration,
 // so we can use empty struct instances (services will be nil but that's OK for testing).

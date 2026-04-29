@@ -340,7 +340,7 @@ func TestGetCNPJOwnerContactInfo_NoSociosFound(t *testing.T) {
 		legalEntity := models.LegalEntityDetails{
 			CNPJ:        "12345678000195",
 			RazaoSocial: "Test Company",
-			Socios:      []struct {
+			Socios: []struct {
 				CPFSocio  string `json:"cpf_socio"`
 				NomeSocio string `json:"nome_socio_estrangeiro"`
 			}{},

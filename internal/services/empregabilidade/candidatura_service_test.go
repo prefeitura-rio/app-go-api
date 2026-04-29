@@ -1445,14 +1445,14 @@ func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
 		cpf2 := "22222222222"
 
 		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
-			CPF:           cpf1,
-			IDVaga:        vagaID,
-			IDEtapaAtual:  &etapa1,
+			CPF:          cpf1,
+			IDVaga:       vagaID,
+			IDEtapaAtual: &etapa1,
 		}
 		mockCandidaturaRepo.candidaturas[uuid.New()] = &empregabilidade.Candidatura{
-			CPF:           cpf2,
-			IDVaga:        vagaID,
-			IDEtapaAtual:  &etapa2,
+			CPF:          cpf2,
+			IDVaga:       vagaID,
+			IDEtapaAtual: &etapa2,
 		}
 
 		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{

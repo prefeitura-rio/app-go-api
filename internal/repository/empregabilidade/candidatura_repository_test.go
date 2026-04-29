@@ -448,12 +448,12 @@ func TestCandidaturaRepository_Create(t *testing.T) {
 	t.Run("create success", func(t *testing.T) {
 		vagaID := uuid.New()
 		candidatura := &empregabilidade.Candidatura{
-			ID:      uuid.New(),
-			CPF:     "12345678900",
-			Nome:    stringPtr("João Silva"),
-			Email:   stringPtr("joao@example.com"),
-			IDVaga:  vagaID,
-			Status:  empregabilidade.StatusCandidaturaEnviada,
+			ID:     uuid.New(),
+			CPF:    "12345678900",
+			Nome:   stringPtr("João Silva"),
+			Email:  stringPtr("joao@example.com"),
+			IDVaga: vagaID,
+			Status: empregabilidade.StatusCandidaturaEnviada,
 		}
 
 		mock.ExpectBegin()

@@ -237,7 +237,6 @@ func TestTypesenseHandler_SearchDocuments_EmptyCollection(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Nome da coleção é obrigatório")
 }
 
-
 // Test empty request body
 func TestTypesenseHandler_SearchCursos_EmptyBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)

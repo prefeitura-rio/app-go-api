@@ -486,7 +486,6 @@ func TestCandidaturaHandler_UpdateEtapa_BadJSON(t *testing.T) {
 	}
 }
 
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Tests: Update
 // ──────────────────────────────────────────────────────────────────────────────
@@ -627,7 +626,6 @@ func TestCandidaturaHandler_UpdateStatus_BadJSON(t *testing.T) {
 	}
 }
 
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Tests: Approve/Reject Success Cases
 // ──────────────────────────────────────────────────────────────────────────────
@@ -765,7 +763,6 @@ func TestCandidaturaHandler_BulkUpdateEtapa_Success(t *testing.T) {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Additional CandidaturaHandler Edge Case Tests

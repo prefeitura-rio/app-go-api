@@ -970,3 +970,76 @@ func TestVagaHandler_Update_PublishedExpirado_NonAdmin(t *testing.T) {
 		t.Errorf("expected 403, got %d", w.Code)
 	}
 }
+
+func setupVagaRouterWithRoles(vagaRepo services.VagaRepoInterface, empresaRepo services.EmpresaRepoInterface, roles []string) *gin.Engine {
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRolesKey, roles)
+		c.Next()
+	})
+	candidaturaRepo := &mockCandidaturaRepoForVaga{}
+	svc := services.NewVagaServiceWithInterfaces(vagaRepo, empresaRepo, candidaturaRepo)
+	h := handlers.NewVagaHandler(svc)
+	r.PUT("/vagas/:id", h.Update)
+	return r
+}
+
+func TestVagaHandler_Update_PublishedAllowedForEmpregabilidadeAdmin(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouterWithRoles(vagaRepo, empresaRepo, []string{"go:empregabilidade:admin"})
+	body := bodyOf(`{"titulo":"Dev Emp Admin"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for empregabilidade:admin, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_Update_PublishedAllowedForEmpregabilidadeEditorSemCuradoria(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouterWithRoles(vagaRepo, empresaRepo, []string{"go:empregabilidade:editor_sem_curadoria"})
+	body := bodyOf(`{"titulo":"Dev Editor"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for empregabilidade:editor_sem_curadoria, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_Update_PublishedForbiddenForUnrelatedRole(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouterWithRoles(vagaRepo, empresaRepo, []string{"go:cursos:editor"})
+	body := bodyOf(`{"titulo":"Dev Cursos"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for unrelated role, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_Update_PublishedForbiddenForEditorComCuradoria(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouterWithRoles(vagaRepo, empresaRepo, []string{"go:empregabilidade:editor_com_curadoria"})
+	body := bodyOf(`{"titulo":"Dev Editor Com Curadoria"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for editor_com_curadoria on published vaga, got %d", w.Code)
+	}
+}

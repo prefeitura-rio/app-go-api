@@ -79,46 +79,46 @@ func TestNormalizeFieldName(t *testing.T) {
 
 func TestMatchesFieldName(t *testing.T) {
 	tests := []struct {
-		name       string
-		csvColumn  string
+		name        string
+		csvColumn   string
 		targetField string
-		want       bool
+		want        bool
 	}{
 		{
-			name:       "exact match lowercase",
-			csvColumn:  "nome",
+			name:        "exact match lowercase",
+			csvColumn:   "nome",
 			targetField: "nome",
-			want:       true,
+			want:        true,
 		},
 		{
-			name:       "case insensitive",
-			csvColumn:  "NOME",
+			name:        "case insensitive",
+			csvColumn:   "NOME",
 			targetField: "nome",
-			want:       true,
+			want:        true,
 		},
 		{
-			name:       "with accents",
-			csvColumn:  "endereço",
+			name:        "with accents",
+			csvColumn:   "endereço",
 			targetField: "endereco",
-			want:       true,
+			want:        true,
 		},
 		{
-			name:       "with spaces vs underscores",
-			csvColumn:  "nome completo",
+			name:        "with spaces vs underscores",
+			csvColumn:   "nome completo",
 			targetField: "nome_completo",
-			want:       true,
+			want:        true,
 		},
 		{
-			name:       "no match",
-			csvColumn:  "nome",
+			name:        "no match",
+			csvColumn:   "nome",
 			targetField: "email",
-			want:       false,
+			want:        false,
 		},
 		{
-			name:       "spaces normalized",
-			csvColumn:  "Nome Completo",
+			name:        "spaces normalized",
+			csvColumn:   "Nome Completo",
 			targetField: "nome_completo",
-			want:       true,
+			want:        true,
 		},
 	}
 
@@ -220,36 +220,36 @@ func TestValidateFieldType(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "valid select option",
-			value:   "option1",
-			field:   models.CustomField{
+			name:  "valid select option",
+			value: "option1",
+			field: models.CustomField{
 				FieldType: "select",
 				Options:   mustMarshalJSON([]string{"option1", "option2"}),
 			},
 			wantErr: false,
 		},
 		{
-			name:    "invalid select option",
-			value:   "option3",
-			field:   models.CustomField{
+			name:  "invalid select option",
+			value: "option3",
+			field: models.CustomField{
 				FieldType: "select",
 				Options:   mustMarshalJSON([]string{"option1", "option2"}),
 			},
 			wantErr: true,
 		},
 		{
-			name:    "valid multiselect",
-			value:   "option1,option2",
-			field:   models.CustomField{
+			name:  "valid multiselect",
+			value: "option1,option2",
+			field: models.CustomField{
 				FieldType: "multiselect",
 				Options:   mustMarshalJSON([]string{"option1", "option2", "option3"}),
 			},
 			wantErr: false,
 		},
 		{
-			name:    "invalid multiselect - invalid option",
-			value:   "option1,option4",
-			field:   models.CustomField{
+			name:  "invalid multiselect - invalid option",
+			value: "option1,option4",
+			field: models.CustomField{
 				FieldType: "multiselect",
 				Options:   mustMarshalJSON([]string{"option1", "option2", "option3"}),
 			},
@@ -616,36 +616,36 @@ func TestValidateFieldType_EdgeCases(t *testing.T) {
 			wantErr: false, // Email validation is permissive
 		},
 		{
-			name:    "select with empty value",
-			value:   "",
-			field:   models.CustomField{
+			name:  "select with empty value",
+			value: "",
+			field: models.CustomField{
 				FieldType: "select",
 				Options:   mustMarshalJSON([]string{"option1", "option2"}),
 			},
 			wantErr: true, // Empty is not in the options list
 		},
 		{
-			name:    "multiselect with single value",
-			value:   "option1",
-			field:   models.CustomField{
+			name:  "multiselect with single value",
+			value: "option1",
+			field: models.CustomField{
 				FieldType: "multiselect",
 				Options:   mustMarshalJSON([]string{"option1", "option2"}),
 			},
 			wantErr: false,
 		},
 		{
-			name:    "multiselect with spaces",
-			value:   "option1, option2",
-			field:   models.CustomField{
+			name:  "multiselect with spaces",
+			value: "option1, option2",
+			field: models.CustomField{
 				FieldType: "multiselect",
 				Options:   mustMarshalJSON([]string{"option1", "option2"}),
 			},
 			wantErr: false, // Should trim spaces
 		},
 		{
-			name:    "multiselect empty values",
-			value:   "option1,,option2",
-			field:   models.CustomField{
+			name:  "multiselect empty values",
+			value: "option1,,option2",
+			field: models.CustomField{
 				FieldType: "multiselect",
 				Options:   mustMarshalJSON([]string{"option1", "option2"}),
 			},
@@ -883,8 +883,8 @@ func TestBuildScheduleMap(t *testing.T) {
 			},
 		},
 		{
-			name:      "remote class with schedules",
-			locations: []models.LocationClass{},
+			name:              "remote class with schedules",
+			locations:         []models.LocationClass{},
 			remoteClassLoaded: true,
 			remoteClass: &models.RemoteClass{
 				ID: remoteClassID,
@@ -953,8 +953,8 @@ func TestBuildScheduleMap(t *testing.T) {
 			},
 		},
 		{
-			name: "remote class with nil pointer fields",
-			locations: []models.LocationClass{},
+			name:              "remote class with nil pointer fields",
+			locations:         []models.LocationClass{},
 			remoteClassLoaded: true,
 			remoteClass: &models.RemoteClass{
 				ID: remoteClassID,
@@ -1020,9 +1020,9 @@ func TestFindScheduleByTurma(t *testing.T) {
 	scheduleMap := buildScheduleMap(locations, true, remoteClass)
 
 	tests := []struct {
-		name              string
-		turma             string
-		scheduleMap       map[string]struct {
+		name        string
+		turma       string
+		scheduleMap map[string]struct {
 			LocationID uuid.UUID
 			ScheduleID uuid.UUID
 		}
@@ -1346,10 +1346,10 @@ func (m *MockCursoService) List(ctx context.Context, filter map[string]interface
 	return args.Get(0).([]*models.Curso), args.Int(1), args.Error(2)
 }
 
-func (m *MockCursoService) SendToReview(ctx context.Context, id int) error { return nil }
-func (m *MockCursoService) Approve(ctx context.Context, id int) error       { return nil }
-func (m *MockCursoService) Publish(ctx context.Context, id int) error       { return nil }
-func (m *MockCursoService) RequestChanges(ctx context.Context, id int) error { return nil }
+func (m *MockCursoService) SendToReview(ctx context.Context, id int) error    { return nil }
+func (m *MockCursoService) Approve(ctx context.Context, id int) error         { return nil }
+func (m *MockCursoService) Publish(ctx context.Context, id int) error         { return nil }
+func (m *MockCursoService) RequestChanges(ctx context.Context, id int) error  { return nil }
 func (m *MockCursoService) RequestDeletion(ctx context.Context, id int) error { return nil }
 
 type MockDB struct {
@@ -1659,11 +1659,11 @@ func TestProcessRow_ValidationLogic(t *testing.T) {
 	cursoID := 1
 
 	tests := []struct {
-		name        string
-		row         EnrollmentRow
+		name         string
+		row          EnrollmentRow
 		customFields []models.CustomField
-		wantErr     bool
-		errContains string
+		wantErr      bool
+		errContains  string
 	}{
 		{
 			name: "empty nome",
@@ -1970,7 +1970,7 @@ func TestProcessRow_CustomFieldsSerialization(t *testing.T) {
 				CPF:          "12345678901",
 				CustomFields: map[string]string{
 					"Field1": "value1",
-					"Field2": "",      // Empty value should be filtered out
+					"Field2": "", // Empty value should be filtered out
 					"Field3": "value3",
 				},
 			},
@@ -2194,11 +2194,11 @@ func TestParseCSV_EdgeCases(t *testing.T) {
 		checkFunc     func(*testing.T, []EnrollmentRow)
 	}{
 		{
-			name:       "file with only header",
-			csvContent: `nome,cpf`,
+			name:          "file with only header",
+			csvContent:    `nome,cpf`,
 			fieldMappings: make(map[string]string),
-			wantRows:   0,
-			wantErr:    false,
+			wantRows:      0,
+			wantErr:       false,
 		},
 		{
 			name: "very long field values",

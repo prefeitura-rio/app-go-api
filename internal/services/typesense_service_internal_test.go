@@ -28,11 +28,11 @@ func TestMain(m *testing.M) {
 
 // MockTypesenseClient is a mock implementation of the Typesense client for testing
 type MockTypesenseClient struct {
-	client              *typesense.Client
-	MockSearchFunc      func(ctx context.Context, params *api.SearchCollectionParams) (*api.SearchResult, error)
-	MockCollectionName  string
-	LastSearchParams    *api.SearchCollectionParams
-	SearchCallCount     int
+	client             *typesense.Client
+	MockSearchFunc     func(ctx context.Context, params *api.SearchCollectionParams) (*api.SearchResult, error)
+	MockCollectionName string
+	LastSearchParams   *api.SearchCollectionParams
+	SearchCallCount    int
 }
 
 // NewMockTypesenseService creates a TypesenseService with a mock client for testing
@@ -98,17 +98,17 @@ func createEmpregoHit(id string, titulo string, salarioMin int, salarioMax int) 
 		"id":     id,
 		"action": "read",
 		"record": map[string]interface{}{
-			"titulo":            titulo,
-			"descricao":         "Descrição da vaga",
-			"pre_requisitos":    "Requisitos",
-			"beneficios":        "Benefícios",
-			"orgao_id":          "org-456",
-			"empresa_id":        10,
-			"salario_min":       salarioMin,
-			"salario_max":       salarioMax,
-			"tipo_contratacao":  "CLT",
-			"status":            "aberto",
-			"created_at":        "2024-01-01T00:00:00Z",
+			"titulo":           titulo,
+			"descricao":        "Descrição da vaga",
+			"pre_requisitos":   "Requisitos",
+			"beneficios":       "Benefícios",
+			"orgao_id":         "org-456",
+			"empresa_id":       10,
+			"salario_min":      salarioMin,
+			"salario_max":      salarioMax,
+			"tipo_contratacao": "CLT",
+			"status":           "aberto",
+			"created_at":       "2024-01-01T00:00:00Z",
 		},
 	}
 }
@@ -400,17 +400,17 @@ func TestSearchDocuments_DataTransformation(t *testing.T) {
 		page := 1
 
 		doc1 := map[string]interface{}{
-			"id":          "doc1",
-			"titulo":      "Test Document 1",
-			"descricao":   "Description 1",
-			"created_at":  "2024-01-01",
+			"id":         "doc1",
+			"titulo":     "Test Document 1",
+			"descricao":  "Description 1",
+			"created_at": "2024-01-01",
 		}
 
 		doc2 := map[string]interface{}{
-			"id":          "doc2",
-			"titulo":      "Test Document 2",
-			"descricao":   "Description 2",
-			"created_at":  "2024-01-02",
+			"id":         "doc2",
+			"titulo":     "Test Document 2",
+			"descricao":  "Description 2",
+			"created_at": "2024-01-02",
 		}
 
 		highlight := api.SearchHighlight{
@@ -526,10 +526,10 @@ func TestSearchCursos_RecordExtraction(t *testing.T) {
 	t.Run("Handles hits without record field", func(t *testing.T) {
 		// Create hit without record (should not cause panic)
 		hit := map[string]interface{}{
-			"id":          "flat1",
-			"action":      "read",
-			"titulo":      "Direct Titulo",
-			"descricao":   "Direct Description",
+			"id":        "flat1",
+			"action":    "read",
+			"titulo":    "Direct Titulo",
+			"descricao": "Direct Description",
 		}
 
 		// Check if record exists

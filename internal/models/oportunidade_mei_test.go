@@ -66,10 +66,10 @@ func TestOportunidadeMEI_Validate(t *testing.T) {
 	dataExpiracao := time.Now().Add(24 * time.Hour)
 
 	tests := []struct {
-		name        string
+		name         string
 		oportunidade *OportunidadeMEI
-		expectError bool
-		errorMsg    string
+		expectError  bool
+		errorMsg     string
 	}{
 		{
 			name: "valid_draft_minimal_fields",
@@ -365,10 +365,10 @@ func TestOportunidadeMEI_ValidateForPublish(t *testing.T) {
 	dataExpiracao := time.Now().Add(24 * time.Hour)
 
 	tests := []struct {
-		name        string
+		name         string
 		oportunidade *OportunidadeMEI
-		expectError bool
-		errorMsg    string
+		expectError  bool
+		errorMsg     string
 	}{
 		{
 			name: "valid_complete_oportunidade",
@@ -387,10 +387,10 @@ func TestOportunidadeMEI_ValidateForPublish(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "missing_all_required_fields",
+			name:         "missing_all_required_fields",
 			oportunidade: &OportunidadeMEI{},
-			expectError: true,
-			errorMsg:    "título é obrigatório",
+			expectError:  true,
+			errorMsg:     "título é obrigatório",
 		},
 		{
 			name: "with_valid_forma_pagamento",

@@ -33,7 +33,6 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courses.DELETE("/:courseId", app.CourseHandler.Delete)
 		courses.PUT("/:courseId/send-to-review", app.CourseHandler.SendToReview)
 		courses.PUT("/:courseId/approve", app.CourseHandler.Approve)
-		courses.PUT("/:courseId/publish", app.CourseHandler.Publish)
 		courses.PUT("/:courseId/request-changes", app.CourseHandler.RequestChanges)
 		courses.PUT("/:courseId/request-deletion", app.CourseHandler.RequestDeletion)
 		courses.POST("/:courseId/enrollments", app.InscricaoHandler.Create)

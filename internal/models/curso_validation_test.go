@@ -135,7 +135,7 @@ func TestStatusCurso_CanTransitionTo(t *testing.T) {
 		// in_review transitions
 		{StatusCursoInReview, StatusCursoApproved, true},
 		{StatusCursoInReview, StatusCursoPendingDeletion, true},
-		{StatusCursoInReview, StatusCursoPublished, false},
+		{StatusCursoInReview, StatusCursoPublished, true},
 		{StatusCursoInReview, StatusCursoDraft, false},
 		// approved transitions
 		{StatusCursoApproved, StatusCursoPublished, true},
@@ -154,7 +154,7 @@ func TestStatusCurso_CanTransitionTo(t *testing.T) {
 		{StatusCursoCanceled, StatusCursoPublished, false},
 		// legacy values normalize correctly
 		{StatusCursoOpened, StatusCursoNeedsChanges, true},    // opened → published → needs_changes
-		{StatusCursoOpened, StatusCursoPendingDeletion, true},  // opened → published → pending_deletion
+		{StatusCursoOpened, StatusCursoPendingDeletion, true}, // opened → published → pending_deletion
 		{StatusCursoAberto, StatusCursoNeedsChanges, true},    // ABERTO → published → needs_changes
 		{StatusCursoCriado, StatusCursoInReview, true},        // CRIADO → draft → in_review
 	}

@@ -941,20 +941,7 @@ func (h *CourseHandler) Approve(c *gin.Context) {
 		handleCursoTransitionError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Curso aprovado com sucesso"})
-}
-
-func (h *CourseHandler) Publish(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("courseId"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
-		return
-	}
-	if err := h.cursoService.Publish(c.Request.Context(), id); err != nil {
-		handleCursoTransitionError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "Curso publicado com sucesso"})
+	c.JSON(http.StatusOK, gin.H{"message": "Curso aprovado e publicado com sucesso"})
 }
 
 func (h *CourseHandler) RequestChanges(c *gin.Context) {

@@ -194,14 +194,14 @@ func TestCursoService_DraftToPublishedWorkflow(t *testing.T) {
 		svc := services.NewCursoServiceWithInterface(repo)
 
 		draft := &models.Curso{
-			Titulo:          "Draft Course",
-			Status:          models.StatusCursoDraft,
-			Modalidade:      "", // Optional for draft
-			NumeroVagas:     0,  // Optional for draft
-			CargaHoraria:    0,  // Optional for draft
-			Organization:    "",
-			Theme:           "",
-			TargetAudience:  "",
+			Titulo:         "Draft Course",
+			Status:         models.StatusCursoDraft,
+			Modalidade:     "", // Optional for draft
+			NumeroVagas:    0,  // Optional for draft
+			CargaHoraria:   0,  // Optional for draft
+			Organization:   "",
+			Theme:          "",
+			TargetAudience: "",
 		}
 
 		_, err := svc.Create(ctx, draft)

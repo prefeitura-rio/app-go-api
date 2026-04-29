@@ -159,7 +159,6 @@ func TestAcessibilidadeHandler_Update_InvalidJSON(t *testing.T) {
 	}
 }
 
-
 // Test Delete - Success
 func TestAcessibilidadeHandler_Delete_Success(t *testing.T) {
 	repo := &mockAcessibilidadeRepoForHandler{}

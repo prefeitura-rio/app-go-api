@@ -305,7 +305,7 @@ func TestIdiomaRepository_Update(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		entity := &empregabilidade.Idioma{
-			ID:   uuid.New(),
+			ID:        uuid.New(),
 			Descricao: "Francês",
 		}
 
@@ -320,7 +320,7 @@ func TestIdiomaRepository_Update(t *testing.T) {
 
 	t.Run("update error", func(t *testing.T) {
 		entity := &empregabilidade.Idioma{
-			ID:   uuid.New(),
+			ID:        uuid.New(),
 			Descricao: "Alemão",
 		}
 

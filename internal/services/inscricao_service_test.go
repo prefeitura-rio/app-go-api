@@ -15,17 +15,17 @@ import (
 
 // MockInscricaoRepository implements InscricaoRepositoryInterface for testing
 type MockInscricaoRepository struct {
-	CreateFunc                func(ctx context.Context, inscricao *models.Inscricao) error
-	GetByIDFunc               func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error)
-	UpdateFunc                func(ctx context.Context, inscricao *models.Inscricao) error
-	DeleteFunc                func(ctx context.Context, id uuid.UUID) error
-	ExistsByCPFAndCursoFunc   func(ctx context.Context, cpf string, cursoID int) (bool, error)
-	GetByCursoIDFunc          func(ctx context.Context, cursoID int, filter map[string]interface{}, limit, offset int) ([]*models.Inscricao, int, error)
-	UpdateStatusFunc          func(ctx context.Context, inscricaoID uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error
-	UpdateMultipleStatusFunc  func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error)
-	GetSummaryByCursoIDFunc   func(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error)
-	ListByCPFFunc             func(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error)
-	UpdateCertificateFunc     func(ctx context.Context, inscricaoID uuid.UUID, certificateURL string) error
+	CreateFunc               func(ctx context.Context, inscricao *models.Inscricao) error
+	GetByIDFunc              func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error)
+	UpdateFunc               func(ctx context.Context, inscricao *models.Inscricao) error
+	DeleteFunc               func(ctx context.Context, id uuid.UUID) error
+	ExistsByCPFAndCursoFunc  func(ctx context.Context, cpf string, cursoID int) (bool, error)
+	GetByCursoIDFunc         func(ctx context.Context, cursoID int, filter map[string]interface{}, limit, offset int) ([]*models.Inscricao, int, error)
+	UpdateStatusFunc         func(ctx context.Context, inscricaoID uuid.UUID, status models.StatusInscricao, reason, adminNotes string) error
+	UpdateMultipleStatusFunc func(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error)
+	GetSummaryByCursoIDFunc  func(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error)
+	ListByCPFFunc            func(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error)
+	UpdateCertificateFunc    func(ctx context.Context, inscricaoID uuid.UUID, certificateURL string) error
 }
 
 func (m *MockInscricaoRepository) Create(ctx context.Context, inscricao *models.Inscricao) error {
@@ -1645,14 +1645,14 @@ func TestInscricaoService_CreateManual(t *testing.T) {
 
 // MockCitizenSnapshotRepository for testing - implements CitizenSnapshotRepositoryInterface
 type MockCitizenSnapshotRepository struct {
-	GetByCPFFunc            func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
-	GetByCPFsFunc           func(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error)
-	UpsertFunc              func(ctx context.Context, snapshot *models.CitizenSnapshot) error
-	BatchUpsertFunc         func(ctx context.Context, snapshots []*models.CitizenSnapshot) error
-	GetStaleSnapshotsFunc   func(ctx context.Context, staleThreshold time.Duration, limit int) ([]*models.CitizenSnapshot, error)
+	GetByCPFFunc               func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+	GetByCPFsFunc              func(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error)
+	UpsertFunc                 func(ctx context.Context, snapshot *models.CitizenSnapshot) error
+	BatchUpsertFunc            func(ctx context.Context, snapshots []*models.CitizenSnapshot) error
+	GetStaleSnapshotsFunc      func(ctx context.Context, staleThreshold time.Duration, limit int) ([]*models.CitizenSnapshot, error)
 	GetCPFsWithEnrollmentsFunc func(ctx context.Context, staleThreshold time.Duration, limit int) ([]string, error)
-	DeleteFunc              func(ctx context.Context, cpf string) error
-	CountFunc               func(ctx context.Context) (int64, error)
+	DeleteFunc                 func(ctx context.Context, cpf string) error
+	CountFunc                  func(ctx context.Context) (int64, error)
 }
 
 func (m *MockCitizenSnapshotRepository) GetByCPF(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
