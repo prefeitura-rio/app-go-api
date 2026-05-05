@@ -1842,6 +1842,14 @@ func TestInscricaoService_ChangeSchedule(t *testing.T) {
 		}
 
 		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					LocationClasses: []models.LocationClass{
+						{Schedules: []models.CourseSchedule{{}, {}}},
+					},
+				}, nil
+			},
 			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
 				return map[uuid.UUID]int64{
 					newScheduleID: 5, // 5 enrolled, has space
@@ -1966,7 +1974,16 @@ func TestInscricaoService_ChangeSchedule(t *testing.T) {
 			},
 		}
 
-		cursoRepo := &MockCursoRepository{}
+		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					LocationClasses: []models.LocationClass{
+						{Schedules: []models.CourseSchedule{{}, {}}},
+					},
+				}, nil
+			},
+		}
 
 		// Class starts in 24 hours, but deadline is 48 hours
 		nearFutureDate := time.Now().Add(24 * time.Hour)
@@ -2006,6 +2023,14 @@ func TestInscricaoService_ChangeSchedule(t *testing.T) {
 		}
 
 		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					LocationClasses: []models.LocationClass{
+						{Schedules: []models.CourseSchedule{{}, {}}},
+					},
+				}, nil
+			},
 			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
 				return map[uuid.UUID]int64{
 					newScheduleID: 10, // Full
@@ -2062,6 +2087,14 @@ func TestInscricaoService_ChangeSchedule(t *testing.T) {
 		}
 
 		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					RemoteClass: &models.RemoteClass{
+						Schedules: []models.RemoteSchedule{{}, {}},
+					},
+				}, nil
+			},
 			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
 				return map[uuid.UUID]int64{
 					remoteScheduleID: 3,
@@ -2118,6 +2151,14 @@ func TestInscricaoService_ChangeSchedule(t *testing.T) {
 		}
 
 		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					LocationClasses: []models.LocationClass{
+						{Schedules: []models.CourseSchedule{{}, {}}},
+					},
+				}, nil
+			},
 			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
 				return map[uuid.UUID]int64{scheduleID: 0}, nil
 			},
@@ -2167,7 +2208,16 @@ func TestInscricaoService_ChangeSchedule(t *testing.T) {
 			},
 		}
 
-		cursoRepo := &MockCursoRepository{}
+		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					LocationClasses: []models.LocationClass{
+						{Schedules: []models.CourseSchedule{{}, {}}},
+					},
+				}, nil
+			},
+		}
 
 		request := &models.ScheduleChangeRequest{
 			EnrolledUnit: &models.EnrolledUnit{
@@ -2204,6 +2254,14 @@ func TestInscricaoService_ChangeSchedule(t *testing.T) {
 		}
 
 		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					LocationClasses: []models.LocationClass{
+						{Schedules: []models.CourseSchedule{{}, {}}},
+					},
+				}, nil
+			},
 			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
 				return map[uuid.UUID]int64{scheduleID: 0}, nil
 			},
@@ -2233,6 +2291,51 @@ func TestInscricaoService_ChangeSchedule(t *testing.T) {
 		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
 		if err != nil {
 			t.Fatalf("ChangeSchedule should use default 48h deadline: %v", err)
+		}
+	})
+
+	t.Run("ChangeSchedule fails when course has only one schedule", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:      inscricaoID,
+					CPF:     "12345678900",
+					CursoID: 1,
+					Status:  models.StatusInscricaoApproved,
+				}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					LocationClasses: []models.LocationClass{
+						{Schedules: []models.CourseSchedule{{}}},
+					},
+				}, nil
+			},
+		}
+
+		futureDate := time.Now().Add(72 * time.Hour)
+		request := &models.ScheduleChangeRequest{
+			EnrolledUnit: &models.EnrolledUnit{
+				Schedules: []models.EnrolledUnitSchedule{
+					{ClassStartDate: futureDate.Format(time.RFC3339)},
+				},
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		_, err := svc.ChangeSchedule(ctx, inscricaoID, "12345678900", request)
+		if err == nil {
+			t.Error("Expected error when course has only one schedule")
+		}
+		if err != nil && !strings.Contains(err.Error(), "apenas uma turma") {
+			t.Errorf("Expected 'apenas uma turma' error, got: %v", err)
 		}
 	})
 }
@@ -3188,6 +3291,14 @@ func TestInscricaoService_ChangeSchedule_AdditionalCases(t *testing.T) {
 		}
 
 		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					LocationClasses: []models.LocationClass{
+						{Schedules: []models.CourseSchedule{{}, {}}},
+					},
+				}, nil
+			},
 			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
 				return map[uuid.UUID]int64{scheduleID: 5}, nil
 			},
@@ -3242,6 +3353,14 @@ func TestInscricaoService_ChangeSchedule_AdditionalCases(t *testing.T) {
 		}
 
 		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					RemoteClass: &models.RemoteClass{
+						Schedules: []models.RemoteSchedule{{}, {}},
+					},
+				}, nil
+			},
 			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
 				return map[uuid.UUID]int64{scheduleID: 3}, nil
 			},
@@ -3336,6 +3455,14 @@ func TestInscricaoService_ChangeSchedule_AdditionalCases(t *testing.T) {
 		}
 
 		cursoRepo := &MockCursoRepository{
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{
+					ID: id,
+					LocationClasses: []models.LocationClass{
+						{Schedules: []models.CourseSchedule{{}, {}}},
+					},
+				}, nil
+			},
 			CountEnrollmentsByScheduleIDsFunc: func(ctx context.Context, scheduleIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
 				return map[uuid.UUID]int64{scheduleID: 5}, nil
 			},
