@@ -488,6 +488,18 @@ func (s *InscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cu
 	return s.repo.Update(ctx, inscricao)
 }
 
+// countCourseSchedules returns the total number of schedules across all location classes and remote class
+func countCourseSchedules(curso *models.Curso) int {
+	count := 0
+	for _, loc := range curso.LocationClasses {
+		count += len(loc.Schedules)
+	}
+	if curso.RemoteClass != nil {
+		count += len(curso.RemoteClass.Schedules)
+	}
+	return count
+}
+
 // findScheduleVacancies returns the vacancy limit for a schedule within a course
 func (s *InscricaoService) findScheduleVacancies(scheduleID uuid.UUID, curso *models.Curso) int {
 	for _, location := range curso.LocationClasses {
@@ -669,6 +681,18 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 	// Validate status - cannot change if cancelled or concluded
 	if inscricao.Status == models.StatusInscricaoCancelled || inscricao.Status == models.StatusInscricaoConcluded {
 		return nil, fmt.Errorf("não é possível trocar de turma para inscrições com status '%s'", inscricao.Status)
+	}
+
+	// Validate that the course has more than one schedule
+	curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar curso: %w", err)
+	}
+	if curso == nil {
+		return nil, fmt.Errorf("curso não encontrado")
+	}
+	if countCourseSchedules(curso) <= 1 {
+		return nil, fmt.Errorf("não é possível trocar de turma: este curso possui apenas uma turma disponível")
 	}
 
 	// Get schedule deadline hours from config (default 48)
