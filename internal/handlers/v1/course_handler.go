@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
@@ -246,6 +247,12 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	// Set status to opened for published course
 	curso.Status = models.StatusCursoOpened
 
+	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+			curso.OrgaoID = orgaoID
+		}
+	}
+
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
 		// Check if it's a validation error (not a database error)
@@ -303,6 +310,12 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 
 	// Set status to draft
 	curso.Status = models.StatusCursoDraft
+
+	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+			curso.OrgaoID = orgaoID
+		}
+	}
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
@@ -501,6 +514,13 @@ func (h *CourseHandler) List(c *gin.Context) {
 		"status NOT": models.StatusCursoDraft,
 	}
 
+	// Secretaria-level filter: go:cursos:editor sees only their own orgao
+	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+			filter["orgao_id"] = orgaoID
+		}
+	}
+
 	// Add additional filters
 	if status := c.Query("status"); status != "" {
 		filter["status"] = status
@@ -619,6 +639,13 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 	// Build filters - only drafts
 	filter := map[string]interface{}{
 		"status": models.StatusCursoDraft,
+	}
+
+	// Secretaria-level filter: go:cursos:editor sees only their own orgao
+	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+			filter["orgao_id"] = orgaoID
+		}
 	}
 
 	if organization := c.Query("organization"); organization != "" {
@@ -928,6 +955,9 @@ func (h *CourseHandler) SendToReview(c *gin.Context) {
 		handleCursoTransitionError(c, err)
 		return
 	}
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "Curso enviado para revisão com sucesso"})
 }
 
@@ -940,6 +970,9 @@ func (h *CourseHandler) Approve(c *gin.Context) {
 	if err := h.cursoService.Approve(c.Request.Context(), id); err != nil {
 		handleCursoTransitionError(c, err)
 		return
+	}
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Curso aprovado e publicado com sucesso"})
 }
@@ -954,6 +987,9 @@ func (h *CourseHandler) RequestChanges(c *gin.Context) {
 		handleCursoTransitionError(c, err)
 		return
 	}
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "Solicitação de edição enviada com sucesso"})
 }
 
@@ -966,6 +1002,9 @@ func (h *CourseHandler) RequestDeletion(c *gin.Context) {
 	if err := h.cursoService.RequestDeletion(c.Request.Context(), id); err != nil {
 		handleCursoTransitionError(c, err)
 		return
+	}
+	if h.courseCache != nil {
+		_ = h.courseCache.InvalidateAll(c.Request.Context())
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Solicitação de exclusão enviada com sucesso"})
 }

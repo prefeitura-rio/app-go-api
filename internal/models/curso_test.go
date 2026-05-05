@@ -264,6 +264,21 @@ func TestCurso_DeriveStatus(t *testing.T) {
 			want:  models.StatusCursoPublished,
 		},
 		{
+			name: "opened (legacy) with past class dates derives finished",
+			curso: models.Curso{
+				Status:              models.StatusCursoOpened,
+				EnrollmentStartDate: ptr(past),
+				EnrollmentEndDate:   ptr(past.Add(5 * 24 * time.Hour)),
+				Modalidade:          models.ModalidadePresencial,
+				LocationClasses: []models.LocationClass{
+					{Schedules: []models.CourseSchedule{
+						{ClassStartDate: classStart, ClassEndDate: classEndPast},
+					}},
+				},
+			},
+			want: models.StatusCursoFinished,
+		},
+		{
 			name: "remote class in_progress",
 			curso: models.Curso{
 				Status:              models.StatusCursoPublished,
