@@ -168,6 +168,8 @@ func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{
 			db = db.Where("cursos.id IN (SELECT curso_id FROM cursos_acessibilidades WHERE acessibilidade_id = ?)", value)
 		case "neighborhood_zone":
 			db = db.Where("cursos.id IN (SELECT curso_id FROM location_classes WHERE neighborhood_zone = ?)", value)
+		case "orgao_id IN":
+			db = db.Where("orgao_id IN ?", value)
 		default:
 			db = db.Where(key+" = ?", value)
 		}

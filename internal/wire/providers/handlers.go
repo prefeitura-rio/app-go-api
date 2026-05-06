@@ -3,17 +3,18 @@ package providers
 import (
 	"time"
 
+	"github.com/prefeitura-rio/app-go-api/internal/auth"
 	"github.com/prefeitura-rio/app-go-api/internal/authorization"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
+	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
-// ProvideEmpregoHandler creates EmpregoHandler
-func ProvideEmpregoHandler(service *services.EmpregoService) *v1.EmpregoHandler {
-	return v1.NewEmpregoHandler(service)
+func ProvideEmpregoHandler(service *services.EmpregoService, rmiClient *clients.RMIClient, tokenManager *auth.ServiceAccountTokenManager) *v1.EmpregoHandler {
+	return v1.NewEmpregoHandler(service, rmiClient, tokenManager)
 }
 
 // ProvideAcessibilidadeHandler creates AcessibilidadeHandler with cache
@@ -46,9 +47,8 @@ func ProvideInscricaoHandler(service *services.InscricaoService, jobService *ser
 	return v1.NewInscricaoHandler(service, jobService, cursoRepo)
 }
 
-// ProvideCourseHandler creates CourseHandler with cache
-func ProvideCourseHandler(cursoService *services.CursoService, inscricaoService *services.InscricaoService, cursoRepo *repository.CursoRepository, courseCache *cache.CourseCache) *v1.CourseHandler {
-	return v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo).WithCache(courseCache)
+func ProvideCourseHandler(cursoService *services.CursoService, inscricaoService *services.InscricaoService, cursoRepo *repository.CursoRepository, courseCache *cache.CourseCache, rmiClient *clients.RMIClient, tokenManager *auth.ServiceAccountTokenManager) *v1.CourseHandler {
+	return v1.NewCourseHandler(cursoService, inscricaoService, cursoRepo, rmiClient, tokenManager).WithCache(courseCache)
 }
 
 // ProvideJobHandler creates JobHandler

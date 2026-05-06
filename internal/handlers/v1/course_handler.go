@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,7 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/auth"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
+	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -21,16 +24,59 @@ type CourseHandler struct {
 	inscricaoService services.InscricaoServiceInterface
 	cursoRepo        services.CursoRepositoryInterface
 	courseCache      *cache.CourseCache
+	rmiClient        *clients.RMIClient
+	tokenManager     *auth.ServiceAccountTokenManager
 }
 
-func NewCourseHandler(cursoService services.CursoServiceInterface, inscricaoService services.InscricaoServiceInterface, cursoRepo services.CursoRepositoryInterface) *CourseHandler {
+func NewCourseHandler(
+	cursoService services.CursoServiceInterface,
+	inscricaoService services.InscricaoServiceInterface,
+	cursoRepo services.CursoRepositoryInterface,
+	rmiClient *clients.RMIClient,
+	tokenManager *auth.ServiceAccountTokenManager,
+) *CourseHandler {
 	return &CourseHandler{
 		cursoService:     cursoService,
 		inscricaoService: inscricaoService,
 		cursoRepo:        cursoRepo,
 		courseCache:      nil,
+		rmiClient:        rmiClient,
+		tokenManager:     tokenManager,
 	}
 }
+
+// resolveSecretariaOrgaoFilter returns the filter key+value to restrict a course editor
+// to only their secretaria(s). Checks RMI base de apoio first, falls back to Heimdall groups.
+// Returns ("", nil, nil) when the user has no restriction (admin/casa_civil).
+// Returns ("", nil, ErrNoSecretaria) when the user should be denied but has no mapping.
+func (h *CourseHandler) resolveSecretariaOrgaoFilter(c *gin.Context) (filterKey string, filterValue interface{}, err error) {
+	if !middlewares.HasRole(c, "go:cursos:editor") || middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:cursos:casa_civil") {
+		return "", nil, nil
+	}
+
+	cpf := middlewares.GetUserCPF(c)
+
+	if cpf != "" && h.rmiClient != nil && h.tokenManager != nil {
+		token, tokenErr := h.tokenManager.GetToken(c.Request.Context())
+		if tokenErr == nil {
+			cdUAs, rmiErr := h.rmiClient.GetCPFSecretarias(c.Request.Context(), token, cpf)
+			if rmiErr == nil && len(cdUAs) > 0 {
+				if len(cdUAs) == 1 {
+					return "orgao_id", cdUAs[0], nil
+				}
+				return "orgao_id IN", cdUAs, nil
+			}
+		}
+	}
+
+	if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+		return "orgao_id", orgaoID, nil
+	}
+
+	return "", nil, errNoSecretaria
+}
+
+var errNoSecretaria = fmt.Errorf("user has no secretaria mapping")
 
 // WithCache adds cache support to the handler
 func (h *CourseHandler) WithCache(cache *cache.CourseCache) *CourseHandler {
@@ -514,14 +560,15 @@ func (h *CourseHandler) List(c *gin.Context) {
 		"status NOT": models.StatusCursoDraft,
 	}
 
-	// Secretaria-level filter: go:cursos:editor sees only their own orgao
-	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
-			filter["orgao_id"] = orgaoID
-		}
+	filterKey, filterValue, secErr := h.resolveSecretariaOrgaoFilter(c)
+	if secErr == errNoSecretaria {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Usuário sem secretaria vinculada"})
+		return
+	}
+	if filterKey != "" {
+		filter[filterKey] = filterValue
 	}
 
-	// Add additional filters
 	if status := c.Query("status"); status != "" {
 		filter["status"] = status
 	}
@@ -641,11 +688,13 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		"status": models.StatusCursoDraft,
 	}
 
-	// Secretaria-level filter: go:cursos:editor sees only their own orgao
-	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
-			filter["orgao_id"] = orgaoID
-		}
+	filterKey, filterValue, secErr := h.resolveSecretariaOrgaoFilter(c)
+	if secErr == errNoSecretaria {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Usuário sem secretaria vinculada"})
+		return
+	}
+	if filterKey != "" {
+		filter[filterKey] = filterValue
 	}
 
 	if organization := c.Query("organization"); organization != "" {

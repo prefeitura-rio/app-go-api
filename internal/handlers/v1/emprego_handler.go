@@ -7,19 +7,57 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/prefeitura-rio/app-go-api/internal/auth"
+	"github.com/prefeitura-rio/app-go-api/internal/clients"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type EmpregoHandler struct {
-	service *services.EmpregoService
+	service      *services.EmpregoService
+	rmiClient    *clients.RMIClient
+	tokenManager *auth.ServiceAccountTokenManager
 }
 
-func NewEmpregoHandler(service *services.EmpregoService) *EmpregoHandler {
+func NewEmpregoHandler(
+	service *services.EmpregoService,
+	rmiClient *clients.RMIClient,
+	tokenManager *auth.ServiceAccountTokenManager,
+) *EmpregoHandler {
 	return &EmpregoHandler{
-		service: service,
+		service:      service,
+		rmiClient:    rmiClient,
+		tokenManager: tokenManager,
 	}
+}
+
+func (h *EmpregoHandler) resolveSecretariaOrgaoFilter(c *gin.Context) (filterKey string, filterValue interface{}, err error) {
+	if !middlewares.HasRole(c, "go:empregos:editor") || middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:empregos:casa_civil") {
+		return "", nil, nil
+	}
+
+	cpf := middlewares.GetUserCPF(c)
+
+	if cpf != "" && h.rmiClient != nil && h.tokenManager != nil {
+		token, tokenErr := h.tokenManager.GetToken(c.Request.Context())
+		if tokenErr == nil {
+			cdUAs, rmiErr := h.rmiClient.GetCPFSecretarias(c.Request.Context(), token, cpf)
+			if rmiErr == nil && len(cdUAs) > 0 {
+				if len(cdUAs) == 1 {
+					return "orgao_id", cdUAs[0], nil
+				}
+				return "orgao_id IN", cdUAs, nil
+			}
+		}
+	}
+
+	if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+		return "orgao_id", orgaoID, nil
+	}
+
+	return "", nil, errNoSecretaria
 }
 
 // @Summary      Criar emprego
@@ -197,11 +235,16 @@ func (h *EmpregoHandler) List(c *gin.Context) {
 		pageSize = 10
 	}
 
-	// Filtros
 	filter := make(map[string]interface{})
 
-	// Adicionar filtros conforme query parameters
-	if orgaoID := c.Query("orgao_id"); orgaoID != "" {
+	filterKey, filterValue, secErr := h.resolveSecretariaOrgaoFilter(c)
+	if secErr == errNoSecretaria {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Usuário sem secretaria vinculada"})
+		return
+	}
+	if filterKey != "" {
+		filter[filterKey] = filterValue
+	} else if orgaoID := c.Query("orgao_id"); orgaoID != "" {
 		filter["orgao_id"] = orgaoID
 	}
 
