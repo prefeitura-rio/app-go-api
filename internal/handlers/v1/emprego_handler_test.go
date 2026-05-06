@@ -501,3 +501,18 @@ func TestEmpregoHandler_List_WithMultipleFilters(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }
+
+func TestEmpregoHandler_List_EditorRole_NoOrgao_Returns403(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_roles", []string{"go:empregos:editor"})
+		c.Next()
+	})
+	h := v1.NewEmpregoHandler(nil, nil, nil)
+	r.GET("/empregos", h.List)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/empregos", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
