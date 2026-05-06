@@ -8,7 +8,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"time"
+
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/auth"
+	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -64,7 +68,7 @@ func setupEmpregoRouter(repo services.EmpregoRepositoryInterface) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	svc := services.NewEmpregoServiceWithInterface(repo)
-	h := v1.NewEmpregoHandler(svc)
+	h := v1.NewEmpregoHandler(svc, nil, nil)
 	r.POST("/api/v1/empregos", h.Create)
 	r.GET("/api/v1/empregos", h.List)
 	r.GET("/api/v1/empregos/:id", h.GetByID)
@@ -277,7 +281,7 @@ func TestEmpregoHandler_List_InvalidPagination(t *testing.T) {
 func TestNewEmpregoHandler(t *testing.T) {
 	repo := &mockEmpregoRepoForHandler{}
 	svc := services.NewEmpregoServiceWithInterface(repo)
-	handler := v1.NewEmpregoHandler(svc)
+	handler := v1.NewEmpregoHandler(svc, nil, nil)
 
 	assert.NotNil(t, handler)
 }
@@ -500,4 +504,61 @@ func TestEmpregoHandler_List_WithMultipleFilters(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestEmpregoHandler_List_EditorRole_NoOrgao_Returns403(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_roles", []string{"go:empregos:editor"})
+		c.Next()
+	})
+	h := v1.NewEmpregoHandler(nil, nil, nil)
+	r.GET("/empregos", h.List)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/empregos", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestEmpregoHandler_List_EditorRole_WithHeimdallOrgao(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_roles", []string{"go:empregos:editor"})
+		c.Set("user_groups", []string{"go:orgao:ORGAO-789"})
+		c.Next()
+	})
+	repo := &mockEmpregoRepoForHandler{listItems: []*models.Emprego{}, listTotal: 0}
+	svc := services.NewEmpregoServiceWithInterface(repo)
+	h := v1.NewEmpregoHandler(svc, nil, nil)
+	r.GET("/empregos", h.List)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/empregos", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestEmpregoHandler_List_EditorRole_WithCPF_TokenFail_NoOrgao(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer ts.Close()
+
+	tokenManager := auth.NewServiceAccountTokenManager(ts.URL, "realm", "client", "secret")
+	rmiClient := clients.NewRMIClient(ts.URL, time.Second)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_roles", []string{"go:empregos:editor"})
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
+	h := v1.NewEmpregoHandler(nil, rmiClient, tokenManager)
+	r.GET("/empregos", h.List)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/empregos", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }
