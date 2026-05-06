@@ -64,7 +64,7 @@ func setupEmpregoRouter(repo services.EmpregoRepositoryInterface) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	svc := services.NewEmpregoServiceWithInterface(repo)
-	h := v1.NewEmpregoHandler(svc)
+	h := v1.NewEmpregoHandler(svc, nil, nil)
 	r.POST("/api/v1/empregos", h.Create)
 	r.GET("/api/v1/empregos", h.List)
 	r.GET("/api/v1/empregos/:id", h.GetByID)
@@ -277,7 +277,7 @@ func TestEmpregoHandler_List_InvalidPagination(t *testing.T) {
 func TestNewEmpregoHandler(t *testing.T) {
 	repo := &mockEmpregoRepoForHandler{}
 	svc := services.NewEmpregoServiceWithInterface(repo)
-	handler := v1.NewEmpregoHandler(svc)
+	handler := v1.NewEmpregoHandler(svc, nil, nil)
 
 	assert.NotNil(t, handler)
 }

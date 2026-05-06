@@ -256,13 +256,13 @@ func (m *MockCursoRepositoryForCourseHandler) UpdateStatus(ctx context.Context, 
 
 // Test basic handler initialization
 func TestNewCourseHandler(t *testing.T) {
-	handler := v1.NewCourseHandler(nil, nil, nil)
+	handler := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	assert.NotNil(t, handler)
 }
 
 // Test WithCache method
 func TestCourseHandler_WithCache(t *testing.T) {
-	handler := v1.NewCourseHandler(nil, nil, nil)
+	handler := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	result := handler.WithCache(nil)
 	assert.NotNil(t, result)
 }
@@ -271,7 +271,7 @@ func TestCourseHandler_WithCache(t *testing.T) {
 func TestCourseHandler_Create_InvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.POST("/api/v1/courses", h.Create)
 
 	body := []byte(`{invalid json}`)
@@ -288,7 +288,7 @@ func TestCourseHandler_Create_InvalidJSON(t *testing.T) {
 func TestCourseHandler_Create_EmptyBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.POST("/api/v1/courses", h.Create)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses", nil)
@@ -303,7 +303,7 @@ func TestCourseHandler_Create_EmptyBody(t *testing.T) {
 func TestCourseHandler_CreateDraft_InvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.POST("/api/v1/courses/draft", h.CreateDraft)
 
 	body := []byte(`{invalid}`)
@@ -319,7 +319,7 @@ func TestCourseHandler_CreateDraft_InvalidJSON(t *testing.T) {
 func TestCourseHandler_CreateDraft_EmptyBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.POST("/api/v1/courses/draft", h.CreateDraft)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/draft", nil)
@@ -334,7 +334,7 @@ func TestCourseHandler_CreateDraft_EmptyBody(t *testing.T) {
 func TestCourseHandler_Update_InvalidID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.PUT("/api/v1/courses/:courseId", h.Update)
 
 	body := []byte(`{"titulo": "Test"}`)
@@ -351,7 +351,7 @@ func TestCourseHandler_Update_InvalidID(t *testing.T) {
 func TestCourseHandler_GetByID_InvalidID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.GET("/api/v1/courses/:courseId", h.GetByID)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/invalid", nil)
@@ -366,7 +366,7 @@ func TestCourseHandler_GetByID_InvalidID(t *testing.T) {
 func TestCourseHandler_GetByID_SpecialCharsInID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.GET("/api/v1/courses/:courseId", h.GetByID)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/@#$", nil)
@@ -380,7 +380,7 @@ func TestCourseHandler_GetByID_SpecialCharsInID(t *testing.T) {
 func TestCourseHandler_Delete_InvalidID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.DELETE("/api/v1/courses/:courseId", h.Delete)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/invalid", nil)
@@ -394,7 +394,7 @@ func TestCourseHandler_Delete_InvalidID(t *testing.T) {
 func TestCourseHandler_Delete_FloatID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.DELETE("/api/v1/courses/:courseId", h.Delete)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/123.456", nil)
@@ -408,7 +408,7 @@ func TestCourseHandler_Delete_FloatID(t *testing.T) {
 func TestCourseHandler_Create_MalformedJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.POST("/api/v1/courses", h.Create)
 
 	testCases := []struct {
@@ -436,7 +436,7 @@ func TestCourseHandler_Create_MalformedJSON(t *testing.T) {
 func TestCourseHandler_CreateDraft_MalformedJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.POST("/api/v1/courses/draft", h.CreateDraft)
 
 	testCases := []string{
@@ -458,7 +458,7 @@ func TestCourseHandler_CreateDraft_MalformedJSON(t *testing.T) {
 func TestCourseHandler_GetByID_VariousIDs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.GET("/api/v1/courses/:courseId", h.GetByID)
 
 	invalidIDs := []string{
@@ -479,7 +479,7 @@ func TestCourseHandler_GetByID_VariousIDs(t *testing.T) {
 func TestCourseHandler_Delete_VariousInvalidIDs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.DELETE("/api/v1/courses/:courseId", h.Delete)
 
 	invalidIDs := []string{
@@ -500,7 +500,7 @@ func TestCourseHandler_Delete_VariousInvalidIDs(t *testing.T) {
 func TestCourseHandler_Update_VariousInvalidIDs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := v1.NewCourseHandler(nil, nil, nil)
+	h := v1.NewCourseHandler(nil, nil, nil, nil, nil)
 	r.PUT("/api/v1/courses/:courseId", h.Update)
 
 	invalidIDs := []string{
@@ -528,7 +528,7 @@ func TestCourseHandler_Create_Success(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.POST("/api/v1/courses", handler.Create)
@@ -567,7 +567,7 @@ func TestCourseHandler_Create_ValidationError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.POST("/api/v1/courses", handler.Create)
@@ -598,7 +598,7 @@ func TestCourseHandler_Create_DatabaseError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.POST("/api/v1/courses", handler.Create)
@@ -629,7 +629,7 @@ func TestCourseHandler_CreateDraft_Success(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.POST("/api/v1/courses/draft", handler.CreateDraft)
@@ -668,7 +668,7 @@ func TestCourseHandler_CreateDraft_ServiceError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.POST("/api/v1/courses/draft", handler.CreateDraft)
@@ -698,7 +698,7 @@ func TestCourseHandler_GetByID_Success(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/:courseId", handler.GetByID)
@@ -734,7 +734,7 @@ func TestCourseHandler_GetByID_NotFound(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/:courseId", handler.GetByID)
@@ -759,7 +759,7 @@ func TestCourseHandler_GetByID_ServiceError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/:courseId", handler.GetByID)
@@ -783,7 +783,7 @@ func TestCourseHandler_Update_Success(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -827,7 +827,7 @@ func TestCourseHandler_Update_NotFound(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -858,7 +858,7 @@ func TestCourseHandler_Update_PublishDraft(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -901,7 +901,7 @@ func TestCourseHandler_Update_InvalidJSON(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -933,7 +933,7 @@ func TestCourseHandler_Delete_Success(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.DELETE("/api/v1/courses/:courseId", handler.Delete)
@@ -969,7 +969,7 @@ func TestCourseHandler_Delete_NotFound(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.DELETE("/api/v1/courses/:courseId", handler.Delete)
@@ -994,7 +994,7 @@ func TestCourseHandler_Delete_ServiceError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.DELETE("/api/v1/courses/:courseId", handler.Delete)
@@ -1021,7 +1021,7 @@ func TestCourseHandler_List_Success(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -1056,7 +1056,7 @@ func TestCourseHandler_List_ServiceError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -1080,7 +1080,7 @@ func TestCourseHandler_ListDrafts_Success(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
@@ -1114,7 +1114,7 @@ func TestCourseHandler_ListByUser_Success(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
@@ -1148,7 +1148,7 @@ func TestCourseHandler_List_WithFilters(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -1182,7 +1182,7 @@ func TestCourseHandler_CalculateRemainingVacancies_LocationSchedules(t *testing.
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/:courseId", handler.GetByID)
@@ -1235,7 +1235,7 @@ func TestCourseHandler_CalculateRemainingVacancies_RemoteSchedules(t *testing.T)
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/:courseId", handler.GetByID)
@@ -1279,7 +1279,7 @@ func TestCourseHandler_CalculateRemainingVacancies_Overfilled(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/:courseId", handler.GetByID)
@@ -1323,7 +1323,7 @@ func TestCourseHandler_CalculateRemainingVacancies_NoSchedules(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/:courseId", handler.GetByID)
@@ -1354,7 +1354,7 @@ func TestCourseHandler_CalculateRemainingVacancies_RepositoryError(t *testing.T)
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/:courseId", handler.GetByID)
@@ -1395,7 +1395,7 @@ func TestCourseHandler_ListDrafts_ServiceError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
@@ -1420,7 +1420,7 @@ func TestCourseHandler_ListDrafts_CalculateVacanciesError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
@@ -1463,7 +1463,7 @@ func TestCourseHandler_ListDrafts_WithFilters(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
@@ -1498,7 +1498,7 @@ func TestCourseHandler_ListDrafts_WithPagination(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
@@ -1535,7 +1535,7 @@ func TestCourseHandler_List_CalculateVacanciesError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -1577,7 +1577,7 @@ func TestCourseHandler_ListByUser_ServiceError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
@@ -1602,7 +1602,7 @@ func TestCourseHandler_ListByUser_CalculateVacanciesError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
@@ -1645,7 +1645,7 @@ func TestCourseHandler_Update_GetByIDError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -1672,7 +1672,7 @@ func TestCourseHandler_Update_ValidationError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -1706,7 +1706,7 @@ func TestCourseHandler_Delete_GetByIDError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.DELETE("/api/v1/courses/:courseId", handler.Delete)
@@ -1733,7 +1733,7 @@ func TestCourseHandler_CalculateRemainingVacanciesForCourses_EmptyList(t *testin
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -1765,7 +1765,7 @@ func TestCourseHandler_CalculateRemainingVacanciesForCourses_MissingSchedules(t 
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -1795,7 +1795,7 @@ func TestCourseHandler_CalculateRemainingVacanciesForCourses_MixedScheduleTypes(
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -1863,7 +1863,7 @@ func TestCourseHandler_Update_EmptyBody(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -1893,7 +1893,7 @@ func TestCourseHandler_Update_DatabaseError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -1926,7 +1926,7 @@ func TestCourseHandler_List_PaginationPageZero(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -1963,7 +1963,7 @@ func TestCourseHandler_List_PaginationLimitZero(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -2000,7 +2000,7 @@ func TestCourseHandler_List_PaginationLimitExceedsMax(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -2027,7 +2027,7 @@ func TestCourseHandler_List_MultipleFilters(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -2063,7 +2063,7 @@ func TestCourseHandler_ListDrafts_PaginationPageZero(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
@@ -2098,7 +2098,7 @@ func TestCourseHandler_ListDrafts_PaginationLimitZero(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
@@ -2124,7 +2124,7 @@ func TestCourseHandler_ListDrafts_EmptyDrafts(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
@@ -2155,7 +2155,7 @@ func TestCourseHandler_ListByUser_EmptyUserID(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
@@ -2181,7 +2181,7 @@ func TestCourseHandler_ListByUser_NoCourses(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
@@ -2214,7 +2214,7 @@ func TestCourseHandler_ListByUser_MultipleCourses(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
@@ -2252,7 +2252,7 @@ func TestCourseHandler_ListByUser_PaginationBoundaries(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
@@ -2279,7 +2279,7 @@ func TestCourseHandler_ListByUser_WithFilters(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/users/:userId/courses", handler.ListByUser)
@@ -2313,7 +2313,7 @@ func TestCourseHandler_CalculateRemainingVacancies_MultipleLocationClasses(t *te
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/:courseId", handler.GetByID)
@@ -2369,7 +2369,7 @@ func TestCourseHandler_Update_PreserveIsVisible(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -2411,7 +2411,7 @@ func TestCourseHandler_Update_PreserveAutoApprove(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -2452,7 +2452,7 @@ func TestCourseHandler_List_SearchFilter(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -2484,7 +2484,7 @@ func TestCourseHandler_ListDrafts_MultipleFilters(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses/drafts", handler.ListDrafts)
@@ -2518,7 +2518,7 @@ func TestCourseHandler_List_EmptyResultSet(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.GET("/api/v1/courses", handler.List)
@@ -2549,7 +2549,7 @@ func TestCourseHandler_Update_PreserveScheduleAcceptingEnrollments(t *testing.T)
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -2641,7 +2641,7 @@ func TestCourseHandler_Update_ZeroUUIDNoPreserve(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -2689,7 +2689,7 @@ func TestCourseHandler_Create_NonValidationDatabaseError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.POST("/api/v1/courses", handler.Create)
@@ -2722,7 +2722,7 @@ func TestCourseHandler_CreateDraft_NonValidationDatabaseError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.POST("/api/v1/courses/draft", handler.CreateDraft)
@@ -2752,7 +2752,7 @@ func TestCourseHandler_Update_NonValidationDatabaseError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.PUT("/api/v1/courses/:courseId", handler.Update)
@@ -2785,7 +2785,7 @@ func TestCourseHandler_CreateDraft_ValidationError(t *testing.T) {
 	mockInscricaoService := new(MockInscricaoServiceForCourse)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
 
-	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo, nil, nil)
 
 	r := gin.New()
 	r.POST("/api/v1/courses/draft", handler.CreateDraft)
@@ -2813,7 +2813,7 @@ func setupTransitionHandler(t *testing.T) (*MockCursoService, *MockCursoReposito
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockCursoService)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
-	h := v1.NewCourseHandler(mockService, nil, mockRepo)
+	h := v1.NewCourseHandler(mockService, nil, mockRepo, nil, nil)
 	return mockService, mockRepo, h
 }
 
