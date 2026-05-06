@@ -12,6 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/auth"
+	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
@@ -2990,6 +2992,49 @@ func TestCourseHandler_List_EditorRole_WithHeimdallOrgao(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestCourseHandler_List_EditorRole_WithCPF_TokenFail_NoOrgao(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer ts.Close()
+
+	tokenManager := auth.NewServiceAccountTokenManager(ts.URL, "realm", "client", "secret")
+	rmiClient := clients.NewRMIClient(ts.URL, time.Second)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_roles", []string{"go:cursos:editor"})
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
+	h := v1.NewCourseHandler(nil, nil, nil, rmiClient, tokenManager)
+	r.GET("/courses", h.List)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestCourseHandler_ListDrafts_EditorRole_WithHeimdallOrgao(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_roles", []string{"go:cursos:editor"})
+		c.Set("user_groups", []string{"go:orgao:ORGAO-456"})
+		c.Next()
+	})
+	mockService := new(MockCursoService)
+	mockService.On("List", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*models.Curso{}, 0, nil)
+	h := v1.NewCourseHandler(mockService, nil, nil, nil, nil)
+	r.GET("/courses/drafts", h.ListDrafts)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/drafts", nil))
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockService.AssertExpectations(t)
 }
