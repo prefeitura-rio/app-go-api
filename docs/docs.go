@@ -4783,7 +4783,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "CNPJ da empresa (com ou sem formatação)",
+                        "description": "CNPJ da empresa (apenas dígitos, 14 caracteres)",
                         "name": "cnpj",
                         "in": "path",
                         "required": true
@@ -11068,7 +11068,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "certificate_url": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 2048
                 }
             }
         },
@@ -11134,6 +11135,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "genero": {
+                    "type": "string"
+                },
+                "nome": {
                     "type": "string"
                 },
                 "nome_social": {
@@ -12272,6 +12276,15 @@ const docTemplate = `{
                 "opened",
                 "closed",
                 "canceled",
+                "in_review",
+                "needs_changes",
+                "approved",
+                "published",
+                "pending_deletion",
+                "scheduled",
+                "accepting_enrollments",
+                "in_progress",
+                "finished",
                 "CRIADO",
                 "ABERTO",
                 "ENCERRADO"
@@ -12281,6 +12294,15 @@ const docTemplate = `{
                 "StatusCursoOpened",
                 "StatusCursoClosed",
                 "StatusCursoCanceled",
+                "StatusCursoInReview",
+                "StatusCursoNeedsChanges",
+                "StatusCursoApproved",
+                "StatusCursoPublished",
+                "StatusCursoPendingDeletion",
+                "StatusCursoScheduled",
+                "StatusCursoAcceptingEnrollments",
+                "StatusCursoInProgress",
+                "StatusCursoFinished",
                 "StatusCursoCriado",
                 "StatusCursoAberto",
                 "StatusCursoEncerrado"

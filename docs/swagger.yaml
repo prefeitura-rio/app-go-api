@@ -605,6 +605,7 @@ definitions:
   models.CertificateUpdateRequest:
     properties:
       certificate_url:
+        maxLength: 2048
         type: string
     type: object
   models.CertificateUpdateResponse:
@@ -648,6 +649,8 @@ definitions:
       escolaridade:
         type: string
       genero:
+        type: string
+      nome:
         type: string
       nome_social:
         type: string
@@ -1432,6 +1435,15 @@ definitions:
     - opened
     - closed
     - canceled
+    - in_review
+    - needs_changes
+    - approved
+    - published
+    - pending_deletion
+    - scheduled
+    - accepting_enrollments
+    - in_progress
+    - finished
     - CRIADO
     - ABERTO
     - ENCERRADO
@@ -1441,6 +1453,15 @@ definitions:
     - StatusCursoOpened
     - StatusCursoClosed
     - StatusCursoCanceled
+    - StatusCursoInReview
+    - StatusCursoNeedsChanges
+    - StatusCursoApproved
+    - StatusCursoPublished
+    - StatusCursoPendingDeletion
+    - StatusCursoScheduled
+    - StatusCursoAcceptingEnrollments
+    - StatusCursoInProgress
+    - StatusCursoFinished
     - StatusCursoCriado
     - StatusCursoAberto
     - StatusCursoEncerrado
@@ -4807,7 +4828,7 @@ paths:
       description: Consulta dados de uma empresa pelo CNPJ no RMI (Registro Mercantil
         Integrado)
       parameters:
-      - description: CNPJ da empresa (com ou sem formatação)
+      - description: CNPJ da empresa (apenas dígitos, 14 caracteres)
         in: path
         name: cnpj
         required: true

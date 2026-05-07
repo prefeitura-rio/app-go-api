@@ -4781,7 +4781,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "CNPJ da empresa (com ou sem formatação)",
+                        "description": "CNPJ da empresa (apenas dígitos, 14 caracteres)",
                         "name": "cnpj",
                         "in": "path",
                         "required": true
@@ -11066,7 +11066,8 @@
             "type": "object",
             "properties": {
                 "certificate_url": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 2048
                 }
             }
         },
@@ -11132,6 +11133,9 @@
                     "type": "string"
                 },
                 "genero": {
+                    "type": "string"
+                },
+                "nome": {
                     "type": "string"
                 },
                 "nome_social": {
@@ -12270,6 +12274,15 @@
                 "opened",
                 "closed",
                 "canceled",
+                "in_review",
+                "needs_changes",
+                "approved",
+                "published",
+                "pending_deletion",
+                "scheduled",
+                "accepting_enrollments",
+                "in_progress",
+                "finished",
                 "CRIADO",
                 "ABERTO",
                 "ENCERRADO"
@@ -12279,6 +12292,15 @@
                 "StatusCursoOpened",
                 "StatusCursoClosed",
                 "StatusCursoCanceled",
+                "StatusCursoInReview",
+                "StatusCursoNeedsChanges",
+                "StatusCursoApproved",
+                "StatusCursoPublished",
+                "StatusCursoPendingDeletion",
+                "StatusCursoScheduled",
+                "StatusCursoAcceptingEnrollments",
+                "StatusCursoInProgress",
+                "StatusCursoFinished",
                 "StatusCursoCriado",
                 "StatusCursoAberto",
                 "StatusCursoEncerrado"
