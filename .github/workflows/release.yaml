@@ -60,6 +60,7 @@ jobs:
             --tag $IMAGE_NAME:$VERSION \
             --tag $IMAGE_NAME:$VERSION_NO_V \
             --tag $IMAGE_NAME:latest-release \
+            --tag $IMAGE_NAME:stable \
             --push .
 
       - name: Get image digest
@@ -93,11 +94,12 @@ jobs:
       - name: Update ArgoCD Application image override
         run: |
           echo "Updating production ArgoCD Application image override..."
-          echo "Image: $IMAGE_NAME:$VERSION@$DIGEST"
+          echo "Image: $IMAGE_NAME:stable@$DIGEST"
 
-          # Update the Kustomize image override in ArgoCD Application
+          # Use the stable tag — this matches what argocd-image-updater tracks,
+          # preventing it from reverting the override on its next polling cycle.
           kubectl patch application go -n argocd --type=json \
-            -p="[{\"op\": \"replace\", \"path\": \"/spec/source/kustomize/images/0\", \"value\": \"$IMAGE_NAME:$VERSION@$DIGEST\"}]"
+            -p="[{\"op\": \"replace\", \"path\": \"/spec/source/kustomize/images/0\", \"value\": \"$IMAGE_NAME:stable@$DIGEST\"}]"
 
           echo "✅ ArgoCD Application updated with new image override"
 
@@ -105,23 +107,25 @@ jobs:
         timeout-minutes: 5
         run: |
           echo "Waiting for ArgoCD to sync and rollout to use new image..."
-          echo "Expected image: $IMAGE_NAME:$VERSION@$DIGEST"
+          echo "Expected digest: $DIGEST"
 
-          # Wait for the rollout spec to be updated with the new image
+          # Check by digest rather than tag name: argocd-image-updater will set
+          # the image as "stable@sha256:..." which differs from the versioned tag
+          # but carries the same digest we just pushed.
           for i in {1..60}; do
             CURRENT_IMAGE=$(kubectl get rollout go -n go -o jsonpath='{.spec.template.spec.containers[0].image}')
             SYNC_STATUS=$(kubectl get application go -n argocd -o jsonpath='{.status.sync.status}')
 
             echo "Attempt $i/60: Image=$CURRENT_IMAGE, ArgoCD Sync=$SYNC_STATUS"
 
-            if [[ "$CURRENT_IMAGE" == "$IMAGE_NAME:$VERSION@$DIGEST" ]]; then
-              echo "✅ Rollout spec updated with correct image!"
+            if [[ "$CURRENT_IMAGE" == *"$DIGEST"* ]]; then
+              echo "✅ Rollout spec updated with correct image digest!"
               break
             fi
 
             if [ $i -eq 60 ]; then
               echo "❌ Timeout waiting for rollout image update"
-              echo "Expected: $IMAGE_NAME:$VERSION@$DIGEST"
+              echo "Expected digest: $DIGEST"
               echo "Got: $CURRENT_IMAGE"
               exit 1
             fi
@@ -144,10 +148,10 @@ jobs:
             echo "Message: $MESSAGE"
             echo "Current image: $CURRENT_IMAGE"
 
-            # Verify we're still monitoring the correct version
-            if [[ "$CURRENT_IMAGE" != "$IMAGE_NAME:$VERSION@$DIGEST" ]]; then
+            # Verify we're still monitoring the correct version (check by digest)
+            if [[ "$CURRENT_IMAGE" != *"$DIGEST"* ]]; then
               echo "⚠️ WARNING: Rollout image changed unexpectedly!"
-              echo "Expected: $IMAGE_NAME:$VERSION@$DIGEST"
+              echo "Expected digest: $DIGEST"
               echo "Got: $CURRENT_IMAGE"
             fi
 
