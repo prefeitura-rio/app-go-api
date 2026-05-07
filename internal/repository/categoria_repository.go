@@ -83,7 +83,7 @@ func (r *CategoriaRepository) List(ctx context.Context, filter map[string]interf
 				SELECT DISTINCT cc.categoria_id
 				FROM cursos_categorias cc
 				INNER JOIN cursos c ON cc.curso_id = c.id
-				WHERE c.status IN ('opened', 'ABERTO')
+				WHERE c.status IN ('published', 'opened', 'ABERTO')
 				AND (c.is_visible = true OR c.is_visible IS NULL)
 			)`)
 		} else {
@@ -91,7 +91,7 @@ func (r *CategoriaRepository) List(ctx context.Context, filter map[string]interf
 				SELECT DISTINCT cc.categoria_id
 				FROM cursos_categorias cc
 				INNER JOIN cursos c ON cc.curso_id = c.id
-				WHERE c.status IN ('opened', 'ABERTO')
+				WHERE c.status IN ('published', 'opened', 'ABERTO')
 			)`)
 		}
 	}
