@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"gorm.io/gorm"
 
@@ -70,9 +69,8 @@ func (r *CategoriaRepository) List(ctx context.Context, filter map[string]interf
 
 	db := r.db.WithContext(ctx).Model(&models.Categoria{})
 
-	if daysTolerance, ok := filter["days_tolerance"].(int); ok {
+	if _, ok := filter["days_tolerance"]; ok {
 		delete(filter, "days_tolerance")
-		cutoffDate := time.Now().AddDate(0, 0, -daysTolerance)
 
 		isVisible := true
 		if iv, ok := filter["is_visible"].(bool); ok {
@@ -82,21 +80,19 @@ func (r *CategoriaRepository) List(ctx context.Context, filter map[string]interf
 
 		if isVisible {
 			db = db.Where(`id IN (
-				SELECT DISTINCT cc.categoria_id 
-				FROM cursos_categorias cc 
-				INNER JOIN cursos c ON cc.curso_id = c.id 
+				SELECT DISTINCT cc.categoria_id
+				FROM cursos_categorias cc
+				INNER JOIN cursos c ON cc.curso_id = c.id
 				WHERE c.status IN ('opened', 'ABERTO')
 				AND (c.is_visible = true OR c.is_visible IS NULL)
-				AND c.enrollment_end_date >= ?
-			)`, cutoffDate)
+			)`)
 		} else {
 			db = db.Where(`id IN (
-				SELECT DISTINCT cc.categoria_id 
-				FROM cursos_categorias cc 
-				INNER JOIN cursos c ON cc.curso_id = c.id 
+				SELECT DISTINCT cc.categoria_id
+				FROM cursos_categorias cc
+				INNER JOIN cursos c ON cc.curso_id = c.id
 				WHERE c.status IN ('opened', 'ABERTO')
-				AND c.enrollment_end_date >= ?
-			)`, cutoffDate)
+			)`)
 		}
 	}
 

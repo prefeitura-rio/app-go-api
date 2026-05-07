@@ -386,7 +386,7 @@ const docTemplate = `{
         },
         "/api/v1/categorias": {
             "get": {
-                "description": "Retorna lista paginada de categorias. Use onlyWithCourses=true para filtrar apenas categorias com cursos abertos, visíveis e com inscrições dentro do período de tolerância.",
+                "description": "Retorna lista paginada de categorias. Use onlyWithCourses=true para filtrar apenas categorias com cursos com status aberto (opened/ABERTO).",
                 "produces": [
                     "application/json"
                 ],
@@ -11068,7 +11068,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "certificate_url": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 2048
                 }
             }
         },
@@ -11134,6 +11135,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "genero": {
+                    "type": "string"
+                },
+                "nome": {
                     "type": "string"
                 },
                 "nome_social": {
@@ -12272,6 +12276,15 @@ const docTemplate = `{
                 "opened",
                 "closed",
                 "canceled",
+                "in_review",
+                "needs_changes",
+                "approved",
+                "published",
+                "pending_deletion",
+                "scheduled",
+                "accepting_enrollments",
+                "in_progress",
+                "finished",
                 "CRIADO",
                 "ABERTO",
                 "ENCERRADO"
@@ -12281,6 +12294,15 @@ const docTemplate = `{
                 "StatusCursoOpened",
                 "StatusCursoClosed",
                 "StatusCursoCanceled",
+                "StatusCursoInReview",
+                "StatusCursoNeedsChanges",
+                "StatusCursoApproved",
+                "StatusCursoPublished",
+                "StatusCursoPendingDeletion",
+                "StatusCursoScheduled",
+                "StatusCursoAcceptingEnrollments",
+                "StatusCursoInProgress",
+                "StatusCursoFinished",
                 "StatusCursoCriado",
                 "StatusCursoAberto",
                 "StatusCursoEncerrado"

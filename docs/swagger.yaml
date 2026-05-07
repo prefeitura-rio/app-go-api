@@ -605,6 +605,7 @@ definitions:
   models.CertificateUpdateRequest:
     properties:
       certificate_url:
+        maxLength: 2048
         type: string
     type: object
   models.CertificateUpdateResponse:
@@ -648,6 +649,8 @@ definitions:
       escolaridade:
         type: string
       genero:
+        type: string
+      nome:
         type: string
       nome_social:
         type: string
@@ -1432,6 +1435,15 @@ definitions:
     - opened
     - closed
     - canceled
+    - in_review
+    - needs_changes
+    - approved
+    - published
+    - pending_deletion
+    - scheduled
+    - accepting_enrollments
+    - in_progress
+    - finished
     - CRIADO
     - ABERTO
     - ENCERRADO
@@ -1441,6 +1453,15 @@ definitions:
     - StatusCursoOpened
     - StatusCursoClosed
     - StatusCursoCanceled
+    - StatusCursoInReview
+    - StatusCursoNeedsChanges
+    - StatusCursoApproved
+    - StatusCursoPublished
+    - StatusCursoPendingDeletion
+    - StatusCursoScheduled
+    - StatusCursoAcceptingEnrollments
+    - StatusCursoInProgress
+    - StatusCursoFinished
     - StatusCursoCriado
     - StatusCursoAberto
     - StatusCursoEncerrado
@@ -1782,8 +1803,7 @@ paths:
   /api/v1/categorias:
     get:
       description: Retorna lista paginada de categorias. Use onlyWithCourses=true
-        para filtrar apenas categorias com cursos abertos, visíveis e com inscrições
-        dentro do período de tolerância.
+        para filtrar apenas categorias com cursos com status aberto (opened/ABERTO).
       parameters:
       - description: 'Número da página (default: 1)'
         in: query

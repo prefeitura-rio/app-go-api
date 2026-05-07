@@ -44,7 +44,7 @@ func (h *CategoriaHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Listar categorias
-// @Description  Retorna lista paginada de categorias. Use onlyWithCourses=true para filtrar apenas categorias com cursos abertos, visíveis e com inscrições dentro do período de tolerância.
+// @Description  Retorna lista paginada de categorias. Use onlyWithCourses=true para filtrar apenas categorias com cursos com status aberto (opened/ABERTO).
 // @Tags         categorias
 // @Produce      json
 // @Param        page            query     int   false  "Número da página (default: 1)"
