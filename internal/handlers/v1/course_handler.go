@@ -481,13 +481,45 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	})
 }
 
+func parseStatusFilter(param string) []string {
+	derivedToStored := map[string]string{
+		"scheduled":             "published",
+		"accepting_enrollments": "published",
+		"in_progress":           "published",
+		"finished":              "published",
+	}
+	validStored := map[string]bool{
+		"draft": true, "opened": true, "closed": true, "canceled": true,
+		"in_review": true, "needs_changes": true, "approved": true,
+		"published": true, "pending_deletion": true,
+		"CRIADO": true, "ABERTO": true, "ENCERRADO": true,
+	}
+
+	seen := map[string]bool{}
+	var result []string
+	for _, s := range strings.Split(param, ",") {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if stored, ok := derivedToStored[s]; ok {
+			s = stored
+		}
+		if validStored[s] && !seen[s] {
+			seen[s] = true
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
 // @Summary      Listar cursos criados
-// @Description  Retorna lista paginada de cursos criados (status: "opened", "closed", "canceled")
+// @Description  Retorna lista paginada de cursos. Sem status: exclui rascunhos. Com status: filtra pelos status informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.
 // @Tags         courses
 // @Produce      json
 // @Param        page              query     int     false  "Número da página (default: 1)"
 // @Param        limit             query     int     false  "Tamanho da página (default: 10)"
-// @Param        status            query     string  false  "Filtrar por status"
+// @Param        status            query     string  false  "Filtrar por status (CSV, ex: draft,published,in_review)"
 // @Param        modalidade        query     string  false  "Filtrar por modalidade"
 // @Param        organization      query     string  false  "Filtrar por organização (provedor do curso)"
 // @Param        search            query     string  false  "Buscar no título"
@@ -509,9 +541,16 @@ func (h *CourseHandler) List(c *gin.Context) {
 		limit = 10
 	}
 
-	// Build filters - exclude drafts
-	filter := map[string]interface{}{
-		"status NOT": models.StatusCursoDraft,
+	filter := map[string]interface{}{}
+
+	if statusParam := c.Query("status"); statusParam != "" {
+		if statuses := parseStatusFilter(statusParam); len(statuses) > 0 {
+			filter["status IN"] = statuses
+		} else {
+			filter["status NOT"] = models.StatusCursoDraft
+		}
+	} else {
+		filter["status NOT"] = models.StatusCursoDraft
 	}
 
 	// Secretaria-level filter: go:cursos:editor sees only their own orgao
@@ -519,11 +558,6 @@ func (h *CourseHandler) List(c *gin.Context) {
 		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
 			filter["orgao_id"] = orgaoID
 		}
-	}
-
-	// Add additional filters
-	if status := c.Query("status"); status != "" {
-		filter["status"] = status
 	}
 
 	if modalidade := c.Query("modalidade"); modalidade != "" {
