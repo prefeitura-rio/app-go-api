@@ -191,7 +191,13 @@ func applyStatusINFilter(db *gorm.DB, statuses []string) *gorm.DB {
 				"(status = 'published'"+
 					" AND (enrollment_start_date IS NULL OR enrollment_start_date <= NOW())"+
 					" AND NOT (enrollment_start_date IS NOT NULL AND enrollment_end_date IS NOT NULL"+
-					"          AND enrollment_start_date <= NOW() AND enrollment_end_date >= NOW()))")
+					"          AND enrollment_start_date <= NOW() AND enrollment_end_date >= NOW())"+
+					" AND NOT EXISTS (SELECT 1 FROM location_classes lc"+
+					"                 JOIN course_schedules cs ON cs.location_id = lc.id"+
+					"                 WHERE lc.curso_id = cursos.id AND cs.class_start_date <= NOW())"+
+					" AND NOT EXISTS (SELECT 1 FROM remote_classes rc"+
+					"                 JOIN remote_schedules rs ON rs.remote_class_id = rc.id"+
+					"                 WHERE rc.curso_id = cursos.id AND rs.class_start_date <= NOW()))")
 		case "accepting_enrollments":
 			clauses = append(clauses,
 				"(status = 'published' AND enrollment_start_date IS NOT NULL AND enrollment_end_date IS NOT NULL"+
