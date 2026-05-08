@@ -2979,11 +2979,21 @@ func TestCourseHandler_List_StatusFilter(t *testing.T) {
 		svc.AssertExpectations(t)
 	})
 
-	t.Run("derived statuses map to published", func(t *testing.T) {
+	t.Run("derived statuses passed through for date-based SQL in repository", func(t *testing.T) {
 		svc, _, r := setup()
 		svc.On("List", mock.Anything, mock.MatchedBy(func(f map[string]interface{}) bool {
 			statuses, _ := f["status IN"].([]string)
-			return len(statuses) == 1 && statuses[0] == "published"
+			has := func(s string) bool {
+				for _, v := range statuses {
+					if v == s {
+						return true
+					}
+				}
+				return false
+			}
+			return len(statuses) == 4 &&
+				has("accepting_enrollments") && has("scheduled") &&
+				has("in_progress") && has("finished")
 		}), 1, 10).Return([]*models.Curso{}, 0, nil)
 
 		w := httptest.NewRecorder()
@@ -3010,7 +3020,15 @@ func TestCourseHandler_List_StatusFilter(t *testing.T) {
 		svc, _, r := setup()
 		svc.On("List", mock.Anything, mock.MatchedBy(func(f map[string]interface{}) bool {
 			statuses, _ := f["status IN"].([]string)
-			return len(statuses) == 1 && statuses[0] == "published"
+			has := func(s string) bool {
+				for _, v := range statuses {
+					if v == s {
+						return true
+					}
+				}
+				return false
+			}
+			return len(statuses) == 2 && has("published") && has("finished")
 		}), 1, 10).Return([]*models.Curso{}, 0, nil)
 
 		w := httptest.NewRecorder()

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -162,7 +163,7 @@ func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{
 			db = db.Where("status != ?", value)
 		case "status IN":
 			if statuses, ok := value.([]string); ok && len(statuses) > 0 {
-				db = db.Where("status IN ?", statuses)
+				db = applyStatusINFilter(db, statuses)
 			}
 		case "title ILIKE":
 			db = db.Where("titulo ILIKE ?", value)
@@ -177,6 +178,33 @@ func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{
 		}
 	}
 	return db
+}
+
+func applyStatusINFilter(db *gorm.DB, statuses []string) *gorm.DB {
+	var clauses []string
+	var params []interface{}
+
+	for _, s := range statuses {
+		switch s {
+		case "accepting_enrollments":
+			clauses = append(clauses,
+				"(status = 'published' AND (enrollment_start_date IS NULL OR enrollment_start_date <= NOW()) AND (enrollment_end_date IS NULL OR enrollment_end_date >= NOW()))")
+		case "scheduled":
+			clauses = append(clauses,
+				"(status = 'published' AND enrollment_start_date IS NOT NULL AND enrollment_start_date > NOW())")
+		case "in_progress":
+			clauses = append(clauses,
+				"(status = 'published' AND enrollment_end_date IS NOT NULL AND enrollment_end_date < NOW())")
+		case "finished":
+			clauses = append(clauses,
+				"(status = 'published' AND enrollment_end_date IS NOT NULL AND enrollment_end_date < NOW())")
+		default:
+			clauses = append(clauses, "(status = ?)")
+			params = append(params, s)
+		}
+	}
+
+	return db.Where("("+strings.Join(clauses, " OR ")+")", params...)
 }
 
 // Métodos auxiliares para manipulação dos relacionamentos
