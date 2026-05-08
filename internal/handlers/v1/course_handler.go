@@ -482,30 +482,20 @@ func (h *CourseHandler) Update(c *gin.Context) {
 }
 
 func parseStatusFilter(param string) []string {
-	derivedToStored := map[string]string{
-		"scheduled":             "published",
-		"accepting_enrollments": "published",
-		"in_progress":           "published",
-		"finished":              "published",
-	}
-	validStored := map[string]bool{
+	validStatuses := map[string]bool{
 		"draft": true, "opened": true, "closed": true, "canceled": true,
 		"in_review": true, "needs_changes": true, "approved": true,
 		"published": true, "pending_deletion": true,
 		"CRIADO": true, "ABERTO": true, "ENCERRADO": true,
+		"scheduled": true, "accepting_enrollments": true,
+		"in_progress": true, "finished": true,
 	}
 
 	seen := map[string]bool{}
 	var result []string
 	for _, s := range strings.Split(param, ",") {
 		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-		if stored, ok := derivedToStored[s]; ok {
-			s = stored
-		}
-		if validStored[s] && !seen[s] {
+		if validStatuses[s] && !seen[s] {
 			seen[s] = true
 			result = append(result, s)
 		}
