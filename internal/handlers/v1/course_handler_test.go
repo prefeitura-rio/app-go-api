@@ -1158,10 +1158,10 @@ func TestCourseHandler_List_WithFilters(t *testing.T) {
 	}
 
 	mockService.On("List", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
-		// Handler automatically adds "status NOT": draft to exclude drafts
 		_, hasStatusNot := filter["status NOT"]
-		statusVal, hasStatus := filter["status"]
-		return hasStatus && hasStatusNot && statusVal == "opened"
+		statusIn, hasStatusIn := filter["status IN"]
+		statuses, _ := statusIn.([]string)
+		return hasStatusIn && !hasStatusNot && len(statuses) == 1 && statuses[0] == "opened"
 	}), 1, 10).Return(cursos, 1, nil)
 	mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).Return(make(map[uuid.UUID]int64), nil)
 
@@ -2037,9 +2037,10 @@ func TestCourseHandler_List_MultipleFilters(t *testing.T) {
 	}
 
 	mockService.On("List", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		statusIn, _ := filter["status IN"].([]string)
 		return filter["modalidade"] == "presencial" &&
 			filter["organization"] == "test-org" &&
-			filter["status"] == "opened" &&
+			len(statusIn) == 1 && statusIn[0] == "opened" &&
 			filter["categoria_id"] == 5 &&
 			filter["acessibilidade_id"] == 3 &&
 			filter["neighborhood_zone"] == "norte"
@@ -2918,6 +2919,104 @@ func TestCourseHandler_RequestChanges(t *testing.T) {
 		r.ServeHTTP(w, httptest.NewRequest("PUT", "/courses/4/request-changes", nil))
 		assert.Equal(t, http.StatusConflict, w.Code)
 		mockService.AssertExpectations(t)
+	})
+}
+
+func TestCourseHandler_List_StatusFilter(t *testing.T) {
+	setup := func() (*MockCursoService, *MockCursoRepositoryForCourseHandler, *gin.Engine) {
+		gin.SetMode(gin.TestMode)
+		svc := new(MockCursoService)
+		repo := new(MockCursoRepositoryForCourseHandler)
+		h := v1.NewCourseHandler(svc, new(MockInscricaoServiceForCourse), repo)
+		r := gin.New()
+		r.GET("/api/v1/courses", h.List)
+		repo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).Return(make(map[uuid.UUID]int64), nil)
+		return svc, repo, r
+	}
+
+	t.Run("no status param uses default exclude-draft filter", func(t *testing.T) {
+		svc, _, r := setup()
+		svc.On("List", mock.Anything, mock.MatchedBy(func(f map[string]interface{}) bool {
+			_, hasNot := f["status NOT"]
+			_, hasIn := f["status IN"]
+			return hasNot && !hasIn
+		}), 1, 10).Return([]*models.Curso{}, 0, nil)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/courses", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		svc.AssertExpectations(t)
+	})
+
+	t.Run("single stored status uses status IN without status NOT", func(t *testing.T) {
+		svc, _, r := setup()
+		svc.On("List", mock.Anything, mock.MatchedBy(func(f map[string]interface{}) bool {
+			statuses, _ := f["status IN"].([]string)
+			_, hasNot := f["status NOT"]
+			return len(statuses) == 1 && statuses[0] == "draft" && !hasNot
+		}), 1, 10).Return([]*models.Curso{}, 0, nil)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/courses?status=draft", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		svc.AssertExpectations(t)
+	})
+
+	t.Run("multiple stored statuses produce IN with all values", func(t *testing.T) {
+		svc, _, r := setup()
+		svc.On("List", mock.Anything, mock.MatchedBy(func(f map[string]interface{}) bool {
+			statuses, _ := f["status IN"].([]string)
+			has := func(s string) bool {
+				for _, v := range statuses { if v == s { return true } }
+				return false
+			}
+			return len(statuses) == 2 && has("draft") && has("in_review")
+		}), 1, 10).Return([]*models.Curso{}, 0, nil)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/courses?status=draft,in_review", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		svc.AssertExpectations(t)
+	})
+
+	t.Run("derived statuses map to published", func(t *testing.T) {
+		svc, _, r := setup()
+		svc.On("List", mock.Anything, mock.MatchedBy(func(f map[string]interface{}) bool {
+			statuses, _ := f["status IN"].([]string)
+			return len(statuses) == 1 && statuses[0] == "published"
+		}), 1, 10).Return([]*models.Curso{}, 0, nil)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/courses?status=accepting_enrollments,scheduled,in_progress,finished", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		svc.AssertExpectations(t)
+	})
+
+	t.Run("all invalid statuses fall back to default exclude-draft", func(t *testing.T) {
+		svc, _, r := setup()
+		svc.On("List", mock.Anything, mock.MatchedBy(func(f map[string]interface{}) bool {
+			_, hasNot := f["status NOT"]
+			_, hasIn := f["status IN"]
+			return hasNot && !hasIn
+		}), 1, 10).Return([]*models.Curso{}, 0, nil)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/courses?status=invalid1,invalid2", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		svc.AssertExpectations(t)
+	})
+
+	t.Run("duplicates are deduplicated", func(t *testing.T) {
+		svc, _, r := setup()
+		svc.On("List", mock.Anything, mock.MatchedBy(func(f map[string]interface{}) bool {
+			statuses, _ := f["status IN"].([]string)
+			return len(statuses) == 1 && statuses[0] == "published"
+		}), 1, 10).Return([]*models.Curso{}, 0, nil)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/courses?status=published,published,finished", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		svc.AssertExpectations(t)
 	})
 }
 
