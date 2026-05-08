@@ -1986,8 +1986,9 @@ paths:
       - categorias
   /api/v1/courses:
     get:
-      description: 'Retorna lista paginada de cursos criados (status: "opened", "closed",
-        "canceled")'
+      description: 'Retorna lista paginada de cursos. Sem status: exclui rascunhos.
+        Com status: filtra pelos status informados (CSV). Derived statuses (scheduled,
+        accepting_enrollments, in_progress, finished) são mapeados para published.'
       parameters:
       - description: 'Número da página (default: 1)'
         in: query
@@ -1997,7 +1998,7 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Filtrar por status
+      - description: 'Filtrar por status (CSV, ex: draft,published,in_review)'
         in: query
         name: status
         type: string

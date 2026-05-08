@@ -664,7 +664,7 @@ const docTemplate = `{
         },
         "/api/v1/courses": {
             "get": {
-                "description": "Retorna lista paginada de cursos criados (status: \"opened\", \"closed\", \"canceled\")",
+                "description": "Retorna lista paginada de cursos. Sem status: exclui rascunhos. Com status: filtra pelos status informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.",
                 "produces": [
                     "application/json"
                 ],
@@ -687,7 +687,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filtrar por status",
+                        "description": "Filtrar por status (CSV, ex: draft,published,in_review)",
                         "name": "status",
                         "in": "query"
                     },

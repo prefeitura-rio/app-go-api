@@ -160,6 +160,10 @@ func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{
 		switch key {
 		case "status NOT":
 			db = db.Where("status != ?", value)
+		case "status IN":
+			if statuses, ok := value.([]string); ok && len(statuses) > 0 {
+				db = db.Where("status IN ?", statuses)
+			}
 		case "title ILIKE":
 			db = db.Where("titulo ILIKE ?", value)
 		case "categoria_id":
