@@ -186,9 +186,16 @@ func applyStatusINFilter(db *gorm.DB, statuses []string) *gorm.DB {
 
 	for _, s := range statuses {
 		switch s {
+		case "published":
+			clauses = append(clauses,
+				"(status = 'published'"+
+					" AND (enrollment_start_date IS NULL OR enrollment_start_date <= NOW())"+
+					" AND NOT (enrollment_start_date IS NOT NULL AND enrollment_end_date IS NOT NULL"+
+					"          AND enrollment_start_date <= NOW() AND enrollment_end_date >= NOW()))")
 		case "accepting_enrollments":
 			clauses = append(clauses,
-				"(status = 'published' AND (enrollment_start_date IS NULL OR enrollment_start_date <= NOW()) AND (enrollment_end_date IS NULL OR enrollment_end_date >= NOW()))")
+				"(status = 'published' AND enrollment_start_date IS NOT NULL AND enrollment_end_date IS NOT NULL"+
+					" AND enrollment_start_date <= NOW() AND enrollment_end_date >= NOW())")
 		case "scheduled":
 			clauses = append(clauses,
 				"(status = 'published' AND enrollment_start_date IS NOT NULL AND enrollment_start_date > NOW())")
