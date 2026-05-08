@@ -192,6 +192,8 @@ func applyStatusINFilter(db *gorm.DB, statuses []string) *gorm.DB {
 					" AND (enrollment_start_date IS NULL OR enrollment_start_date <= NOW())"+
 					" AND NOT (enrollment_start_date IS NOT NULL AND enrollment_end_date IS NOT NULL"+
 					"          AND enrollment_start_date <= NOW() AND enrollment_end_date >= NOW())"+
+					" AND NOT (modalidade = 'LIVRE_FORMACAO_ONLINE'"+
+					"          AND enrollment_end_date IS NOT NULL AND enrollment_end_date < NOW())"+
 					" AND NOT EXISTS (SELECT 1 FROM location_classes lc"+
 					"                 JOIN course_schedules cs ON cs.location_id = lc.id"+
 					"                 WHERE lc.curso_id = cursos.id AND cs.class_start_date <= NOW())"+
