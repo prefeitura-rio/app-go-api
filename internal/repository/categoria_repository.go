@@ -84,6 +84,8 @@ func (r *CategoriaRepository) List(ctx context.Context, filter map[string]interf
 				FROM cursos_categorias cc
 				INNER JOIN cursos c ON cc.curso_id = c.id
 				WHERE c.status IN ('published', 'opened', 'ABERTO')
+				AND (c.enrollment_start_date IS NULL OR c.enrollment_start_date <= NOW())
+				AND (c.enrollment_end_date IS NULL OR c.enrollment_end_date >= NOW())
 				AND (c.is_visible = true OR c.is_visible IS NULL)
 			)`)
 		} else {
@@ -92,6 +94,8 @@ func (r *CategoriaRepository) List(ctx context.Context, filter map[string]interf
 				FROM cursos_categorias cc
 				INNER JOIN cursos c ON cc.curso_id = c.id
 				WHERE c.status IN ('published', 'opened', 'ABERTO')
+				AND (c.enrollment_start_date IS NULL OR c.enrollment_start_date <= NOW())
+				AND (c.enrollment_end_date IS NULL OR c.enrollment_end_date >= NOW())
 			)`)
 		}
 	}
