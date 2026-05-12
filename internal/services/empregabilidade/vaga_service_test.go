@@ -56,6 +56,18 @@ func (m *MockVagaRepoForService) GetByID(ctx context.Context, id uuid.UUID) (*em
 	return vaga, nil
 }
 
+func (m *MockVagaRepoForService) GetByIDPrefix(ctx context.Context, idPrefix string) (*empregabilidade.Vaga, error) {
+	if m.getError != nil {
+		return nil, m.getError
+	}
+	for id, vaga := range m.vagas {
+		if len(id.String()) >= len(idPrefix) && id.String()[:len(idPrefix)] == idPrefix {
+			return vaga, nil
+		}
+	}
+	return nil, nil
+}
+
 func (m *MockVagaRepoForService) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
 	if m.updateError != nil {
 		return m.updateError
@@ -1260,6 +1272,52 @@ func TestVagaService_Delete_Success(t *testing.T) {
 			t.Error("Expected vaga to be deleted")
 		}
 	})
+}
+
+// ==================== GetBySlug Tests ====================
+
+func TestVagaService_GetBySlug_Encontra(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	id := uuid.MustParse("f3d23675-97e5-4d57-8892-bff6ba805d6d")
+	mockVagaRepo.vagas[id] = &empregabilidade.Vaga{
+		ID:     id,
+		Titulo: "Analista de TI",
+		Status: empregabilidade.StatusVagaPublicadoAtivo,
+	}
+
+	vaga, err := service.GetBySlug(context.Background(), "analista-de-ti-f3d23675")
+	assert.NoError(t, err)
+	assert.NotNil(t, vaga)
+	assert.Equal(t, id, vaga.ID)
+}
+
+func TestVagaService_GetBySlug_NaoEncontra(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	vaga, err := service.GetBySlug(context.Background(), "qualquer-titulo-aaaabbbb")
+	assert.NoError(t, err)
+	assert.Nil(t, vaga)
+}
+
+func TestVagaService_GetBySlug_SufixoInvalido(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	vaga, err := service.GetBySlug(context.Background(), "slug-sem-sufixo-valido")
+	assert.NoError(t, err)
+	assert.Nil(t, vaga)
+}
+
+func TestVagaService_GetBySlug_ErroDoRepo(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	mockVagaRepo.getError = errors.New("db error")
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	_, err := service.GetBySlug(context.Background(), "analista-de-ti-f3d23675")
+	assert.Error(t, err)
 }
 
 // ==================== Mock Candidatura Repo for Vaga ====================

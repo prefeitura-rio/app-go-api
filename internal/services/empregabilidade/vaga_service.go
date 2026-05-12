@@ -3,6 +3,7 @@ package empregabilidade
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
@@ -12,6 +13,7 @@ import (
 type VagaRepoInterface interface {
 	Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Vaga, error)
+	GetByIDPrefix(ctx context.Context, idPrefix string) (*empregabilidade.Vaga, error)
 	Update(ctx context.Context, entity *empregabilidade.Vaga) error
 	UpdateWithAssociations(ctx context.Context, entity *empregabilidade.Vaga) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -89,6 +91,22 @@ func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) 
 
 func (s *VagaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Vaga, error) {
 	vaga, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if vaga != nil {
+		vaga.UpdateStatusBasedOnExpiration()
+	}
+	return vaga, nil
+}
+
+func (s *VagaService) GetBySlug(ctx context.Context, vagaSlug string) (*empregabilidade.Vaga, error) {
+	parts := strings.Split(vagaSlug, "-")
+	idPrefix := parts[len(parts)-1]
+	if len(idPrefix) != 8 {
+		return nil, nil
+	}
+	vaga, err := s.repo.GetByIDPrefix(ctx, idPrefix)
 	if err != nil {
 		return nil, err
 	}

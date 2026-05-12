@@ -89,6 +89,7 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	// Public empregabilidade
 	apiPublicEmp := apiPublic.Group("/empregabilidade")
 	apiPublicEmp.GET("/vagas", app.EmpVagaHandler.PublicList)
+	apiPublicEmp.GET("/vagas/slug/:slug", app.EmpVagaHandler.PublicGetBySlug)
 	apiPublicEmp.GET("/vagas/:id", app.EmpVagaHandler.PublicGetByID)
 }
 

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gosimple/slug"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"gorm.io/gorm"
 )
@@ -77,6 +78,10 @@ type Vaga struct {
 
 func (Vaga) TableName() string {
 	return "emp_vagas"
+}
+
+func (v *Vaga) Slug() string {
+	return slug.Make(v.Titulo) + "-" + v.ID.String()[:8]
 }
 
 type VagaFilter struct {
