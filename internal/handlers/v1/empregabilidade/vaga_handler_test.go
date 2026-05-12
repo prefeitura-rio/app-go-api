@@ -1057,7 +1057,7 @@ func TestVagaHandler_PublicGetBySlug_Success(t *testing.T) {
 		Status: empmodels.StatusVagaPublicadoAtivo,
 	}}
 	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
-	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/analista-de-ti-f3d23675", nil)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/analista-de-ti-f3d2367597e5", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -1068,7 +1068,7 @@ func TestVagaHandler_PublicGetBySlug_Success(t *testing.T) {
 func TestVagaHandler_PublicGetBySlug_NaoEncontrada(t *testing.T) {
 	vagaRepo := &mockVagaRepoH{entity: nil}
 	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
-	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/inexistente-aaaabbbb", nil)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/inexistente-aaaabbbb0000", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusNotFound {
@@ -1084,7 +1084,7 @@ func TestVagaHandler_PublicGetBySlug_NaoPublicada(t *testing.T) {
 		Status: empmodels.StatusVagaEmEdicao,
 	}}
 	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
-	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/vaga-em-edicao-f3d23675", nil)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/vaga-em-edicao-f3d2367597e5", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusNotFound {

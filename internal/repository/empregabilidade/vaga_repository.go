@@ -301,7 +301,7 @@ func (r *VagaRepository) GetByIDPrefix(ctx context.Context, idPrefix string) (*e
 			return db.Order("ordem ASC")
 		}).
 		Preload("InformacoesComplementares").
-		First(&entity, "id::text LIKE ?", idPrefix+"%")
+		First(&entity, "replace(id::text, '-', '') LIKE ?", idPrefix+"%")
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil

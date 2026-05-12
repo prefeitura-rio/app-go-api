@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,7 +82,7 @@ func (Vaga) TableName() string {
 }
 
 func (v *Vaga) Slug() string {
-	return slug.Make(v.Titulo) + "-" + v.ID.String()[:8]
+	return slug.Make(v.Titulo) + "-" + strings.ReplaceAll(v.ID.String(), "-", "")[:12]
 }
 
 type VagaFilter struct {

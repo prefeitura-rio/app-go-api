@@ -3,6 +3,7 @@ package empregabilidade
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
@@ -100,10 +101,12 @@ func (s *VagaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilida
 	return vaga, nil
 }
 
+var hexPrefix12 = regexp.MustCompile(`^[0-9a-f]{12}$`)
+
 func (s *VagaService) GetBySlug(ctx context.Context, vagaSlug string) (*empregabilidade.Vaga, error) {
 	parts := strings.Split(vagaSlug, "-")
 	idPrefix := parts[len(parts)-1]
-	if len(idPrefix) != 8 {
+	if !hexPrefix12.MatchString(idPrefix) {
 		return nil, nil
 	}
 	vaga, err := s.repo.GetByIDPrefix(ctx, idPrefix)

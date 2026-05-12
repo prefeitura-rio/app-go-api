@@ -3,6 +3,7 @@ package empregabilidade_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -61,7 +62,8 @@ func (m *MockVagaRepoForService) GetByIDPrefix(ctx context.Context, idPrefix str
 		return nil, m.getError
 	}
 	for id, vaga := range m.vagas {
-		if len(id.String()) >= len(idPrefix) && id.String()[:len(idPrefix)] == idPrefix {
+		noDash := strings.ReplaceAll(id.String(), "-", "")
+		if strings.HasPrefix(noDash, idPrefix) {
 			return vaga, nil
 		}
 	}
@@ -1287,7 +1289,7 @@ func TestVagaService_GetBySlug_Encontra(t *testing.T) {
 		Status: empregabilidade.StatusVagaPublicadoAtivo,
 	}
 
-	vaga, err := service.GetBySlug(context.Background(), "analista-de-ti-f3d23675")
+	vaga, err := service.GetBySlug(context.Background(), "analista-de-ti-f3d2367597e5")
 	assert.NoError(t, err)
 	assert.NotNil(t, vaga)
 	assert.Equal(t, id, vaga.ID)
@@ -1297,7 +1299,7 @@ func TestVagaService_GetBySlug_NaoEncontra(t *testing.T) {
 	mockVagaRepo := NewMockVagaRepoForService()
 	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
 
-	vaga, err := service.GetBySlug(context.Background(), "qualquer-titulo-aaaabbbb")
+	vaga, err := service.GetBySlug(context.Background(), "qualquer-titulo-aaaabbbb0000")
 	assert.NoError(t, err)
 	assert.Nil(t, vaga)
 }
@@ -1311,12 +1313,21 @@ func TestVagaService_GetBySlug_SufixoInvalido(t *testing.T) {
 	assert.Nil(t, vaga)
 }
 
+func TestVagaService_GetBySlug_SufixoComCaractereSQL(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	vaga, err := service.GetBySlug(context.Background(), "titulo-qualquer-%_aaaabbbb")
+	assert.NoError(t, err)
+	assert.Nil(t, vaga)
+}
+
 func TestVagaService_GetBySlug_ErroDoRepo(t *testing.T) {
 	mockVagaRepo := NewMockVagaRepoForService()
 	mockVagaRepo.getError = errors.New("db error")
 	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
 
-	_, err := service.GetBySlug(context.Background(), "analista-de-ti-f3d23675")
+	_, err := service.GetBySlug(context.Background(), "analista-de-ti-f3d2367597e5")
 	assert.Error(t, err)
 }
 
