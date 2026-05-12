@@ -1051,13 +1051,15 @@ func TestVagaHandler_Update_PublishedForbiddenForEditorComCuradoria(t *testing.T
 
 func TestVagaHandler_PublicGetBySlug_Success(t *testing.T) {
 	id := uuid.MustParse("f3d23675-97e5-4d57-8892-bff6ba805d6d")
+	slug := "analista-de-ti-f3d2367597e5"
 	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{
 		ID:     id,
 		Titulo: "Analista de TI",
 		Status: empmodels.StatusVagaPublicadoAtivo,
+		Slug:   slug,
 	}}
 	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
-	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/analista-de-ti-f3d2367597e5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/"+slug, nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -1082,6 +1084,7 @@ func TestVagaHandler_PublicGetBySlug_NaoPublicada(t *testing.T) {
 		ID:     id,
 		Titulo: "Vaga em edição",
 		Status: empmodels.StatusVagaEmEdicao,
+		Slug:   "vaga-em-edicao-f3d2367597e5",
 	}}
 	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
 	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/vaga-em-edicao-f3d2367597e5", nil)
@@ -1089,5 +1092,28 @@ func TestVagaHandler_PublicGetBySlug_NaoPublicada(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected 404 for non-published vaga, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicGetBySlug_RedirectSlugHistorico(t *testing.T) {
+	id := uuid.MustParse("f3d23675-97e5-4d57-8892-bff6ba805d6d")
+	currentSlug := "analista-financeiro-jr-f3d2367597e5"
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{
+		ID:     id,
+		Titulo: "Analista Financeiro Jr",
+		Status: empmodels.StatusVagaPublicadoAtivo,
+		Slug:   currentSlug,
+	}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/analista-jr-f3d2367597e5", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusMovedPermanently {
+		t.Errorf("expected 301 for historical slug, got %d", w.Code)
+	}
+	location := w.Header().Get("Location")
+	expected := "/api/public/empregabilidade/vagas/slug/" + currentSlug
+	if location != expected {
+		t.Errorf("expected Location %q, got %q", expected, location)
 	}
 }

@@ -498,11 +498,12 @@ func (h *VagaHandler) PublicList(c *gin.Context) {
 }
 
 // @Summary      Buscar vaga pública por slug
-// @Description  Retorna uma vaga publicada pelo slug (apenas se estiver ativa). Slug no formato "{titulo-slugificado}-{12-chars-hex-do-uuid}".
+// @Description  Retorna uma vaga publicada pelo slug (apenas se estiver ativa). Slug no formato "{titulo-slugificado}-{12-chars-hex-do-uuid}". Se o slug for histórico (título mudou), retorna 301 redirect para o slug atual.
 // @Tags         empregabilidade-vagas-public
 // @Produce      json
 // @Param        slug  path      string  true  "Slug da vaga (ex: analista-financeiro-jr-b06235c80d2a)"
 // @Success      200   {object}  empregabilidade.Vaga
+// @Success      301   {object}  map[string]string
 // @Failure      404   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
 // @Router       /api/public/empregabilidade/vagas/slug/{slug} [get]
@@ -517,6 +518,11 @@ func (h *VagaHandler) PublicGetBySlug(c *gin.Context) {
 
 	if entity == nil || entity.Status != empregabilidade.StatusVagaPublicadoAtivo {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
+		return
+	}
+
+	if entity.Slug != vagaSlug {
+		c.Redirect(http.StatusMovedPermanently, "/api/public/empregabilidade/vagas/slug/"+entity.Slug)
 		return
 	}
 

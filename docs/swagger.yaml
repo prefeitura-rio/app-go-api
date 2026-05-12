@@ -565,6 +565,8 @@ definitions:
         type: string
       responsabilidades:
         type: string
+      slug:
+        type: string
       status:
         $ref: '#/definitions/empregabilidade.StatusVaga'
       tipos_pcd:
@@ -1632,7 +1634,8 @@ paths:
   /api/public/empregabilidade/vagas/slug/{slug}:
     get:
       description: Retorna uma vaga publicada pelo slug (apenas se estiver ativa).
-        Slug no formato "{titulo-slugificado}-{12-chars-hex-do-uuid}".
+        Slug no formato "{titulo-slugificado}-{12-chars-hex-do-uuid}". Se o slug for
+        histórico (título mudou), retorna 301 redirect para o slug atual.
       parameters:
       - description: 'Slug da vaga (ex: analista-financeiro-jr-b06235c80d2a)'
         in: path
@@ -1646,6 +1649,12 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/empregabilidade.Vaga'
+        "301":
+          description: Moved Permanently
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:
