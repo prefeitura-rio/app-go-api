@@ -66,6 +66,53 @@
                 }
             }
         },
+        "/api/public/empregabilidade/vagas/slug/{slug}": {
+            "get": {
+                "description": "Retorna uma vaga publicada pelo slug (apenas se estiver ativa). Slug no formato \"{titulo-slugificado}-{12-chars-hex-do-uuid}\".",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas-public"
+                ],
+                "summary": "Buscar vaga pública por slug",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Slug da vaga (ex: analista-financeiro-jr-b06235c80d2a)",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/public/empregabilidade/vagas/{id}": {
             "get": {
                 "description": "Retorna uma vaga publicada pelo ID (apenas se estiver ativa)",

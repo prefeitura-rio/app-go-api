@@ -498,10 +498,10 @@ func (h *VagaHandler) PublicList(c *gin.Context) {
 }
 
 // @Summary      Buscar vaga pública por slug
-// @Description  Retorna uma vaga publicada pelo slug (apenas se estiver ativa). Slug no formato "{titulo-slugificado}-{8-chars-do-uuid}".
+// @Description  Retorna uma vaga publicada pelo slug (apenas se estiver ativa). Slug no formato "{titulo-slugificado}-{12-chars-hex-do-uuid}".
 // @Tags         empregabilidade-vagas-public
 // @Produce      json
-// @Param        slug  path      string  true  "Slug da vaga (ex: analista-de-ti-junior-f3d23675)"
+// @Param        slug  path      string  true  "Slug da vaga (ex: analista-financeiro-jr-b06235c80d2a)"
 // @Success      200   {object}  empregabilidade.Vaga
 // @Failure      404   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
