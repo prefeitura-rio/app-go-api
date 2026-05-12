@@ -1629,6 +1629,38 @@ paths:
       summary: Buscar vaga pública
       tags:
       - empregabilidade-vagas-public
+  /api/public/empregabilidade/vagas/slug/{slug}:
+    get:
+      description: Retorna uma vaga publicada pelo slug (apenas se estiver ativa).
+        Slug no formato "{titulo-slugificado}-{12-chars-hex-do-uuid}".
+      parameters:
+      - description: 'Slug da vaga (ex: analista-financeiro-jr-b06235c80d2a)'
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Vaga'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar vaga pública por slug
+      tags:
+      - empregabilidade-vagas-public
   /api/v1/acessibilidades:
     get:
       description: Retorna lista paginada de opções de acessibilidade
