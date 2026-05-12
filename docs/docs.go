@@ -70,7 +70,7 @@ const docTemplate = `{
         },
         "/api/public/empregabilidade/vagas/slug/{slug}": {
             "get": {
-                "description": "Retorna uma vaga publicada pelo slug (apenas se estiver ativa). Slug no formato \"{titulo-slugificado}-{12-chars-hex-do-uuid}\".",
+                "description": "Retorna uma vaga publicada pelo slug (apenas se estiver ativa). Slug no formato \"{titulo-slugificado}-{12-chars-hex-do-uuid}\". Se o slug for histórico (título mudou), retorna 301 redirect para o slug atual.",
                 "produces": [
                     "application/json"
                 ],
@@ -92,6 +92,15 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    },
+                    "301": {
+                        "description": "Moved Permanently",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "404": {
@@ -11053,6 +11062,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "responsabilidades": {
+                    "type": "string"
+                },
+                "slug": {
                     "type": "string"
                 },
                 "status": {

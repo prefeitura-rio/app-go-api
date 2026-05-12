@@ -63,6 +63,7 @@ type Vaga struct {
 	Beneficios          string             `json:"beneficios" gorm:"type:text"`
 	IDOrgaoParceiro     string             `json:"id_orgao_parceiro" gorm:"type:varchar(50)"`
 	Status              StatusVaga         `json:"status" gorm:"type:varchar(50);not null;default:'em_edicao'"`
+	Slug                string             `json:"slug" gorm:"-"`
 	DeletedAt           gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
 	CreatedAt           time.Time          `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt           time.Time          `json:"updated_at" gorm:"autoUpdateTime"`
@@ -81,8 +82,13 @@ func (Vaga) TableName() string {
 	return "emp_vagas"
 }
 
-func (v *Vaga) Slug() string {
-	return slug.Make(v.Titulo) + "-" + strings.ReplaceAll(v.ID.String(), "-", "")[:12]
+func BuildVagaSlug(titulo string, id uuid.UUID) string {
+	return slug.Make(titulo) + "-" + strings.ReplaceAll(id.String(), "-", "")[:12]
+}
+
+func (v *Vaga) AfterFind(_ *gorm.DB) error {
+	v.Slug = BuildVagaSlug(v.Titulo, v.ID)
+	return nil
 }
 
 type VagaFilter struct {
