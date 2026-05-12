@@ -185,9 +185,9 @@ just security-scan # Scan de segurança
 
 ### Workflow de Desenvolvimento
 
-1. Crie uma feature branch a partir de `staging`:
+1. Crie uma feature branch a partir de `main`:
 ```bash
-git checkout staging
+git checkout main
 git pull
 git checkout -b feat/minha-feature
 ```
@@ -211,19 +211,19 @@ git commit -m "feat: minha nova feature"
 git push -u origin feat/minha-feature
 ```
 
-5. Crie um Pull Request para `staging`
+5. Crie um Pull Request para `main`
 
 ## CI/CD Pipeline
 
 ### Branch Strategy
 
 ```
-feature → staging → main → production
+feature → main → production (via GitHub Release)
 ```
 
 ### Pull Request Workflow
 
-Todos os PRs para `staging` passam por quality gates automáticos:
+Todos os PRs para `main` passam por quality gates automáticos:
 
 1. **Linting** - golangci-lint com timeout de 10 minutos
 2. **Dockerfile Lint** - Hadolint para validar Dockerfile
@@ -234,17 +234,9 @@ Todos os PRs para `staging` passam por quality gates automáticos:
 **Requisitos para merge:**
 - ✅ Todos os checks devem passar
 - ✅ Código revisado e aprovado
-- ✅ Branch atualizado com staging
+- ✅ Branch atualizado com main
 
 ### Deployment Process
-
-#### Staging Environment
-- **Trigger**: Push para branch `staging`
-- **Workflow**: `build-container.yaml`
-- **Processo**:
-  1. Build da imagem Docker
-  2. Push para GHCR com tag `latest`
-  3. Gera documentação OpenAPI v3
 
 #### Staging Deployment (Blue-Green)
 - **Trigger**: Push para branch `main`

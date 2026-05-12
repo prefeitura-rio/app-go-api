@@ -117,10 +117,10 @@ app-go-api/
 
 ### Development Workflow
 
-1. Create feature branch from `staging`:
+1. Create feature branch from `main`:
    ```bash
-   git -C /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api checkout staging
-   git -C /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api pull origin staging
+   git -C /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api checkout main
+   git -C /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api pull origin main
    git -C /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api checkout -b feat/your-feature
    ```
 
@@ -142,13 +142,13 @@ app-go-api/
    cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api && just ci
    ```
 
-5. Create PR to `staging`:
+5. Create PR to `main`:
    ```bash
    cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api
    git add .
    git commit -m "feat: add feature X with TDD"
    git push origin feat/your-feature
-   gh pr create --base staging --title "feat: add feature X"
+   gh pr create --base main --title "feat: add feature X"
    ```
 
 ### Code Quality Standards
@@ -258,19 +258,18 @@ RUN_REPOSITORY_INTEGRATION=1 DATABASE_URL="postgres://..." go test ./internal/re
 ### Branch Strategy
 
 ```
-feature/* → staging → main → GitHub Release
+feature/* → main → GitHub Release
 ```
 
-- **`staging` branch** — Staging environment (GKE cluster, namespace: `go`)
-- **`main` branch** — Production environment (GKE cluster, namespace: `go`)
+- **`main` branch** — Deploy automático para staging a cada push; produção via GitHub Release.
 
-**Note**: This repository uses `staging` + `main` (not `main` + `release` like app-rmi). Features are developed in feature branches off `staging`, then merged to `staging` (deploys to staging), then a PR from `staging` → `main` goes to production.
+Features são desenvolvidas em branches criadas a partir de `main`, PR direto para `main`. Merge em `main` dispara `deploy-staging.yaml` automaticamente (blue-green em staging). GitHub Release dispara deploy para produção (canary).
 
 ### CI/CD Pipelines
 
 #### PR Quality Gate (`pr-quality-gate.yaml`)
 
-Triggered on PRs to `staging` or `main`. Runs in parallel:
+Triggered on PRs to `main`. Runs in parallel:
 
 1. **Lint** (`lint` job):
    - `golangci-lint` with 10-minute timeout
@@ -299,10 +298,6 @@ Triggered on PRs to `staging` or `main`. Runs in parallel:
    - Fails the workflow if any check failed
 
 **Requirements for merge**: All 4 jobs must pass.
-
-#### Build Container (`build-container.yaml`)
-
-Triggered on push to `staging`. Builds and pushes a Docker image tagged `latest` to GHCR. Also generates Swagger docs but does NOT deploy — it just ensures the image is available.
 
 #### Staging Deployment (`deploy-staging.yaml`)
 
