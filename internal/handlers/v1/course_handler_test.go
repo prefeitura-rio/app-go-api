@@ -2967,7 +2967,11 @@ func TestCourseHandler_List_StatusFilter(t *testing.T) {
 		svc.On("List", mock.Anything, mock.MatchedBy(func(f map[string]interface{}) bool {
 			statuses, _ := f["status IN"].([]string)
 			has := func(s string) bool {
-				for _, v := range statuses { if v == s { return true } }
+				for _, v := range statuses {
+					if v == s {
+						return true
+					}
+				}
 				return false
 			}
 			return len(statuses) == 2 && has("draft") && has("in_review")

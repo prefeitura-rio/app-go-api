@@ -36,6 +36,10 @@ func (m *mockVagaRepoH) GetByID(_ context.Context, _ uuid.UUID) (*empmodels.Vaga
 	return m.entity, m.err
 }
 
+func (m *mockVagaRepoH) GetByIDPrefix(_ context.Context, _ string) (*empmodels.Vaga, error) {
+	return m.entity, m.err
+}
+
 func (m *mockVagaRepoH) Update(_ context.Context, _ *empmodels.Vaga) error {
 	return m.err
 }
@@ -126,6 +130,7 @@ func setupVagaRouter(vagaRepo services.VagaRepoInterface, empresaRepo services.E
 	r.PUT("/vagas/:id/discontinue", h.Discontinue)
 	r.PUT("/vagas/:id/reactivate", h.Reactivate)
 	r.GET("/public/vagas", h.PublicList)
+	r.GET("/public/vagas/slug/:slug", h.PublicGetBySlug)
 	r.GET("/public/vagas/:id", h.PublicGetByID)
 	return r
 }
@@ -1041,5 +1046,48 @@ func TestVagaHandler_Update_PublishedForbiddenForEditorComCuradoria(t *testing.T
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusForbidden {
 		t.Errorf("expected 403 for editor_com_curadoria on published vaga, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicGetBySlug_Success(t *testing.T) {
+	id := uuid.MustParse("f3d23675-97e5-4d57-8892-bff6ba805d6d")
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{
+		ID:     id,
+		Titulo: "Analista de TI",
+		Status: empmodels.StatusVagaPublicadoAtivo,
+	}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/analista-de-ti-f3d2367597e5", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicGetBySlug_NaoEncontrada(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{entity: nil}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/inexistente-aaaabbbb0000", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicGetBySlug_NaoPublicada(t *testing.T) {
+	id := uuid.MustParse("f3d23675-97e5-4d57-8892-bff6ba805d6d")
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{
+		ID:     id,
+		Titulo: "Vaga em edição",
+		Status: empmodels.StatusVagaEmEdicao,
+	}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/vaga-em-edicao-f3d2367597e5", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404 for non-published vaga, got %d", w.Code)
 	}
 }

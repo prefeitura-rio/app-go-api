@@ -497,6 +497,32 @@ func (h *VagaHandler) PublicList(c *gin.Context) {
 	})
 }
 
+// @Summary      Buscar vaga pública por slug
+// @Description  Retorna uma vaga publicada pelo slug (apenas se estiver ativa). Slug no formato "{titulo-slugificado}-{8-chars-do-uuid}".
+// @Tags         empregabilidade-vagas-public
+// @Produce      json
+// @Param        slug  path      string  true  "Slug da vaga (ex: analista-de-ti-junior-f3d23675)"
+// @Success      200   {object}  empregabilidade.Vaga
+// @Failure      404   {object}  map[string]string
+// @Failure      500   {object}  map[string]string
+// @Router       /api/public/empregabilidade/vagas/slug/{slug} [get]
+func (h *VagaHandler) PublicGetBySlug(c *gin.Context) {
+	vagaSlug := c.Param("slug")
+
+	entity, err := h.service.GetBySlug(c.Request.Context(), vagaSlug)
+	if err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	if entity == nil || entity.Status != empregabilidade.StatusVagaPublicadoAtivo {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
+		return
+	}
+
+	c.JSON(http.StatusOK, entity)
+}
+
 // @Summary      Buscar vaga pública
 // @Description  Retorna uma vaga publicada pelo ID (apenas se estiver ativa)
 // @Tags         empregabilidade-vagas-public
