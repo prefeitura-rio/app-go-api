@@ -522,7 +522,12 @@ func (h *VagaHandler) PublicGetBySlug(c *gin.Context) {
 	}
 
 	if entity.Slug != vagaSlug {
-		c.Redirect(http.StatusMovedPermanently, "/api/public/empregabilidade/vagas/slug/"+entity.Slug)
+		originalPath := c.GetHeader("X-Envoy-Original-Path")
+		if originalPath == "" {
+			originalPath = c.Request.RequestURI
+		}
+		base := originalPath[:strings.LastIndex(originalPath, "/")]
+		c.Redirect(http.StatusMovedPermanently, base+"/"+entity.Slug)
 		return
 	}
 

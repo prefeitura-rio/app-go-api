@@ -1112,7 +1112,7 @@ func TestVagaHandler_PublicGetBySlug_RedirectSlugHistorico(t *testing.T) {
 		t.Errorf("expected 301 for historical slug, got %d", w.Code)
 	}
 	location := w.Header().Get("Location")
-	expected := "/api/public/empregabilidade/vagas/slug/" + currentSlug
+	expected := "/public/vagas/slug/" + currentSlug
 	if location != expected {
 		t.Errorf("expected Location %q, got %q", expected, location)
 	}
