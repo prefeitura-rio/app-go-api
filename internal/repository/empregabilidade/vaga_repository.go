@@ -275,15 +275,15 @@ func (r *VagaRepository) ListPublic(ctx context.Context, filter empregabilidade.
 	applyFilters := func(db *gorm.DB) *gorm.DB {
 		switch filter.Status {
 		case string(empregabilidade.StatusVagaPublicadoAtivo):
-			db = db.Where("status = ? AND (data_limite IS NULL OR data_limite > NOW())", empregabilidade.StatusVagaPublicadoAtivo)
+			db = db.Where("emp_vagas.status = ? AND (emp_vagas.data_limite IS NULL OR emp_vagas.data_limite > NOW())", empregabilidade.StatusVagaPublicadoAtivo)
 		case string(empregabilidade.StatusVagaPublicadoExpirado):
-			db = db.Where("status = ? AND data_limite IS NOT NULL AND data_limite <= NOW()", empregabilidade.StatusVagaPublicadoAtivo)
+			db = db.Where("emp_vagas.status = ? AND emp_vagas.data_limite IS NOT NULL AND emp_vagas.data_limite <= NOW()", empregabilidade.StatusVagaPublicadoAtivo)
 		case string(empregabilidade.StatusVagaCongelada):
-			db = db.Where("status = ?", empregabilidade.StatusVagaCongelada)
+			db = db.Where("emp_vagas.status = ?", empregabilidade.StatusVagaCongelada)
 		case string(empregabilidade.StatusVagaDescontinuada):
-			db = db.Where("status = ?", empregabilidade.StatusVagaDescontinuada)
+			db = db.Where("emp_vagas.status = ?", empregabilidade.StatusVagaDescontinuada)
 		default:
-			db = db.Where("status IN ?", []string{
+			db = db.Where("emp_vagas.status IN ?", []string{
 				string(empregabilidade.StatusVagaPublicadoAtivo),
 				string(empregabilidade.StatusVagaCongelada),
 				string(empregabilidade.StatusVagaDescontinuada),
@@ -293,37 +293,37 @@ func (r *VagaRepository) ListPublic(ctx context.Context, filter empregabilidade.
 		switch filter.DataPublicacao {
 		case empregabilidade.DataPublicacaoHoje:
 			hoje := time.Now().Truncate(24 * time.Hour)
-			db = db.Where("created_at >= ?", hoje)
+			db = db.Where("emp_vagas.created_at >= ?", hoje)
 		case empregabilidade.DataPublicacaoUltimaSemana:
-			db = db.Where("created_at >= ?", time.Now().AddDate(0, 0, -7))
+			db = db.Where("emp_vagas.created_at >= ?", time.Now().AddDate(0, 0, -7))
 		case empregabilidade.DataPublicacaoUltimoMes:
-			db = db.Where("created_at >= ?", time.Now().AddDate(0, 0, -30))
+			db = db.Where("emp_vagas.created_at >= ?", time.Now().AddDate(0, 0, -30))
 		}
 
 		if filter.IDRegimeContratacao != "" {
-			db = db.Where("id_regime_contratacao = ?", filter.IDRegimeContratacao)
+			db = db.Where("emp_vagas.id_regime_contratacao = ?", filter.IDRegimeContratacao)
 		}
 
 		if filter.IDModeloTrabalho != "" {
-			db = db.Where("id_modelo_trabalho = ?", filter.IDModeloTrabalho)
+			db = db.Where("emp_vagas.id_modelo_trabalho = ?", filter.IDModeloTrabalho)
 		}
 
 		if filter.AcessibilidadePCD != "" {
-			db = db.Where("acessibilidade_pcd = ?", filter.AcessibilidadePCD)
+			db = db.Where("emp_vagas.acessibilidade_pcd = ?", filter.AcessibilidadePCD)
 		}
 
 		if filter.Bairro != "" {
-			db = db.Where("bairro ILIKE ?", "%"+filter.Bairro+"%")
+			db = db.Where("emp_vagas.bairro ILIKE ?", "%"+filter.Bairro+"%")
 		}
 
 		if filter.Contratante != "" {
 			digits := nonDigit.ReplaceAllString(filter.Contratante, "")
 			if len(digits) >= 11 {
-				db = db.Where("id_contratante = ?", digits)
+				db = db.Where("emp_vagas.id_contratante = ?", digits)
 			} else {
-			db = db.Joins("JOIN emp_empresas ON emp_empresas.cnpj = emp_vagas.id_contratante").
-				Where("emp_empresas.razao_social ILIKE ? OR emp_empresas.nome_fantasia ILIKE ?",
-					"%"+filter.Contratante+"%", "%"+filter.Contratante+"%")
+				db = db.Joins("JOIN emp_empresas ON emp_empresas.cnpj = emp_vagas.id_contratante").
+					Where("emp_empresas.razao_social ILIKE ? OR emp_empresas.nome_fantasia ILIKE ?",
+						"%"+filter.Contratante+"%", "%"+filter.Contratante+"%")
 			}
 		}
 
@@ -341,7 +341,7 @@ func (r *VagaRepository) ListPublic(ctx context.Context, filter empregabilidade.
 		Preload("RegimeContratacao").
 		Preload("ModeloTrabalho").
 		Preload("OrgaoParceiro").
-		Order("created_at DESC").
+		Order("emp_vagas.created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&entities)
