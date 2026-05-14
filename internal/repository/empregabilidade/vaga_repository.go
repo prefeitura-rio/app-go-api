@@ -321,8 +321,9 @@ func (r *VagaRepository) ListPublic(ctx context.Context, filter empregabilidade.
 			if len(digits) >= 11 {
 				db = db.Where("id_contratante = ?", digits)
 			} else {
-				db = db.Joins("JOIN emp_empresas ON emp_empresas.cnpj = emp_vagas.id_contratante").
-					Where("emp_empresas.nome ILIKE ?", "%"+filter.Contratante+"%")
+			db = db.Joins("JOIN emp_empresas ON emp_empresas.cnpj = emp_vagas.id_contratante").
+				Where("emp_empresas.razao_social ILIKE ? OR emp_empresas.nome_fantasia ILIKE ?",
+					"%"+filter.Contratante+"%", "%"+filter.Contratante+"%")
 			}
 		}
 
