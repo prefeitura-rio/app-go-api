@@ -98,6 +98,32 @@ type VagaFilter struct {
 	Search          string // ILIKE em titulo
 }
 
+type DataPublicacaoRange string
+
+const (
+	DataPublicacaoHoje         DataPublicacaoRange = "hoje"
+	DataPublicacaoUltimaSemana DataPublicacaoRange = "ultima_semana"
+	DataPublicacaoUltimoMes    DataPublicacaoRange = "ultimo_mes"
+)
+
+func (d DataPublicacaoRange) IsValid() bool {
+	switch d {
+	case DataPublicacaoHoje, DataPublicacaoUltimaSemana, DataPublicacaoUltimoMes:
+		return true
+	}
+	return false
+}
+
+type VagaPublicFilter struct {
+	Status              string
+	DataPublicacao      DataPublicacaoRange
+	IDRegimeContratacao string
+	IDModeloTrabalho    string
+	Contratante         string
+	AcessibilidadePCD   string
+	Bairro              string
+}
+
 func (v *Vaga) UpdateStatusBasedOnExpiration() {
 	if v.DataLimite == nil {
 		return

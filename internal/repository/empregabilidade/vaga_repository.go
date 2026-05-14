@@ -3,12 +3,16 @@ package empregabilidade
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
+
+var nonDigit = regexp.MustCompile(`\D`)
 
 type VagaRepository struct {
 	db *gorm.DB
@@ -264,12 +268,12 @@ func (r *VagaRepository) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, t
 	})
 }
 
-func (r *VagaRepository) ListPublic(ctx context.Context, status string, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+func (r *VagaRepository) ListPublic(ctx context.Context, filter empregabilidade.VagaPublicFilter, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
 	var entities []*empregabilidade.Vaga
 	var total int64
 
 	applyFilters := func(db *gorm.DB) *gorm.DB {
-		switch status {
+		switch filter.Status {
 		case string(empregabilidade.StatusVagaPublicadoAtivo):
 			db = db.Where("status = ? AND (data_limite IS NULL OR data_limite > NOW())", empregabilidade.StatusVagaPublicadoAtivo)
 		case string(empregabilidade.StatusVagaPublicadoExpirado):
@@ -285,6 +289,43 @@ func (r *VagaRepository) ListPublic(ctx context.Context, status string, limit, o
 				string(empregabilidade.StatusVagaDescontinuada),
 			})
 		}
+
+		switch filter.DataPublicacao {
+		case empregabilidade.DataPublicacaoHoje:
+			hoje := time.Now().Truncate(24 * time.Hour)
+			db = db.Where("created_at >= ?", hoje)
+		case empregabilidade.DataPublicacaoUltimaSemana:
+			db = db.Where("created_at >= ?", time.Now().AddDate(0, 0, -7))
+		case empregabilidade.DataPublicacaoUltimoMes:
+			db = db.Where("created_at >= ?", time.Now().AddDate(0, 0, -30))
+		}
+
+		if filter.IDRegimeContratacao != "" {
+			db = db.Where("id_regime_contratacao = ?", filter.IDRegimeContratacao)
+		}
+
+		if filter.IDModeloTrabalho != "" {
+			db = db.Where("id_modelo_trabalho = ?", filter.IDModeloTrabalho)
+		}
+
+		if filter.AcessibilidadePCD != "" {
+			db = db.Where("acessibilidade_pcd = ?", filter.AcessibilidadePCD)
+		}
+
+		if filter.Bairro != "" {
+			db = db.Where("bairro ILIKE ?", "%"+filter.Bairro+"%")
+		}
+
+		if filter.Contratante != "" {
+			digits := nonDigit.ReplaceAllString(filter.Contratante, "")
+			if len(digits) >= 11 {
+				db = db.Where("id_contratante = ?", digits)
+			} else {
+				db = db.Joins("JOIN emp_empresas ON emp_empresas.cnpj = emp_vagas.id_contratante").
+					Where("emp_empresas.nome ILIKE ?", "%"+filter.Contratante+"%")
+			}
+		}
+
 		return db
 	}
 

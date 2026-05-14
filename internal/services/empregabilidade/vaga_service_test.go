@@ -134,7 +134,7 @@ func (m *MockVagaRepoForService) ListPublicActive(ctx context.Context, limit, of
 	return result, len(result), nil
 }
 
-func (m *MockVagaRepoForService) ListPublic(ctx context.Context, status string, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+func (m *MockVagaRepoForService) ListPublic(ctx context.Context, filter empregabilidade.VagaPublicFilter, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
 	if m.listError != nil {
 		return nil, 0, m.listError
 	}
@@ -1361,7 +1361,7 @@ func TestVagaService_ListPublic_Success_Empty(t *testing.T) {
 	mockVagaRepo := NewMockVagaRepoForService()
 	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
 
-	vagas, total, err := service.ListPublic(context.Background(), "", 1, 10)
+	vagas, total, err := service.ListPublic(context.Background(), empregabilidade.VagaPublicFilter{}, 1, 10)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 0, total)
@@ -1378,7 +1378,7 @@ func TestVagaService_ListPublic_Success_WithVagas(t *testing.T) {
 	}
 	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
 
-	vagas, total, err := service.ListPublic(context.Background(), string(empregabilidade.StatusVagaPublicadoAtivo), 1, 10)
+	vagas, total, err := service.ListPublic(context.Background(), empregabilidade.VagaPublicFilter{Status: string(empregabilidade.StatusVagaPublicadoAtivo)}, 1, 10)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, total)
@@ -1390,7 +1390,7 @@ func TestVagaService_ListPublic_RepoError(t *testing.T) {
 	mockVagaRepo.listError = errors.New("db error")
 	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
 
-	_, _, err := service.ListPublic(context.Background(), "", 1, 10)
+	_, _, err := service.ListPublic(context.Background(), empregabilidade.VagaPublicFilter{}, 1, 10)
 
 	assert.Error(t, err)
 	assert.Equal(t, "db error", err.Error())
