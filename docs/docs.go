@@ -141,7 +141,7 @@ const docTemplate = `{
         },
         "/api/public/empregabilidade/vagas/{id}": {
             "get": {
-                "description": "Retorna uma vaga publicada pelo ID (apenas se estiver ativa)",
+                "description": "Retorna uma vaga publicada pelo ID (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)",
                 "produces": [
                     "application/json"
                 ],

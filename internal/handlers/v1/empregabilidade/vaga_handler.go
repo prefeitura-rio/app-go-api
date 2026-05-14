@@ -543,7 +543,7 @@ func (h *VagaHandler) PublicGetBySlug(c *gin.Context) {
 }
 
 // @Summary      Buscar vaga pública
-// @Description  Retorna uma vaga publicada pelo ID (apenas se estiver ativa)
+// @Description  Retorna uma vaga publicada pelo ID (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)
 // @Tags         empregabilidade-vagas-public
 // @Produce      json
 // @Param        id   path      string  true  "ID da vaga"
