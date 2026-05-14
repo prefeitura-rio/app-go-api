@@ -26,7 +26,7 @@ const docTemplate = `{
     "paths": {
         "/api/public/empregabilidade/vagas": {
             "get": {
-                "description": "Retorna lista paginada de vagas publicadas (apenas vagas ativas)",
+                "description": "Retorna lista paginada de vagas publicadas. Sem filtro retorna todos os status públicos (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada). Use ?status= para filtrar por um status específico.",
                 "produces": [
                     "application/json"
                 ],
@@ -46,6 +46,48 @@ const docTemplate = `{
                         "description": "Tamanho da página (default: 10)",
                         "name": "pageSize",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por data de publicação (hoje, ultima_semana, ultimo_mes)",
+                        "name": "data_publicacao",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID do regime de contratação",
+                        "name": "id_regime_contratacao",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID do modelo de trabalho",
+                        "name": "id_modelo_trabalho",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Nome ou CNPJ do contratante",
+                        "name": "contratante",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Acessibilidade PCD (para_pcd, preferencial_pcd, exclusivo_pcd)",
+                        "name": "acessibilidade_pcd",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bairro (busca parcial)",
+                        "name": "bairro",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -54,6 +96,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -126,7 +177,7 @@ const docTemplate = `{
         },
         "/api/public/empregabilidade/vagas/{id}": {
             "get": {
-                "description": "Retorna uma vaga publicada pelo ID (apenas se estiver ativa)",
+                "description": "Retorna uma vaga publicada pelo ID (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)",
                 "produces": [
                     "application/json"
                 ],

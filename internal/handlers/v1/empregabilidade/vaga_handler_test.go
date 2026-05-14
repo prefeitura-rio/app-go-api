@@ -60,6 +60,10 @@ func (m *mockVagaRepoH) ListPublicActive(_ context.Context, _, _ int) ([]*empmod
 	return m.listItems, m.listTotal, m.err
 }
 
+func (m *mockVagaRepoH) ListPublic(_ context.Context, _ empmodels.VagaPublicFilter, _, _ int) ([]*empmodels.Vaga, int, error) {
+	return m.listItems, m.listTotal, m.err
+}
+
 func (m *mockVagaRepoH) UpdateTiposPCD(_ context.Context, _ uuid.UUID, _ []uuid.UUID) error {
 	return m.err
 }
@@ -1034,6 +1038,233 @@ func TestVagaHandler_Update_PublishedForbiddenForUnrelatedRole(t *testing.T) {
 	}
 }
 
+func TestVagaHandler_SendToDraft_WrongStatus_Retorna409(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/send-to-draft", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409 for wrong state, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_SendToApproval_WrongStatus_Retorna409(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmAprovacao}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/send-to-approval", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409 for wrong state, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicGetByID_PublicadoExpirado(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoExpirado}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for publicado_expirado, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicGetByID_VagaCongelada(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaCongelada}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for vaga_congelada, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicGetByID_VagaDescontinuada(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaDescontinuada}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for vaga_descontinuada, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicGetByID_EmEdicao_Retorna404(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404 for em_edicao, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicGetByID_EmAprovacao_Retorna404(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmAprovacao}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404 for em_aprovacao, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicGetBySlug_PublicadoExpirado(t *testing.T) {
+	id := uuid.MustParse("f3d23675-97e5-4d57-8892-bff6ba805d6d")
+	slug := "vaga-expirada-f3d2367597e5"
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{
+		ID:     id,
+		Titulo: "Vaga Expirada",
+		Status: empmodels.StatusVagaPublicadoExpirado,
+		Slug:   slug,
+	}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/"+slug, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for publicado_expirado slug, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicGetBySlug_VagaCongelada(t *testing.T) {
+	id := uuid.MustParse("f3d23675-97e5-4d57-8892-bff6ba805d6d")
+	slug := "vaga-congelada-f3d2367597e5"
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{
+		ID:     id,
+		Titulo: "Vaga Congelada",
+		Status: empmodels.StatusVagaCongelada,
+		Slug:   slug,
+	}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/"+slug, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for vaga_congelada slug, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicGetBySlug_VagaDescontinuada(t *testing.T) {
+	id := uuid.MustParse("f3d23675-97e5-4d57-8892-bff6ba805d6d")
+	slug := "vaga-descontinuada-f3d2367597e5"
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{
+		ID:     id,
+		Titulo: "Vaga Descontinuada",
+		Status: empmodels.StatusVagaDescontinuada,
+		Slug:   slug,
+	}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas/slug/"+slug, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for vaga_descontinuada slug, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicList_WithStatusFilter_PublicadoAtivo(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{
+		listItems: []*empmodels.Vaga{{Titulo: "Vaga Ativa", Status: empmodels.StatusVagaPublicadoAtivo}},
+		listTotal: 1,
+	}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?status=publicado_ativo", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for status=publicado_ativo, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicList_WithStatusFilter_VagaCongelada(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{
+		listItems: []*empmodels.Vaga{{Titulo: "Vaga Congelada", Status: empmodels.StatusVagaCongelada}},
+		listTotal: 1,
+	}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?status=vaga_congelada", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for status=vaga_congelada, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicList_WithStatusFilter_PublicadoExpirado(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?status=publicado_expirado", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for status=publicado_expirado, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicList_WithStatusFilter_VagaDescontinuada(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?status=vaga_descontinuada", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for status=vaga_descontinuada, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicList_WithInvalidStatusFilter(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?status=em_edicao", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid status filter, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicList_WithInvalidStatusUnknown(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?status=status_invalido", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for unknown status filter, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicList_NoFilter_Success(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{
+		listItems: []*empmodels.Vaga{
+			{Titulo: "Ativa", Status: empmodels.StatusVagaPublicadoAtivo},
+			{Titulo: "Congelada", Status: empmodels.StatusVagaCongelada},
+		},
+		listTotal: 2,
+	}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for no filter, got %d", w.Code)
+	}
+}
+
 func TestVagaHandler_Update_PublishedForbiddenForEditorComCuradoria(t *testing.T) {
 	id := uuid.MustParse(validUUID)
 	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
@@ -1115,5 +1346,104 @@ func TestVagaHandler_PublicGetBySlug_RedirectSlugHistorico(t *testing.T) {
 	expected := "/public/vagas/slug/" + currentSlug
 	if location != expected {
 		t.Errorf("expected Location %q, got %q", expected, location)
+	}
+}
+
+func TestVagaHandler_PublicList_DataPublicacao_Hoje(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?data_publicacao=hoje", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for data_publicacao=hoje, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_DataPublicacao_Invalido(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?data_publicacao=invalido", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for data_publicacao=invalido, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicList_AcessibilidadePCD_ParaPCD(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?acessibilidade_pcd=para_pcd", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for acessibilidade_pcd=para_pcd, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_AcessibilidadePCD_Invalido(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?acessibilidade_pcd=invalido", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for acessibilidade_pcd=invalido, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_PublicList_Bairro(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?bairro=copacabana", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for bairro=copacabana, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_IDRegimeContratacao(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?id_regime_contratacao="+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for id_regime_contratacao, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_IDModeloTrabalho(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?id_modelo_trabalho="+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for id_modelo_trabalho, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_Contratante_Nome(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?contratante=Google", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for contratante=Google, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_Contratante_CNPJ(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?contratante=12345678000100", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for contratante=12345678000100, got %d: %s", w.Code, w.Body.String())
 	}
 }

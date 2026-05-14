@@ -462,13 +462,21 @@ func (h *VagaHandler) Reactivate(c *gin.Context) {
 // ==================== Public Endpoints ====================
 
 // @Summary      Listar vagas públicas
-// @Description  Retorna lista paginada de vagas publicadas (apenas vagas ativas)
+// @Description  Retorna lista paginada de vagas publicadas. Sem filtro retorna todos os status públicos (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada). Use ?status= para filtrar por um status específico.
 // @Tags         empregabilidade-vagas-public
 // @Produce      json
-// @Param        page       query     int     false  "Número da página (default: 1)"
-// @Param        pageSize   query     int     false  "Tamanho da página (default: 10)"
-// @Success      200        {object}  map[string]interface{}
-// @Failure      500        {object}  map[string]string
+// @Param        page                    query     int     false  "Número da página (default: 1)"
+// @Param        pageSize                query     int     false  "Tamanho da página (default: 10)"
+// @Param        status                  query     string  false  "Filtrar por status (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)"
+// @Param        data_publicacao         query     string  false  "Filtrar por data de publicação (hoje, ultima_semana, ultimo_mes)"
+// @Param        id_regime_contratacao   query     string  false  "UUID do regime de contratação"
+// @Param        id_modelo_trabalho      query     string  false  "UUID do modelo de trabalho"
+// @Param        contratante             query     string  false  "Nome ou CNPJ do contratante"
+// @Param        acessibilidade_pcd      query     string  false  "Acessibilidade PCD (para_pcd, preferencial_pcd, exclusivo_pcd)"
+// @Param        bairro                  query     string  false  "Bairro (busca parcial)"
+// @Success      200                     {object}  map[string]interface{}
+// @Failure      400                     {object}  map[string]string
+// @Failure      500                     {object}  map[string]string
 // @Router       /api/public/empregabilidade/vagas [get]
 func (h *VagaHandler) PublicList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -481,7 +489,35 @@ func (h *VagaHandler) PublicList(c *gin.Context) {
 		pageSize = 10
 	}
 
-	entities, total, err := h.service.ListPublicActive(c.Request.Context(), page, pageSize)
+	status := c.Query("status")
+	if status != "" && !isPublishedStatus(empregabilidade.StatusVaga(status)) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status inválido: deve ser publicado_ativo, publicado_expirado, vaga_congelada ou vaga_descontinuada"})
+		return
+	}
+
+	dataPublicacao := empregabilidade.DataPublicacaoRange(c.Query("data_publicacao"))
+	if dataPublicacao != "" && !dataPublicacao.IsValid() {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "data_publicacao inválido: deve ser hoje, ultima_semana ou ultimo_mes"})
+		return
+	}
+
+	acessibilidadePCD := c.Query("acessibilidade_pcd")
+	if acessibilidadePCD != "" && !empregabilidade.AcessibilidadePCD(acessibilidadePCD).IsValid() {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "acessibilidade_pcd inválido: deve ser para_pcd, preferencial_pcd ou exclusivo_pcd"})
+		return
+	}
+
+	filter := empregabilidade.VagaPublicFilter{
+		Status:              status,
+		DataPublicacao:      dataPublicacao,
+		IDRegimeContratacao: c.Query("id_regime_contratacao"),
+		IDModeloTrabalho:    c.Query("id_modelo_trabalho"),
+		Contratante:         c.Query("contratante"),
+		AcessibilidadePCD:   acessibilidadePCD,
+		Bairro:              c.Query("bairro"),
+	}
+
+	entities, total, err := h.service.ListPublic(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
 		handleVagaError(c, err)
 		return
@@ -516,7 +552,7 @@ func (h *VagaHandler) PublicGetBySlug(c *gin.Context) {
 		return
 	}
 
-	if entity == nil || entity.Status != empregabilidade.StatusVagaPublicadoAtivo {
+	if entity == nil || !isPublishedStatus(entity.Status) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
 		return
 	}
@@ -535,7 +571,7 @@ func (h *VagaHandler) PublicGetBySlug(c *gin.Context) {
 }
 
 // @Summary      Buscar vaga pública
-// @Description  Retorna uma vaga publicada pelo ID (apenas se estiver ativa)
+// @Description  Retorna uma vaga publicada pelo ID (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)
 // @Tags         empregabilidade-vagas-public
 // @Produce      json
 // @Param        id   path      string  true  "ID da vaga"
@@ -557,8 +593,7 @@ func (h *VagaHandler) PublicGetByID(c *gin.Context) {
 		return
 	}
 
-	// Return 404 if vaga doesn't exist or is not published active
-	if entity == nil || entity.Status != empregabilidade.StatusVagaPublicadoAtivo {
+	if entity == nil || !isPublishedStatus(entity.Status) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
 		return
 	}

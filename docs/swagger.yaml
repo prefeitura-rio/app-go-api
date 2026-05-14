@@ -1567,7 +1567,9 @@ info:
 paths:
   /api/public/empregabilidade/vagas:
     get:
-      description: Retorna lista paginada de vagas publicadas (apenas vagas ativas)
+      description: Retorna lista paginada de vagas publicadas. Sem filtro retorna
+        todos os status públicos (publicado_ativo, publicado_expirado, vaga_congelada,
+        vaga_descontinuada). Use ?status= para filtrar por um status específico.
       parameters:
       - description: 'Número da página (default: 1)'
         in: query
@@ -1577,6 +1579,35 @@ paths:
         in: query
         name: pageSize
         type: integer
+      - description: Filtrar por status (publicado_ativo, publicado_expirado, vaga_congelada,
+          vaga_descontinuada)
+        in: query
+        name: status
+        type: string
+      - description: Filtrar por data de publicação (hoje, ultima_semana, ultimo_mes)
+        in: query
+        name: data_publicacao
+        type: string
+      - description: UUID do regime de contratação
+        in: query
+        name: id_regime_contratacao
+        type: string
+      - description: UUID do modelo de trabalho
+        in: query
+        name: id_modelo_trabalho
+        type: string
+      - description: Nome ou CNPJ do contratante
+        in: query
+        name: contratante
+        type: string
+      - description: Acessibilidade PCD (para_pcd, preferencial_pcd, exclusivo_pcd)
+        in: query
+        name: acessibilidade_pcd
+        type: string
+      - description: Bairro (busca parcial)
+        in: query
+        name: bairro
+        type: string
       produces:
       - application/json
       responses:
@@ -1584,6 +1615,12 @@ paths:
           description: OK
           schema:
             additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
             type: object
         "500":
           description: Internal Server Error
@@ -1596,7 +1633,8 @@ paths:
       - empregabilidade-vagas-public
   /api/public/empregabilidade/vagas/{id}:
     get:
-      description: Retorna uma vaga publicada pelo ID (apenas se estiver ativa)
+      description: Retorna uma vaga publicada pelo ID (publicado_ativo, publicado_expirado,
+        vaga_congelada, vaga_descontinuada)
       parameters:
       - description: ID da vaga
         in: path

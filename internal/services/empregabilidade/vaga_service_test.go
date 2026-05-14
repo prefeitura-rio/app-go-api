@@ -110,15 +110,39 @@ func (m *MockVagaRepoForService) UpdateTiposPCD(ctx context.Context, vagaID uuid
 }
 
 func (m *MockVagaRepoForService) ListByContratante(ctx context.Context, cnpj string, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+	if m.listError != nil {
+		return nil, 0, m.listError
+	}
 	return nil, 0, nil
 }
 
 func (m *MockVagaRepoForService) ListByOrgaoParceiro(ctx context.Context, orgaoID string, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+	if m.listError != nil {
+		return nil, 0, m.listError
+	}
 	return nil, 0, nil
 }
 
 func (m *MockVagaRepoForService) ListPublicActive(ctx context.Context, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
-	return nil, 0, nil
+	if m.listError != nil {
+		return nil, 0, m.listError
+	}
+	var result []*empregabilidade.Vaga
+	for _, v := range m.vagas {
+		result = append(result, v)
+	}
+	return result, len(result), nil
+}
+
+func (m *MockVagaRepoForService) ListPublic(ctx context.Context, filter empregabilidade.VagaPublicFilter, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+	if m.listError != nil {
+		return nil, 0, m.listError
+	}
+	var result []*empregabilidade.Vaga
+	for _, v := range m.vagas {
+		result = append(result, v)
+	}
+	return result, len(result), nil
 }
 
 // Mock Empresa Repository for VagaService tests
@@ -1328,6 +1352,112 @@ func TestVagaService_GetBySlug_ErroDoRepo(t *testing.T) {
 	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
 
 	_, err := service.GetBySlug(context.Background(), "analista-de-ti-f3d2367597e5")
+	assert.Error(t, err)
+}
+
+// ==================== ListPublic Tests ====================
+
+func TestVagaService_ListPublic_Success_Empty(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	vagas, total, err := service.ListPublic(context.Background(), empregabilidade.VagaPublicFilter{}, 1, 10)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, total)
+	assert.Empty(t, vagas)
+}
+
+func TestVagaService_ListPublic_Success_WithVagas(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	vagaID := uuid.New()
+	mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+		ID:     vagaID,
+		Titulo: "Vaga Ativa",
+		Status: empregabilidade.StatusVagaPublicadoAtivo,
+	}
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	vagas, total, err := service.ListPublic(context.Background(), empregabilidade.VagaPublicFilter{Status: string(empregabilidade.StatusVagaPublicadoAtivo)}, 1, 10)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, vagas, 1)
+}
+
+func TestVagaService_ListPublic_RepoError(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	mockVagaRepo.listError = errors.New("db error")
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	_, _, err := service.ListPublic(context.Background(), empregabilidade.VagaPublicFilter{}, 1, 10)
+
+	assert.Error(t, err)
+	assert.Equal(t, "db error", err.Error())
+}
+
+// ==================== ListPublicActive Tests ====================
+
+func TestVagaService_ListPublicActive_Success(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	vagaID := uuid.New()
+	mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+		ID:     vagaID,
+		Titulo: "Vaga Publica Ativa",
+		Status: empregabilidade.StatusVagaPublicadoAtivo,
+	}
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	vagas, total, err := service.ListPublicActive(context.Background(), 1, 10)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, vagas, 1)
+}
+
+// ==================== ListByContratante Tests ====================
+
+func TestVagaService_ListByContratante_Success(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	vagas, total, err := service.ListByContratante(context.Background(), "12345678000100", 1, 10)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, total)
+	assert.Empty(t, vagas)
+}
+
+func TestVagaService_ListByContratante_RepoError(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	mockVagaRepo.listError = errors.New("db error")
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	_, _, err := service.ListByContratante(context.Background(), "12345678000100", 1, 10)
+
+	assert.Error(t, err)
+}
+
+// ==================== ListByOrgaoParceiro Tests ====================
+
+func TestVagaService_ListByOrgaoParceiro_Success(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	vagas, total, err := service.ListByOrgaoParceiro(context.Background(), "ORG-001", 1, 10)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, total)
+	assert.Empty(t, vagas)
+}
+
+func TestVagaService_ListByOrgaoParceiro_RepoError(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	mockVagaRepo.listError = errors.New("db error")
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	_, _, err := service.ListByOrgaoParceiro(context.Background(), "ORG-001", 1, 10)
+
 	assert.Error(t, err)
 }
 
