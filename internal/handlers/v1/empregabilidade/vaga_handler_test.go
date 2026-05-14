@@ -1038,6 +1038,30 @@ func TestVagaHandler_Update_PublishedForbiddenForUnrelatedRole(t *testing.T) {
 	}
 }
 
+func TestVagaHandler_SendToDraft_WrongStatus_Retorna409(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/send-to-draft", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409 for wrong state, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_SendToApproval_WrongStatus_Retorna409(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmAprovacao}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/send-to-approval", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409 for wrong state, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestVagaHandler_PublicGetByID_PublicadoExpirado(t *testing.T) {
 	id := uuid.MustParse(validUUID)
 	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoExpirado}}

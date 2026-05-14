@@ -229,3 +229,25 @@ func TestTableNames(t *testing.T) {
 		})
 	}
 }
+
+func TestDataPublicacaoRange_IsValid(t *testing.T) {
+	valid := []DataPublicacaoRange{
+		DataPublicacaoHoje,
+		DataPublicacaoUltimaSemana,
+		DataPublicacaoUltimoMes,
+	}
+	for _, d := range valid {
+		if !d.IsValid() {
+			t.Errorf("expected %q to be valid", d)
+		}
+	}
+}
+
+func TestDataPublicacaoRange_IsInvalid(t *testing.T) {
+	invalid := []DataPublicacaoRange{"", "ontem", "HOJE", "semana"}
+	for _, d := range invalid {
+		if d.IsValid() {
+			t.Errorf("expected %q to be invalid", d)
+		}
+	}
+}
