@@ -1567,7 +1567,9 @@ info:
 paths:
   /api/public/empregabilidade/vagas:
     get:
-      description: Retorna lista paginada de vagas publicadas (apenas vagas ativas)
+      description: Retorna lista paginada de vagas publicadas. Sem filtro retorna
+        todos os status públicos (publicado_ativo, publicado_expirado, vaga_congelada,
+        vaga_descontinuada). Use ?status= para filtrar por um status específico.
       parameters:
       - description: 'Número da página (default: 1)'
         in: query
@@ -1577,6 +1579,11 @@ paths:
         in: query
         name: pageSize
         type: integer
+      - description: Filtrar por status (publicado_ativo, publicado_expirado, vaga_congelada,
+          vaga_descontinuada)
+        in: query
+        name: status
+        type: string
       produces:
       - application/json
       responses:
@@ -1584,6 +1591,12 @@ paths:
           description: OK
           schema:
             additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
             type: object
         "500":
           description: Internal Server Error

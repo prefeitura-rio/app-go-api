@@ -462,12 +462,14 @@ func (h *VagaHandler) Reactivate(c *gin.Context) {
 // ==================== Public Endpoints ====================
 
 // @Summary      Listar vagas públicas
-// @Description  Retorna lista paginada de vagas publicadas (apenas vagas ativas)
+// @Description  Retorna lista paginada de vagas publicadas. Sem filtro retorna todos os status públicos (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada). Use ?status= para filtrar por um status específico.
 // @Tags         empregabilidade-vagas-public
 // @Produce      json
 // @Param        page       query     int     false  "Número da página (default: 1)"
 // @Param        pageSize   query     int     false  "Tamanho da página (default: 10)"
+// @Param        status     query     string  false  "Filtrar por status (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)"
 // @Success      200        {object}  map[string]interface{}
+// @Failure      400        {object}  map[string]string
 // @Failure      500        {object}  map[string]string
 // @Router       /api/public/empregabilidade/vagas [get]
 func (h *VagaHandler) PublicList(c *gin.Context) {
@@ -481,7 +483,13 @@ func (h *VagaHandler) PublicList(c *gin.Context) {
 		pageSize = 10
 	}
 
-	entities, total, err := h.service.ListPublicActive(c.Request.Context(), page, pageSize)
+	status := c.Query("status")
+	if status != "" && !isPublishedStatus(empregabilidade.StatusVaga(status)) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status inválido: deve ser publicado_ativo, publicado_expirado, vaga_congelada ou vaga_descontinuada"})
+		return
+	}
+
+	entities, total, err := h.service.ListPublic(c.Request.Context(), status, page, pageSize)
 	if err != nil {
 		handleVagaError(c, err)
 		return
@@ -516,7 +524,7 @@ func (h *VagaHandler) PublicGetBySlug(c *gin.Context) {
 		return
 	}
 
-	if entity == nil || entity.Status != empregabilidade.StatusVagaPublicadoAtivo {
+	if entity == nil || !isPublishedStatus(entity.Status) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
 		return
 	}
@@ -557,8 +565,7 @@ func (h *VagaHandler) PublicGetByID(c *gin.Context) {
 		return
 	}
 
-	// Return 404 if vaga doesn't exist or is not published active
-	if entity == nil || entity.Status != empregabilidade.StatusVagaPublicadoAtivo {
+	if entity == nil || !isPublishedStatus(entity.Status) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
 		return
 	}

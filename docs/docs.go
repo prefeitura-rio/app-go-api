@@ -26,7 +26,7 @@ const docTemplate = `{
     "paths": {
         "/api/public/empregabilidade/vagas": {
             "get": {
-                "description": "Retorna lista paginada de vagas publicadas (apenas vagas ativas)",
+                "description": "Retorna lista paginada de vagas publicadas. Sem filtro retorna todos os status públicos (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada). Use ?status= para filtrar por um status específico.",
                 "produces": [
                     "application/json"
                 ],
@@ -46,6 +46,12 @@ const docTemplate = `{
                         "description": "Tamanho da página (default: 10)",
                         "name": "pageSize",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)",
+                        "name": "status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -54,6 +60,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {

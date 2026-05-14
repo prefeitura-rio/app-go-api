@@ -20,6 +20,7 @@ type VagaRepoInterface interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter empregabilidade.VagaFilter, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	ListPublicActive(ctx context.Context, limit, offset int) ([]*empregabilidade.Vaga, int, error)
+	ListPublic(ctx context.Context, status string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error
 	ListByContratante(ctx context.Context, cnpj string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	ListByOrgaoParceiro(ctx context.Context, orgaoID string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
@@ -165,6 +166,18 @@ func (s *VagaService) List(ctx context.Context, filter empregabilidade.VagaFilte
 func (s *VagaService) ListPublicActive(ctx context.Context, page, pageSize int) ([]*empregabilidade.Vaga, int, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.ListPublicActive(ctx, pageSize, offset)
+}
+
+func (s *VagaService) ListPublic(ctx context.Context, status string, page, pageSize int) ([]*empregabilidade.Vaga, int, error) {
+	offset := (page - 1) * pageSize
+	vagas, total, err := s.repo.ListPublic(ctx, status, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, vaga := range vagas {
+		vaga.UpdateStatusBasedOnExpiration()
+	}
+	return vagas, total, nil
 }
 
 func (s *VagaService) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error {

@@ -264,6 +264,52 @@ func (r *VagaRepository) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, t
 	})
 }
 
+func (r *VagaRepository) ListPublic(ctx context.Context, status string, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
+	var entities []*empregabilidade.Vaga
+	var total int64
+
+	applyFilters := func(db *gorm.DB) *gorm.DB {
+		switch status {
+		case string(empregabilidade.StatusVagaPublicadoAtivo):
+			db = db.Where("status = ? AND (data_limite IS NULL OR data_limite > NOW())", empregabilidade.StatusVagaPublicadoAtivo)
+		case string(empregabilidade.StatusVagaPublicadoExpirado):
+			db = db.Where("status = ? AND data_limite IS NOT NULL AND data_limite <= NOW()", empregabilidade.StatusVagaPublicadoAtivo)
+		case string(empregabilidade.StatusVagaCongelada):
+			db = db.Where("status = ?", empregabilidade.StatusVagaCongelada)
+		case string(empregabilidade.StatusVagaDescontinuada):
+			db = db.Where("status = ?", empregabilidade.StatusVagaDescontinuada)
+		default:
+			db = db.Where("status IN ?", []string{
+				string(empregabilidade.StatusVagaPublicadoAtivo),
+				string(empregabilidade.StatusVagaCongelada),
+				string(empregabilidade.StatusVagaDescontinuada),
+			})
+		}
+		return db
+	}
+
+	countDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}))
+	if err := countDB.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar vagas públicas: %w", err)
+	}
+
+	findDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}))
+	result := findDB.
+		Preload("Contratante").
+		Preload("RegimeContratacao").
+		Preload("ModeloTrabalho").
+		Preload("OrgaoParceiro").
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&entities)
+	if result.Error != nil {
+		return nil, 0, fmt.Errorf("erro ao listar vagas públicas: %w", result.Error)
+	}
+
+	return entities, int(total), nil
+}
+
 func (r *VagaRepository) ListByContratante(ctx context.Context, cnpj string, limit, offset int) ([]*empregabilidade.Vaga, int, error) {
 	var entities []*empregabilidade.Vaga
 	var total int64
