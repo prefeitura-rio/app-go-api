@@ -534,17 +534,24 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 }
 
 // @Summary      Excluir inscrição
-// @Description  Remove uma inscrição específica
+// @Description  Remove permanentemente uma inscrição específica (apenas administradores)
 // @Tags         inscricoes
 // @Produce      json
 // @Param        courseId     path      int     true  "ID do curso"
 // @Param        enrollmentId path      string  true  "UUID da inscrição"
 // @Success      200          {object}  object
 // @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId} [delete]
 func (h *InscricaoHandler) Delete(c *gin.Context) {
+	userRole := c.GetString("user_role")
+	if userRole != "ADMIN" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: apenas administradores podem excluir inscrições"})
+		return
+	}
+
 	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
