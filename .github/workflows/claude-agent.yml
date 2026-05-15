@@ -48,4 +48,4 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
           use_vertex: "true"
           model: "claude-sonnet-4-6@default"
-          allowed_tools: "Bash(gh pr create),Bash(gh pr edit),Bash(gh pr ready)"
+          allowed_tools: "Bash(gh pr create:*),Bash(gh pr edit:*),Bash(gh pr ready:*)"
