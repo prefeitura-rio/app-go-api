@@ -252,6 +252,10 @@ func TestInscricaoHandler_UpdateCertificate_InvalidJSON(t *testing.T) {
 func TestInscricaoHandler_Delete_InvalidEnrollmentID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
 	h := v1.NewInscricaoHandler(nil, nil, nil)
 	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", h.Delete)
 
@@ -260,6 +264,22 @@ func TestInscricaoHandler_Delete_InvalidEnrollmentID(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// Test Delete endpoint returns 403 for non-admin
+func TestInscricaoHandler_Delete_NonAdmin_Forbidden(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	h := v1.NewInscricaoHandler(nil, nil, nil)
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", h.Delete)
+
+	enrollmentID := uuid.New().String()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Acesso negado")
 }
 
 // Test CreateManual endpoint with invalid courseId
