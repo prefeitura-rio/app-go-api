@@ -10870,6 +10870,9 @@
                 },
                 "resposta": {
                     "type": "string"
+                },
+                "titulo": {
+                    "type": "string"
                 }
             }
         },

@@ -389,6 +389,30 @@ func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {
 	return s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaReprovada)
 }
 
+// EnrichRespostasWithTitulo popula o campo Titulo em cada RespostaInfoComplementar
+// a partir das InformacoesComplementares da Vaga associada à candidatura.
+func (s *CandidaturaService) EnrichRespostasWithTitulo(c *empregabilidade.Candidatura) {
+	if c == nil || c.Vaga == nil || len(c.RespostasInfoComplementares) == 0 {
+		return
+	}
+
+	tituloByID := make(map[uuid.UUID]string, len(c.Vaga.InformacoesComplementares))
+	for _, info := range c.Vaga.InformacoesComplementares {
+		tituloByID[info.ID] = info.Titulo
+	}
+
+	for i := range c.RespostasInfoComplementares {
+		c.RespostasInfoComplementares[i].Titulo = tituloByID[c.RespostasInfoComplementares[i].IDInfo]
+	}
+}
+
+// EnrichRespostasWithTituloMultiple popula Titulo em RespostasInfoComplementares de múltiplas candidaturas.
+func (s *CandidaturaService) EnrichRespostasWithTituloMultiple(candidaturas []*empregabilidade.Candidatura) {
+	for _, c := range candidaturas {
+		s.EnrichRespostasWithTitulo(c)
+	}
+}
+
 // EnrichWithPersonalInfo popula PersonalInfo de uma candidatura a partir do citizen_snapshot.
 func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empregabilidade.Candidatura) {
 	if s.citizenSnapshotRepo == nil || c == nil || c.CPF == "" {

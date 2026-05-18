@@ -2,6 +2,7 @@ package empregabilidade_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -1029,6 +1030,99 @@ func TestCandidaturaHandler_Update_GetByIDError_EdgeCase(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code == http.StatusOK {
 		t.Error("expected error status")
+	}
+}
+
+func TestCandidaturaHandler_GetByID_EnrichRespostasWithTitulo(t *testing.T) {
+	infoID := uuid.New()
+	candID := uuid.MustParse(validUUID)
+
+	candidatura := &empmodels.Candidatura{
+		ID:  candID,
+		CPF: "12345678900",
+		Vaga: &empmodels.Vaga{
+			ID: uuid.New(),
+			InformacoesComplementares: []empmodels.InformacaoComplementar{
+				{ID: infoID, Titulo: "Tem experiência com Go?"},
+			},
+		},
+		RespostasInfoComplementares: []empmodels.RespostaInfoComplementar{
+			{IDInfo: infoID, Resposta: "Sim"},
+		},
+	}
+
+	candRepo := &mockCandidaturaRepoH{entity: candidatura}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "12345678900", false)
+
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp empmodels.Candidatura
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	if len(resp.RespostasInfoComplementares) != 1 {
+		t.Fatalf("expected 1 resposta, got %d", len(resp.RespostasInfoComplementares))
+	}
+	if resp.RespostasInfoComplementares[0].Titulo != "Tem experiência com Go?" {
+		t.Errorf("expected titulo %q, got %q", "Tem experiência com Go?", resp.RespostasInfoComplementares[0].Titulo)
+	}
+}
+
+func TestCandidaturaHandler_List_EnrichRespostasWithTitulo(t *testing.T) {
+	infoID := uuid.New()
+
+	candidatura := &empmodels.Candidatura{
+		ID:  uuid.New(),
+		CPF: "12345678900",
+		Vaga: &empmodels.Vaga{
+			ID: uuid.New(),
+			InformacoesComplementares: []empmodels.InformacaoComplementar{
+				{ID: infoID, Titulo: "Nível de escolaridade"},
+			},
+		},
+		RespostasInfoComplementares: []empmodels.RespostaInfoComplementar{
+			{IDInfo: infoID, Resposta: "Superior completo"},
+		},
+	}
+
+	candRepo := &mockCandidaturaRepoH{
+		listItems: []*empmodels.Candidatura{candidatura},
+		listTotal: 1,
+	}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Data []empmodels.Candidatura `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	if len(resp.Data) != 1 {
+		t.Fatalf("expected 1 candidatura, got %d", len(resp.Data))
+	}
+	if len(resp.Data[0].RespostasInfoComplementares) != 1 {
+		t.Fatalf("expected 1 resposta, got %d", len(resp.Data[0].RespostasInfoComplementares))
+	}
+	if resp.Data[0].RespostasInfoComplementares[0].Titulo != "Nível de escolaridade" {
+		t.Errorf("expected titulo %q, got %q", "Nível de escolaridade", resp.Data[0].RespostasInfoComplementares[0].Titulo)
 	}
 }
 

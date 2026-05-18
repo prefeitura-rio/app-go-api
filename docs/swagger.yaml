@@ -398,6 +398,8 @@ definitions:
         type: string
       resposta:
         type: string
+      titulo:
+        type: string
     type: object
   empregabilidade.SituacaoAtual:
     properties:

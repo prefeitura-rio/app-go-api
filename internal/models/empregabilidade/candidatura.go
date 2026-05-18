@@ -28,6 +28,7 @@ func (s StatusCandidatura) IsValid() bool {
 
 type RespostaInfoComplementar struct {
 	IDInfo   uuid.UUID `json:"id_info"`
+	Titulo   string    `json:"titulo"`
 	Resposta string    `json:"resposta"`
 }
 
