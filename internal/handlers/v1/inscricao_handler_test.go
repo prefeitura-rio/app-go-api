@@ -252,6 +252,10 @@ func TestInscricaoHandler_UpdateCertificate_InvalidJSON(t *testing.T) {
 func TestInscricaoHandler_Delete_InvalidEnrollmentID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
 	h := v1.NewInscricaoHandler(nil, nil, nil)
 	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", h.Delete)
 

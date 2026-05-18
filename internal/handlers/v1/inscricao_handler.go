@@ -16,6 +16,7 @@ import (
 	"gorm.io/datatypes"
 
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -534,17 +535,23 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 }
 
 // @Summary      Excluir inscrição
-// @Description  Remove uma inscrição específica
+// @Description  Remove uma inscrição específica. Apenas administradores e secretaria de cursos podem excluir inscritos.
 // @Tags         inscricoes
 // @Produce      json
 // @Param        courseId     path      int     true  "ID do curso"
 // @Param        enrollmentId path      string  true  "UUID da inscrição"
 // @Success      200          {object}  object
 // @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId} [delete]
 func (h *InscricaoHandler) Delete(c *gin.Context) {
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:editor") && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: apenas administradores podem excluir inscritos"})
+		return
+	}
+
 	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})

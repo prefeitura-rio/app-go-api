@@ -619,7 +619,7 @@ func TestInscricaoHandler_GetByID_NotFound(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// Test Delete with success
+// Test Delete with success (as admin)
 func TestInscricaoHandler_Delete_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockInscricaoService)
@@ -629,6 +629,10 @@ func TestInscricaoHandler_Delete_Success(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
 	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
 
 	enrollmentID := uuid.New()
@@ -645,6 +649,96 @@ func TestInscricaoHandler_Delete_Success(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
+// Test Delete with success (as course editor)
+func TestInscricaoHandler_Delete_Success_CourseEditor(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "USER")
+		c.Set("user_roles", []string{"go:cursos:editor"})
+		c.Next()
+	})
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("Delete", mock.Anything, enrollmentID).
+		Return(nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "success")
+	mockService.AssertExpectations(t)
+}
+
+// Test Delete with success (as casa civil)
+func TestInscricaoHandler_Delete_Success_CasaCivil(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "USER")
+		c.Set("user_roles", []string{"go:cursos:casa_civil"})
+		c.Next()
+	})
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("Delete", mock.Anything, enrollmentID).
+		Return(nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "success")
+	mockService.AssertExpectations(t)
+}
+
+// Test Delete with forbidden access (regular user)
+func TestInscricaoHandler_Delete_Forbidden(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "USER")
+		c.Set("user_roles", []string{})
+		c.Next()
+	})
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+
+	enrollmentID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Acesso negado")
+	mockService.AssertNotCalled(t, "Delete", mock.Anything, mock.Anything)
+}
+
 // Test Delete with not found
 func TestInscricaoHandler_Delete_NotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -655,6 +749,10 @@ func TestInscricaoHandler_Delete_NotFound(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
 	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
 
 	enrollmentID := uuid.New()
