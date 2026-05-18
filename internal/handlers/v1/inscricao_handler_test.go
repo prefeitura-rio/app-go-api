@@ -252,6 +252,10 @@ func TestInscricaoHandler_UpdateCertificate_InvalidJSON(t *testing.T) {
 func TestInscricaoHandler_Delete_InvalidEnrollmentID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
 	h := v1.NewInscricaoHandler(nil, nil, nil)
 	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", h.Delete)
 
@@ -403,7 +407,9 @@ func (m *mockInscricaoService) UpdateMultipleStatus(ctx context.Context, inscric
 func (m *mockInscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) {
 	return nil, nil
 }
-func (m *mockInscricaoService) Delete(ctx context.Context, id uuid.UUID) error { return nil }
+func (m *mockInscricaoService) Delete(ctx context.Context, id uuid.UUID, cursoID int) error {
+	return nil
+}
 func (m *mockInscricaoService) ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error) {
 	return nil, 0, nil
 }

@@ -894,10 +894,11 @@ func TestInscricaoService_Delete(t *testing.T) {
 
 	t.Run("Delete existing inscricao", func(t *testing.T) {
 		inscricaoID := uuid.New()
+		cursoID := 42
 
 		inscricaoRepo := &MockInscricaoRepository{
 			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
-				return &models.Inscricao{ID: inscricaoID}, nil
+				return &models.Inscricao{ID: inscricaoID, CursoID: cursoID}, nil
 			},
 			DeleteFunc: func(ctx context.Context, id uuid.UUID) error {
 				return nil
@@ -908,7 +909,7 @@ func TestInscricaoService_Delete(t *testing.T) {
 
 		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
 
-		err := svc.Delete(ctx, inscricaoID)
+		err := svc.Delete(ctx, inscricaoID, cursoID)
 		if err != nil {
 			t.Fatalf("Delete failed: %v", err)
 		}
@@ -927,7 +928,7 @@ func TestInscricaoService_Delete(t *testing.T) {
 
 		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
 
-		err := svc.Delete(ctx, inscricaoID)
+		err := svc.Delete(ctx, inscricaoID, 1)
 		if err == nil {
 			t.Error("Expected error when inscricao not found")
 		}
@@ -2486,7 +2487,7 @@ func TestInscricaoService_Delete_AdditionalCases(t *testing.T) {
 
 		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
 
-		err := svc.Delete(ctx, inscricaoID)
+		err := svc.Delete(ctx, inscricaoID, 1)
 		if err == nil {
 			t.Error("Expected error when GetByID fails")
 		}
@@ -2497,10 +2498,11 @@ func TestInscricaoService_Delete_AdditionalCases(t *testing.T) {
 
 	t.Run("Delete with repository error", func(t *testing.T) {
 		inscricaoID := uuid.New()
+		cursoID := 1
 
 		inscricaoRepo := &MockInscricaoRepository{
 			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
-				return &models.Inscricao{ID: inscricaoID}, nil
+				return &models.Inscricao{ID: inscricaoID, CursoID: cursoID}, nil
 			},
 			DeleteFunc: func(ctx context.Context, id uuid.UUID) error {
 				return errors.New("foreign key constraint violation")
@@ -2511,12 +2513,34 @@ func TestInscricaoService_Delete_AdditionalCases(t *testing.T) {
 
 		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
 
-		err := svc.Delete(ctx, inscricaoID)
+		err := svc.Delete(ctx, inscricaoID, cursoID)
 		if err == nil {
 			t.Error("Expected error when Delete fails")
 		}
 		if !strings.Contains(err.Error(), "foreign key constraint") {
 			t.Errorf("Expected constraint error, got: %v", err)
+		}
+	})
+
+	t.Run("Delete fails when inscricao belongs to different course", func(t *testing.T) {
+		inscricaoID := uuid.New()
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{ID: inscricaoID, CursoID: 99}, nil
+			},
+		}
+
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.Delete(ctx, inscricaoID, 1)
+		if err == nil {
+			t.Error("Expected error when inscricao belongs to different course")
+		}
+		if !strings.Contains(err.Error(), "inscrição não pertence ao curso especificado") {
+			t.Errorf("Expected course mismatch error, got: %v", err)
 		}
 	})
 }
