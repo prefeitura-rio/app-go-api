@@ -10872,6 +10872,9 @@ const docTemplate = `{
                 },
                 "resposta": {
                     "type": "string"
+                },
+                "titulo": {
+                    "type": "string"
                 }
             }
         },

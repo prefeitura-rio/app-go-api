@@ -37,6 +37,7 @@ func (r *CandidaturaRepository) GetByID(ctx context.Context, id uuid.UUID) (*emp
 		Preload("Vaga").
 		Preload("Vaga.Contratante").
 		Preload("Vaga.Etapas").
+		Preload("Vaga.InformacoesComplementares").
 		Preload("EtapaAtual").
 		First(&entity, "id = ?", id)
 	if result.Error != nil {
@@ -101,6 +102,7 @@ func (r *CandidaturaRepository) List(ctx context.Context, filter empregabilidade
 		Preload("Vaga").
 		Preload("Vaga.Contratante").
 		Preload("Vaga.Etapas").
+		Preload("Vaga.InformacoesComplementares").
 		Preload("EtapaAtual").
 		Order("created_at DESC").
 		Limit(limit).

@@ -1592,3 +1592,76 @@ func TestCandidaturaService_CountByStatus_Success(t *testing.T) {
 		}
 	})
 }
+
+func TestCandidaturaService_EnrichRespostasWithTitulo(t *testing.T) {
+	infoID1 := uuid.New()
+	infoID2 := uuid.New()
+	infoIDOrfao := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID: uuid.New(),
+		InformacoesComplementares: []empregabilidade.InformacaoComplementar{
+			{ID: infoID1, Titulo: "Tem CNH?"},
+			{ID: infoID2, Titulo: "Anos de experiência"},
+		},
+	}
+
+	tests := []struct {
+		name        string
+		candidatura *empregabilidade.Candidatura
+		wantTitulos []string
+	}{
+		{
+			name: "popula titulo a partir da vaga",
+			candidatura: &empregabilidade.Candidatura{
+				Vaga: vaga,
+				RespostasInfoComplementares: []empregabilidade.RespostaInfoComplementar{
+					{IDInfo: infoID1, Resposta: "Sim"},
+					{IDInfo: infoID2, Resposta: "3"},
+				},
+			},
+			wantTitulos: []string{"Tem CNH?", "Anos de experiência"},
+		},
+		{
+			name: "id_info sem correspondencia fica com titulo vazio",
+			candidatura: &empregabilidade.Candidatura{
+				Vaga: vaga,
+				RespostasInfoComplementares: []empregabilidade.RespostaInfoComplementar{
+					{IDInfo: infoIDOrfao, Resposta: "alguma coisa"},
+				},
+			},
+			wantTitulos: []string{""},
+		},
+		{
+			name: "candidatura sem vaga nao panics",
+			candidatura: &empregabilidade.Candidatura{
+				Vaga: nil,
+				RespostasInfoComplementares: []empregabilidade.RespostaInfoComplementar{
+					{IDInfo: infoID1, Resposta: "Sim"},
+				},
+			},
+			wantTitulos: []string{""},
+		},
+		{
+			name:        "candidatura nil nao panics",
+			candidatura: nil,
+			wantTitulos: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := services.NewCandidaturaService(NewMockCandidaturaRepo(), NewMockVagaRepo(), NewMockCurriculoService(), nil, nil)
+			svc.EnrichRespostasWithTitulo(tt.candidatura)
+
+			if tt.candidatura == nil {
+				return
+			}
+			for i, resposta := range tt.candidatura.RespostasInfoComplementares {
+				if resposta.Titulo != tt.wantTitulos[i] {
+					t.Errorf("resposta[%d].Titulo = %q, want %q", i, resposta.Titulo, tt.wantTitulos[i])
+				}
+			}
+		})
+	}
+}

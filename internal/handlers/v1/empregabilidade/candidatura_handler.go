@@ -158,6 +158,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 		return
 	}
 
+	h.service.EnrichRespostasWithTituloMultiple(entities)
 	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), entities)
 	c.JSON(http.StatusOK, gin.H{
 		"data": entities,
@@ -246,6 +247,7 @@ func (h *CandidaturaHandler) ListByCPF(c *gin.Context) {
 		return
 	}
 
+	h.service.EnrichRespostasWithTituloMultiple(entities)
 	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), entities)
 	c.JSON(http.StatusOK, gin.H{
 		"data": entities,
@@ -290,6 +292,7 @@ func (h *CandidaturaHandler) GetByID(c *gin.Context) {
 		return
 	}
 
+	h.service.EnrichRespostasWithTitulo(entity)
 	h.service.EnrichWithPersonalInfo(c.Request.Context(), entity)
 	c.JSON(http.StatusOK, entity)
 }
