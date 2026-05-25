@@ -216,3 +216,36 @@ func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Conte
 	log.Printf("[EmailNotificationService] Sent enrollment rejected email to %s for course '%s'", email, curso.Titulo)
 	return nil
 }
+
+func (s *EmailNotificationService) SendScheduleChangedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
+	if !s.enabled {
+		log.Printf("[EmailNotificationService] Email notifications disabled - skipping schedule changed email for %s", inscricao.Email)
+		return nil
+	}
+
+	email := s.resolveEmail(ctx, inscricao)
+
+	if email == "" {
+		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		return nil
+	}
+
+	orgaoName := s.getOrgaoName(ctx, curso)
+	scheduleInfo := s.getScheduleInfo(ctx, inscricao, curso)
+	template := GetScheduleChangedEmailTemplate(inscricao, curso, scheduleInfo, orgaoName, s.prefrioDomain)
+
+	emailReq := &clients.EmailRequest{
+		ToAddresses: []string{email},
+		Subject:     template.Subject,
+		Body:        template.Body,
+		IsHTMLBody:  template.IsHTML,
+	}
+
+	if err := s.dataRelayClient.SendEmail(ctx, emailReq); err != nil {
+		return fmt.Errorf("failed to send schedule changed email: %w", err)
+	}
+
+	log.Printf("[EmailNotificationService] Sent schedule changed email to %s for course '%s'", email, curso.Titulo)
+
+	return nil
+}

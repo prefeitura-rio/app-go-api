@@ -390,4 +390,4 @@ var CoreHandlerSet = wire.NewSet(providers.ProvideEmpregoHandler, providers.Prov
 var EmpHandlerSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoHandler, providers.ProvideEmpModeloTrabalhoHandler, providers.ProvideEmpTipoPCDHandler, providers.ProvideEmpIdiomaHandler, providers.ProvideEmpNivelIdiomaHandler, providers.ProvideEmpEscolaridadeHandler, providers.ProvideEmpTipoConquistaHandler, providers.ProvideEmpSituacaoAtualHandler, providers.ProvideEmpDisponibilidadeHandler, providers.ProvideEmpEmpresaHandler, providers.ProvideEmpVagaHandler, providers.ProvideEmpEtapaHandler, providers.ProvideEmpCandidaturaHandler, providers.ProvideEmpCurriculoHandler, providers.ProvideEmpOnboardingHandler, providers.ProvideEmpTermosUsoHandler)
 
 // Legacy set kept for backward compatibility with the Categorias POC
-var CategoriaSet = wire.NewSet(providers.ProvideCategoriaRepository, providers.ProvideCategoriaService, v1.NewCategoriaHandler)
+var CategoriaSet = wire.NewSet(providers.ProvideCategoriaRepository, providers.ProvideCategoriaService, wire.Bind(new(services.CategoriaServiceInterface), new(*services.CategoriaService)), v1.NewCategoriaHandler)

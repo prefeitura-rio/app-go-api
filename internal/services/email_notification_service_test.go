@@ -1674,3 +1674,45 @@ func TestSendEnrollmentEmails_Integration(t *testing.T) {
 		t.Error("Expected 3 different email subjects")
 	}
 }
+
+func TestSendScheduleChangedEmail(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	db := setupTestDB(t)
+	cursoRepo := repository.NewCursoRepository(db)
+	orgaoRepo := repository.NewOrgaoSnapshotRepository(db)
+	citizenRepo := repository.NewCitizenSnapshotRepository(db)
+
+	service := NewEmailNotificationService(
+		mockClient,
+		cursoRepo,
+		orgaoRepo,
+		citizenRepo,
+		true,
+		"oportunidades.rio",
+	)
+
+	inscricao := &models.Inscricao{
+		ID:    uuid.New(),
+		Name:  "Test User",
+		Email: "user@test.com",
+		CPF:   "12312312312",
+	}
+
+	curso := &models.Curso{
+		ID:           100,
+		Titulo:       "Test Course",
+		Organization: "Test Org",
+		Modalidade:   models.ModalidadePresencial,
+	}
+
+	ctx := context.Background()
+	err := service.SendScheduleChangedEmail(ctx, inscricao, curso)
+
+	if err != nil {
+		t.Fatalf("Failed to send created email: %v", err)
+	}
+
+	if len(mockClient.sentEmails) != 1 {
+		t.Fatalf("Expected 1 email in workflow, got %d", len(mockClient.sentEmails))
+	}
+}

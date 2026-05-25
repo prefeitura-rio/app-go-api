@@ -790,7 +790,7 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err == nil && curso != nil {
 			go func() {
-				if err := s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso); err != nil {
+				if err := s.emailNotificationService.SendScheduleChangedEmail(context.Background(), inscricao, curso); err != nil {
 					fmt.Printf("Failed to send schedule change email: %v\n", err)
 				}
 			}()

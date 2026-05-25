@@ -334,3 +334,69 @@ func TestScheduleInfo_EmptyStrings(t *testing.T) {
 		t.Error("Template body should not be empty with empty schedule fields")
 	}
 }
+
+func TestGetScheduleChangedEmailTemplate(t *testing.T) {
+	inscricao := &models.Inscricao{
+		Name:  "Usuário Teste",
+		Email: "teste@example.com",
+	}
+
+	dataInicio := time.Date(2026, 5, 25, 9, 30, 0, 0, time.UTC)
+
+	curso := &models.Curso{
+		Titulo:          "Curso Teste",
+		Modalidade:      models.ModalidadeRemoto,
+		DataInicio:      &dataInicio,
+		LocalRealizacao: "Online - Teams",
+	}
+
+	scheduleInfo := &ScheduleInfo{
+		ClassTime:      "14:00",
+		ClassStartDate: "20/01/2026",
+		ClassDays:      "Segunda, Quarta, Sexta",
+		Address:        "Rua das Flores, 123 - Centro",
+	}
+
+	template := GetScheduleChangedEmailTemplate(inscricao, curso, scheduleInfo, "Org Teste", "oportunidades.rio")
+
+	if !strings.Contains(template.Body, "Usuário Teste") {
+		t.Error("User name not found on template")
+	}
+
+	if !strings.Contains(template.Body, "Curso Teste") {
+		t.Error("Course name not found on template")
+	}
+
+	if !strings.Contains(template.Body, "Org Teste") {
+		t.Error("Organ name not found on template")
+	}
+}
+
+func TestGetScheduleChangedEmailTemplate_EmptyStrings(t *testing.T) {
+	inscricao := &models.Inscricao{
+		Name:  "",
+		Email: "",
+	}
+
+	dataInicio := time.Date(2026, 5, 25, 9, 30, 0, 0, time.UTC)
+
+	curso := &models.Curso{
+		Titulo:          "",
+		Modalidade:      models.ModalidadeRemoto,
+		DataInicio:      &dataInicio,
+		LocalRealizacao: "",
+	}
+
+	scheduleInfo := &ScheduleInfo{
+		ClassTime:      "",
+		ClassStartDate: "",
+		ClassDays:      "",
+		Address:        "",
+	}
+
+	template := GetScheduleChangedEmailTemplate(inscricao, curso, scheduleInfo, "Org Teste", "oportunidades.rio")
+
+	if template.Body == "" {
+		t.Error("Template body should not be empty with empty strings")
+	}
+}

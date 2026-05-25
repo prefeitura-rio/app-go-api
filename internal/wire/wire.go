@@ -275,6 +275,7 @@ var EmpHandlerSet = wire.NewSet(
 var CategoriaSet = wire.NewSet(
 	providers.ProvideCategoriaRepository,
 	providers.ProvideCategoriaService,
+	wire.Bind(new(services.CategoriaServiceInterface), new(*services.CategoriaService)),
 	v1.NewCategoriaHandler,
 )
 
