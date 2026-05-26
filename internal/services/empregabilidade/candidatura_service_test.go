@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
+	coreservices "github.com/prefeitura-rio/app-go-api/internal/services"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
@@ -184,6 +185,10 @@ func (m *MockCurriculoService) GetCurriculoCompleto(ctx context.Context, cpf str
 	return m.curriculo, nil
 }
 
+func newDisabledEmailSvc() *coreservices.EmailNotificationService {
+	return coreservices.NewEmailNotificationService(nil, nil, nil, nil, false, "")
+}
+
 func TestCandidaturaService_Create_Success(t *testing.T) {
 	t.Run("Successful candidatura creation", func(t *testing.T) {
 		mockCandidaturaRepo := NewMockCandidaturaRepo()
@@ -196,7 +201,7 @@ func TestCandidaturaService_Create_Success(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoAtivo,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -228,7 +233,7 @@ func TestCandidaturaService_Create_VagaNotFound(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -265,7 +270,7 @@ func TestCandidaturaService_Create_VagaNotActive(t *testing.T) {
 			Status: empregabilidade.StatusVagaEmEdicao,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -300,7 +305,7 @@ func TestCandidaturaService_Create_VagaNotActive(t *testing.T) {
 			Status: empregabilidade.StatusVagaEmAprovacao,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -335,7 +340,7 @@ func TestCandidaturaService_Create_VagaExpired(t *testing.T) {
 			DataLimite: &pastDate,                                // But expired by date
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -370,7 +375,7 @@ func TestCandidaturaService_Create_VagaExpired(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoExpirado,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -405,7 +410,7 @@ func TestCandidaturaService_Create_DuplicateCandidatura(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoAtivo,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -437,7 +442,7 @@ func TestCandidaturaService_Create_RepositoryErrors(t *testing.T) {
 		mockCurriculoService := NewMockCurriculoService()
 		mockVagaRepo.getError = errors.New("database connection error")
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -470,7 +475,7 @@ func TestCandidaturaService_Create_RepositoryErrors(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoAtivo,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -498,7 +503,7 @@ func TestCandidaturaService_UpdateStatus(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaEnviada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
@@ -513,7 +518,7 @@ func TestCandidaturaService_UpdateStatus(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.UpdateStatus(ctx, uuid.New(), empregabilidade.StatusCandidatura("invalid_status"))
@@ -533,7 +538,7 @@ func TestCandidaturaService_UpdateStatus(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.UpdateStatus(ctx, uuid.New(), empregabilidade.StatusCandidaturaAprovada)
@@ -554,7 +559,7 @@ func TestCandidaturaService_UpdateStatus(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.UpdateStatus(ctx, uuid.New(), empregabilidade.StatusCandidaturaAprovada)
@@ -579,7 +584,7 @@ func TestCandidaturaService_UpdateStatus(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaDescontinuada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
@@ -605,7 +610,7 @@ func TestCandidaturaService_UpdateStatus(t *testing.T) {
 		}
 		mockCandidaturaRepo.updateStatusErr = errors.New("update failed")
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
@@ -632,7 +637,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaEnviada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Approve(ctx, id)
@@ -657,7 +662,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaEnviada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Reject(ctx, id)
@@ -676,7 +681,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Approve(ctx, uuid.New())
@@ -696,7 +701,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Reject(ctx, uuid.New())
@@ -717,7 +722,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Approve(ctx, uuid.New())
@@ -737,7 +742,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Reject(ctx, uuid.New())
@@ -762,7 +767,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaDescontinuada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Approve(ctx, id)
@@ -787,7 +792,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaDescontinuada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Reject(ctx, id)
@@ -813,7 +818,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 		}
 		mockCandidaturaRepo.updateStatusErr = errors.New("update failed")
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Approve(ctx, id)
@@ -839,7 +844,7 @@ func TestCandidaturaService_ApproveReject(t *testing.T) {
 		}
 		mockCandidaturaRepo.updateStatusErr = errors.New("update failed")
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Reject(ctx, id)
@@ -881,7 +886,7 @@ func TestCandidaturaService_Update(t *testing.T) {
 			CurriculoSnapshot: originalSnapshot,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		differentVagaID := uuid.New()
 		updated := &empregabilidade.Candidatura{
@@ -926,7 +931,7 @@ func TestCandidaturaService_Update(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		updated := &empregabilidade.Candidatura{
 			ID: uuid.New(),
@@ -951,7 +956,7 @@ func TestCandidaturaService_Update(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		updated := &empregabilidade.Candidatura{
 			ID: uuid.New(),
@@ -989,7 +994,7 @@ func TestCandidaturaService_Create_CurriculoSnapshot(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoAtivo,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -1025,7 +1030,7 @@ func TestCandidaturaService_Create_CurriculoSnapshot(t *testing.T) {
 			Status: empregabilidade.StatusVagaPublicadoAtivo,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		candidatura := &empregabilidade.Candidatura{
 			CPF:    "12345678901",
@@ -1074,7 +1079,7 @@ func TestCandidaturaService_UpdateEtapa_Success(t *testing.T) {
 			},
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.UpdateEtapa(ctx, candID, etapaID)
@@ -1091,7 +1096,7 @@ func TestCandidaturaService_UpdateEtapa_Errors(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.UpdateEtapa(ctx, uuid.New(), uuid.New())
@@ -1120,7 +1125,7 @@ func TestCandidaturaService_UpdateEtapa_Errors(t *testing.T) {
 			Etapas: []empregabilidade.Etapa{},
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.UpdateEtapa(ctx, candID, etapaID)
@@ -1154,7 +1159,7 @@ func TestCandidaturaService_BulkUpdateStatus_Success(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaEnviada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		result, err := service.BulkUpdateStatus(ctx, vagaID, []string{cpf1, cpf2}, empregabilidade.StatusCandidaturaAprovada)
@@ -1175,7 +1180,7 @@ func TestCandidaturaService_BulkUpdateStatus_Errors(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		_, err := service.BulkUpdateStatus(ctx, uuid.New(), []string{"12345678901"}, "invalid_status")
@@ -1190,7 +1195,7 @@ func TestCandidaturaService_BulkUpdateStatus_Errors(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		_, err := service.BulkUpdateStatus(ctx, uuid.New(), []string{}, empregabilidade.StatusCandidaturaAprovada)
@@ -1220,7 +1225,7 @@ func TestCandidaturaService_BulkUpdateStatus_Errors(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaEnviada, // Can transition
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		result, err := service.BulkUpdateStatus(ctx, vagaID, []string{cpf1, cpf2}, empregabilidade.StatusCandidaturaAprovada)
@@ -1249,7 +1254,7 @@ func TestCandidaturaService_BulkUpdateStatus_Errors(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		_, err := service.BulkUpdateStatus(ctx, uuid.New(), []string{"12345678901"}, empregabilidade.StatusCandidaturaAprovada)
@@ -1274,7 +1279,7 @@ func TestCandidaturaService_BulkUpdateStatus_Errors(t *testing.T) {
 			Status: empregabilidade.StatusCandidaturaEnviada,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		result, err := service.BulkUpdateStatus(ctx, vagaID, []string{cpf1, cpf2}, empregabilidade.StatusCandidaturaAprovada)
@@ -1322,7 +1327,7 @@ func TestCandidaturaService_BulkUpdateEtapa_Success(t *testing.T) {
 			},
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		result, err := service.BulkUpdateEtapa(ctx, vagaID, []string{cpf1, cpf2}, etapaID)
@@ -1343,7 +1348,7 @@ func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		_, err := service.BulkUpdateEtapa(ctx, uuid.New(), []string{"12345678901"}, uuid.New())
@@ -1364,7 +1369,7 @@ func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
 			Etapas: []empregabilidade.Etapa{},
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		_, err := service.BulkUpdateEtapa(ctx, vagaID, []string{"12345678901"}, uuid.New())
@@ -1379,7 +1384,7 @@ func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		_, err := service.BulkUpdateEtapa(ctx, uuid.New(), []string{}, uuid.New())
@@ -1395,7 +1400,7 @@ func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
 		mockVagaRepo.getError = errors.New("database error")
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		_, err := service.BulkUpdateEtapa(ctx, uuid.New(), []string{"12345678901"}, uuid.New())
@@ -1422,7 +1427,7 @@ func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
 			Etapas: []empregabilidade.Etapa{{ID: etapaID}},
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		_, err := service.BulkUpdateEtapa(ctx, vagaID, []string{"12345678901"}, etapaID)
@@ -1460,7 +1465,7 @@ func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
 			Etapas: []empregabilidade.Etapa{{ID: etapaID}},
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		_, err := service.BulkUpdateEtapa(ctx, vagaID, []string{cpf1, cpf2}, etapaID)
@@ -1494,7 +1499,7 @@ func TestCandidaturaService_BulkUpdateEtapa_Errors(t *testing.T) {
 			Etapas: []empregabilidade.Etapa{{ID: etapaID}},
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		result, err := service.BulkUpdateEtapa(ctx, vagaID, []string{cpf1, cpf2}, etapaID)
@@ -1530,7 +1535,7 @@ func TestCandidaturaService_Delete_Success(t *testing.T) {
 			ID: id,
 		}
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		err := service.Delete(ctx, id)
@@ -1553,7 +1558,7 @@ func TestCandidaturaService_List_Success(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		result, total, err := service.List(ctx, empregabilidade.CandidaturaFilter{}, 1, 10)
@@ -1578,7 +1583,7 @@ func TestCandidaturaService_CountByStatus_Success(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepo()
 		mockCurriculoService := NewMockCurriculoService()
 
-		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil)
+		service := services.NewCandidaturaService(mockCandidaturaRepo, mockVagaRepo, mockCurriculoService, nil, nil, newDisabledEmailSvc())
 
 		ctx := context.Background()
 		result, err := service.CountByStatus(ctx, empregabilidade.CandidaturaFilter{})
@@ -1651,7 +1656,7 @@ func TestCandidaturaService_EnrichRespostasWithTitulo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := services.NewCandidaturaService(NewMockCandidaturaRepo(), NewMockVagaRepo(), NewMockCurriculoService(), nil, nil)
+			svc := services.NewCandidaturaService(NewMockCandidaturaRepo(), NewMockVagaRepo(), NewMockCurriculoService(), nil, nil, newDisabledEmailSvc())
 			svc.EnrichRespostasWithTitulo(tt.candidatura)
 
 			if tt.candidatura == nil {

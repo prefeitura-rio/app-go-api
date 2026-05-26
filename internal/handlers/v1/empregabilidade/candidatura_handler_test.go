@@ -13,7 +13,8 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	empmodels "github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
-	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
+	services "github.com/prefeitura-rio/app-go-api/internal/services"
+	empServices "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -123,12 +124,30 @@ func (m *mockCurriculoSvcH) GetCurriculoCompleto(_ context.Context, _ string) (*
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Mock EmailService for CandidaturaService
+// ──────────────────────────────────────────────────────────────────────────────
+
+type mockEmailNotificationService struct{}
+
+func (m *mockEmailNotificationService) SendCandidaturaEnviadaEmail(ctx context.Context, candidatura *empmodels.Candidatura) error {
+	return nil // do nothing, return success
+}
+
+func (m *mockEmailNotificationService) SendCandidaturaAprovadaEmail(ctx context.Context, candidatura *empmodels.Candidatura) error {
+	return nil
+}
+
+func (m *mockEmailNotificationService) SendCandidaturaReprovadaEmail(ctx context.Context, candidatura *empmodels.Candidatura) error {
+	return nil
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Router setup
 // ──────────────────────────────────────────────────────────────────────────────
 
 func setupCandidaturaRouter(
-	candRepo services.CandidaturaRepositoryInterface,
-	vagaRepo services.VagaRepositoryInterface,
+	candRepo empServices.CandidaturaRepositoryInterface,
+	vagaRepo empServices.VagaRepositoryInterface,
 	cpf string,
 	isAdmin bool,
 ) *gin.Engine {
@@ -143,7 +162,15 @@ func setupCandidaturaRouter(
 		c.Next()
 	})
 	curriculoSvc := &mockCurriculoSvcH{}
-	svc := services.NewCandidaturaService(candRepo, vagaRepo, curriculoSvc, nil, nil)
+	emailSvc := services.NewEmailNotificationService(
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+		"",
+	)
+	svc := empServices.NewCandidaturaService(candRepo, vagaRepo, curriculoSvc, nil, nil, emailSvc)
 	h := handlers.NewCandidaturaHandler(svc)
 	r.POST("/candidaturas", h.Create)
 	r.GET("/candidaturas", h.List)

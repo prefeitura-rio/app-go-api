@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
 
 // EmailTemplate defines the structure for email content
@@ -195,8 +196,115 @@ func GetScheduleChangedEmailTemplate(inscricao *models.Inscricao, curso *models.
 	}
 }
 
+// GetCandidaturaEnviadaEmailTemplate returns email template for received applications
+func GetCandidaturaEnviadaEmailTemplate(candidatura *empregabilidade.Candidatura, vaga *empregabilidade.Vaga, empresa *empregabilidade.Empresa, orgaoName, prefrioDomain string) EmailTemplate {
+	subject := fmt.Sprintf("Candidatura recebida! - %s", vaga.Titulo)
+	vagasURL := fmt.Sprintf("https://%s/servicos/trabalho", prefrioDomain)
+
+	body := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <p>Olá, %s!</p>
+
+    <p>Recebemos sua inscrição para a vaga de %s na empresa %s, em parceria com %s.</p>
+
+		<p>Fique atento(a) ao seu e-mail, pois enviaremos atualizações sobre o andamento do processo seletivo em breve.</p>
+
+    <p>👉 Você pode acompanhar o status da sua inscrição a qualquer momento na seção <a href="%s" style="color: #0066cc; text-decoration: none;">%s</a></p>
+
+    <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
+</body>
+</html>`,
+		*candidatura.Nome,
+		vaga.Titulo,
+		empresa.NomeFantasia,
+		orgaoName,
+		vagasURL,
+		vagasURL,
+	)
+
+	return EmailTemplate{
+		Subject: subject,
+		Body:    body,
+		IsHTML:  true,
+	}
+}
+
+// GetCandidaturaAprovadaEmailTemplate returns email template for approved applications
+func GetCandidaturaAprovadaEmailTemplate(candidatura *empregabilidade.Candidatura, vaga *empregabilidade.Vaga, empresa *empregabilidade.Empresa) EmailTemplate {
+	subject := fmt.Sprintf(`Parabéns! 🎉Candidatura aprovada - "%s"`, vaga.Titulo)
+
+	body := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <p>Olá, %s!</p>
+
+    <p>Estamos muito felizes em informar que você foi aprovado (a) para a vaga “%s”. Parabéns por essa conquista! 🥳👏</p>
+
+		<p>💡 Fique atento(a) ao seu e-mail/ telefone, pois a empresa “%s” entrará em contato em breve para alinhar os detalhes da contratação.</p>
+
+    <p>Desejamos muito sucesso em seu novo emprego! 🎉🎉</p>
+
+     <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
+</body>
+</html>`,
+		*candidatura.Nome,
+		vaga.Titulo,
+		empresa.NomeFantasia,
+	)
+
+	return EmailTemplate{
+		Subject: subject,
+		Body:    body,
+		IsHTML:  true,
+	}
+}
+
+// GetCandidaturaReprovadaEmailTemplate returns email template for failed applications
+func GetCandidaturaReprovadaEmailTemplate(candidatura *empregabilidade.Candidatura, vaga *empregabilidade.Vaga, prefrioDomain string) EmailTemplate {
+	subject := fmt.Sprintf(`Informações sobre sua candidatura - %s`, vaga.Titulo)
+	vagasURL := fmt.Sprintf("https://%s/servicos/trabalho", prefrioDomain)
+
+	body := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <p>Olá, %s!</p>
+
+		>p>Agradecemos o seu interesse na vaga de “%s”.</p>
+
+    <p>Após a análise do seu perfil em relação aos requisitos da vaga, informamos que sua candidatura não seguirá para as próximas etapas desta vez.</p>
+
+		<p>💡<strong>Não desanime!</strong> Fique de olho e se inscreva nas próximas oportunidades que combinem com o seu perfil. A vaga certa pode estar à sua espera! 😉</p>
+
+    <p>👉 Acesse aqui as vagas disponíveis: <a href="%s" style="color: #0066cc; text-decoration: none;">%s</a></p>
+
+     <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
+</body>
+</html>`,
+		*candidatura.Nome,
+		vaga.Titulo,
+		vagasURL,
+		vagasURL,
+	)
+
+	return EmailTemplate{
+		Subject: subject,
+		Body:    body,
+		IsHTML:  true,
+	}
+}
+
+// Build location info from schedule or course
 func getLocationString(scheduleInfo *ScheduleInfo, curso *models.Curso) string {
-	// Build location info from schedule or course
 	var locationInfoStr string
 	if scheduleInfo != nil && scheduleInfo.Address != "" {
 		locationInfoStr = fmt.Sprintf("📍 Endereço: %s", scheduleInfo.Address)
@@ -212,8 +320,8 @@ func getLocationString(scheduleInfo *ScheduleInfo, curso *models.Curso) string {
 	return locationInfoStr
 }
 
+// Build schedule info from enrollment's schedule or fallback to course data
 func getScheduleInfoString(scheduleInfo *ScheduleInfo, curso *models.Curso) string {
-	// Build schedule info from enrollment's schedule or fallback to course data
 	var scheduleInfoStr string
 	if scheduleInfo != nil && scheduleInfo.ClassStartDate != "" {
 		if scheduleInfo.ClassTime != "" {

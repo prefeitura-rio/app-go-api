@@ -9,6 +9,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
+	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
 type CandidaturaRepositoryInterface interface {
@@ -87,11 +88,12 @@ func canTransitionCandidatura(from, to empregabilidade.StatusCandidatura) bool {
 }
 
 type CandidaturaService struct {
-	repo                CandidaturaRepositoryInterface
-	vagaRepo            VagaRepositoryInterface
-	curriculoService    CurriculoServiceInterface
-	citizenSnapshotRepo CitizenSnapshotRepoForCandidaturaInterface // pode ser nil
-	citizenDataFetcher  CitizenDataFetcherForCandidaturaInterface  // pode ser nil
+	repo                     CandidaturaRepositoryInterface
+	vagaRepo                 VagaRepositoryInterface
+	curriculoService         CurriculoServiceInterface
+	citizenSnapshotRepo      CitizenSnapshotRepoForCandidaturaInterface // pode ser nil
+	citizenDataFetcher       CitizenDataFetcherForCandidaturaInterface  // pode ser nil
+	emailNotificationService *services.EmailNotificationService
 }
 
 func NewCandidaturaService(
@@ -100,13 +102,15 @@ func NewCandidaturaService(
 	curriculoService CurriculoServiceInterface,
 	citizenSnapshotRepo CitizenSnapshotRepoForCandidaturaInterface,
 	citizenDataFetcher CitizenDataFetcherForCandidaturaInterface,
+	emailNotificationService *services.EmailNotificationService,
 ) *CandidaturaService {
 	return &CandidaturaService{
-		repo:                repo,
-		vagaRepo:            vagaRepo,
-		curriculoService:    curriculoService,
-		citizenSnapshotRepo: citizenSnapshotRepo,
-		citizenDataFetcher:  citizenDataFetcher,
+		repo:                     repo,
+		vagaRepo:                 vagaRepo,
+		curriculoService:         curriculoService,
+		citizenSnapshotRepo:      citizenSnapshotRepo,
+		citizenDataFetcher:       citizenDataFetcher,
+		emailNotificationService: emailNotificationService,
 	}
 }
 
@@ -148,6 +152,7 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 	}
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
+	go s.emailNotificationService.SendCandidaturaEnviadaEmail(context.Background(), entity)
 	return s.repo.Create(ctx, entity)
 }
 
@@ -200,7 +205,19 @@ func (s *CandidaturaService) UpdateStatus(ctx context.Context, id uuid.UUID, sta
 	if !canTransitionCandidatura(existing.Status, status) {
 		return fmt.Errorf("transição de status inválida: %s → %s", existing.Status, status)
 	}
-	return s.repo.UpdateStatus(ctx, id, status)
+
+	if err = s.repo.UpdateStatus(ctx, id, status); err != nil {
+		return err
+	}
+
+	switch status {
+	case empregabilidade.StatusCandidaturaAprovada:
+		go s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), existing)
+	case empregabilidade.StatusCandidaturaReprovada:
+		go s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), existing)
+	}
+
+	return nil
 }
 
 func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error {
@@ -245,7 +262,14 @@ func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
 	if !canTransitionCandidatura(existing.Status, empregabilidade.StatusCandidaturaAprovada) {
 		return fmt.Errorf("candidatura não pode ser aprovada no status atual: %s", existing.Status)
 	}
-	return s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
+
+	if err = s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada); err != nil {
+		return err
+	}
+
+	go s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), existing)
+
+	return nil
 }
 
 type BulkUpdateStatusResult struct {
@@ -290,6 +314,8 @@ func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, vagaID uuid.U
 	if err != nil {
 		return BulkUpdateStatusResult{}, err
 	}
+
+	//TODO: send emails without creating excessive goroutines
 
 	return BulkUpdateStatusResult{
 		Updated:    repoResult.Updated,
@@ -386,7 +412,14 @@ func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {
 	if !canTransitionCandidatura(existing.Status, empregabilidade.StatusCandidaturaReprovada) {
 		return fmt.Errorf("candidatura não pode ser reprovada no status atual: %s", existing.Status)
 	}
-	return s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaReprovada)
+
+	if err = s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaReprovada); err != nil {
+		return err
+	}
+
+	go s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), existing)
+
+	return nil
 }
 
 // EnrichRespostasWithTitulo popula o campo Titulo em cada RespostaInfoComplementar

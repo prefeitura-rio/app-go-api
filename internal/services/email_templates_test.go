@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
 
 func TestGetEnrollmentApprovedEmailTemplate_WithScheduleInfo(t *testing.T) {
@@ -395,6 +396,165 @@ func TestGetScheduleChangedEmailTemplate_EmptyStrings(t *testing.T) {
 	}
 
 	template := GetScheduleChangedEmailTemplate(inscricao, curso, scheduleInfo, "Org Teste", "oportunidades.rio")
+
+	if template.Body == "" {
+		t.Error("Template body should not be empty with empty strings")
+	}
+}
+
+func TestGetCandidaturaEnviadaEmailTemplate(t *testing.T) {
+	nome := "Usuário Teste"
+	email := "test@example.com"
+
+	candidatura := &empregabilidade.Candidatura{
+		Nome:  &nome,
+		Email: &email,
+	}
+
+	vaga := &empregabilidade.Vaga{
+		Titulo: "Vaga Teste",
+	}
+
+	empresa := &empregabilidade.Empresa{
+		NomeFantasia: "Empresa Teste",
+	}
+
+	template := GetCandidaturaEnviadaEmailTemplate(candidatura, vaga, empresa, "Org Teste", "oportunidades.rio")
+
+	if !strings.Contains(template.Body, "Usuário Teste") {
+		t.Error("User name not found on template")
+	}
+
+	if !strings.Contains(template.Body, "Vaga Teste") {
+		t.Error("Position name not found on template")
+	}
+
+	if !strings.Contains(template.Body, "Empresa Teste") {
+		t.Error("Company name not found on template")
+	}
+
+	if !strings.Contains(template.Body, "Org Teste") {
+		t.Error("Organ name not found on template")
+	}
+}
+
+func TestGetCandidaturaEnviadaEmailTemplate_EmptyStrings(t *testing.T) {
+	nome := ""
+	email := ""
+
+	candidatura := &empregabilidade.Candidatura{
+		Nome:  &nome,
+		Email: &email,
+	}
+
+	vaga := &empregabilidade.Vaga{
+		Titulo: "",
+	}
+
+	empresa := &empregabilidade.Empresa{
+		NomeFantasia: "",
+	}
+
+	template := GetCandidaturaEnviadaEmailTemplate(candidatura, vaga, empresa, "Org Teste", "oportunidades.rio")
+
+	if template.Body == "" {
+		t.Error("Template body should not be empty with empty strings")
+	}
+}
+
+func TestGetCandidaturaAprovadaEmailTemplate(t *testing.T) {
+	nome := "Usuário Teste"
+	email := "test@example.com"
+
+	candidatura := &empregabilidade.Candidatura{
+		Nome:  &nome,
+		Email: &email,
+	}
+
+	vaga := &empregabilidade.Vaga{
+		Titulo: "Vaga Teste",
+	}
+
+	empresa := &empregabilidade.Empresa{
+		NomeFantasia: "Empresa Teste",
+	}
+
+	template := GetCandidaturaAprovadaEmailTemplate(candidatura, vaga, empresa)
+
+	if !strings.Contains(template.Body, "Usuário Teste") {
+		t.Error("User name not found on template")
+	}
+
+	if !strings.Contains(template.Body, "Vaga Teste") {
+		t.Error("Position name not found on template")
+	}
+
+	if !strings.Contains(template.Body, "Empresa Teste") {
+		t.Error("Company name not found on template")
+	}
+}
+
+func TestGetCandidaturaAprovadaEmailTemplate_EmptyStrings(t *testing.T) {
+	nome := ""
+	email := ""
+
+	candidatura := &empregabilidade.Candidatura{
+		Nome:  &nome,
+		Email: &email,
+	}
+
+	vaga := &empregabilidade.Vaga{
+		Titulo: "",
+	}
+
+	empresa := &empregabilidade.Empresa{
+		NomeFantasia: "",
+	}
+
+	template := GetCandidaturaAprovadaEmailTemplate(candidatura, vaga, empresa)
+
+	if template.Body == "" {
+		t.Error("Template body should not be empty with empty strings")
+	}
+}
+
+func TestGetCandidaturaReprovadaEmailTemplate(t *testing.T) {
+	nome := "Usuário Teste"
+	email := "test@example.com"
+
+	candidatura := &empregabilidade.Candidatura{
+		Nome:  &nome,
+		Email: &email,
+	}
+
+	vaga := &empregabilidade.Vaga{
+		Titulo: "Vaga Teste",
+	}
+	template := GetCandidaturaReprovadaEmailTemplate(candidatura, vaga, "oportunidades.rio")
+
+	if !strings.Contains(template.Body, "Usuário Teste") {
+		t.Error("User name not found on template")
+	}
+
+	if !strings.Contains(template.Body, "Vaga Teste") {
+		t.Error("Position name not found on template")
+	}
+}
+
+func TestGetCandidaturaReprovadaEmailTemplate_EmptyStrings(t *testing.T) {
+	nome := ""
+	email := ""
+
+	candidatura := &empregabilidade.Candidatura{
+		Nome:  &nome,
+		Email: &email,
+	}
+
+	vaga := &empregabilidade.Vaga{
+		Titulo: "",
+	}
+
+	template := GetCandidaturaReprovadaEmailTemplate(candidatura, vaga, "oportunidades.rio")
 
 	if template.Body == "" {
 		t.Error("Template body should not be empty with empty strings")
