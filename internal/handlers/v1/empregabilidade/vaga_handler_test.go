@@ -1447,3 +1447,129 @@ func TestVagaHandler_PublicList_Contratante_CNPJ(t *testing.T) {
 		t.Errorf("expected 200 for contratante=12345678000100, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+// ==================== Multi-Select Tests ====================
+
+func TestVagaHandler_PublicList_Bairro_MultiSelect(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?bairro=Centro,Tijuca", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for bairro=Centro,Tijuca, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_Bairro_SingleValueStillWorks(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?bairro=Centro", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for bairro=Centro (backward compat), got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_IDRegimeContratacao_MultiSelect(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	validUUID2 := "660e8400-e29b-41d4-a716-446655440001"
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?id_regime_contratacao="+validUUID+","+validUUID2, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for id_regime_contratacao multi, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_IDModeloTrabalho_MultiSelect(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	validUUID2 := "660e8400-e29b-41d4-a716-446655440001"
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?id_modelo_trabalho="+validUUID+","+validUUID2, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for id_modelo_trabalho multi, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_AcessibilidadePCD_MultiSelect_AllValid(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?acessibilidade_pcd=para_pcd,exclusivo_pcd", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for acessibilidade_pcd=para_pcd,exclusivo_pcd, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_AcessibilidadePCD_MultiSelect_AllThreeValid(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?acessibilidade_pcd=para_pcd,preferencial_pcd,exclusivo_pcd", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for all three acessibilidade_pcd values, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_AcessibilidadePCD_MultiSelect_OneInvalid(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?acessibilidade_pcd=para_pcd,invalido", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for acessibilidade_pcd with invalid value, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_Contratante_MultiSelect_NomesOnly(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?contratante=Google,Microsoft", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for contratante=Google,Microsoft, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_Contratante_MultiSelect_CNPJsOnly(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?contratante=12345678000100,98765432000199", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for contratante with multiple CNPJs, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_Contratante_MultiSelect_Mixed(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?contratante=Google,12345678000100", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for contratante mixed CNPJ+name, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_MultipleFilters_Combined(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet,
+		"/public/vagas?bairro=Centro,Tijuca&id_regime_contratacao="+validUUID+"&acessibilidade_pcd=para_pcd,exclusivo_pcd", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for combined multi-select filters, got %d: %s", w.Code, w.Body.String())
+	}
+}
