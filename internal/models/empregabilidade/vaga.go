@@ -117,11 +117,11 @@ func (d DataPublicacaoRange) IsValid() bool {
 type VagaPublicFilter struct {
 	Status              string
 	DataPublicacao      DataPublicacaoRange
-	IDRegimeContratacao string
-	IDModeloTrabalho    string
-	Contratante         string
-	AcessibilidadePCD   string
-	Bairro              string
+	IDRegimeContratacao []string
+	IDModeloTrabalho    []string
+	Contratante         []string
+	AcessibilidadePCD   []string
+	Bairro              []string
 }
 
 func (v *Vaga) UpdateStatusBasedOnExpiration() {
