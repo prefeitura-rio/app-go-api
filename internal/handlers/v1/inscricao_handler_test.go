@@ -253,7 +253,10 @@ func TestInscricaoHandler_Delete_InvalidEnrollmentID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	h := v1.NewInscricaoHandler(nil, nil, nil)
-	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", h.Delete)
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		h.Delete(c)
+	})
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/invalid", nil)
 	w := httptest.NewRecorder()
@@ -378,6 +381,7 @@ func TestInscricaoHandler_UpdateIndividualStatus_InvalidCourseID(t *testing.T) {
 // mockInscricaoService is a mock implementation of InscricaoServiceInterface for testing
 type mockInscricaoService struct {
 	createManualErr error
+	deleteErr       error
 }
 
 func (m *mockInscricaoService) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
@@ -403,7 +407,7 @@ func (m *mockInscricaoService) UpdateMultipleStatus(ctx context.Context, inscric
 func (m *mockInscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) {
 	return nil, nil
 }
-func (m *mockInscricaoService) Delete(ctx context.Context, id uuid.UUID) error { return nil }
+func (m *mockInscricaoService) Delete(ctx context.Context, id uuid.UUID) error { return m.deleteErr }
 func (m *mockInscricaoService) ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error) {
 	return nil, 0, nil
 }
@@ -487,6 +491,87 @@ func TestInscricaoHandler_CreateManual_Success(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Inscrição manual criada com sucesso")
 }
 
+// Test Delete endpoint - unauthorized (non-admin user)
+func TestInscricaoHandler_Delete_Unauthorized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := &mockInscricaoService{}
+	h := v1.NewInscricaoHandler(mockService, nil, nil)
+	r := gin.New()
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", h.Delete)
+
+	enrollmentID := uuid.New().String()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Acesso negado")
+}
+
+// Test Delete endpoint - admin user, success
+func TestInscricaoHandler_Delete_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := &mockInscricaoService{}
+	h := v1.NewInscricaoHandler(mockService, nil, nil)
+	r := gin.New()
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		h.Delete(c)
+	})
+
+	enrollmentID := uuid.New().String()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "Inscrição excluída com sucesso")
+}
+
+// Test Delete endpoint - admin user, enrollment not found
+func TestInscricaoHandler_Delete_NotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := &mockInscricaoService{
+		deleteErr: &notFoundError{msg: "inscrição não encontrada"},
+	}
+	h := v1.NewInscricaoHandler(mockService, nil, nil)
+	r := gin.New()
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		h.Delete(c)
+	})
+
+	enrollmentID := uuid.New().String()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Contains(t, w.Body.String(), "inscrição não encontrada")
+}
+
+// Test Delete endpoint - admin user, internal error
+func TestInscricaoHandler_Delete_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := &mockInscricaoService{
+		deleteErr: &serviceError{msg: "database error"},
+	}
+	h := v1.NewInscricaoHandler(mockService, nil, nil)
+	r := gin.New()
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		h.Delete(c)
+	})
+
+	enrollmentID := uuid.New().String()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao excluir inscrição")
+}
+
 // Helper error types for testing
 type conflictError struct {
 	msg string
@@ -501,5 +586,13 @@ type serviceError struct {
 }
 
 func (e *serviceError) Error() string {
+	return e.msg
+}
+
+type notFoundError struct {
+	msg string
+}
+
+func (e *notFoundError) Error() string {
 	return e.msg
 }
