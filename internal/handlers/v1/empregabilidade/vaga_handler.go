@@ -24,6 +24,25 @@ func isPublishedStatus(status empregabilidade.StatusVaga) bool {
 	return false
 }
 
+func parseCSVParam(param string) []string {
+	if param == "" {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	var result []string
+	for _, s := range strings.Split(param, ",") {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if _, exists := seen[s]; !exists {
+			seen[s] = struct{}{}
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
 func handleVagaError(c *gin.Context, err error) {
 	msg := err.Error()
 
@@ -469,11 +488,11 @@ func (h *VagaHandler) Reactivate(c *gin.Context) {
 // @Param        pageSize                query     int     false  "Tamanho da página (default: 10)"
 // @Param        status                  query     string  false  "Filtrar por status (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)"
 // @Param        data_publicacao         query     string  false  "Filtrar por data de publicação (hoje, ultima_semana, ultimo_mes)"
-// @Param        id_regime_contratacao   query     string  false  "UUID do regime de contratação"
-// @Param        id_modelo_trabalho      query     string  false  "UUID do modelo de trabalho"
-// @Param        contratante             query     string  false  "Nome ou CNPJ do contratante"
-// @Param        acessibilidade_pcd      query     string  false  "Acessibilidade PCD (para_pcd, preferencial_pcd, exclusivo_pcd)"
-// @Param        bairro                  query     string  false  "Bairro (busca parcial)"
+// @Param        id_regime_contratacao   query     string  false  "UUID(s) do regime de contratação (CSV, ex: uuid1,uuid2)"
+// @Param        id_modelo_trabalho      query     string  false  "UUID(s) do modelo de trabalho (CSV, ex: uuid1,uuid2)"
+// @Param        contratante             query     string  false  "Nome(s) ou CNPJ(s) do contratante (CSV, ex: TechRio,12345678000100)"
+// @Param        acessibilidade_pcd      query     string  false  "Acessibilidade PCD (CSV, ex: para_pcd,exclusivo_pcd)"
+// @Param        bairro                  query     string  false  "Bairro(s) — busca parcial (CSV, ex: Centro,Tijuca)"
 // @Success      200                     {object}  map[string]interface{}
 // @Failure      400                     {object}  map[string]string
 // @Failure      500                     {object}  map[string]string
@@ -501,20 +520,22 @@ func (h *VagaHandler) PublicList(c *gin.Context) {
 		return
 	}
 
-	acessibilidadePCD := c.Query("acessibilidade_pcd")
-	if acessibilidadePCD != "" && !empregabilidade.AcessibilidadePCD(acessibilidadePCD).IsValid() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "acessibilidade_pcd inválido: deve ser para_pcd, preferencial_pcd ou exclusivo_pcd"})
-		return
+	acessibilidadePCDValues := parseCSVParam(c.Query("acessibilidade_pcd"))
+	for _, v := range acessibilidadePCDValues {
+		if !empregabilidade.AcessibilidadePCD(v).IsValid() {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "acessibilidade_pcd inválido: deve ser para_pcd, preferencial_pcd ou exclusivo_pcd"})
+			return
+		}
 	}
 
 	filter := empregabilidade.VagaPublicFilter{
 		Status:              status,
 		DataPublicacao:      dataPublicacao,
-		IDRegimeContratacao: c.Query("id_regime_contratacao"),
-		IDModeloTrabalho:    c.Query("id_modelo_trabalho"),
-		Contratante:         c.Query("contratante"),
-		AcessibilidadePCD:   acessibilidadePCD,
-		Bairro:              c.Query("bairro"),
+		IDRegimeContratacao: parseCSVParam(c.Query("id_regime_contratacao")),
+		IDModeloTrabalho:    parseCSVParam(c.Query("id_modelo_trabalho")),
+		Contratante:         parseCSVParam(c.Query("contratante")),
+		AcessibilidadePCD:   acessibilidadePCDValues,
+		Bairro:              parseCSVParam(c.Query("bairro")),
 	}
 
 	entities, total, err := h.service.ListPublic(c.Request.Context(), filter, page, pageSize)

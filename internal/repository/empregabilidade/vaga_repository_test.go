@@ -2,6 +2,8 @@ package empregabilidade
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -1303,4 +1305,391 @@ func TestVagaRepository_UpdateTiposPCD_InsertError(t *testing.T) {
 	err := repo.UpdateTiposPCD(ctx, vagaID, []uuid.UUID{tipoPCDID})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "erro ao inserir tipo PCD")
+}
+
+// ==================== Multi-Select Filter Query Generation Tests ====================
+
+func TestVagaRepository_ListPublic_MultiSelectFilters_QueryGeneration(t *testing.T) {
+	db, _, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	uuid1Str := uuid.New().String()
+	uuid2Str := uuid.New().String()
+
+	tests := []struct {
+		name               string
+		filter             empregabilidade.VagaPublicFilter
+		expectedConditions []string
+		notExpected        []string
+		description        string
+	}{
+		{
+			name:               "empty filter has no extra WHERE",
+			filter:             empregabilidade.VagaPublicFilter{},
+			expectedConditions: []string{},
+			description:        "Empty filter should produce no extra conditions",
+		},
+		{
+			name:               "single bairro produces ILIKE",
+			filter:             empregabilidade.VagaPublicFilter{Bairro: []string{"Centro"}},
+			expectedConditions: []string{"emp_vagas.bairro ILIKE", "%Centro%"},
+			description:        "Single bairro should produce ILIKE condition",
+		},
+		{
+			name:               "multiple bairros produce OR-joined ILIKEs",
+			filter:             empregabilidade.VagaPublicFilter{Bairro: []string{"Centro", "Tijuca"}},
+			expectedConditions: []string{"emp_vagas.bairro ILIKE", "%Centro%", "%Tijuca%", "OR"},
+			description:        "Multiple bairros should produce OR-joined ILIKE conditions",
+		},
+		{
+			name:               "single id_regime_contratacao produces = clause",
+			filter:             empregabilidade.VagaPublicFilter{IDRegimeContratacao: []string{uuid1Str}},
+			expectedConditions: []string{"emp_vagas.id_regime_contratacao =", uuid1Str},
+			notExpected:        []string{"IN ("},
+			description:        "Single IDRegimeContratacao should use = not IN",
+		},
+		{
+			name:               "multiple id_regime_contratacao produces IN clause",
+			filter:             empregabilidade.VagaPublicFilter{IDRegimeContratacao: []string{uuid1Str, uuid2Str}},
+			expectedConditions: []string{"emp_vagas.id_regime_contratacao IN"},
+			description:        "Multiple IDRegimeContratacao should use IN",
+		},
+		{
+			name:               "single id_modelo_trabalho produces = clause",
+			filter:             empregabilidade.VagaPublicFilter{IDModeloTrabalho: []string{uuid1Str}},
+			expectedConditions: []string{"emp_vagas.id_modelo_trabalho =", uuid1Str},
+			notExpected:        []string{"IN ("},
+			description:        "Single IDModeloTrabalho should use = not IN",
+		},
+		{
+			name:               "multiple id_modelo_trabalho produces IN clause",
+			filter:             empregabilidade.VagaPublicFilter{IDModeloTrabalho: []string{uuid1Str, uuid2Str}},
+			expectedConditions: []string{"emp_vagas.id_modelo_trabalho IN"},
+			description:        "Multiple IDModeloTrabalho should use IN",
+		},
+		{
+			name:               "single acessibilidade_pcd produces = clause",
+			filter:             empregabilidade.VagaPublicFilter{AcessibilidadePCD: []string{"para_pcd"}},
+			expectedConditions: []string{"emp_vagas.acessibilidade_pcd =", "para_pcd"},
+			description:        "Single AcessibilidadePCD should use =",
+		},
+		{
+			name:               "multiple acessibilidade_pcd produces IN clause",
+			filter:             empregabilidade.VagaPublicFilter{AcessibilidadePCD: []string{"para_pcd", "exclusivo_pcd"}},
+			expectedConditions: []string{"emp_vagas.acessibilidade_pcd IN"},
+			description:        "Multiple AcessibilidadePCD should use IN",
+		},
+		{
+			name:               "single CNPJ contratante produces id_contratante = clause",
+			filter:             empregabilidade.VagaPublicFilter{Contratante: []string{"12345678000190"}},
+			expectedConditions: []string{"emp_vagas.id_contratante =", "12345678000190"},
+			description:        "Single CNPJ contratante should use =",
+		},
+		{
+			name:               "multiple CNPJ contratantes produce id_contratante IN clause",
+			filter:             empregabilidade.VagaPublicFilter{Contratante: []string{"12345678000190", "98765432000199"}},
+			expectedConditions: []string{"emp_vagas.id_contratante IN"},
+			description:        "Multiple CNPJ contratantes should use IN",
+		},
+		{
+			name:               "name contratante produces JOIN and ILIKE",
+			filter:             empregabilidade.VagaPublicFilter{Contratante: []string{"TechRio"}},
+			expectedConditions: []string{"emp_empresas", "razao_social ILIKE", "nome_fantasia ILIKE", "%TechRio%"},
+			description:        "Name contratante should JOIN emp_empresas and use ILIKE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			strings := func(vals []string) []interface{} {
+				result := make([]interface{}, len(vals))
+				for i, v := range vals {
+					result[i] = v
+				}
+				return result
+			}
+			_ = strings
+
+			query := db.Model(&empregabilidade.Vaga{})
+
+			if len(tt.filter.IDRegimeContratacao) == 1 {
+				query = query.Where("emp_vagas.id_regime_contratacao = ?", tt.filter.IDRegimeContratacao[0])
+			} else if len(tt.filter.IDRegimeContratacao) > 1 {
+				query = query.Where("emp_vagas.id_regime_contratacao IN ?", tt.filter.IDRegimeContratacao)
+			}
+
+			if len(tt.filter.IDModeloTrabalho) == 1 {
+				query = query.Where("emp_vagas.id_modelo_trabalho = ?", tt.filter.IDModeloTrabalho[0])
+			} else if len(tt.filter.IDModeloTrabalho) > 1 {
+				query = query.Where("emp_vagas.id_modelo_trabalho IN ?", tt.filter.IDModeloTrabalho)
+			}
+
+			if len(tt.filter.AcessibilidadePCD) == 1 {
+				query = query.Where("emp_vagas.acessibilidade_pcd = ?", tt.filter.AcessibilidadePCD[0])
+			} else if len(tt.filter.AcessibilidadePCD) > 1 {
+				query = query.Where("emp_vagas.acessibilidade_pcd IN ?", tt.filter.AcessibilidadePCD)
+			}
+
+			if len(tt.filter.Bairro) > 0 {
+				conditions := make([]string, len(tt.filter.Bairro))
+				args := make([]interface{}, len(tt.filter.Bairro))
+				for i, b := range tt.filter.Bairro {
+					conditions[i] = "emp_vagas.bairro ILIKE ?"
+					args[i] = "%" + b + "%"
+				}
+				query = query.Where(joinStrings(conditions, " OR "), args...)
+			}
+
+			if len(tt.filter.Contratante) > 0 {
+				var cnpjs []string
+				var nameConditions []string
+				var nameArgs []interface{}
+				nonDigitRe := regexp.MustCompile(`\D`)
+				for _, c := range tt.filter.Contratante {
+					digits := nonDigitRe.ReplaceAllString(c, "")
+					if len(digits) >= 11 {
+						cnpjs = append(cnpjs, digits)
+					} else {
+						nameConditions = append(nameConditions,
+							"emp_empresas.razao_social ILIKE ? OR emp_empresas.nome_fantasia ILIKE ?")
+						nameArgs = append(nameArgs, "%"+c+"%", "%"+c+"%")
+					}
+				}
+				if len(nameConditions) > 0 {
+					query = query.Joins("JOIN emp_empresas ON emp_empresas.cnpj = emp_vagas.id_contratante")
+				}
+				switch {
+				case len(cnpjs) > 0 && len(nameConditions) > 0:
+					allArgs := append([]interface{}{cnpjs}, nameArgs...)
+					query = query.Where(
+						"emp_vagas.id_contratante IN ? OR ("+joinStrings(nameConditions, " OR ")+")",
+						allArgs...,
+					)
+				case len(cnpjs) > 0:
+					if len(cnpjs) == 1 {
+						query = query.Where("emp_vagas.id_contratante = ?", cnpjs[0])
+					} else {
+						query = query.Where("emp_vagas.id_contratante IN ?", cnpjs)
+					}
+				default:
+					query = query.Where(joinStrings(nameConditions, " OR "), nameArgs...)
+				}
+			}
+
+			sql := query.ToSQL(func(tx *gorm.DB) *gorm.DB {
+				return tx.Find(&[]empregabilidade.Vaga{})
+			})
+
+			for _, condition := range tt.expectedConditions {
+				assert.Contains(t, sql, condition,
+					"%s: SQL should contain '%s'", tt.description, condition)
+			}
+			for _, condition := range tt.notExpected {
+				assert.NotContains(t, sql, condition,
+					"%s: SQL should NOT contain '%s'", tt.description, condition)
+			}
+		})
+	}
+}
+
+func joinStrings(parts []string, sep string) string {
+	result := ""
+	for i, p := range parts {
+		if i > 0 {
+			result += sep
+		}
+		result += p
+	}
+	return result
+}
+
+func TestVagaRepository_ListPublic_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	mock.ExpectQuery(`SELECT .* FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo"}).AddRow(vagaID, "Test Vaga"))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_empresas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"cnpj"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_regimes_contratacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_modelos_trabalho"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "orgaos_snapshots"`).
+		WillReturnRows(sqlmock.NewRows([]string{"orgao_id"}))
+
+	filter := empregabilidade.VagaPublicFilter{}
+	result, total, err := repo.ListPublic(ctx, filter, 10, 0)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 1, total)
+}
+
+func expectListPublicMocks(mock sqlmock.Sqlmock, vagaID uuid.UUID) {
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT .* FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo"}).AddRow(vagaID, "Test Vaga"))
+	mock.ExpectQuery(`SELECT \* FROM "emp_empresas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"cnpj"}))
+	mock.ExpectQuery(`SELECT \* FROM "emp_regimes_contratacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery(`SELECT \* FROM "emp_modelos_trabalho"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery(`SELECT \* FROM "orgaos_snapshots"`).
+		WillReturnRows(sqlmock.NewRows([]string{"orgao_id"}))
+}
+
+func TestVagaRepository_ListPublic_WithFilters_Success(t *testing.T) {
+	tests := []struct {
+		name   string
+		filter empregabilidade.VagaPublicFilter
+	}{
+		{
+			name: "multi-select bairro and acessibilidade_pcd",
+			filter: empregabilidade.VagaPublicFilter{
+				Bairro:              []string{"Centro", "Tijuca"},
+				AcessibilidadePCD:   []string{"para_pcd", "exclusivo_pcd"},
+				IDRegimeContratacao: []string{uuid.New().String()},
+			},
+		},
+		{
+			name: "status publicado_ativo",
+			filter: empregabilidade.VagaPublicFilter{
+				Status: string(empregabilidade.StatusVagaPublicadoAtivo),
+			},
+		},
+		{
+			name: "status publicado_expirado",
+			filter: empregabilidade.VagaPublicFilter{
+				Status: string(empregabilidade.StatusVagaPublicadoExpirado),
+			},
+		},
+		{
+			name: "status congelada",
+			filter: empregabilidade.VagaPublicFilter{
+				Status: string(empregabilidade.StatusVagaCongelada),
+			},
+		},
+		{
+			name: "status descontinuada",
+			filter: empregabilidade.VagaPublicFilter{
+				Status: string(empregabilidade.StatusVagaDescontinuada),
+			},
+		},
+		{
+			name: "data_publicacao hoje",
+			filter: empregabilidade.VagaPublicFilter{
+				DataPublicacao: empregabilidade.DataPublicacaoHoje,
+			},
+		},
+		{
+			name: "data_publicacao ultima semana",
+			filter: empregabilidade.VagaPublicFilter{
+				DataPublicacao: empregabilidade.DataPublicacaoUltimaSemana,
+			},
+		},
+		{
+			name: "data_publicacao ultimo mes",
+			filter: empregabilidade.VagaPublicFilter{
+				DataPublicacao: empregabilidade.DataPublicacaoUltimoMes,
+			},
+		},
+		{
+			name: "contratante CNPJ single",
+			filter: empregabilidade.VagaPublicFilter{
+				Contratante: []string{"12345678000190"},
+			},
+		},
+		{
+			name: "contratante CNPJ multiple",
+			filter: empregabilidade.VagaPublicFilter{
+				Contratante: []string{"12345678000190", "98765432000199"},
+			},
+		},
+		{
+			name: "contratante name",
+			filter: empregabilidade.VagaPublicFilter{
+				Contratante: []string{"TechRio"},
+			},
+		},
+		{
+			name: "contratante mixed CNPJ and name",
+			filter: empregabilidade.VagaPublicFilter{
+				Contratante: []string{"TechRio", "12345678000190"},
+			},
+		},
+		{
+			name: "id_modelo_trabalho multiple",
+			filter: empregabilidade.VagaPublicFilter{
+				IDModeloTrabalho: []string{uuid.New().String(), uuid.New().String()},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, cleanup := repository.SetupMockDB(t)
+			defer cleanup()
+
+			repo := NewVagaRepository(db)
+			ctx := context.Background()
+
+			expectListPublicMocks(mock, uuid.New())
+
+			result, total, err := repo.ListPublic(ctx, tt.filter, 10, 0)
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.Equal(t, 1, total)
+		})
+	}
+}
+
+func TestVagaRepository_ListPublic_CountError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_vagas"`).
+		WillReturnError(fmt.Errorf("db error"))
+
+	filter := empregabilidade.VagaPublicFilter{}
+	result, total, err := repo.ListPublic(ctx, filter, 10, 0)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, 0, total)
+}
+
+func TestVagaRepository_ListPublic_FindError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	mock.ExpectQuery(`SELECT .* FROM "emp_vagas"`).
+		WillReturnError(fmt.Errorf("find error"))
+
+	filter := empregabilidade.VagaPublicFilter{}
+	result, total, err := repo.ListPublic(ctx, filter, 10, 0)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, 0, total)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -300,30 +301,66 @@ func (r *VagaRepository) ListPublic(ctx context.Context, filter empregabilidade.
 			db = db.Where("emp_vagas.created_at >= ?", time.Now().AddDate(0, 0, -30))
 		}
 
-		if filter.IDRegimeContratacao != "" {
-			db = db.Where("emp_vagas.id_regime_contratacao = ?", filter.IDRegimeContratacao)
+		if len(filter.IDRegimeContratacao) == 1 {
+			db = db.Where("emp_vagas.id_regime_contratacao = ?", filter.IDRegimeContratacao[0])
+		} else if len(filter.IDRegimeContratacao) > 1 {
+			db = db.Where("emp_vagas.id_regime_contratacao IN ?", filter.IDRegimeContratacao)
 		}
 
-		if filter.IDModeloTrabalho != "" {
-			db = db.Where("emp_vagas.id_modelo_trabalho = ?", filter.IDModeloTrabalho)
+		if len(filter.IDModeloTrabalho) == 1 {
+			db = db.Where("emp_vagas.id_modelo_trabalho = ?", filter.IDModeloTrabalho[0])
+		} else if len(filter.IDModeloTrabalho) > 1 {
+			db = db.Where("emp_vagas.id_modelo_trabalho IN ?", filter.IDModeloTrabalho)
 		}
 
-		if filter.AcessibilidadePCD != "" {
-			db = db.Where("emp_vagas.acessibilidade_pcd = ?", filter.AcessibilidadePCD)
+		if len(filter.AcessibilidadePCD) == 1 {
+			db = db.Where("emp_vagas.acessibilidade_pcd = ?", filter.AcessibilidadePCD[0])
+		} else if len(filter.AcessibilidadePCD) > 1 {
+			db = db.Where("emp_vagas.acessibilidade_pcd IN ?", filter.AcessibilidadePCD)
 		}
 
-		if filter.Bairro != "" {
-			db = db.Where("emp_vagas.bairro ILIKE ?", "%"+filter.Bairro+"%")
+		if len(filter.Bairro) > 0 {
+			conditions := make([]string, len(filter.Bairro))
+			args := make([]interface{}, len(filter.Bairro))
+			for i, b := range filter.Bairro {
+				conditions[i] = "emp_vagas.bairro ILIKE ?"
+				args[i] = "%" + b + "%"
+			}
+			db = db.Where(strings.Join(conditions, " OR "), args...)
 		}
 
-		if filter.Contratante != "" {
-			digits := nonDigit.ReplaceAllString(filter.Contratante, "")
-			if len(digits) >= 11 {
-				db = db.Where("emp_vagas.id_contratante = ?", digits)
-			} else {
-				db = db.Joins("JOIN emp_empresas ON emp_empresas.cnpj = emp_vagas.id_contratante").
-					Where("emp_empresas.razao_social ILIKE ? OR emp_empresas.nome_fantasia ILIKE ?",
-						"%"+filter.Contratante+"%", "%"+filter.Contratante+"%")
+		if len(filter.Contratante) > 0 {
+			var cnpjs []string
+			var nameConditions []string
+			var nameArgs []interface{}
+			for _, c := range filter.Contratante {
+				digits := nonDigit.ReplaceAllString(c, "")
+				if len(digits) >= 11 {
+					cnpjs = append(cnpjs, digits)
+				} else {
+					nameConditions = append(nameConditions,
+						"emp_empresas.razao_social ILIKE ? OR emp_empresas.nome_fantasia ILIKE ?")
+					nameArgs = append(nameArgs, "%"+c+"%", "%"+c+"%")
+				}
+			}
+			if len(nameConditions) > 0 {
+				db = db.Joins("JOIN emp_empresas ON emp_empresas.cnpj = emp_vagas.id_contratante")
+			}
+			switch {
+			case len(cnpjs) > 0 && len(nameConditions) > 0:
+				allArgs := append([]interface{}{cnpjs}, nameArgs...)
+				db = db.Where(
+					"emp_vagas.id_contratante IN ? OR ("+strings.Join(nameConditions, " OR ")+")",
+					allArgs...,
+				)
+			case len(cnpjs) > 0:
+				if len(cnpjs) == 1 {
+					db = db.Where("emp_vagas.id_contratante = ?", cnpjs[0])
+				} else {
+					db = db.Where("emp_vagas.id_contratante IN ?", cnpjs)
+				}
+			default:
+				db = db.Where(strings.Join(nameConditions, " OR "), nameArgs...)
 			}
 		}
 
