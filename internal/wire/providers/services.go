@@ -9,6 +9,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	"github.com/prefeitura-rio/app-go-api/internal/workers"
 )
 
 // ProvideCategoriaService creates CategoriaService
@@ -92,13 +93,19 @@ func ProvideEmailNotificationService(
 	)
 }
 
+// ProvideEmailWorker creates the EmailWorker that queues email tasks in Redis.
+// Services depend on services.EmailNotifier; Wire binds *workers.EmailWorker to that interface.
+func ProvideEmailWorker(redisClient *redis.Client, emailService *services.EmailNotificationService) *workers.EmailWorker {
+	return workers.NewEmailWorker(redisClient, emailService)
+}
+
 // ProvideInscricaoService creates InscricaoService.
 // citizenDataFetcher may be nil when citizen sync is disabled.
 func ProvideInscricaoService(
 	inscricaoRepo *repository.InscricaoRepository,
 	cursoRepo *repository.CursoRepository,
 	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
-	emailNotificationService *services.EmailNotificationService,
+	emailNotifier services.EmailNotifier,
 	cfg *config.AppConfig,
 ) *services.InscricaoService {
 	// citizenDataFetcher is left nil; the citizen sync worker is started separately
@@ -108,7 +115,7 @@ func ProvideInscricaoService(
 		cursoRepo,
 		citizenSnapshotRepo,
 		nil,
-		emailNotificationService,
+		emailNotifier,
 		cfg,
 	)
 }

@@ -86,10 +86,10 @@ func ProvideEmpCandidaturaService(
 	vagaRepo *empRepository.VagaRepository,
 	curriculoService *empServices.CurriculoService,
 	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
-	emailNotificationService *services.EmailNotificationService,
+	emailNotifier services.EmailNotifier,
 ) *empServices.CandidaturaService {
 	// citizenDataFetcher is nil; citizen sync worker is started separately in the router
-	return empServices.NewCandidaturaService(candidaturaRepo, vagaRepo, curriculoService, citizenSnapshotRepo, nil, emailNotificationService)
+	return empServices.NewCandidaturaService(candidaturaRepo, vagaRepo, curriculoService, citizenSnapshotRepo, nil, emailNotifier)
 }
 
 // ProvideEmpOnboardingService creates empregabilidade OnboardingService

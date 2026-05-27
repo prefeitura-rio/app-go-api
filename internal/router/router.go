@@ -54,6 +54,16 @@ func SetupRouter(cfg *config.AppConfig) (*gin.Engine, error) {
 		log.Println("[Router] Citizen sync worker disabled (CITIZEN_SYNC_ENABLED=false)")
 	}
 
+	emailWorker := workers.NewEmailWorker(app.RedisClient, app.EmailNotificationService)
+	app.InscricaoService.SetEmailNotifier(emailWorker)
+	app.EmpCandidaturaService.SetEmailNotifier(emailWorker)
+	go func() {
+		if err := emailWorker.Start(context.Background()); err != nil {
+			log.Printf("[Router] Email worker stopped: %v", err)
+		}
+	}()
+	log.Println("[Router] Email worker started")
+
 	jobs.InitializeJobProcessor(app.DB, app.JobRepo, app.InscricaoRepo, app.CursoRepo)
 
 	apiV1 := r.Group("/api/v1")

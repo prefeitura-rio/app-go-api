@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -93,7 +94,7 @@ type CandidaturaService struct {
 	curriculoService         CurriculoServiceInterface
 	citizenSnapshotRepo      CitizenSnapshotRepoForCandidaturaInterface // pode ser nil
 	citizenDataFetcher       CitizenDataFetcherForCandidaturaInterface  // pode ser nil
-	emailNotificationService *services.EmailNotificationService
+	emailNotificationService services.EmailNotifier
 }
 
 func NewCandidaturaService(
@@ -102,7 +103,7 @@ func NewCandidaturaService(
 	curriculoService CurriculoServiceInterface,
 	citizenSnapshotRepo CitizenSnapshotRepoForCandidaturaInterface,
 	citizenDataFetcher CitizenDataFetcherForCandidaturaInterface,
-	emailNotificationService *services.EmailNotificationService,
+	emailNotificationService services.EmailNotifier,
 ) *CandidaturaService {
 	return &CandidaturaService{
 		repo:                     repo,
@@ -118,6 +119,12 @@ func NewCandidaturaService(
 // the citizen sync worker has been started by the application bootstrap.
 func (s *CandidaturaService) SetCitizenDataFetcher(fetcher CitizenDataFetcherForCandidaturaInterface) {
 	s.citizenDataFetcher = fetcher
+}
+
+// SetEmailNotifier replaces the email notifier after construction, e.g. to swap in
+// the queued EmailWorker once it has been started by the application bootstrap.
+func (s *CandidaturaService) SetEmailNotifier(notifier services.EmailNotifier) {
+	s.emailNotificationService = notifier
 }
 
 func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade.Candidatura) (uuid.UUID, error) {
@@ -152,7 +159,11 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 	}
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
-	go s.emailNotificationService.SendCandidaturaEnviadaEmail(context.Background(), entity)
+	go func() {
+		if err := s.emailNotificationService.SendCandidaturaEnviadaEmail(context.Background(), entity); err != nil {
+			log.Printf("[CandidaturaService] falha ao enviar email de candidatura enviada: %v", err)
+		}
+	}()
 	return s.repo.Create(ctx, entity)
 }
 
@@ -212,9 +223,17 @@ func (s *CandidaturaService) UpdateStatus(ctx context.Context, id uuid.UUID, sta
 
 	switch status {
 	case empregabilidade.StatusCandidaturaAprovada:
-		go s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), existing)
+		go func() {
+			if err := s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), existing); err != nil {
+				log.Printf("[CandidaturaService] falha ao enviar email de candidatura aprovada: %v", err)
+			}
+		}()
 	case empregabilidade.StatusCandidaturaReprovada:
-		go s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), existing)
+		go func() {
+			if err := s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), existing); err != nil {
+				log.Printf("[CandidaturaService] falha ao enviar email de candidatura reprovada: %v", err)
+			}
+		}()
 	}
 
 	return nil
@@ -267,7 +286,11 @@ func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	go s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), existing)
+	go func() {
+		if err := s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), existing); err != nil {
+			log.Printf("[CandidaturaService] falha ao enviar email de candidatura aprovada: %v", err)
+		}
+	}()
 
 	return nil
 }
@@ -417,7 +440,11 @@ func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	go s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), existing)
+	go func() {
+		if err := s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), existing); err != nil {
+			log.Printf("[CandidaturaService] falha ao enviar email de candidatura reprovada: %v", err)
+		}
+	}()
 
 	return nil
 }

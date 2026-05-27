@@ -11,9 +11,25 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
+// Compile-time assertion: EmailNotificationService satisfies EmailNotifier.
+var _ EmailNotifier = (*EmailNotificationService)(nil)
+
 // EmailSender is an interface for sending emails
 type EmailSender interface {
 	SendEmail(ctx context.Context, req *clients.EmailRequest) error
+}
+
+// EmailNotifier is implemented by both EmailNotificationService (direct send) and
+// EmailWorker (enqueue to Redis). Callers depend on this interface so the delivery
+// strategy can be swapped without touching business logic.
+type EmailNotifier interface {
+	SendEnrollmentCreatedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
+	SendEnrollmentApprovedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
+	SendEnrollmentRejectedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
+	SendScheduleChangedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
+	SendCandidaturaEnviadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error
+	SendCandidaturaAprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error
+	SendCandidaturaReprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error
 }
 
 // EmailNotificationService handles enrollment email notifications
