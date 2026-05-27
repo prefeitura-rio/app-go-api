@@ -338,7 +338,29 @@ func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, vagaID uuid.U
 		return BulkUpdateStatusResult{}, err
 	}
 
-	//TODO: send emails without creating excessive goroutines
+	failedAtRepo := make(map[string]struct{}, len(repoResult.FailedCPFs))
+	for _, cpf := range repoResult.FailedCPFs {
+		failedAtRepo[cpf] = struct{}{}
+	}
+
+	go func() {
+		for _, cpf := range allowedCPFs {
+			if _, failed := failedAtRepo[cpf]; failed {
+				continue
+			}
+			c := existingByCPF[cpf]
+			var sendErr error
+			switch status {
+			case empregabilidade.StatusCandidaturaAprovada:
+				sendErr = s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), c)
+			case empregabilidade.StatusCandidaturaReprovada:
+				sendErr = s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), c)
+			}
+			if sendErr != nil {
+				log.Printf("[CandidaturaService] falha ao enviar email bulk para CPF %s: %v", cpf, sendErr)
+			}
+		}
+	}()
 
 	return BulkUpdateStatusResult{
 		Updated:    repoResult.Updated,
