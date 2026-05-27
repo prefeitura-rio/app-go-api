@@ -1461,6 +1461,28 @@ func TestVagaHandler_PublicList_Bairro_MultiSelect(t *testing.T) {
 	}
 }
 
+func TestVagaHandler_PublicList_Bairro_DeduplicatesRepeatedValues(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?bairro=Centro,Centro,Tijuca", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for deduplicated bairro CSV, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_PublicList_Bairro_IgnoresEmptyCSVSegments(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/public/vagas?bairro=Centro,,Tijuca", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for CSV with empty segment, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestVagaHandler_PublicList_Bairro_SingleValueStillWorks(t *testing.T) {
 	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
 	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)

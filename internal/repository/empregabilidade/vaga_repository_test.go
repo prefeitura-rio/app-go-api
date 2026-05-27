@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"testing"
 
@@ -1500,4 +1501,195 @@ func joinStrings(parts []string, sep string) string {
 		result += p
 	}
 	return result
+}
+
+func TestVagaRepository_ListPublic_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	mock.ExpectQuery(`SELECT .* FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo"}).AddRow(vagaID, "Test Vaga"))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_empresas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"cnpj"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_regimes_contratacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_modelos_trabalho"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "orgaos_snapshots"`).
+		WillReturnRows(sqlmock.NewRows([]string{"orgao_id"}))
+
+	filter := empregabilidade.VagaPublicFilter{}
+	result, total, err := repo.ListPublic(ctx, filter, 10, 0)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 1, total)
+}
+
+func expectListPublicMocks(mock sqlmock.Sqlmock, vagaID uuid.UUID) {
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT .* FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo"}).AddRow(vagaID, "Test Vaga"))
+	mock.ExpectQuery(`SELECT \* FROM "emp_empresas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"cnpj"}))
+	mock.ExpectQuery(`SELECT \* FROM "emp_regimes_contratacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery(`SELECT \* FROM "emp_modelos_trabalho"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery(`SELECT \* FROM "orgaos_snapshots"`).
+		WillReturnRows(sqlmock.NewRows([]string{"orgao_id"}))
+}
+
+func TestVagaRepository_ListPublic_WithFilters_Success(t *testing.T) {
+	tests := []struct {
+		name   string
+		filter empregabilidade.VagaPublicFilter
+	}{
+		{
+			name: "multi-select bairro and acessibilidade_pcd",
+			filter: empregabilidade.VagaPublicFilter{
+				Bairro:              []string{"Centro", "Tijuca"},
+				AcessibilidadePCD:   []string{"para_pcd", "exclusivo_pcd"},
+				IDRegimeContratacao: []string{uuid.New().String()},
+			},
+		},
+		{
+			name: "status publicado_ativo",
+			filter: empregabilidade.VagaPublicFilter{
+				Status: string(empregabilidade.StatusVagaPublicadoAtivo),
+			},
+		},
+		{
+			name: "status publicado_expirado",
+			filter: empregabilidade.VagaPublicFilter{
+				Status: string(empregabilidade.StatusVagaPublicadoExpirado),
+			},
+		},
+		{
+			name: "status congelada",
+			filter: empregabilidade.VagaPublicFilter{
+				Status: string(empregabilidade.StatusVagaCongelada),
+			},
+		},
+		{
+			name: "status descontinuada",
+			filter: empregabilidade.VagaPublicFilter{
+				Status: string(empregabilidade.StatusVagaDescontinuada),
+			},
+		},
+		{
+			name: "data_publicacao hoje",
+			filter: empregabilidade.VagaPublicFilter{
+				DataPublicacao: empregabilidade.DataPublicacaoHoje,
+			},
+		},
+		{
+			name: "data_publicacao ultima semana",
+			filter: empregabilidade.VagaPublicFilter{
+				DataPublicacao: empregabilidade.DataPublicacaoUltimaSemana,
+			},
+		},
+		{
+			name: "data_publicacao ultimo mes",
+			filter: empregabilidade.VagaPublicFilter{
+				DataPublicacao: empregabilidade.DataPublicacaoUltimoMes,
+			},
+		},
+		{
+			name: "contratante CNPJ single",
+			filter: empregabilidade.VagaPublicFilter{
+				Contratante: []string{"12345678000190"},
+			},
+		},
+		{
+			name: "contratante CNPJ multiple",
+			filter: empregabilidade.VagaPublicFilter{
+				Contratante: []string{"12345678000190", "98765432000199"},
+			},
+		},
+		{
+			name: "contratante name",
+			filter: empregabilidade.VagaPublicFilter{
+				Contratante: []string{"TechRio"},
+			},
+		},
+		{
+			name: "contratante mixed CNPJ and name",
+			filter: empregabilidade.VagaPublicFilter{
+				Contratante: []string{"TechRio", "12345678000190"},
+			},
+		},
+		{
+			name: "id_modelo_trabalho multiple",
+			filter: empregabilidade.VagaPublicFilter{
+				IDModeloTrabalho: []string{uuid.New().String(), uuid.New().String()},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, cleanup := repository.SetupMockDB(t)
+			defer cleanup()
+
+			repo := NewVagaRepository(db)
+			ctx := context.Background()
+
+			expectListPublicMocks(mock, uuid.New())
+
+			result, total, err := repo.ListPublic(ctx, tt.filter, 10, 0)
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.Equal(t, 1, total)
+		})
+	}
+}
+
+func TestVagaRepository_ListPublic_CountError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_vagas"`).
+		WillReturnError(fmt.Errorf("db error"))
+
+	filter := empregabilidade.VagaPublicFilter{}
+	result, total, err := repo.ListPublic(ctx, filter, 10, 0)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, 0, total)
+}
+
+func TestVagaRepository_ListPublic_FindError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	mock.ExpectQuery(`SELECT .* FROM "emp_vagas"`).
+		WillReturnError(fmt.Errorf("find error"))
+
+	filter := empregabilidade.VagaPublicFilter{}
+	result, total, err := repo.ListPublic(ctx, filter, 10, 0)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, 0, total)
 }
