@@ -5,6 +5,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
+	"github.com/prefeitura-rio/app-go-api/internal/services"
 	empServices "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
@@ -85,9 +86,10 @@ func ProvideEmpCandidaturaService(
 	vagaRepo *empRepository.VagaRepository,
 	curriculoService *empServices.CurriculoService,
 	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
+	emailNotifier services.EmailNotifier,
 ) *empServices.CandidaturaService {
 	// citizenDataFetcher is nil; citizen sync worker is started separately in the router
-	return empServices.NewCandidaturaService(candidaturaRepo, vagaRepo, curriculoService, citizenSnapshotRepo, nil)
+	return empServices.NewCandidaturaService(candidaturaRepo, vagaRepo, curriculoService, citizenSnapshotRepo, nil, emailNotifier)
 }
 
 // ProvideEmpOnboardingService creates empregabilidade OnboardingService

@@ -7,12 +7,29 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
+
+// Compile-time assertion: EmailNotificationService satisfies EmailNotifier.
+var _ EmailNotifier = (*EmailNotificationService)(nil)
 
 // EmailSender is an interface for sending emails
 type EmailSender interface {
 	SendEmail(ctx context.Context, req *clients.EmailRequest) error
+}
+
+// EmailNotifier is implemented by both EmailNotificationService (direct send) and
+// EmailWorker (enqueue to Redis). Callers depend on this interface so the delivery
+// strategy can be swapped without touching business logic.
+type EmailNotifier interface {
+	SendEnrollmentCreatedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
+	SendEnrollmentApprovedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
+	SendEnrollmentRejectedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
+	SendScheduleChangedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
+	SendCandidaturaEnviadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error
+	SendCandidaturaAprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error
+	SendCandidaturaReprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error
 }
 
 // EmailNotificationService handles enrollment email notifications
@@ -214,5 +231,163 @@ func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Conte
 	}
 
 	log.Printf("[EmailNotificationService] Sent enrollment rejected email to %s for course '%s'", email, curso.Titulo)
+	return nil
+}
+
+// SendScheduleChangedEmail sends a email confirming the new schedule
+func (s *EmailNotificationService) SendScheduleChangedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
+	if !s.enabled {
+		log.Printf("[EmailNotificationService] Email notifications disabled - skipping schedule changed email for %s", inscricao.Email)
+		return nil
+	}
+
+	email := s.resolveEmail(ctx, inscricao)
+
+	if email == "" {
+		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		return nil
+	}
+
+	orgaoName := s.getOrgaoName(ctx, curso)
+	scheduleInfo := s.getScheduleInfo(ctx, inscricao, curso)
+	template := GetScheduleChangedEmailTemplate(inscricao, curso, scheduleInfo, orgaoName, s.prefrioDomain)
+
+	emailReq := &clients.EmailRequest{
+		ToAddresses: []string{email},
+		Subject:     template.Subject,
+		Body:        template.Body,
+		IsHTMLBody:  template.IsHTML,
+	}
+
+	if err := s.dataRelayClient.SendEmail(ctx, emailReq); err != nil {
+		return fmt.Errorf("failed to send schedule changed email: %w", err)
+	}
+
+	log.Printf("[EmailNotificationService] Sent schedule changed email to %s for course '%s'", email, curso.Titulo)
+
+	return nil
+}
+
+// SendCandidaturaEnviadaEmail sends a email confirming the application was received
+func (s *EmailNotificationService) SendCandidaturaEnviadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error {
+	if !s.enabled {
+		logMessage := "[EmailNotificationService] Email notifications disabled - skipping received application email"
+
+		if candidatura.Email != nil {
+			logMessage += fmt.Sprintf(" for %s", *candidatura.Email)
+		}
+
+		log.Printf("%s", logMessage)
+		return nil
+	}
+
+	if candidatura.Email == nil || *candidatura.Email == "" {
+		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
+		return nil
+	}
+
+	email := s.resolveEmail(ctx, &models.Inscricao{
+		Email: *candidatura.Email,
+		CPF:   candidatura.CPF,
+	})
+
+	orgaoName := s.getOrgaoName(ctx, &models.Curso{Organization: candidatura.Vaga.OrgaoParceiro.Name, OrgaoID: candidatura.Vaga.OrgaoParceiro.OrgaoID})
+	template := GetCandidaturaEnviadaEmailTemplate(candidatura, candidatura.Vaga, candidatura.Vaga.Contratante, orgaoName, s.prefrioDomain)
+
+	emailReq := &clients.EmailRequest{
+		ToAddresses: []string{email},
+		Subject:     template.Subject,
+		Body:        template.Body,
+		IsHTMLBody:  template.IsHTML,
+	}
+
+	if err := s.dataRelayClient.SendEmail(ctx, emailReq); err != nil {
+		return fmt.Errorf("failed to send received application email: %w", err)
+	}
+
+	log.Printf("[EmailNotificationService] Sent received application email to %s for position '%s'", email, candidatura.Vaga.Titulo)
+
+	return nil
+}
+
+// SendCandidaturaAprovadaEmail sends a email confirming the application approval
+func (s *EmailNotificationService) SendCandidaturaAprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error {
+	if !s.enabled {
+		logMessage := "[EmailNotificationService] Email notifications disabled - skipping approved application email"
+
+		if candidatura.Email != nil {
+			logMessage += fmt.Sprintf(" for %s", *candidatura.Email)
+		}
+
+		log.Printf("%s", logMessage)
+		return nil
+	}
+
+	if candidatura.Email == nil || *candidatura.Email == "" {
+		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
+		return nil
+	}
+
+	email := s.resolveEmail(ctx, &models.Inscricao{
+		Email: *candidatura.Email,
+		CPF:   candidatura.CPF,
+	})
+
+	template := GetCandidaturaAprovadaEmailTemplate(candidatura, candidatura.Vaga, candidatura.Vaga.Contratante)
+
+	emailReq := &clients.EmailRequest{
+		ToAddresses: []string{email},
+		Subject:     template.Subject,
+		Body:        template.Body,
+		IsHTMLBody:  template.IsHTML,
+	}
+
+	if err := s.dataRelayClient.SendEmail(ctx, emailReq); err != nil {
+		return fmt.Errorf("failed to send approved application email: %w", err)
+	}
+
+	log.Printf("[EmailNotificationService] Sent approved application email to %s for position '%s'", email, candidatura.Vaga.Titulo)
+
+	return nil
+}
+
+// SendCandidaturaReprovadaEmail sends a email confirming the application failure
+func (s *EmailNotificationService) SendCandidaturaReprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error {
+	if !s.enabled {
+		logMessage := "[EmailNotificationService] Email notifications disabled - skipping failed application email"
+
+		if candidatura.Email != nil {
+			logMessage += fmt.Sprintf(" for %s", *candidatura.Email)
+		}
+
+		log.Printf("%s", logMessage)
+		return nil
+	}
+
+	if candidatura.Email == nil || *candidatura.Email == "" {
+		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
+		return nil
+	}
+
+	email := s.resolveEmail(ctx, &models.Inscricao{
+		Email: *candidatura.Email,
+		CPF:   candidatura.CPF,
+	})
+
+	template := GetCandidaturaReprovadaEmailTemplate(candidatura, candidatura.Vaga, s.prefrioDomain)
+
+	emailReq := &clients.EmailRequest{
+		ToAddresses: []string{email},
+		Subject:     template.Subject,
+		Body:        template.Body,
+		IsHTMLBody:  template.IsHTML,
+	}
+
+	if err := s.dataRelayClient.SendEmail(ctx, emailReq); err != nil {
+		return fmt.Errorf("failed to send failed application email: %w", err)
+	}
+
+	log.Printf("[EmailNotificationService] Sent failed application email to %s for position '%s'", email, candidatura.Vaga.Titulo)
+
 	return nil
 }

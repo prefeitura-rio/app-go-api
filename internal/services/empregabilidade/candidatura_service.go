@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
+	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
 type CandidaturaRepositoryInterface interface {
@@ -87,11 +89,12 @@ func canTransitionCandidatura(from, to empregabilidade.StatusCandidatura) bool {
 }
 
 type CandidaturaService struct {
-	repo                CandidaturaRepositoryInterface
-	vagaRepo            VagaRepositoryInterface
-	curriculoService    CurriculoServiceInterface
-	citizenSnapshotRepo CitizenSnapshotRepoForCandidaturaInterface // pode ser nil
-	citizenDataFetcher  CitizenDataFetcherForCandidaturaInterface  // pode ser nil
+	repo                     CandidaturaRepositoryInterface
+	vagaRepo                 VagaRepositoryInterface
+	curriculoService         CurriculoServiceInterface
+	citizenSnapshotRepo      CitizenSnapshotRepoForCandidaturaInterface // pode ser nil
+	citizenDataFetcher       CitizenDataFetcherForCandidaturaInterface  // pode ser nil
+	emailNotificationService services.EmailNotifier
 }
 
 func NewCandidaturaService(
@@ -100,13 +103,15 @@ func NewCandidaturaService(
 	curriculoService CurriculoServiceInterface,
 	citizenSnapshotRepo CitizenSnapshotRepoForCandidaturaInterface,
 	citizenDataFetcher CitizenDataFetcherForCandidaturaInterface,
+	emailNotificationService services.EmailNotifier,
 ) *CandidaturaService {
 	return &CandidaturaService{
-		repo:                repo,
-		vagaRepo:            vagaRepo,
-		curriculoService:    curriculoService,
-		citizenSnapshotRepo: citizenSnapshotRepo,
-		citizenDataFetcher:  citizenDataFetcher,
+		repo:                     repo,
+		vagaRepo:                 vagaRepo,
+		curriculoService:         curriculoService,
+		citizenSnapshotRepo:      citizenSnapshotRepo,
+		citizenDataFetcher:       citizenDataFetcher,
+		emailNotificationService: emailNotificationService,
 	}
 }
 
@@ -114,6 +119,12 @@ func NewCandidaturaService(
 // the citizen sync worker has been started by the application bootstrap.
 func (s *CandidaturaService) SetCitizenDataFetcher(fetcher CitizenDataFetcherForCandidaturaInterface) {
 	s.citizenDataFetcher = fetcher
+}
+
+// SetEmailNotifier replaces the email notifier after construction, e.g. to swap in
+// the queued EmailWorker once it has been started by the application bootstrap.
+func (s *CandidaturaService) SetEmailNotifier(notifier services.EmailNotifier) {
+	s.emailNotificationService = notifier
 }
 
 func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade.Candidatura) (uuid.UUID, error) {
@@ -148,6 +159,11 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 	}
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
+	go func() {
+		if err := s.emailNotificationService.SendCandidaturaEnviadaEmail(context.Background(), entity); err != nil {
+			log.Printf("[CandidaturaService] falha ao enviar email de candidatura enviada: %v", err)
+		}
+	}()
 	return s.repo.Create(ctx, entity)
 }
 
@@ -200,7 +216,27 @@ func (s *CandidaturaService) UpdateStatus(ctx context.Context, id uuid.UUID, sta
 	if !canTransitionCandidatura(existing.Status, status) {
 		return fmt.Errorf("transição de status inválida: %s → %s", existing.Status, status)
 	}
-	return s.repo.UpdateStatus(ctx, id, status)
+
+	if err = s.repo.UpdateStatus(ctx, id, status); err != nil {
+		return err
+	}
+
+	switch status {
+	case empregabilidade.StatusCandidaturaAprovada:
+		go func() {
+			if err := s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), existing); err != nil {
+				log.Printf("[CandidaturaService] falha ao enviar email de candidatura aprovada: %v", err)
+			}
+		}()
+	case empregabilidade.StatusCandidaturaReprovada:
+		go func() {
+			if err := s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), existing); err != nil {
+				log.Printf("[CandidaturaService] falha ao enviar email de candidatura reprovada: %v", err)
+			}
+		}()
+	}
+
+	return nil
 }
 
 func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error {
@@ -245,7 +281,18 @@ func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
 	if !canTransitionCandidatura(existing.Status, empregabilidade.StatusCandidaturaAprovada) {
 		return fmt.Errorf("candidatura não pode ser aprovada no status atual: %s", existing.Status)
 	}
-	return s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada)
+
+	if err = s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada); err != nil {
+		return err
+	}
+
+	go func() {
+		if err := s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), existing); err != nil {
+			log.Printf("[CandidaturaService] falha ao enviar email de candidatura aprovada: %v", err)
+		}
+	}()
+
+	return nil
 }
 
 type BulkUpdateStatusResult struct {
@@ -290,6 +337,30 @@ func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, vagaID uuid.U
 	if err != nil {
 		return BulkUpdateStatusResult{}, err
 	}
+
+	failedAtRepo := make(map[string]struct{}, len(repoResult.FailedCPFs))
+	for _, cpf := range repoResult.FailedCPFs {
+		failedAtRepo[cpf] = struct{}{}
+	}
+
+	go func() {
+		for _, cpf := range allowedCPFs {
+			if _, failed := failedAtRepo[cpf]; failed {
+				continue
+			}
+			c := existingByCPF[cpf]
+			var sendErr error
+			switch status {
+			case empregabilidade.StatusCandidaturaAprovada:
+				sendErr = s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), c)
+			case empregabilidade.StatusCandidaturaReprovada:
+				sendErr = s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), c)
+			}
+			if sendErr != nil {
+				log.Printf("[CandidaturaService] falha ao enviar email bulk para CPF %s: %v", cpf, sendErr)
+			}
+		}
+	}()
 
 	return BulkUpdateStatusResult{
 		Updated:    repoResult.Updated,
@@ -386,7 +457,18 @@ func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {
 	if !canTransitionCandidatura(existing.Status, empregabilidade.StatusCandidaturaReprovada) {
 		return fmt.Errorf("candidatura não pode ser reprovada no status atual: %s", existing.Status)
 	}
-	return s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaReprovada)
+
+	if err = s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaReprovada); err != nil {
+		return err
+	}
+
+	go func() {
+		if err := s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), existing); err != nil {
+			log.Printf("[CandidaturaService] falha ao enviar email de candidatura reprovada: %v", err)
+		}
+	}()
+
+	return nil
 }
 
 // EnrichRespostasWithTitulo popula o campo Titulo em cada RespostaInfoComplementar

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -65,16 +64,17 @@ func main() {
 		runMigrations(cfg)
 	}
 
+	// Lifecycle context: cancelled on SIGINT/SIGTERM, which stops all background workers.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	// Set up router (Wire initializes all dependencies internally)
-	r, err := router.SetupRouter(cfg)
+	r, err := router.SetupRouter(ctx, cfg)
 	if err != nil {
 		log.Fatalf("Erro ao inicializar router: %v", err)
 	}
 
 	// Initialize orgao sync worker if enabled (uses its own DB/Redis connections)
-	var workerCtx context.Context
-	var workerCancel context.CancelFunc
-
 	if cfg.OrgaoSync.Enabled {
 		log.Println("Initializing orgao sync worker...")
 
@@ -107,9 +107,8 @@ func main() {
 			&cfg.OrgaoSync,
 		)
 
-		workerCtx, workerCancel = context.WithCancel(context.Background())
 		go func() {
-			if err := worker.Start(workerCtx); err != nil && err != context.Canceled {
+			if err := worker.Start(ctx); err != nil && err != context.Canceled {
 				log.Printf("Orgao sync worker error: %v", err)
 			}
 		}()
@@ -120,10 +119,6 @@ func main() {
 		log.Println("Orgao sync worker disabled")
 	}
 
-	// Graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("Servidor iniciado em %s", addr)
 
@@ -133,14 +128,8 @@ func main() {
 		}
 	}()
 
-	<-quit
+	<-ctx.Done()
 	log.Println("Shutting down server...")
-
-	if workerCancel != nil {
-		log.Println("Stopping orgao sync worker...")
-		workerCancel()
-	}
-
 	log.Println("Server shutdown complete")
 }
 

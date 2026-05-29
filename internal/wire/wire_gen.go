@@ -19,6 +19,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	empregabilidade2 "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/wire/providers"
+	"github.com/prefeitura-rio/app-go-api/internal/workers"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -86,7 +87,8 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 	termosUsoRepository := providers.ProvideEmpTermosUsoRepository(db)
 	cursoService := providers.ProvideCursoService(cursoRepository)
 	emailNotificationService := providers.ProvideEmailNotificationService(dataRelayClient, cursoRepository, orgaoSnapshotRepository, citizenSnapshotRepository, cfg)
-	inscricaoService := providers.ProvideInscricaoService(inscricaoRepository, cursoRepository, citizenSnapshotRepository, emailNotificationService, cfg)
+	emailWorker := providers.ProvideEmailWorker(client, emailNotificationService)
+	inscricaoService := providers.ProvideInscricaoService(inscricaoRepository, cursoRepository, citizenSnapshotRepository, emailWorker, cfg)
 	empregoService := providers.ProvideEmpregoService(empregoRepository)
 	acessibilidadeService := providers.ProvideAcessibilidadeService(acessibilidadeRepository)
 	categoriaService := providers.ProvideCategoriaService(categoriaRepositoryInterface)
@@ -111,7 +113,7 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 	vagaService := providers.ProvideEmpVagaService(vagaRepository, empregabilidadeEmpresaRepository, candidaturaRepository)
 	etapaService := providers.ProvideEmpEtapaService(etapaRepository)
 	curriculoService := providers.ProvideEmpCurriculoService(curriculoRepository)
-	candidaturaService := providers.ProvideEmpCandidaturaService(candidaturaRepository, vagaRepository, curriculoService, citizenSnapshotRepository)
+	candidaturaService := providers.ProvideEmpCandidaturaService(candidaturaRepository, vagaRepository, curriculoService, citizenSnapshotRepository, emailWorker)
 	onboardingService := providers.ProvideEmpOnboardingService(onboardingRepository)
 	termosUsoService := providers.ProvideEmpTermosUsoService(termosUsoRepository)
 	cnpjConsultaService := providers.ProvideEmpCNPJConsultaService(rmiClient, serviceAccountTokenManager)
@@ -196,6 +198,7 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 		CNAEValidationService:       cnaeValidationService,
 		ContactInfoService:          contactInfoService,
 		EmailNotificationService:    emailNotificationService,
+		EmailWorker:                 emailWorker,
 		EmpRegimeContratacaoService: regimeContratacaoService,
 		EmpModeloTrabalhoService:    modeloTrabalhoService,
 		EmpTipoPCDService:           tipoPCDService,
@@ -311,6 +314,7 @@ type ApplicationContainer struct {
 	CNAEValidationService    *services.CNAEValidationService
 	ContactInfoService       *services.ContactInfoService
 	EmailNotificationService *services.EmailNotificationService
+	EmailWorker              *workers.EmailWorker
 
 	// Empregabilidade Services
 	EmpRegimeContratacaoService *empregabilidade2.RegimeContratacaoService
@@ -381,7 +385,7 @@ var CoreRepositorySet = wire.NewSet(providers.ProvideCategoriaRepository, provid
 
 var EmpRepositorySet = wire.NewSet(providers.ProvideEmpRegimeContratacaoRepository, providers.ProvideEmpModeloTrabalhoRepository, providers.ProvideEmpTipoPCDRepository, providers.ProvideEmpIdiomaRepository, providers.ProvideEmpNivelIdiomaRepository, providers.ProvideEmpEscolaridadeRepository, providers.ProvideEmpTipoConquistaRepository, providers.ProvideEmpSituacaoAtualRepository, providers.ProvideEmpDisponibilidadeRepository, providers.ProvideEmpEmpresaRepository, providers.ProvideEmpVagaRepository, providers.ProvideEmpEtapaRepository, providers.ProvideEmpCandidaturaRepository, providers.ProvideEmpCurriculoRepository, providers.ProvideEmpOnboardingRepository, providers.ProvideEmpTermosUsoRepository)
 
-var CoreServiceSet = wire.NewSet(providers.ProvideCategoriaService, providers.ProvideCursoService, providers.ProvideEmpregoService, providers.ProvideAcessibilidadeService, providers.ProvideEscolaridadeService, providers.ProvideEmpresaService, providers.ProvideInstituicaoService, providers.ProvideJobService, providers.ProvideOportunidadeMEIService, providers.ProvideCNAEValidationService, providers.ProvideContactInfoService, providers.ProvideEmailNotificationService, providers.ProvideInscricaoService, providers.ProvidePropostaMEIService)
+var CoreServiceSet = wire.NewSet(providers.ProvideCategoriaService, providers.ProvideCursoService, providers.ProvideEmpregoService, providers.ProvideAcessibilidadeService, providers.ProvideEscolaridadeService, providers.ProvideEmpresaService, providers.ProvideInstituicaoService, providers.ProvideJobService, providers.ProvideOportunidadeMEIService, providers.ProvideCNAEValidationService, providers.ProvideContactInfoService, providers.ProvideEmailNotificationService, providers.ProvideEmailWorker, wire.Bind(new(services.EmailNotifier), new(*workers.EmailWorker)), providers.ProvideInscricaoService, providers.ProvidePropostaMEIService)
 
 var EmpServiceSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoService, providers.ProvideEmpModeloTrabalhoService, providers.ProvideEmpTipoPCDService, providers.ProvideEmpIdiomaService, providers.ProvideEmpNivelIdiomaService, providers.ProvideEmpEscolaridadeService, providers.ProvideEmpTipoConquistaService, providers.ProvideEmpSituacaoAtualService, providers.ProvideEmpDisponibilidadeService, providers.ProvideEmpEmpresaService, providers.ProvideEmpVagaService, providers.ProvideEmpEtapaService, providers.ProvideEmpCurriculoService, providers.ProvideEmpCandidaturaService, providers.ProvideEmpOnboardingService, providers.ProvideEmpTermosUsoService, providers.ProvideEmpCNPJConsultaService)
 
@@ -390,4 +394,4 @@ var CoreHandlerSet = wire.NewSet(providers.ProvideEmpregoHandler, providers.Prov
 var EmpHandlerSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoHandler, providers.ProvideEmpModeloTrabalhoHandler, providers.ProvideEmpTipoPCDHandler, providers.ProvideEmpIdiomaHandler, providers.ProvideEmpNivelIdiomaHandler, providers.ProvideEmpEscolaridadeHandler, providers.ProvideEmpTipoConquistaHandler, providers.ProvideEmpSituacaoAtualHandler, providers.ProvideEmpDisponibilidadeHandler, providers.ProvideEmpEmpresaHandler, providers.ProvideEmpVagaHandler, providers.ProvideEmpEtapaHandler, providers.ProvideEmpCandidaturaHandler, providers.ProvideEmpCurriculoHandler, providers.ProvideEmpOnboardingHandler, providers.ProvideEmpTermosUsoHandler)
 
 // Legacy set kept for backward compatibility with the Categorias POC
-var CategoriaSet = wire.NewSet(providers.ProvideCategoriaRepository, providers.ProvideCategoriaService, v1.NewCategoriaHandler)
+var CategoriaSet = wire.NewSet(providers.ProvideCategoriaRepository, providers.ProvideCategoriaService, wire.Bind(new(services.CategoriaServiceInterface), new(*services.CategoriaService)), v1.NewCategoriaHandler)

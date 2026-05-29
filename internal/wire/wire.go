@@ -19,6 +19,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	empServices "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/wire/providers"
+	"github.com/prefeitura-rio/app-go-api/internal/workers"
 )
 
 // ApplicationContainer holds all wired components for the full application
@@ -85,6 +86,7 @@ type ApplicationContainer struct {
 	CNAEValidationService    *services.CNAEValidationService
 	ContactInfoService       *services.ContactInfoService
 	EmailNotificationService *services.EmailNotificationService
+	EmailWorker              *workers.EmailWorker
 
 	// Empregabilidade Services
 	EmpRegimeContratacaoService *empServices.RegimeContratacaoService
@@ -213,6 +215,8 @@ var CoreServiceSet = wire.NewSet(
 	providers.ProvideCNAEValidationService,
 	providers.ProvideContactInfoService,
 	providers.ProvideEmailNotificationService,
+	providers.ProvideEmailWorker,
+	wire.Bind(new(services.EmailNotifier), new(*workers.EmailWorker)),
 	providers.ProvideInscricaoService,
 	providers.ProvidePropostaMEIService,
 )
@@ -275,6 +279,7 @@ var EmpHandlerSet = wire.NewSet(
 var CategoriaSet = wire.NewSet(
 	providers.ProvideCategoriaRepository,
 	providers.ProvideCategoriaService,
+	wire.Bind(new(services.CategoriaServiceInterface), new(*services.CategoriaService)),
 	v1.NewCategoriaHandler,
 )
 

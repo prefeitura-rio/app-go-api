@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,7 +23,7 @@ type InscricaoService struct {
 	cursoRepo                CursoRepositoryInterface
 	citizenSnapshotRepo      repository.CitizenSnapshotRepositoryInterface
 	citizenDataFetcher       CitizenDataFetcher
-	emailNotificationService *EmailNotificationService
+	emailNotificationService EmailNotifier
 	cfg                      *config.AppConfig
 }
 
@@ -31,7 +32,7 @@ func NewInscricaoService(
 	cursoRepo *repository.CursoRepository,
 	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
 	citizenDataFetcher CitizenDataFetcher,
-	emailNotificationService *EmailNotificationService,
+	emailNotificationService EmailNotifier,
 	cfg *config.AppConfig,
 ) *InscricaoService {
 	return &InscricaoService{
@@ -49,7 +50,7 @@ func NewInscricaoServiceWithInterface(
 	cursoRepo CursoRepositoryInterface,
 	citizenSnapshotRepo repository.CitizenSnapshotRepositoryInterface,
 	citizenDataFetcher CitizenDataFetcher,
-	emailNotificationService *EmailNotificationService,
+	emailNotificationService EmailNotifier,
 	cfg *config.AppConfig,
 ) *InscricaoService {
 	return &InscricaoService{
@@ -66,6 +67,12 @@ func NewInscricaoServiceWithInterface(
 // the citizen sync worker has been started by the application bootstrap.
 func (s *InscricaoService) SetCitizenDataFetcher(fetcher CitizenDataFetcher) {
 	s.citizenDataFetcher = fetcher
+}
+
+// SetEmailNotifier replaces the email notifier after construction, e.g. to swap in
+// the queued EmailWorker once it has been started by the application bootstrap.
+func (s *InscricaoService) SetEmailNotifier(notifier EmailNotifier) {
+	s.emailNotificationService = notifier
 }
 
 func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscricao) error {
@@ -177,7 +184,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 					emailErr = s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso)
 				}
 				if emailErr != nil {
-					fmt.Printf("Failed to send enrollment email: %v\n", emailErr)
+					log.Printf("[InscricaoService] falha ao enviar email de inscrição: %v", emailErr)
 				}
 			}()
 		}
@@ -265,7 +272,7 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 					emailErr = s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso)
 				}
 				if emailErr != nil {
-					fmt.Printf("Failed to send manual enrollment email: %v\n", emailErr)
+					log.Printf("[InscricaoService] falha ao enviar email de inscrição manual: %v", emailErr)
 				}
 			}()
 		}
@@ -319,7 +326,7 @@ func (s *InscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UU
 					emailErr = s.emailNotificationService.SendEnrollmentRejectedEmail(context.Background(), inscricao, curso)
 				}
 				if emailErr != nil {
-					fmt.Printf("Failed to send status change email: %v\n", emailErr)
+					log.Printf("[InscricaoService] falha ao enviar email de mudança de status: %v", emailErr)
 				}
 			}()
 		}
@@ -390,7 +397,7 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 					emailErr = s.emailNotificationService.SendEnrollmentRejectedEmail(context.Background(), &inscricaoCopy, curso)
 				}
 				if emailErr != nil {
-					fmt.Printf("Failed to send batch status change email for enrollment %s: %v\n", data.inscricao.ID, emailErr)
+					log.Printf("[InscricaoService] falha ao enviar email de mudança de status em lote (inscrição %s): %v", data.inscricao.ID, emailErr)
 				}
 			}
 		}()
@@ -790,8 +797,8 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err == nil && curso != nil {
 			go func() {
-				if err := s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso); err != nil {
-					fmt.Printf("Failed to send schedule change email: %v\n", err)
+				if err := s.emailNotificationService.SendScheduleChangedEmail(context.Background(), inscricao, curso); err != nil {
+					log.Printf("[InscricaoService] falha ao enviar email de alteração de horário: %v", err)
 				}
 			}()
 		}

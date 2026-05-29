@@ -19,7 +19,8 @@ import (
 )
 
 // SetupRouter initializes the Gin engine with all routes using Wire-managed dependencies.
-func SetupRouter(cfg *config.AppConfig) (*gin.Engine, error) {
+// ctx controls the lifetime of all background workers started here.
+func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error) {
 	app, err := wire.InitializeApplication(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize application container: %w", err)
@@ -43,7 +44,7 @@ func SetupRouter(cfg *config.AppConfig) (*gin.Engine, error) {
 		app.InscricaoService.SetCitizenDataFetcher(w)
 		app.EmpCandidaturaService.SetCitizenDataFetcher(w)
 		go func() {
-			if err := w.Start(context.Background()); err != nil {
+			if err := w.Start(ctx); err != nil && err != context.Canceled {
 				log.Printf("[Router] Citizen sync worker stopped: %v", err)
 			}
 		}()
@@ -53,6 +54,13 @@ func SetupRouter(cfg *config.AppConfig) (*gin.Engine, error) {
 	} else {
 		log.Println("[Router] Citizen sync worker disabled (CITIZEN_SYNC_ENABLED=false)")
 	}
+
+	go func() {
+		if err := app.EmailWorker.Start(ctx); err != nil && err != context.Canceled {
+			log.Printf("[Router] Email worker stopped: %v", err)
+		}
+	}()
+	log.Println("[Router] Email worker started")
 
 	jobs.InitializeJobProcessor(app.DB, app.JobRepo, app.InscricaoRepo, app.CursoRepo)
 
