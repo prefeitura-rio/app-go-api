@@ -19,7 +19,8 @@ import (
 )
 
 // SetupRouter initializes the Gin engine with all routes using Wire-managed dependencies.
-func SetupRouter(cfg *config.AppConfig) (*gin.Engine, error) {
+// ctx controls the lifetime of all background workers started here.
+func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error) {
 	app, err := wire.InitializeApplication(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize application container: %w", err)
@@ -43,7 +44,7 @@ func SetupRouter(cfg *config.AppConfig) (*gin.Engine, error) {
 		app.InscricaoService.SetCitizenDataFetcher(w)
 		app.EmpCandidaturaService.SetCitizenDataFetcher(w)
 		go func() {
-			if err := w.Start(context.Background()); err != nil {
+			if err := w.Start(ctx); err != nil && err != context.Canceled {
 				log.Printf("[Router] Citizen sync worker stopped: %v", err)
 			}
 		}()
@@ -54,11 +55,8 @@ func SetupRouter(cfg *config.AppConfig) (*gin.Engine, error) {
 		log.Println("[Router] Citizen sync worker disabled (CITIZEN_SYNC_ENABLED=false)")
 	}
 
-	emailWorker := workers.NewEmailWorker(app.RedisClient, app.EmailNotificationService)
-	app.InscricaoService.SetEmailNotifier(emailWorker)
-	app.EmpCandidaturaService.SetEmailNotifier(emailWorker)
 	go func() {
-		if err := emailWorker.Start(context.Background()); err != nil {
+		if err := app.EmailWorker.Start(ctx); err != nil && err != context.Canceled {
 			log.Printf("[Router] Email worker stopped: %v", err)
 		}
 	}()

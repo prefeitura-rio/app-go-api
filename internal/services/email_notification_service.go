@@ -281,15 +281,15 @@ func (s *EmailNotificationService) SendCandidaturaEnviadaEmail(ctx context.Conte
 		return nil
 	}
 
+	if candidatura.Email == nil || *candidatura.Email == "" {
+		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
+		return nil
+	}
+
 	email := s.resolveEmail(ctx, &models.Inscricao{
 		Email: *candidatura.Email,
 		CPF:   candidatura.CPF,
 	})
-
-	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
-		return nil
-	}
 
 	orgaoName := s.getOrgaoName(ctx, &models.Curso{Organization: candidatura.Vaga.OrgaoParceiro.Name, OrgaoID: candidatura.Vaga.OrgaoParceiro.OrgaoID})
 	template := GetCandidaturaEnviadaEmailTemplate(candidatura, candidatura.Vaga, candidatura.Vaga.Contratante, orgaoName, s.prefrioDomain)
@@ -323,15 +323,15 @@ func (s *EmailNotificationService) SendCandidaturaAprovadaEmail(ctx context.Cont
 		return nil
 	}
 
+	if candidatura.Email == nil || *candidatura.Email == "" {
+		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
+		return nil
+	}
+
 	email := s.resolveEmail(ctx, &models.Inscricao{
 		Email: *candidatura.Email,
 		CPF:   candidatura.CPF,
 	})
-
-	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
-		return nil
-	}
 
 	template := GetCandidaturaAprovadaEmailTemplate(candidatura, candidatura.Vaga, candidatura.Vaga.Contratante)
 
@@ -364,15 +364,15 @@ func (s *EmailNotificationService) SendCandidaturaReprovadaEmail(ctx context.Con
 		return nil
 	}
 
+	if candidatura.Email == nil || *candidatura.Email == "" {
+		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
+		return nil
+	}
+
 	email := s.resolveEmail(ctx, &models.Inscricao{
 		Email: *candidatura.Email,
 		CPF:   candidatura.CPF,
 	})
-
-	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
-		return nil
-	}
 
 	template := GetCandidaturaReprovadaEmailTemplate(candidatura, candidatura.Vaga, s.prefrioDomain)
 
