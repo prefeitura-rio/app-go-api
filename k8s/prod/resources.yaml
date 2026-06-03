@@ -152,7 +152,7 @@ spec:
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: http://prometheus.istio-system.svc.cluster.local:9090
+        serverAddress: http://prometheus-server.istio-system.svc.cluster.local:9090
         metricName: http_requests_total
         threshold: "100"
         query: sum(rate(istio_requests_total{destination_workload="go"}[30s]))
@@ -200,7 +200,7 @@ spec:
       failureLimit: 5
       provider:
         prometheus:
-          address: http://prometheus.istio-system.svc.cluster.local:9090
+          address: http://prometheus-server.istio-system.svc.cluster.local:9090
           query: |
             (sum(rate(istio_requests_total{destination_service_name=~"{{args.service-name}}",response_code!~"5.."}[2m])) or vector(0)) / (sum(rate(istio_requests_total{destination_service_name=~"{{args.service-name}}"}[2m])) > 0) or vector(1)
     - name: error-rate
@@ -209,6 +209,6 @@ spec:
       failureLimit: 5
       provider:
         prometheus:
-          address: http://prometheus.istio-system.svc.cluster.local:9090
+          address: http://prometheus-server.istio-system.svc.cluster.local:9090
           query: |
             (sum(rate(istio_requests_total{destination_service_name=~"{{args.service-name}}",response_code=~"5.."}[2m])) or vector(0)) / (sum(rate(istio_requests_total{destination_service_name=~"{{args.service-name}}"}[2m])) > 0) or vector(0)
