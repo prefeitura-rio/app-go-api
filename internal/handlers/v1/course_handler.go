@@ -247,9 +247,18 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	// Set status to opened for published course
 	curso.Status = models.StatusCursoOpened
 
-	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
-			curso.OrgaoID = orgaoID
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		if secretariaIDs != nil {
+			if len(secretariaIDs) == 0 {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: nenhuma secretaria associada"})
+				return
+			}
+			curso.OrgaoID = secretariaIDs[0]
+		} else if middlewares.HasRole(c, "go:cursos:editor") {
+			if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+				curso.OrgaoID = orgaoID
+			}
 		}
 	}
 
@@ -311,9 +320,18 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 	// Set status to draft
 	curso.Status = models.StatusCursoDraft
 
-	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
-			curso.OrgaoID = orgaoID
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		if secretariaIDs != nil {
+			if len(secretariaIDs) == 0 {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: nenhuma secretaria associada"})
+				return
+			}
+			curso.OrgaoID = secretariaIDs[0]
+		} else if middlewares.HasRole(c, "go:cursos:editor") {
+			if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+				curso.OrgaoID = orgaoID
+			}
 		}
 	}
 
@@ -383,6 +401,24 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	if existingCurso == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
 		return
+	}
+
+	// Secretaria ownership check: non-admins can only edit courses from their secretaria.
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		if secretariaIDs != nil {
+			allowed := false
+			for _, sid := range secretariaIDs {
+				if existingCurso.OrgaoID == sid {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
+				return
+			}
+		}
 	}
 
 	var curso models.Curso
@@ -543,10 +579,16 @@ func (h *CourseHandler) List(c *gin.Context) {
 		filter["status NOT"] = models.StatusCursoDraft
 	}
 
-	// Secretaria-level filter: go:cursos:editor sees only their own orgao
-	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
-			filter["orgao_id"] = orgaoID
+	// Secretaria-level filter: restrict to the user's allowed orgaos.
+	// Secretaria mapping (CPF-Secretaria) takes precedence over single-orgao Keycloak group.
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		if secretariaIDs != nil {
+			filter["orgao_id IN"] = secretariaIDs
+		} else if middlewares.HasRole(c, "go:cursos:editor") {
+			if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+				filter["orgao_id"] = orgaoID
+			}
 		}
 	}
 
@@ -665,10 +707,15 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		"status": models.StatusCursoDraft,
 	}
 
-	// Secretaria-level filter: go:cursos:editor sees only their own orgao
-	if middlewares.HasRole(c, "go:cursos:editor") && !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
-			filter["orgao_id"] = orgaoID
+	// Secretaria-level filter: restrict to the user's allowed orgaos.
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		if secretariaIDs != nil {
+			filter["orgao_id IN"] = secretariaIDs
+		} else if middlewares.HasRole(c, "go:cursos:editor") {
+			if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
+				filter["orgao_id"] = orgaoID
+			}
 		}
 	}
 
@@ -821,6 +868,24 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 	if curso == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
 		return
+	}
+
+	// Secretaria ownership check.
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		if secretariaIDs != nil {
+			allowed := false
+			for _, sid := range secretariaIDs {
+				if curso.OrgaoID == sid {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
+				return
+			}
+		}
 	}
 
 	if err := h.cursoService.Delete(c.Request.Context(), id); err != nil {

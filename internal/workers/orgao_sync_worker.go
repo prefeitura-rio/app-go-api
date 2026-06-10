@@ -350,6 +350,7 @@ func (w *OrgaoSyncWorker) syncSingleOrgao(ctx context.Context, orgaoID string) e
 	// Upsert snapshot
 	snapshot := &models.OrgaoSnapshot{
 		OrgaoID:      orgaoID,
+		CdUA:         orgao.CdUA,
 		Name:         orgao.NomeUA,
 		Sigla:        sigla,
 		Metadata:     metadata,

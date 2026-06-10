@@ -74,6 +74,12 @@ func (r *EmpregoRepository) List(ctx context.Context, filter map[string]interfac
 	// Contar total de registros
 	db := r.db.WithContext(ctx).Model(&models.Emprego{})
 	for key, value := range filter {
+		if key == "orgao_id IN" {
+			if ids, ok := value.([]string); ok {
+				db = db.Where("orgao_id IN ?", ids)
+			}
+			continue
+		}
 		db = db.Where(key+" = ?", value)
 	}
 	db.Count(&total)
