@@ -201,6 +201,14 @@ func GetCandidaturaEnviadaEmailTemplate(candidatura *empregabilidade.Candidatura
 	subject := fmt.Sprintf("Candidatura recebida! - %s", vaga.Titulo)
 	vagasURL := fmt.Sprintf("https://%s/servicos/trabalho", prefrioDomain)
 
+	var companyName string
+
+	if empresa.NomeFantasia != "" {
+		companyName = empresa.NomeFantasia
+	} else {
+		companyName = empresa.RazaoSocial
+	}
+
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head>
@@ -220,7 +228,7 @@ func GetCandidaturaEnviadaEmailTemplate(candidatura *empregabilidade.Candidatura
 </html>`,
 		*candidatura.Nome,
 		vaga.Titulo,
-		empresa.NomeFantasia,
+		companyName,
 		orgaoName,
 		vagasURL,
 		vagasURL,
@@ -236,6 +244,14 @@ func GetCandidaturaEnviadaEmailTemplate(candidatura *empregabilidade.Candidatura
 // GetCandidaturaAprovadaEmailTemplate returns email template for approved applications
 func GetCandidaturaAprovadaEmailTemplate(candidatura *empregabilidade.Candidatura, vaga *empregabilidade.Vaga, empresa *empregabilidade.Empresa) EmailTemplate {
 	subject := fmt.Sprintf(`Parabéns! 🎉Candidatura aprovada - "%s"`, vaga.Titulo)
+
+	var companyName string
+
+	if empresa.NomeFantasia != "" {
+		companyName = empresa.NomeFantasia
+	} else {
+		companyName = empresa.RazaoSocial
+	}
 
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html>
@@ -256,7 +272,7 @@ func GetCandidaturaAprovadaEmailTemplate(candidatura *empregabilidade.Candidatur
 </html>`,
 		*candidatura.Nome,
 		vaga.Titulo,
-		empresa.NomeFantasia,
+		companyName,
 	)
 
 	return EmailTemplate{
@@ -279,7 +295,7 @@ func GetCandidaturaReprovadaEmailTemplate(candidatura *empregabilidade.Candidatu
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <p>Olá, %s!</p>
 
-		>p>Agradecemos o seu interesse na vaga de “%s”.</p>
+		<p>Agradecemos o seu interesse na vaga de “%s”.</p>
 
     <p>Após a análise do seu perfil em relação aos requisitos da vaga, informamos que sua candidatura não seguirá para as próximas etapas desta vez.</p>
 
