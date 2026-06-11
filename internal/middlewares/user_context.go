@@ -14,13 +14,13 @@ import (
 )
 
 const (
-	UserCPFKey               = "user_cpf"
-	UserRoleKey              = "user_role"
-	UserRolesKey             = "user_roles"
-	UserGroupsKey            = "user_groups"
-	UserIDKey                = "user_id"
-	UserNameKey              = "user_name"
-	UserEmailKey             = "user_email"
+	UserCPFKey                = "user_cpf"
+	UserRoleKey               = "user_role"
+	UserRolesKey              = "user_roles"
+	UserGroupsKey             = "user_groups"
+	UserIDKey                 = "user_id"
+	UserNameKey               = "user_name"
+	UserEmailKey              = "user_email"
 	UserSecretariaOrgaoIDsKey = "user_secretaria_orgao_ids"
 )
 

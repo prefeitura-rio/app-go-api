@@ -1089,3 +1089,199 @@ func TestGetLegalEntityByCNPJ(t *testing.T) {
 		}
 	})
 }
+
+func TestGetCPFSecretarias(t *testing.T) {
+	t.Run("Success - returns cd_uas", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.Contains(r.URL.Path, "/cpf-secretaria/") {
+				t.Errorf("Unexpected path: %s", r.URL.Path)
+			}
+			if r.Header.Get("Authorization") != "Bearer test-token" {
+				t.Errorf("Expected 'Bearer test-token', got '%s'", r.Header.Get("Authorization"))
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"cpf":    "12345678900",
+				"cd_uas": []string{"UA001", "UA002"},
+			})
+		}))
+		defer mockServer.Close()
+
+		client := NewRMIClient(mockServer.URL, 5*time.Second)
+		cdUAs, err := client.GetCPFSecretarias(context.Background(), "test-token", "12345678900")
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if len(cdUAs) != 2 {
+			t.Errorf("Expected 2 cd_uas, got %d", len(cdUAs))
+		}
+		if cdUAs[0] != "UA001" {
+			t.Errorf("Expected 'UA001', got '%s'", cdUAs[0])
+		}
+		if cdUAs[1] != "UA002" {
+			t.Errorf("Expected 'UA002', got '%s'", cdUAs[1])
+		}
+	})
+
+	t.Run("Success - empty cd_uas", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"cpf":    "12345678900",
+				"cd_uas": []string{},
+			})
+		}))
+		defer mockServer.Close()
+
+		client := NewRMIClient(mockServer.URL, 5*time.Second)
+		cdUAs, err := client.GetCPFSecretarias(context.Background(), "test-token", "12345678900")
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if len(cdUAs) != 0 {
+			t.Errorf("Expected empty slice, got %d items", len(cdUAs))
+		}
+	})
+
+	t.Run("Success - nil cd_uas normalized to empty slice", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			// omit cd_uas field — JSON decodes to nil, must be normalized
+			json.NewEncoder(w).Encode(map[string]interface{}{"cpf": "12345678900"})
+		}))
+		defer mockServer.Close()
+
+		client := NewRMIClient(mockServer.URL, 5*time.Second)
+		cdUAs, err := client.GetCPFSecretarias(context.Background(), "test-token", "12345678900")
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if cdUAs == nil {
+			t.Error("Expected empty slice, got nil")
+		}
+		if len(cdUAs) != 0 {
+			t.Errorf("Expected 0 items, got %d", len(cdUAs))
+		}
+	})
+
+	t.Run("Error - empty base URL", func(t *testing.T) {
+		client := NewRMIClient("", 5*time.Second)
+		_, err := client.GetCPFSecretarias(context.Background(), "test-token", "12345678900")
+		if err == nil {
+			t.Error("Expected error for empty base URL")
+		}
+		if !strings.Contains(err.Error(), "base URL not configured") {
+			t.Errorf("Expected 'base URL not configured', got: %v", err)
+		}
+	})
+
+	t.Run("Error - non-200 status", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Internal Server Error"))
+		}))
+		defer mockServer.Close()
+
+		client := NewRMIClient(mockServer.URL, 5*time.Second)
+		_, err := client.GetCPFSecretarias(context.Background(), "test-token", "12345678900")
+		if err == nil {
+			t.Error("Expected error for non-200 status")
+		}
+		if !strings.Contains(err.Error(), "status 500") {
+			t.Errorf("Expected 'status 500', got: %v", err)
+		}
+	})
+
+	t.Run("Error - 404 not found", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("not found"))
+		}))
+		defer mockServer.Close()
+
+		client := NewRMIClient(mockServer.URL, 5*time.Second)
+		_, err := client.GetCPFSecretarias(context.Background(), "test-token", "12345678900")
+		if err == nil {
+			t.Error("Expected error for 404")
+		}
+		if !strings.Contains(err.Error(), "status 404") {
+			t.Errorf("Expected 'status 404', got: %v", err)
+		}
+	})
+
+	t.Run("Error - malformed JSON", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("not valid json{"))
+		}))
+		defer mockServer.Close()
+
+		client := NewRMIClient(mockServer.URL, 5*time.Second)
+		_, err := client.GetCPFSecretarias(context.Background(), "test-token", "12345678900")
+		if err == nil {
+			t.Error("Expected error for malformed JSON")
+		}
+		if !strings.Contains(err.Error(), "failed to decode") {
+			t.Errorf("Expected decode error, got: %v", err)
+		}
+	})
+
+	t.Run("Error - context cancellation", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(100 * time.Millisecond)
+		}))
+		defer mockServer.Close()
+
+		client := NewRMIClient(mockServer.URL, 5*time.Second)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err := client.GetCPFSecretarias(ctx, "test-token", "12345678900")
+		if err == nil {
+			t.Error("Expected error for cancelled context")
+		}
+	})
+
+	t.Run("Success - Bearer token forwarded correctly", func(t *testing.T) {
+		var receivedAuth string
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedAuth = r.Header.Get("Authorization")
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"cpf":    "12345678900",
+				"cd_uas": []string{"UA001"},
+			})
+		}))
+		defer mockServer.Close()
+
+		client := NewRMIClient(mockServer.URL, 5*time.Second)
+		_, err := client.GetCPFSecretarias(context.Background(), "my-service-token", "12345678900")
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if receivedAuth != "Bearer my-service-token" {
+			t.Errorf("Expected 'Bearer my-service-token', got '%s'", receivedAuth)
+		}
+	})
+
+	t.Run("Success - CPF included in request path", func(t *testing.T) {
+		var requestPath string
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestPath = r.URL.Path
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"cpf":    "98765432100",
+				"cd_uas": []string{"UA003"},
+			})
+		}))
+		defer mockServer.Close()
+
+		client := NewRMIClient(mockServer.URL, 5*time.Second)
+		_, err := client.GetCPFSecretarias(context.Background(), "token", "98765432100")
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if !strings.Contains(requestPath, "98765432100") {
+			t.Errorf("Expected CPF in path, got: %s", requestPath)
+		}
+	})
+}
