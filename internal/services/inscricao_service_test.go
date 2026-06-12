@@ -3,6 +3,7 @@ package services_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -1310,6 +1311,567 @@ func TestInscricaoService_UpdateInscricao(t *testing.T) {
 	})
 }
 
+// TestInscricaoService_CreateByAdmin tests the CreateByAdmin method used by CSV import jobs.
+// It must bypass course status validation while preserving all other validations.
+func TestInscricaoService_CreateByAdmin(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("CreateByAdmin succeeds for closed course", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, true, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err != nil {
+			t.Errorf("CreateByAdmin should succeed for closed course, got: %v", err)
+		}
+	})
+
+	t.Run("CreateByAdmin succeeds for draft course", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoDraft), nil, nil, false, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err != nil {
+			t.Errorf("CreateByAdmin should succeed for draft course, got: %v", err)
+		}
+	})
+
+	t.Run("CreateByAdmin fails when CPF already enrolled", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return true, nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err == nil {
+			t.Error("Expected error for duplicate CPF")
+		}
+	})
+
+	t.Run("CreateByAdmin sets status approved when auto_approve is true", func(t *testing.T) {
+		var created *models.Inscricao
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				created = inscricao
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, true, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err != nil {
+			t.Fatalf("CreateByAdmin failed: %v", err)
+		}
+		if created.Status != models.StatusInscricaoApproved {
+			t.Errorf("Expected status approved, got %s", created.Status)
+		}
+	})
+
+	t.Run("CreateByAdmin sets status pending when auto_approve is false", func(t *testing.T) {
+		var created *models.Inscricao
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				created = inscricao
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err != nil {
+			t.Fatalf("CreateByAdmin failed: %v", err)
+		}
+		if created.Status != models.StatusInscricaoPending {
+			t.Errorf("Expected status pending, got %s", created.Status)
+		}
+	})
+
+	t.Run("Create (public) fails for closed course", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.Create(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1})
+		if err == nil {
+			t.Error("Expected Create to fail for closed course")
+		}
+		if err.Error() != "curso não está aberto para inscrições" {
+			t.Errorf("Unexpected error message: %s", err.Error())
+		}
+	})
+
+	t.Run("CreateByAdmin fails when ValidateForEnrollment errors", func(t *testing.T) {
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return "", nil, nil, false, fmt.Errorf("db error")
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(&MockInscricaoRepository{}, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1})
+		if err == nil || err.Error() != "db error" {
+			t.Errorf("Expected db error, got: %v", err)
+		}
+	})
+
+	t.Run("CreateByAdmin fails when enrollment period not started", func(t *testing.T) {
+		future := time.Now().Add(24 * time.Hour)
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), &future, nil, false, nil
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(&MockInscricaoRepository{}, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1})
+		if err == nil {
+			t.Error("Expected error when enrollment period not started")
+		}
+	})
+
+	t.Run("CreateByAdmin fails when enrollment period ended", func(t *testing.T) {
+		past := time.Now().Add(-24 * time.Hour)
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, &past, false, nil
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(&MockInscricaoRepository{}, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1})
+		if err == nil {
+			t.Error("Expected error when enrollment period ended")
+		}
+	})
+
+	t.Run("CreateByAdmin fails when ExistsByCPFAndCurso errors", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, fmt.Errorf("db error checking cpf")
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1})
+		if err == nil {
+			t.Error("Expected error from repo")
+		}
+	})
+
+	t.Run("CreateByAdmin fails when repo.Create errors", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return fmt.Errorf("insert failed")
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err == nil || err.Error() != "insert failed" {
+			t.Errorf("Expected insert failed error, got: %v", err)
+		}
+	})
+
+	t.Run("CreateByAdmin enriches data from citizen fetcher", func(t *testing.T) {
+		var created *models.Inscricao
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				created = inscricao
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+		citizenFetcher := &MockCitizenDataFetcher{
+			SyncFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				return &models.CitizenSnapshot{
+					CPF:     cpf,
+					Email:   "fetched@example.com",
+					Celular: "21999990000",
+					Nome:    "Nome do RMI",
+				}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, citizenFetcher, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Original", CursoID: 1})
+		if err != nil {
+			t.Fatalf("CreateByAdmin failed: %v", err)
+		}
+		if created.Email != "fetched@example.com" {
+			t.Errorf("Expected email from RMI, got %s", created.Email)
+		}
+		if created.Phone != "21999990000" {
+			t.Errorf("Expected phone from RMI, got %s", created.Phone)
+		}
+	})
+
+	t.Run("CreateByAdmin continues when citizen fetcher errors", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+		citizenFetcher := &MockCitizenDataFetcher{
+			SyncFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				return nil, fmt.Errorf("rmi unavailable")
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, citizenFetcher, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err != nil {
+			t.Errorf("CreateByAdmin should not fail when citizen fetcher errors, got: %v", err)
+		}
+	})
+
+	t.Run("CreateByAdmin sends approved email when auto_approve is true", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error { return nil },
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{ID: id, Titulo: "Curso Fechado"}, nil
+			},
+		}
+		emailNotifier := newMockEmailNotifier()
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, emailNotifier, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err != nil {
+			t.Fatalf("CreateByAdmin failed: %v", err)
+		}
+		if !emailNotifier.waitForCall("enrollment.approved", 500*time.Millisecond) {
+			t.Error("Expected enrollment.approved email to be sent")
+		}
+	})
+
+	t.Run("CreateByAdmin sends pending email when auto_approve is false", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error { return nil },
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{ID: id, Titulo: "Curso Fechado"}, nil
+			},
+		}
+		emailNotifier := newMockEmailNotifier()
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, emailNotifier, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err != nil {
+			t.Fatalf("CreateByAdmin failed: %v", err)
+		}
+		if !emailNotifier.waitForCall("enrollment.created", 500*time.Millisecond) {
+			t.Error("Expected enrollment.created email to be sent")
+		}
+	})
+
+	t.Run("CreateByAdmin fails when GetByID errors on schedule validation", func(t *testing.T) {
+		scheduleID := uuid.New()
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return nil, fmt.Errorf("db error on GetByID")
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1, ScheduleID: &scheduleID})
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+	})
+
+	t.Run("CreateByAdmin fails when curso not found on schedule validation", func(t *testing.T) {
+		scheduleID := uuid.New()
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return nil, nil
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1, ScheduleID: &scheduleID})
+		if err == nil || err.Error() != "curso não encontrado" {
+			t.Errorf("Expected 'curso não encontrado', got: %v", err)
+		}
+	})
+}
+
+// TestInscricaoService_CreateManual_Extended covers additional paths in CreateManual
+func TestInscricaoService_CreateManual_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("CreateManual fails when ValidateForEnrollment errors", func(t *testing.T) {
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return "", nil, nil, false, fmt.Errorf("db error")
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(&MockInscricaoRepository{}, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateManual(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1})
+		if err == nil || err.Error() != "db error" {
+			t.Errorf("Expected db error, got: %v", err)
+		}
+	})
+
+	t.Run("CreateManual fails when CPF already enrolled", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return true, nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateManual(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1})
+		if err == nil {
+			t.Error("Expected error for duplicate CPF")
+		}
+	})
+
+	t.Run("CreateManual fails when repo.Create errors", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return fmt.Errorf("insert failed")
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateManual(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err == nil || err.Error() != "insert failed" {
+			t.Errorf("Expected insert failed error, got: %v", err)
+		}
+	})
+
+	t.Run("CreateManual sends approved email when auto_approve is true", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error { return nil },
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, true, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{ID: id, Titulo: "Curso Manual"}, nil
+			},
+		}
+		emailNotifier := newMockEmailNotifier()
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, emailNotifier, &config.AppConfig{})
+
+		err := svc.CreateManual(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err != nil {
+			t.Fatalf("CreateManual failed: %v", err)
+		}
+		if !emailNotifier.waitForCall("enrollment.approved", 500*time.Millisecond) {
+			t.Error("Expected enrollment.approved email to be sent")
+		}
+	})
+
+	t.Run("CreateManual sends pending email when auto_approve is false", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error { return nil },
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return &models.Curso{ID: id, Titulo: "Curso Manual"}, nil
+			},
+		}
+		emailNotifier := newMockEmailNotifier()
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, emailNotifier, &config.AppConfig{})
+
+		err := svc.CreateManual(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1})
+		if err != nil {
+			t.Fatalf("CreateManual failed: %v", err)
+		}
+		if !emailNotifier.waitForCall("enrollment.created", 500*time.Millisecond) {
+			t.Error("Expected enrollment.created email to be sent")
+		}
+	})
+
+	t.Run("CreateManual fails when GetByID errors on schedule validation", func(t *testing.T) {
+		scheduleID := uuid.New()
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return nil, fmt.Errorf("db error on GetByID")
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateManual(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1, ScheduleID: &scheduleID})
+		if err == nil {
+			t.Error("Expected error when GetByID fails")
+		}
+	})
+
+	t.Run("CreateManual fails when curso not found on schedule validation", func(t *testing.T) {
+		scheduleID := uuid.New()
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+			GetByIDFunc: func(ctx context.Context, id int) (*models.Curso, error) {
+				return nil, nil
+			},
+		}
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateManual(ctx, &models.Inscricao{CPF: "12345678900", Name: "Teste", CursoID: 1, ScheduleID: &scheduleID})
+		if err == nil || err.Error() != "curso não encontrado" {
+			t.Errorf("Expected 'curso não encontrado', got: %v", err)
+		}
+	})
+}
+
 // TestInscricaoService_CreateManual tests the CreateManual method
 func TestInscricaoService_CreateManual(t *testing.T) {
 	ctx := context.Background()
@@ -1403,8 +1965,15 @@ func TestInscricaoService_CreateManual(t *testing.T) {
 		}
 	})
 
-	t.Run("CreateManual fails when curso not opened", func(t *testing.T) {
-		inscricaoRepo := &MockInscricaoRepository{}
+	t.Run("CreateManual succeeds even when curso not opened", func(t *testing.T) {
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return nil
+			},
+		}
 
 		cursoRepo := &MockCursoRepository{
 			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (status string, enrollmentStart *time.Time, enrollmentEnd *time.Time, autoApprove bool, err error) {
@@ -1416,12 +1985,13 @@ func TestInscricaoService_CreateManual(t *testing.T) {
 
 		inscricao := &models.Inscricao{
 			CPF:     "12345678900",
+			Name:    "Teste Admin",
 			CursoID: 1,
 		}
 
 		err := svc.CreateManual(ctx, inscricao)
-		if err == nil {
-			t.Error("Expected error when curso not opened")
+		if err != nil {
+			t.Errorf("CreateManual should succeed for closed course, got: %v", err)
 		}
 	})
 
