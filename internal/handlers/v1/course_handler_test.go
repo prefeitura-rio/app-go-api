@@ -84,6 +84,11 @@ func (m *MockInscricaoServiceForCourse) Create(ctx context.Context, inscricao *m
 	return args.Error(0)
 }
 
+func (m *MockInscricaoServiceForCourse) CreateByAdmin(ctx context.Context, inscricao *models.Inscricao) error {
+	args := m.Called(ctx, inscricao)
+	return args.Error(0)
+}
+
 func (m *MockInscricaoServiceForCourse) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
 	args := m.Called(ctx, inscricao)
 	return args.Error(0)

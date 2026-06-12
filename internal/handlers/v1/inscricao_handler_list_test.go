@@ -28,6 +28,10 @@ func (m *mockInscricaoServiceForList) Create(ctx context.Context, inscricao *mod
 	return nil
 }
 
+func (m *mockInscricaoServiceForList) CreateByAdmin(ctx context.Context, inscricao *models.Inscricao) error {
+	return nil
+}
+
 func (m *mockInscricaoServiceForList) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
 	return nil
 }
