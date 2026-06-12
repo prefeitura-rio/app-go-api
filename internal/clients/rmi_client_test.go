@@ -1192,7 +1192,7 @@ func TestGetCPFSecretarias(t *testing.T) {
 		}
 	})
 
-	t.Run("Error - 404 not found", func(t *testing.T) {
+	t.Run("No mapping - 404 not found", func(t *testing.T) {
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("not found"))
@@ -1200,12 +1200,12 @@ func TestGetCPFSecretarias(t *testing.T) {
 		defer mockServer.Close()
 
 		client := NewRMIClient(mockServer.URL, 5*time.Second)
-		_, err := client.GetCPFSecretarias(context.Background(), "test-token", "12345678900")
-		if err == nil {
-			t.Error("Expected error for 404")
+		cdUAs, err := client.GetCPFSecretarias(context.Background(), "test-token", "12345678900")
+		if err != nil {
+			t.Errorf("Expected no error for 404 (no mapping), got: %v", err)
 		}
-		if !strings.Contains(err.Error(), "status 404") {
-			t.Errorf("Expected 'status 404', got: %v", err)
+		if len(cdUAs) != 0 {
+			t.Errorf("Expected empty slice for 404 (no mapping), got: %v", cdUAs)
 		}
 	})
 
