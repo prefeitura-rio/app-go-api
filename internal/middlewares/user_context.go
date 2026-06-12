@@ -294,8 +294,9 @@ func GetUserOrgaoID(c *gin.Context) string {
 type SecretariaOrgaoResolver func(ctx context.Context, cpf string) ([]string, error)
 
 // ExtractSecretariaOrgaoIDs is a middleware that resolves the user's secretaria orgao_ids
-// and sets them in the gin context. It must run after ExtractUserContext (needs CPF).
-// If the resolver fails or the CPF is absent, the middleware is a no-op (fail-open).
+// and sets them in the Gin context. Must run after ExtractUserContext (requires CPF).
+// If resolution fails, the middleware sets an empty array (fail-closed → user sees nothing).
+// If CPF is missing, the middleware is a no-op (fail-open).
 func ExtractSecretariaOrgaoIDs(resolver SecretariaOrgaoResolver) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cpf := GetUserCPF(c)

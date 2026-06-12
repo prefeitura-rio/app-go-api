@@ -402,6 +402,10 @@ func (c *RMIClient) GetCPFSecretarias(ctx context.Context, serviceToken string, 
 		}
 	}()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return []string{}, nil
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
