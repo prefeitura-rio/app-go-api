@@ -171,6 +171,7 @@ type InscricaoRepositoryInterface interface {
 // InscricaoServiceInterface defines the interface for Inscricao service
 type InscricaoServiceInterface interface {
 	Create(ctx context.Context, inscricao *models.Inscricao) error
+	CreateByAdmin(ctx context.Context, inscricao *models.Inscricao) error
 	CreateManual(ctx context.Context, inscricao *models.Inscricao) error
 	GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error)
 	GetByCursoID(ctx context.Context, cursoID int, filter map[string]interface{}, page, pageSize int) ([]*models.Inscricao, int, error)
