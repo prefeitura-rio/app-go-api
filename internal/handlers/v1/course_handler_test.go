@@ -16,6 +16,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // MockCursoService is a mock implementation of CursoServiceInterface
@@ -3045,6 +3046,170 @@ func TestCourseHandler_List_StatusFilter(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 		svc.AssertExpectations(t)
 	})
+}
+
+// ==================== FormatType in Custom Fields ====================
+
+func TestCourseHandler_Create_WithCustomFieldFormatType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	r := gin.New()
+	r.POST("/api/v1/courses", handler.Create)
+
+	ft := "cpf"
+	curso := models.Curso{
+		Titulo: "Curso com Máscara",
+		CustomFields: []models.CustomField{
+			{Title: "CPF do participante", FieldType: "text", FormatType: &ft, Required: true},
+		},
+	}
+
+	mockService.On("Create", mock.Anything, mock.MatchedBy(func(c *models.Curso) bool {
+		return len(c.CustomFields) == 1 &&
+			c.CustomFields[0].FormatType != nil &&
+			*c.CustomFields[0].FormatType == "cpf"
+	})).Return(10, nil)
+
+	body, _ := json.Marshal(curso)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestCourseHandler_CreateDraft_WithCustomFieldFormatType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	r := gin.New()
+	r.POST("/api/v1/courses/draft", handler.CreateDraft)
+
+	ft := "phone"
+	curso := models.Curso{
+		Titulo: "Rascunho com Máscara",
+		CustomFields: []models.CustomField{
+			{Title: "Telefone", FieldType: "text", FormatType: &ft},
+		},
+	}
+
+	mockService.On("Create", mock.Anything, mock.MatchedBy(func(c *models.Curso) bool {
+		return c.Status == models.StatusCursoDraft &&
+			len(c.CustomFields) == 1 &&
+			c.CustomFields[0].FormatType != nil &&
+			*c.CustomFields[0].FormatType == "phone"
+	})).Return(11, nil)
+
+	body, _ := json.Marshal(curso)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/draft", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestCourseHandler_Update_WithCustomFieldFormatType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	r := gin.New()
+	r.PUT("/api/v1/courses/:courseId", handler.Update)
+
+	existing := &models.Curso{
+		ID:     12,
+		Titulo: "Curso Existente",
+		Status: models.StatusCursoOpened,
+	}
+	mockService.On("GetByID", mock.Anything, 12).Return(existing, nil)
+
+	ft := "cep"
+	updated := models.Curso{
+		Titulo: "Curso Atualizado",
+		Status: models.StatusCursoOpened,
+		CustomFields: []models.CustomField{
+			{Title: "CEP", FieldType: "text", FormatType: &ft},
+		},
+	}
+
+	mockService.On("Update", mock.Anything, mock.MatchedBy(func(c *models.Curso) bool {
+		return len(c.CustomFields) == 1 &&
+			c.CustomFields[0].FormatType != nil &&
+			*c.CustomFields[0].FormatType == "cep"
+	})).Return(nil)
+
+	body, _ := json.Marshal(updated)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/12", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestCourseHandler_GetByID_CustomFieldFormatTypeInResponse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+	r := gin.New()
+	r.GET("/api/v1/courses/:courseId", handler.GetByID)
+
+	ft := "cpf"
+	curso := &models.Curso{
+		ID:     20,
+		Titulo: "Curso com FormatType",
+		Status: models.StatusCursoOpened,
+		CustomFields: []models.CustomField{
+			{Title: "CPF", FieldType: "text", FormatType: &ft, Required: true},
+			{Title: "Nome", FieldType: "text"},
+		},
+	}
+
+	mockService.On("GetByID", mock.Anything, 20).Return(curso, nil)
+	mockInscricaoService.On("CountVacanciesBySchedule", mock.Anything, mock.Anything).Return(map[string]int{}, nil).Maybe()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/20", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	assert.True(t, response["success"].(bool))
+
+	data := response["data"].(map[string]interface{})
+	customFields := data["custom_fields"].([]interface{})
+	require.Len(t, customFields, 2)
+
+	field0 := customFields[0].(map[string]interface{})
+	assert.Equal(t, "cpf", field0["format_type"])
+
+	field1 := customFields[1].(map[string]interface{})
+	_, hasFormatType := field1["format_type"]
+	assert.False(t, hasFormatType, "format_type deve estar ausente quando nil (omitempty)")
+
+	mockService.AssertExpectations(t)
 }
 
 func TestCourseHandler_RequestDeletion(t *testing.T) {
