@@ -82,7 +82,6 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		return err
 	}
 
-	// Check if enrollment is open
 	normalizedStatus := models.StatusCurso(status).Normalize()
 	if normalizedStatus != models.StatusCursoOpened && normalizedStatus != models.StatusCursoPublished {
 		return fmt.Errorf("curso não está aberto para inscrições")
@@ -193,22 +192,112 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	return nil
 }
 
-// CreateManual creates an enrollment bypassing date restrictions and citizen data override.
-// Used by admins to manually enroll someone regardless of the enrollment period.
-func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
-	// Validate course exists and can accept enrollments
-	status, _, _, autoApprove, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)
+// CreateByAdmin creates an enrollment bypassing course status validation.
+// Used by internal flows (CSV import) where an admin is enrolling participants
+// in courses that may be closed. All other validations still apply.
+func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.Inscricao) error {
+	_, enrollmentStart, enrollmentEnd, autoApprove, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)
 	if err != nil {
 		return err
 	}
 
-	// Course must still be in opened status
-	normalizedStatus := models.StatusCurso(status).Normalize()
-	if normalizedStatus != models.StatusCursoOpened && normalizedStatus != models.StatusCursoPublished {
-		return fmt.Errorf("curso não está aberto para inscrições")
+	now := time.Now()
+	if enrollmentStart != nil && now.Before(*enrollmentStart) {
+		return fmt.Errorf("período de inscrições ainda não iniciou")
+	}
+	if enrollmentEnd != nil && now.After(*enrollmentEnd) {
+		return fmt.Errorf("período de inscrições já encerrou")
 	}
 
-	// NOTE: enrollment date validation is intentionally skipped for manual admin enrollments
+	exists, err := s.repo.ExistsByCPFAndCurso(ctx, inscricao.CPF, inscricao.CursoID)
+	if err != nil {
+		return fmt.Errorf("erro ao verificar inscrição existente: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("CPF já inscrito neste curso")
+	}
+
+	if inscricao.ScheduleID != nil {
+		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+		if err != nil {
+			return fmt.Errorf("erro ao verificar curso para validação de schedule: %w", err)
+		}
+		if curso == nil {
+			return fmt.Errorf("curso não encontrado")
+		}
+		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
+			return err
+		}
+		if autoApprove {
+			vacancies := s.findScheduleVacancies(*inscricao.ScheduleID, curso)
+			if vacancies > 0 {
+				enrolledCount, err := s.cursoRepo.CountEnrollmentsByScheduleID(ctx, *inscricao.ScheduleID)
+				if err != nil || int(enrolledCount) >= vacancies {
+					autoApprove = false
+				}
+			}
+		}
+	}
+
+	if s.citizenDataFetcher != nil && inscricao.CPF != "" {
+		citizenSnapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, inscricao.CPF)
+		if err != nil {
+			fmt.Printf("[InscricaoService] Failed to fetch citizen data for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+		} else if citizenSnapshot != nil {
+			if citizenSnapshot.Email != "" {
+				inscricao.Email = models.SanitizeEmail(citizenSnapshot.Email)
+			}
+			if citizenSnapshot.Celular != "" {
+				inscricao.Phone = citizenSnapshot.Celular
+			}
+			if citizenSnapshot.Nome != "" && inscricao.Name == "" {
+				inscricao.Name = citizenSnapshot.Nome
+			}
+		}
+	}
+
+	if autoApprove {
+		inscricao.Status = models.StatusInscricaoApproved
+	} else {
+		inscricao.Status = models.StatusInscricaoPending
+	}
+	inscricao.EnrolledAt = time.Now()
+	inscricao.UpdatedAt = time.Now()
+
+	if err := s.repo.Create(ctx, inscricao); err != nil {
+		return err
+	}
+
+	if s.emailNotificationService != nil {
+		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
+		if err == nil && curso != nil {
+			go func() {
+				var emailErr error
+				if autoApprove {
+					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), inscricao, curso)
+				} else {
+					emailErr = s.emailNotificationService.SendEnrollmentCreatedEmail(context.Background(), inscricao, curso)
+				}
+				if emailErr != nil {
+					log.Printf("[InscricaoService] falha ao enviar email de inscrição: %v", emailErr)
+				}
+			}()
+		}
+	}
+
+	return nil
+}
+
+// CreateManual creates an enrollment bypassing date restrictions and citizen data override.
+// Used by admins to manually enroll someone regardless of the enrollment period or course status.
+func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
+	// Validate course exists
+	_, _, _, autoApprove, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)
+	if err != nil {
+		return err
+	}
+
+	// NOTE: status and date validation intentionally skipped for manual admin enrollments
 
 	// Check if CPF is already enrolled
 	exists, err := s.repo.ExistsByCPFAndCurso(ctx, inscricao.CPF, inscricao.CursoID)

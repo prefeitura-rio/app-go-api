@@ -724,7 +724,7 @@ func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int,
 		EnrolledUnit:     enrolledUnit,
 	}
 
-	if err := p.inscricaoService.Create(ctx, inscricao); err != nil {
+	if err := p.inscricaoService.CreateByAdmin(ctx, inscricao); err != nil {
 		return nil, err
 	}
 

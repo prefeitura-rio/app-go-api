@@ -388,6 +388,9 @@ func (m *mockInscricaoService) CreateManual(ctx context.Context, inscricao *mode
 func (m *mockInscricaoService) Create(ctx context.Context, inscricao *models.Inscricao) error {
 	return nil
 }
+func (m *mockInscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.Inscricao) error {
+	return nil
+}
 func (m *mockInscricaoService) GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
 	return nil, nil
 }
