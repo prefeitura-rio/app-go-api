@@ -10,6 +10,7 @@ import (
 type OrgaoSnapshot struct {
 	ID           int           `json:"id" gorm:"primaryKey;autoIncrement"`
 	OrgaoID      string        `json:"orgao_id" gorm:"type:varchar(100);uniqueIndex;not null"`
+	CdUA         string        `json:"cd_ua" gorm:"type:varchar(50);index"`
 	Name         string        `json:"name" gorm:"type:text;not null"`
 	Sigla        *string       `json:"sigla,omitempty" gorm:"type:varchar(50)"`
 	Metadata     OrgaoMetadata `json:"metadata,omitempty" gorm:"type:jsonb"`

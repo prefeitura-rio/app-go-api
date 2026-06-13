@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
@@ -37,6 +38,18 @@ func (h *EmpregoHandler) Create(c *gin.Context) {
 	if err := c.ShouldBindJSON(&emprego); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
+	}
+
+	// Force orgao_id to the user's secretaria when applicable.
+	if !middlewares.IsAdmin(c) {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		if secretariaIDs != nil {
+			if len(secretariaIDs) == 0 {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: nenhuma secretaria associada"})
+				return
+			}
+			emprego.OrgaoID = secretariaIDs[0]
+		}
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &emprego)
@@ -109,6 +122,33 @@ func (h *EmpregoHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// Secretaria ownership check before updating.
+	if !middlewares.IsAdmin(c) {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		if secretariaIDs != nil {
+			existing, err := h.service.GetByID(c.Request.Context(), id)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar emprego: " + err.Error()})
+				return
+			}
+			if existing == nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Emprego não encontrado"})
+				return
+			}
+			allowed := false
+			for _, sid := range secretariaIDs {
+				if existing.OrgaoID == sid {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: emprego não pertence à sua secretaria"})
+				return
+			}
+		}
+	}
+
 	var emprego models.Emprego
 	if err := c.ShouldBindJSON(&emprego); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
@@ -162,6 +202,24 @@ func (h *EmpregoHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	// Secretaria ownership check.
+	if !middlewares.IsAdmin(c) {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		if secretariaIDs != nil {
+			allowed := false
+			for _, sid := range secretariaIDs {
+				if emprego.OrgaoID == sid {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: emprego não pertence à sua secretaria"})
+				return
+			}
+		}
+	}
+
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir emprego: " + err.Error()})
 		return
@@ -199,6 +257,14 @@ func (h *EmpregoHandler) List(c *gin.Context) {
 
 	// Filtros
 	filter := make(map[string]interface{})
+
+	// Secretaria-level filter: restrict list to the user's allowed orgaos.
+	if !middlewares.IsAdmin(c) {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		if secretariaIDs != nil {
+			filter["orgao_id IN"] = secretariaIDs
+		}
+	}
 
 	// Adicionar filtros conforme query parameters
 	if orgaoID := c.Query("orgao_id"); orgaoID != "" {

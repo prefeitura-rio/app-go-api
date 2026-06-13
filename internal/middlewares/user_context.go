@@ -14,13 +14,14 @@ import (
 )
 
 const (
-	UserCPFKey    = "user_cpf"
-	UserRoleKey   = "user_role"
-	UserRolesKey  = "user_roles"
-	UserGroupsKey = "user_groups"
-	UserIDKey     = "user_id"
-	UserNameKey   = "user_name"
-	UserEmailKey  = "user_email"
+	UserCPFKey                = "user_cpf"
+	UserRoleKey               = "user_role"
+	UserRolesKey              = "user_roles"
+	UserGroupsKey             = "user_groups"
+	UserIDKey                 = "user_id"
+	UserNameKey               = "user_name"
+	UserEmailKey              = "user_email"
+	UserSecretariaOrgaoIDsKey = "user_secretaria_orgao_ids"
 )
 
 // JWTClaims representa as claims do JWT que nos interessam
@@ -286,6 +287,51 @@ func GetUserOrgaoID(c *gin.Context) string {
 		}
 	}
 	return ""
+}
+
+// SecretariaOrgaoResolver resolves a CPF to the list of orgao_ids the user is allowed to access
+// based on the CPF-Secretaria mappings stored in app-rmi.
+type SecretariaOrgaoResolver func(ctx context.Context, cpf string) ([]string, error)
+
+// ExtractSecretariaOrgaoIDs is a middleware that resolves the user's secretaria orgao_ids
+// and sets them in the Gin context. Must run after ExtractUserContext (requires CPF).
+// If resolution fails, the middleware sets an empty array (fail-closed → user sees nothing).
+// If CPF is missing, the middleware is a no-op (fail-open).
+func ExtractSecretariaOrgaoIDs(resolver SecretariaOrgaoResolver) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cpf := GetUserCPF(c)
+		if cpf == "" || resolver == nil {
+			c.Next()
+			return
+		}
+
+		orgaoIDs, err := resolver(c.Request.Context(), cpf)
+		if err != nil {
+			// fail-closed: error resolving secretaria → user sees nothing
+			orgaoIDs = []string{}
+		}
+
+		c.Set(UserSecretariaOrgaoIDsKey, orgaoIDs)
+		c.Next()
+	}
+}
+
+// GetUserSecretariaOrgaoIDs returns the list of orgao_ids the user can access via secretaria mapping.
+// Returns nil when no secretaria mapping exists for the user (middleware was skipped or no mappings found).
+func GetUserSecretariaOrgaoIDs(c *gin.Context) []string {
+	if v, exists := c.Get(UserSecretariaOrgaoIDsKey); exists {
+		if ids, ok := v.([]string); ok {
+			return ids
+		}
+	}
+	return nil
+}
+
+// HasSecretariaFilter returns true when the user has at least one secretaria orgao_id mapped,
+// meaning secretaria-level filtering should be applied.
+func HasSecretariaFilter(c *gin.Context) bool {
+	ids := GetUserSecretariaOrgaoIDs(c)
+	return len(ids) > 0
 }
 
 // IsEmpregabilidadeRole verifica se o usuário possui qualquer role de empregabilidade (prefixo go:empregabilidade:)

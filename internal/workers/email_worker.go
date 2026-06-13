@@ -165,6 +165,11 @@ func (w *EmailWorker) consume(ctx context.Context) {
 				return
 			}
 			log.Printf("[EmailWorker] BRPOP error: %v", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Second):
+			}
 			continue
 		}
 

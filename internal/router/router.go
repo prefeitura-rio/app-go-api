@@ -66,6 +66,28 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 
 	apiV1 := r.Group("/api/v1")
 	apiV1.Use(middlewares.ExtractUserContext(cfg.Heimdall.BaseURL))
+
+	// Resolve secretaria orgao_ids via CPF-Secretaria mapping in app-rmi.
+	// Only enabled when both TokenManager and RMIClient are available.
+	if app.TokenManager != nil && app.RMIClient != nil && app.OrgaoSnapshotRepo != nil {
+		resolver := func(ctx context.Context, cpf string) ([]string, error) {
+			token, err := app.TokenManager.GetToken(ctx)
+			if err != nil {
+				return nil, err
+			}
+			cdUAs, err := app.RMIClient.GetCPFSecretarias(ctx, token, cpf)
+			if err != nil {
+				log.Printf("[SecretariaResolver] erro ao buscar secretarias para CPF: %v", err)
+				return nil, err
+			}
+			if len(cdUAs) == 0 {
+				return nil, nil
+			}
+			return app.OrgaoSnapshotRepo.GetOrgaoIDsByCdUAs(ctx, cdUAs)
+		}
+		apiV1.Use(middlewares.ExtractSecretariaOrgaoIDs(resolver))
+	}
+
 	apiPublic := r.Group("/api/public")
 
 	registerCoreRoutes(apiV1, apiPublic, app)

@@ -373,6 +373,58 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 	return &legalEntity, nil
 }
 
+// GetCPFSecretarias fetches the list of cd_uas linked to a CPF from the app-rmi CPF-Secretaria registry.
+// Endpoint: GET /cpf-secretaria/{cpf}
+// Requires service account authentication token.
+// Returns an empty slice when the CPF has no secretaria mappings.
+func (c *RMIClient) GetCPFSecretarias(ctx context.Context, serviceToken string, cpf string) ([]string, error) {
+	if c.baseURL == "" {
+		return nil, fmt.Errorf("RMI base URL not configured")
+	}
+
+	url := fmt.Sprintf("%s/cpf-secretaria/%s", c.baseURL, cpf)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceToken))
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Error closing GetCPFSecretarias response body: %v\n", err)
+		}
+	}()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return []string{}, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var response struct {
+		CPF   string   `json:"cpf"`
+		CdUAs []string `json:"cd_uas"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if response.CdUAs == nil {
+		return []string{}, nil
+	}
+	return response.CdUAs, nil
+}
+
 // NormalizeCNPJ removes formatting and validates that the CNPJ has 14 digits
 func NormalizeCNPJ(cnpj string) (string, error) {
 	var digits strings.Builder

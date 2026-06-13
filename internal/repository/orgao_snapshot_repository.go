@@ -81,7 +81,7 @@ func (r *OrgaoSnapshotRepository) Update(ctx context.Context, snapshot *models.O
 func (r *OrgaoSnapshotRepository) Upsert(ctx context.Context, snapshot *models.OrgaoSnapshot) error {
 	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "orgao_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"name", "sigla", "metadata", "last_synced_at", "sync_status", "sync_error", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"cd_ua", "name", "sigla", "metadata", "last_synced_at", "sync_status", "sync_error", "updated_at"}),
 	}).Create(snapshot)
 
 	if result.Error != nil {
@@ -99,7 +99,7 @@ func (r *OrgaoSnapshotRepository) BatchUpsert(ctx context.Context, snapshots []*
 
 	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "orgao_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"name", "sigla", "metadata", "last_synced_at", "sync_status", "sync_error", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"cd_ua", "name", "sigla", "metadata", "last_synced_at", "sync_status", "sync_error", "updated_at"}),
 	}).Create(&snapshots)
 
 	if result.Error != nil {
@@ -107,6 +107,26 @@ func (r *OrgaoSnapshotRepository) BatchUpsert(ctx context.Context, snapshots []*
 	}
 
 	return nil
+}
+
+// GetOrgaoIDsByCdUAs returns orgao_ids for the given cd_ua values.
+// Used to resolve CPF-Secretaria cd_uas into the orgao_ids stored in resources.
+func (r *OrgaoSnapshotRepository) GetOrgaoIDsByCdUAs(ctx context.Context, cdUAs []string) ([]string, error) {
+	if len(cdUAs) == 0 {
+		return []string{}, nil
+	}
+
+	var orgaoIDs []string
+	result := r.db.WithContext(ctx).
+		Model(&models.OrgaoSnapshot{}).
+		Where("cd_ua IN ?", cdUAs).
+		Pluck("orgao_id", &orgaoIDs)
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to get orgao IDs by cd_uas: %w", result.Error)
+	}
+
+	return orgaoIDs, nil
 }
 
 // GetStaleSnapshots fetches snapshots older than the given threshold

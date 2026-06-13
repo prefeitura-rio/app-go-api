@@ -66,10 +66,12 @@ func ProvideDatabase(cfg *config.AppConfig) (*gorm.DB, error) {
 // ProvideRedisClient creates Redis client with connection pooling
 func ProvideRedisClient(cfg *config.AppConfig) *redis.Client {
 	return redis.NewClient(&redis.Options{
-		Addr:         fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
-		Password:     cfg.Redis.Password,
-		DB:           cfg.Redis.DB,
-		PoolSize:     cfg.Redis.PoolSize,
-		MinIdleConns: cfg.Redis.MinIdleConns,
+		Addr:            fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
+		Password:        cfg.Redis.Password,
+		DB:              cfg.Redis.DB,
+		PoolSize:        cfg.Redis.PoolSize,
+		MinIdleConns:    cfg.Redis.MinIdleConns,
+		ConnMaxLifetime: 4 * time.Minute,
+		ConnMaxIdleTime: 3 * time.Minute,
 	})
 }

@@ -199,6 +199,9 @@ func runMigrations(cfg *config.AppConfig) {
 	log.Println("Migrando tabela de jobs...")
 	migrateTable(&models.Job{}, "jobs")
 
+	log.Println("Migrando tabela de orgao snapshots...")
+	migrateTable(&models.OrgaoSnapshot{}, "orgao_snapshots")
+
 	log.Println("Auto-migração concluída!")
 
 	// Close the migration-only DB connection
