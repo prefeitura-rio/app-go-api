@@ -722,3 +722,128 @@ func TestCursoService_RepositoryErrorPropagation(t *testing.T) {
 		}
 	})
 }
+
+// ==================== FormatType Propagation ====================
+
+func TestCursoService_Create_CustomField_FormatType(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("format_type is preserved when creating custom fields", func(t *testing.T) {
+		var capturedFields []models.CustomField
+
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 1, nil
+			},
+			CreateCustomFieldsFunc: func(ctx context.Context, fields []models.CustomField) error {
+				capturedFields = fields
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		ft := "cpf"
+		curso := &models.Curso{
+			Titulo: "Curso com Máscara",
+			Status: models.StatusCursoDraft,
+			CustomFields: []models.CustomField{
+				{Title: "CPF do participante", FieldType: "text", FormatType: &ft, Required: true},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(capturedFields) != 1 {
+			t.Fatalf("expected 1 custom field, got %d", len(capturedFields))
+		}
+		if capturedFields[0].FormatType == nil || *capturedFields[0].FormatType != "cpf" {
+			t.Errorf("expected FormatType 'cpf', got %v", capturedFields[0].FormatType)
+		}
+		if capturedFields[0].CursoID != 1 {
+			t.Errorf("expected CursoID 1, got %d", capturedFields[0].CursoID)
+		}
+	})
+
+	t.Run("format_type nil is preserved (free text field)", func(t *testing.T) {
+		var capturedFields []models.CustomField
+
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 2, nil
+			},
+			CreateCustomFieldsFunc: func(ctx context.Context, fields []models.CustomField) error {
+				capturedFields = fields
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		curso := &models.Curso{
+			Titulo: "Curso texto livre",
+			Status: models.StatusCursoDraft,
+			CustomFields: []models.CustomField{
+				{Title: "Observações", FieldType: "text"},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(capturedFields) != 1 {
+			t.Fatalf("expected 1 custom field, got %d", len(capturedFields))
+		}
+		if capturedFields[0].FormatType != nil {
+			t.Errorf("expected FormatType nil, got %v", capturedFields[0].FormatType)
+		}
+	})
+
+	t.Run("multiple fields with mixed format_type values", func(t *testing.T) {
+		var capturedFields []models.CustomField
+
+		repo := &MockCursoRepository{
+			CreateFunc: func(ctx context.Context, curso *models.Curso) (int, error) {
+				return 3, nil
+			},
+			CreateCustomFieldsFunc: func(ctx context.Context, fields []models.CustomField) error {
+				capturedFields = fields
+				return nil
+			},
+		}
+		svc := services.NewCursoServiceWithInterface(repo)
+
+		ftCPF := "cpf"
+		ftPhone := "phone"
+		curso := &models.Curso{
+			Titulo: "Curso múltiplos campos",
+			Status: models.StatusCursoDraft,
+			CustomFields: []models.CustomField{
+				{Title: "CPF", FieldType: "text", FormatType: &ftCPF},
+				{Title: "Nome", FieldType: "text"},
+				{Title: "Telefone", FieldType: "text", FormatType: &ftPhone},
+			},
+		}
+
+		_, err := svc.Create(ctx, curso)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(capturedFields) != 3 {
+			t.Fatalf("expected 3 custom fields, got %d", len(capturedFields))
+		}
+		if capturedFields[0].FormatType == nil || *capturedFields[0].FormatType != "cpf" {
+			t.Errorf("field[0]: expected FormatType 'cpf', got %v", capturedFields[0].FormatType)
+		}
+		if capturedFields[1].FormatType != nil {
+			t.Errorf("field[1]: expected FormatType nil, got %v", capturedFields[1].FormatType)
+		}
+		if capturedFields[2].FormatType == nil || *capturedFields[2].FormatType != "phone" {
+			t.Errorf("field[2]: expected FormatType 'phone', got %v", capturedFields[2].FormatType)
+		}
+	})
+}
