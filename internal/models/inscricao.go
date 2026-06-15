@@ -106,14 +106,15 @@ func (e *EnrolledUnit) Scan(value interface{}) error {
 }
 
 type CustomField struct {
-	ID        uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	CursoID   int            `json:"curso_id" gorm:"column:curso_id;not null"`
-	Title     string         `json:"title" gorm:"type:varchar(20000);not null"`
-	FieldType string         `json:"field_type" gorm:"type:varchar(50);default:'text'"`
-	Required  bool           `json:"required" gorm:"default:false"`
-	Options   datatypes.JSON `json:"options,omitempty" gorm:"type:jsonb"`
-	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	ID         uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	CursoID    int            `json:"curso_id" gorm:"column:curso_id;not null"`
+	Title      string         `json:"title" gorm:"type:varchar(20000);not null"`
+	FieldType  string         `json:"field_type" gorm:"type:varchar(50);default:'text'"`
+	FormatType *string        `json:"format_type,omitempty" gorm:"type:varchar(50)"`
+	Required   bool           `json:"required" gorm:"default:false"`
+	Options    datatypes.JSON `json:"options,omitempty" gorm:"type:jsonb"`
+	CreatedAt  time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt  time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relacionamentos
 	Curso *Curso `json:"curso,omitempty" gorm:"foreignKey:CursoID"`

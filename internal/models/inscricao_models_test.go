@@ -158,6 +158,47 @@ func TestCustomField_TableName(t *testing.T) {
 	assert.Equal(t, "custom_fields", field.TableName())
 }
 
+func TestCustomField_FormatType_JSONSerialization(t *testing.T) {
+	t.Run("format_type present when set", func(t *testing.T) {
+		ft := "cpf"
+		field := CustomField{
+			ID:         uuid.New(),
+			Title:      "CPF",
+			FieldType:  "text",
+			FormatType: &ft,
+		}
+		data, err := json.Marshal(field)
+		require.NoError(t, err)
+
+		var out map[string]interface{}
+		require.NoError(t, json.Unmarshal(data, &out))
+		assert.Equal(t, "cpf", out["format_type"])
+	})
+
+	t.Run("format_type absent when nil (omitempty)", func(t *testing.T) {
+		field := CustomField{
+			ID:        uuid.New(),
+			Title:     "Nome",
+			FieldType: "text",
+		}
+		data, err := json.Marshal(field)
+		require.NoError(t, err)
+
+		var out map[string]interface{}
+		require.NoError(t, json.Unmarshal(data, &out))
+		_, exists := out["format_type"]
+		assert.False(t, exists, "format_type deve estar ausente no JSON quando nil")
+	})
+
+	t.Run("format_type deserialized from JSON", func(t *testing.T) {
+		raw := `{"title":"Telefone","field_type":"text","format_type":"phone"}`
+		var field CustomField
+		require.NoError(t, json.Unmarshal([]byte(raw), &field))
+		require.NotNil(t, field.FormatType)
+		assert.Equal(t, "phone", *field.FormatType)
+	})
+}
+
 func TestCourseSchedule_TableName(t *testing.T) {
 	schedule := &CourseSchedule{}
 	assert.Equal(t, "course_schedules", schedule.TableName())
