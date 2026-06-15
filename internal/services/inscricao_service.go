@@ -192,21 +192,13 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	return nil
 }
 
-// CreateByAdmin creates an enrollment bypassing course status validation.
+// CreateByAdmin creates an enrollment bypassing course status and date validation.
 // Used by internal flows (CSV import) where an admin is enrolling participants
-// in courses that may be closed. All other validations still apply.
+// in courses that may be closed or past their enrollment period.
 func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.Inscricao) error {
-	_, enrollmentStart, enrollmentEnd, autoApprove, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)
+	_, _, _, autoApprove, err := s.cursoRepo.ValidateForEnrollment(ctx, inscricao.CursoID)
 	if err != nil {
 		return err
-	}
-
-	now := time.Now()
-	if enrollmentStart != nil && now.Before(*enrollmentStart) {
-		return fmt.Errorf("período de inscrições ainda não iniciou")
-	}
-	if enrollmentEnd != nil && now.After(*enrollmentEnd) {
-		return fmt.Errorf("período de inscrições já encerrou")
 	}
 
 	exists, err := s.repo.ExistsByCPFAndCurso(ctx, inscricao.CPF, inscricao.CursoID)
