@@ -1471,33 +1471,49 @@ func TestInscricaoService_CreateByAdmin(t *testing.T) {
 		}
 	})
 
-	t.Run("CreateByAdmin fails when enrollment period not started", func(t *testing.T) {
+	t.Run("CreateByAdmin bypasses enrollment period not started", func(t *testing.T) {
 		future := time.Now().Add(24 * time.Hour)
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return nil
+			},
+		}
 		cursoRepo := &MockCursoRepository{
 			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
 				return string(models.StatusCursoClosed), &future, nil, false, nil
 			},
 		}
-		svc := services.NewInscricaoServiceWithInterface(&MockInscricaoRepository{}, cursoRepo, nil, nil, nil, &config.AppConfig{})
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
 
 		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1})
-		if err == nil {
-			t.Error("Expected error when enrollment period not started")
+		if err != nil {
+			t.Errorf("Expected no error when enrollment period not started (admin bypass), got: %v", err)
 		}
 	})
 
-	t.Run("CreateByAdmin fails when enrollment period ended", func(t *testing.T) {
+	t.Run("CreateByAdmin bypasses enrollment period ended", func(t *testing.T) {
 		past := time.Now().Add(-24 * time.Hour)
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				return nil
+			},
+		}
 		cursoRepo := &MockCursoRepository{
 			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
 				return string(models.StatusCursoClosed), nil, &past, false, nil
 			},
 		}
-		svc := services.NewInscricaoServiceWithInterface(&MockInscricaoRepository{}, cursoRepo, nil, nil, nil, &config.AppConfig{})
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
 
 		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1})
-		if err == nil {
-			t.Error("Expected error when enrollment period ended")
+		if err != nil {
+			t.Errorf("Expected no error when enrollment period ended (admin bypass), got: %v", err)
 		}
 	})
 
