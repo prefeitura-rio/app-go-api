@@ -253,7 +253,10 @@ func TestInscricaoHandler_Delete_InvalidEnrollmentID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	h := v1.NewInscricaoHandler(nil, nil, nil)
-	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", h.Delete)
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		h.Delete(c)
+	})
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/invalid", nil)
 	w := httptest.NewRecorder()
@@ -378,6 +381,7 @@ func TestInscricaoHandler_UpdateIndividualStatus_InvalidCourseID(t *testing.T) {
 // mockInscricaoService is a mock implementation of InscricaoServiceInterface for testing
 type mockInscricaoService struct {
 	createManualErr error
+	deleteErr       error
 }
 
 func (m *mockInscricaoService) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
@@ -406,7 +410,7 @@ func (m *mockInscricaoService) UpdateMultipleStatus(ctx context.Context, inscric
 func (m *mockInscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) {
 	return nil, nil
 }
-func (m *mockInscricaoService) Delete(ctx context.Context, id uuid.UUID) error { return nil }
+func (m *mockInscricaoService) Delete(ctx context.Context, id uuid.UUID) error { return m.deleteErr }
 func (m *mockInscricaoService) ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error) {
 	return nil, 0, nil
 }
@@ -504,5 +508,13 @@ type serviceError struct {
 }
 
 func (e *serviceError) Error() string {
+	return e.msg
+}
+
+type notFoundError struct {
+	msg string
+}
+
+func (e *notFoundError) Error() string {
 	return e.msg
 }

@@ -624,6 +624,57 @@ func TestInscricaoHandler_GetByID_NotFound(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
+// Test Delete - unauthorized (non-admin user)
+func TestInscricaoHandler_Delete_Unauthorized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+
+	enrollmentID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Acesso negado")
+}
+
+// Test Delete - admin user, internal service error
+func TestInscricaoHandler_Delete_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		handler.Delete(c)
+	})
+
+	enrollmentID := uuid.New()
+
+	mockService.On("Delete", mock.Anything, enrollmentID).
+		Return(errors.New("database error"))
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao excluir inscrição")
+	mockService.AssertExpectations(t)
+}
+
 // Test Delete with success
 func TestInscricaoHandler_Delete_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -634,7 +685,10 @@ func TestInscricaoHandler_Delete_Success(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
-	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		handler.Delete(c)
+	})
 
 	enrollmentID := uuid.New()
 
@@ -660,7 +714,10 @@ func TestInscricaoHandler_Delete_NotFound(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
-	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		handler.Delete(c)
+	})
 
 	enrollmentID := uuid.New()
 
