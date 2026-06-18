@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
 
@@ -31,28 +32,31 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empEmpresas.DELETE("/:cnpj", app.EmpEmpresaHandler.Delete)
 	}
 
+	vagaAuth := middlewares.VagaAuthorization()
+
 	// Vagas
 	empVagas := emp.Group("/vagas")
+	empVagas.Use()
 	{
-		empVagas.POST("", app.EmpVagaHandler.Create)
-		empVagas.POST("/draft", app.EmpVagaHandler.Create)
-		empVagas.GET("", app.EmpVagaHandler.List)
+		empVagas.POST("", vagaAuth, app.EmpVagaHandler.Create)
+		empVagas.POST("/draft", vagaAuth, app.EmpVagaHandler.Create)
+		empVagas.GET("", middlewares.VagaListFilter(), app.EmpVagaHandler.List)
 		empVagas.GET("/:id", app.EmpVagaHandler.GetByID)
-		empVagas.PUT("/:id", app.EmpVagaHandler.Update)
-		empVagas.DELETE("/:id", app.EmpVagaHandler.Delete)
-		empVagas.PUT("/:id/send-to-draft", app.EmpVagaHandler.SendToDraft)
-		empVagas.PUT("/:id/send-to-approval", app.EmpVagaHandler.SendToApproval)
-		empVagas.PUT("/:id/publish", app.EmpVagaHandler.Publish)
-		empVagas.PUT("/:id/freeze", app.EmpVagaHandler.Freeze)
-		empVagas.PUT("/:id/unfreeze", app.EmpVagaHandler.Unfreeze)
-		empVagas.PUT("/:id/discontinue", app.EmpVagaHandler.Discontinue)
-		empVagas.PUT("/:id/reactivate", app.EmpVagaHandler.Reactivate)
-		empVagas.PUT("/:id/tipos-pcd", app.EmpVagaHandler.UpdateTiposPCD)
-		empVagas.POST("/:id/etapas", app.EmpEtapaHandler.Create)
+		empVagas.PUT("/:id", vagaAuth, app.EmpVagaHandler.Update)
+		empVagas.DELETE("/:id", vagaAuth, app.EmpVagaHandler.Delete)
+		empVagas.PUT("/:id/send-to-draft", vagaAuth, app.EmpVagaHandler.SendToDraft)
+		empVagas.PUT("/:id/send-to-approval", vagaAuth, app.EmpVagaHandler.SendToApproval)
+		empVagas.PUT("/:id/publish", vagaAuth, app.EmpVagaHandler.Publish)
+		empVagas.PUT("/:id/freeze", vagaAuth, app.EmpVagaHandler.Freeze)
+		empVagas.PUT("/:id/unfreeze", vagaAuth, app.EmpVagaHandler.Unfreeze)
+		empVagas.PUT("/:id/discontinue", vagaAuth, app.EmpVagaHandler.Discontinue)
+		empVagas.PUT("/:id/reactivate", vagaAuth, app.EmpVagaHandler.Reactivate)
+		empVagas.PUT("/:id/tipos-pcd", vagaAuth, app.EmpVagaHandler.UpdateTiposPCD)
+		empVagas.POST("/:id/etapas", vagaAuth, app.EmpEtapaHandler.Create)
 		empVagas.GET("/:id/etapas", app.EmpEtapaHandler.ListByVaga)
 		empVagas.GET("/:id/etapas/:etapaId", app.EmpEtapaHandler.GetByID)
-		empVagas.PUT("/:id/etapas/:etapaId", app.EmpEtapaHandler.Update)
-		empVagas.DELETE("/:id/etapas/:etapaId", app.EmpEtapaHandler.Delete)
+		empVagas.PUT("/:id/etapas/:etapaId", vagaAuth, app.EmpEtapaHandler.Update)
+		empVagas.DELETE("/:id/etapas/:etapaId", vagaAuth, app.EmpEtapaHandler.Delete)
 	}
 
 	// Candidaturas

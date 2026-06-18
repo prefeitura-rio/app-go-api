@@ -1,7 +1,10 @@
 package router
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
 
@@ -14,7 +17,6 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	registerLookup(apiV1.Group("/escolaridades"), app.EscolaridadeHandler)
 	registerLookup(apiV1.Group("/instituicoes"), app.InstituicaoHandler)
 
-	// Typesense (optional - only when configured)
 	if app.TypesenseHandler != nil {
 		apiV1.POST("/typesense/multi-search", app.TypesenseHandler.SearchMultiCollection)
 		apiV1.POST("/typesense/cursos/search", app.TypesenseHandler.SearchCursos)
@@ -22,29 +24,45 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		apiV1.Group("/typesense/collections").POST("/:collection/documents/search", app.TypesenseHandler.SearchDocuments)
 	}
 
+	cursoLoader := func(ctx context.Context, id int) (orgaoID string, found bool, err error) {
+		curso, err := app.CursoService.GetByID(ctx, id)
+		if err != nil {
+			return "", false, err
+		}
+		if curso == nil {
+			return "", false, nil
+		}
+		return curso.OrgaoID, true, nil
+	}
+
+	ownershipCheck := middlewares.CourseOwnershipCheck(cursoLoader)
+
+	courseAuth := middlewares.CourseAuthorization()
+
 	courses := apiV1.Group("/courses")
+	courses.Use()
 	{
-		courses.POST("", app.CourseHandler.Create)
-		courses.POST("/draft", app.CourseHandler.CreateDraft)
-		courses.PUT("/:courseId", app.CourseHandler.Update)
-		courses.GET("", app.CourseHandler.List)
-		courses.GET("/drafts", app.CourseHandler.ListDrafts)
+		courses.POST("", courseAuth, middlewares.CourseOrgaoInjector(), app.CourseHandler.Create)
+		courses.POST("/draft", courseAuth, middlewares.CourseOrgaoInjector(), app.CourseHandler.CreateDraft)
+		courses.GET("", middlewares.CourseListFilter(), app.CourseHandler.List)
+		courses.GET("/drafts", middlewares.CourseListFilter(), app.CourseHandler.ListDrafts)
 		courses.GET("/:courseId", app.CourseHandler.GetByID)
-		courses.DELETE("/:courseId", app.CourseHandler.Delete)
-		courses.PUT("/:courseId/send-to-review", app.CourseHandler.SendToReview)
-		courses.PUT("/:courseId/approve", app.CourseHandler.Approve)
-		courses.PUT("/:courseId/request-changes", app.CourseHandler.RequestChanges)
-		courses.PUT("/:courseId/request-deletion", app.CourseHandler.RequestDeletion)
-		courses.POST("/:courseId/enrollments", app.InscricaoHandler.Create)
-		courses.POST("/:courseId/enrollments/manual", app.InscricaoHandler.CreateManual)
-		courses.POST("/:courseId/enrollments/import", app.InscricaoHandler.Import)
-		courses.GET("/:courseId/enrollments", app.InscricaoHandler.List)
-		courses.PUT("/:courseId/enrollments/status", app.InscricaoHandler.UpdateStatus)
-		courses.PUT("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.Update)
-		courses.PUT("/:courseId/enrollments/:enrollmentId/status", app.InscricaoHandler.UpdateIndividualStatus)
-		courses.GET("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.GetByID)
-		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", app.InscricaoHandler.UpdateCertificate)
-		courses.DELETE("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.Delete)
+		courses.DELETE("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.Delete)
+		courses.PUT("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.Update)
+		courses.PUT("/:courseId/send-to-review", courseAuth, ownershipCheck, app.CourseHandler.SendToReview)
+		courses.PUT("/:courseId/approve", courseAuth, ownershipCheck, app.CourseHandler.Approve)
+		courses.PUT("/:courseId/request-changes", courseAuth, ownershipCheck, app.CourseHandler.RequestChanges)
+		courses.PUT("/:courseId/request-deletion", courseAuth, ownershipCheck, app.CourseHandler.RequestDeletion)
+		courses.POST("/:courseId/enrollments", courseAuth, ownershipCheck, app.InscricaoHandler.Create)
+		courses.POST("/:courseId/enrollments/manual", courseAuth, ownershipCheck, app.InscricaoHandler.CreateManual)
+		courses.POST("/:courseId/enrollments/import", courseAuth, ownershipCheck, app.InscricaoHandler.Import)
+		courses.GET("/:courseId/enrollments", ownershipCheck, app.InscricaoHandler.List)
+		courses.PUT("/:courseId/enrollments/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateStatus)
+		courses.PUT("/:courseId/enrollments/:enrollmentId", courseAuth, ownershipCheck, app.InscricaoHandler.Update)
+		courses.PUT("/:courseId/enrollments/:enrollmentId/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateIndividualStatus)
+		courses.GET("/:courseId/enrollments/:enrollmentId", ownershipCheck, app.InscricaoHandler.GetByID)
+		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateCertificate)
+		courses.DELETE("/:courseId/enrollments/:enrollmentId", courseAuth, ownershipCheck, app.InscricaoHandler.Delete)
 	}
 
 	apiV1.Group("/jobs").GET("/:jobId/status", app.JobHandler.GetStatus)

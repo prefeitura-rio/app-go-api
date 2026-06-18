@@ -24,6 +24,135 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/public/courses": {
+            "get": {
+                "description": "Retorna lista paginada de cursos. Sem status: exclui rascunhos. Com status: filtra pelos status informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "Listar cursos criados",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status (CSV, ex: draft,published,in_review)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por modalidade",
+                        "name": "modalidade",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por organização (provedor do curso)",
+                        "name": "organization",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Buscar no título",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por categoria",
+                        "name": "categoria_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por acessibilidade",
+                        "name": "acessibilidade_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por zona do bairro",
+                        "name": "neighborhood_zone",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/courses/{courseId}": {
+            "get": {
+                "description": "Retorna dados completos de um curso específico",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "Buscar curso específico",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do curso",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/public/empregabilidade/vagas": {
             "get": {
                 "description": "Retorna lista paginada de vagas publicadas. Sem filtro retorna todos os status públicos (publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada). Use ?status= para filtrar por um status específico.",
@@ -61,31 +190,31 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "UUID do regime de contratação",
+                        "description": "UUID(s) do regime de contratação (CSV, ex: uuid1,uuid2)",
                         "name": "id_regime_contratacao",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "UUID do modelo de trabalho",
+                        "description": "UUID(s) do modelo de trabalho (CSV, ex: uuid1,uuid2)",
                         "name": "id_modelo_trabalho",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Nome ou CNPJ do contratante",
+                        "description": "Nome(s) ou CNPJ(s) do contratante (CSV, ex: TechRio,12345678000100)",
                         "name": "contratante",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Acessibilidade PCD (para_pcd, preferencial_pcd, exclusivo_pcd)",
+                        "description": "Acessibilidade PCD (CSV, ex: para_pcd,exclusivo_pcd)",
                         "name": "acessibilidade_pcd",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Bairro (busca parcial)",
+                        "description": "Bairro(s) — busca parcial (CSV, ex: Centro,Tijuca)",
                         "name": "bairro",
                         "in": "query"
                     }
@@ -226,6 +355,64 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/oportunidades-mei/{id}": {
+            "get": {
+                "description": "Retorna uma lista paginada de oportunidades MEI ativas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oportunidades-mei"
+                ],
+                "summary": "Listar oportunidades MEI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10, max: 1000)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por órgão",
+                        "name": "orgaoId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status (draft, active, expired)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Buscar por título (case-insensitive)",
+                        "name": "titulo",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -7351,7 +7538,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Tamanho da página (default: 10)",
+                        "description": "Tamanho da página (default: 10, máx: 100)",
                         "name": "pageSize",
                         "in": "query"
                     },
@@ -7369,7 +7556,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filtrar por ID do órgão parceiro",
+                        "description": "Filtrar por ID do órgão parceiro (ignorado se middleware já restringiu)",
                         "name": "orgao_parceiro_id",
                         "in": "query"
                     },
@@ -7377,6 +7564,36 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Busca parcial no título da vaga",
                         "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por data de publicação (hoje, ultima_semana, ultimo_mes)",
+                        "name": "data_publicacao",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID(s) do regime de contratação (CSV, ex: uuid1,uuid2)",
+                        "name": "id_regime_contratacao",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID(s) do modelo de trabalho (CSV, ex: uuid1,uuid2)",
+                        "name": "id_modelo_trabalho",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Acessibilidade PCD (CSV, ex: para_pcd,exclusivo_pcd)",
+                        "name": "acessibilidade_pcd",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bairro(s) — busca parcial (CSV, ex: Centro,Tijuca)",
+                        "name": "bairro",
                         "in": "query"
                     }
                 ],
@@ -7386,6 +7603,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -12130,6 +12356,9 @@ const docTemplate = `{
         "models.OrgaoSnapshot": {
             "type": "object",
             "properties": {
+                "cd_ua": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },

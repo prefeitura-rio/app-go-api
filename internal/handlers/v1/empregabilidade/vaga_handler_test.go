@@ -1595,3 +1595,141 @@ func TestVagaHandler_PublicList_MultipleFilters_Combined(t *testing.T) {
 		t.Errorf("expected 200 for combined multi-select filters, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestVagaHandler_List_NewFilters_DataPublicacao(t *testing.T) {
+	tests := []struct {
+		name           string
+		dataPublicacao string
+		wantStatus     int
+	}{
+		{"hoje", "hoje", http.StatusOK},
+		{"ultima_semana", "ultima_semana", http.StatusOK},
+		{"ultimo_mes", "ultimo_mes", http.StatusOK},
+		{"invalid", "ontem", http.StatusBadRequest},
+		{"empty", "", http.StatusOK},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+			r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+			url := "/vagas"
+			if tt.dataPublicacao != "" {
+				url += "?data_publicacao=" + tt.dataPublicacao
+			}
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			if w.Code != tt.wantStatus {
+				t.Errorf("expected %d, got %d: %s", tt.wantStatus, w.Code, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestVagaHandler_List_NewFilters_AcessibilidadePCD(t *testing.T) {
+	tests := []struct {
+		name       string
+		param      string
+		wantStatus int
+	}{
+		{"para_pcd", "para_pcd", http.StatusOK},
+		{"exclusivo_pcd", "exclusivo_pcd", http.StatusOK},
+		{"preferencial_pcd", "preferencial_pcd", http.StatusOK},
+		{"multiple valid", "para_pcd,exclusivo_pcd", http.StatusOK},
+		{"invalid value", "invalido", http.StatusBadRequest},
+		{"mixed valid and invalid", "para_pcd,invalido", http.StatusBadRequest},
+		{"empty", "", http.StatusOK},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+			r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+			url := "/vagas"
+			if tt.param != "" {
+				url += "?acessibilidade_pcd=" + tt.param
+			}
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			if w.Code != tt.wantStatus {
+				t.Errorf("expected %d, got %d: %s", tt.wantStatus, w.Code, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestVagaHandler_List_NewFilters_CSVParams(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet,
+		"/vagas?id_regime_contratacao="+validUUID+"&id_modelo_trabalho="+validUUID+"&bairro=Centro,Tijuca", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for CSV filters, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_List_PageSizeCappedAt100(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/vagas?pageSize=500", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_List_MiddlewareOrgaoParceiroID_SingleID(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("vaga_orgao_parceiro_ids", []string{"orgao-42"})
+		c.Next()
+	})
+	candidaturaRepo := &mockCandidaturaRepoForVaga{}
+	svc := services.NewVagaServiceWithInterfaces(vagaRepo, &mockEmpresaRepoForVaga{}, candidaturaRepo)
+	h := handlers.NewVagaHandler(svc)
+	r.GET("/vagas", h.List)
+
+	req := httptest.NewRequest(http.MethodGet, "/vagas", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_List_MiddlewareOrgaoParceiroIDs_MultipleIDs(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("vaga_orgao_parceiro_ids", []string{"orgao-1", "orgao-2", "orgao-3"})
+		c.Next()
+	})
+	candidaturaRepo := &mockCandidaturaRepoForVaga{}
+	svc := services.NewVagaServiceWithInterfaces(vagaRepo, &mockEmpresaRepoForVaga{}, candidaturaRepo)
+	h := handlers.NewVagaHandler(svc)
+	r.GET("/vagas", h.List)
+
+	req := httptest.NewRequest(http.MethodGet, "/vagas", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_List_OrgaoParceiroID_FallsBackToQueryParam(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{listItems: []*empmodels.Vaga{}, listTotal: 0}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
+	req := httptest.NewRequest(http.MethodGet, "/vagas?orgao_parceiro_id=orgao-99", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}

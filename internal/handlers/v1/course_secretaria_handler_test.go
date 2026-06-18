@@ -2,6 +2,7 @@ package v1_test
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +15,9 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// setupCourseRouterWithSecretaria builds a gin router with user context middleware injected.
+// setupCourseRouterWithSecretaria builds a gin router that mirrors the real middleware chain:
+// CourseAuthorization + CourseListFilter on all routes, CourseOrgaoInjector on POST routes,
+// and CourseOwnershipCheck (backed by svc.GetByID) on mutation routes.
 // role: "ADMIN" or "USER"; secretariaIDs: nil means middleware never ran, []string{} means ran but empty.
 func setupCourseRouterWithSecretaria(svc *MockCursoService, role string, secretariaIDs []string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
@@ -28,13 +31,26 @@ func setupCourseRouterWithSecretaria(svc *MockCursoService, role string, secreta
 		}
 		c.Next()
 	})
+
+	cursoLoader := func(ctx context.Context, id int) (orgaoID string, found bool, err error) {
+		curso, err := svc.GetByID(ctx, id)
+		if err != nil {
+			return "", false, err
+		}
+		if curso == nil {
+			return "", false, nil
+		}
+		return curso.OrgaoID, true, nil
+	}
+	ownershipCheck := middlewares.CourseOwnershipCheck(cursoLoader)
+
 	h := v1.NewCourseHandler(svc, nil, nil)
-	r.POST("/api/v1/courses", h.Create)
-	r.POST("/api/v1/courses/draft", h.CreateDraft)
-	r.GET("/api/v1/courses", h.List)
+	r.POST("/api/v1/courses", middlewares.CourseOrgaoInjector(), h.Create)
+	r.POST("/api/v1/courses/draft", middlewares.CourseOrgaoInjector(), h.CreateDraft)
+	r.GET("/api/v1/courses", middlewares.CourseListFilter(), h.List)
 	r.GET("/api/v1/courses/:courseId", h.GetByID)
-	r.PUT("/api/v1/courses/:courseId", h.Update)
-	r.DELETE("/api/v1/courses/:courseId", h.Delete)
+	r.PUT("/api/v1/courses/:courseId", ownershipCheck, h.Update)
+	r.DELETE("/api/v1/courses/:courseId", ownershipCheck, h.Delete)
 	return r
 }
 

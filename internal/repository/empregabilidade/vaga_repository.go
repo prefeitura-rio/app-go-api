@@ -181,16 +181,6 @@ func (r *VagaRepository) List(ctx context.Context, filter empregabilidade.VagaFi
 	var total int64
 
 	applyFilters := func(db *gorm.DB) *gorm.DB {
-		if filter.Contratante != "" {
-			db = db.Where("id_contratante = ?", filter.Contratante)
-		}
-		if filter.OrgaoParceiroID != "" {
-			db = db.Where("id_orgao_parceiro = ?", filter.OrgaoParceiroID)
-		}
-		if filter.Search != "" {
-			searchTerm := fmt.Sprintf("%%%s%%", filter.Search)
-			db = db.Where("titulo ILIKE ?", searchTerm)
-		}
 		if filter.Status != "" {
 			switch filter.Status {
 			case string(empregabilidade.StatusVagaPublicadoAtivo):
@@ -200,6 +190,52 @@ func (r *VagaRepository) List(ctx context.Context, filter empregabilidade.VagaFi
 			default:
 				db = db.Where("status = ?", filter.Status)
 			}
+		}
+		if filter.Contratante != "" {
+			db = db.Where("id_contratante = ?", filter.Contratante)
+		}
+		switch {
+		case len(filter.OrgaoParceiroIDs) == 1:
+			db = db.Where("id_orgao_parceiro = ?", filter.OrgaoParceiroIDs[0])
+		case len(filter.OrgaoParceiroIDs) > 1:
+			db = db.Where("id_orgao_parceiro IN ?", filter.OrgaoParceiroIDs)
+		case filter.OrgaoParceiroID != "":
+			db = db.Where("id_orgao_parceiro = ?", filter.OrgaoParceiroID)
+		}
+		if filter.Search != "" {
+			db = db.Where("titulo ILIKE ?", fmt.Sprintf("%%%s%%", filter.Search))
+		}
+		switch filter.DataPublicacao {
+		case empregabilidade.DataPublicacaoHoje:
+			db = db.Where("created_at >= ?", time.Now().Truncate(24*time.Hour))
+		case empregabilidade.DataPublicacaoUltimaSemana:
+			db = db.Where("created_at >= ?", time.Now().AddDate(0, 0, -7))
+		case empregabilidade.DataPublicacaoUltimoMes:
+			db = db.Where("created_at >= ?", time.Now().AddDate(0, 0, -30))
+		}
+		if len(filter.IDRegimeContratacao) == 1 {
+			db = db.Where("id_regime_contratacao = ?", filter.IDRegimeContratacao[0])
+		} else if len(filter.IDRegimeContratacao) > 1 {
+			db = db.Where("id_regime_contratacao IN ?", filter.IDRegimeContratacao)
+		}
+		if len(filter.IDModeloTrabalho) == 1 {
+			db = db.Where("id_modelo_trabalho = ?", filter.IDModeloTrabalho[0])
+		} else if len(filter.IDModeloTrabalho) > 1 {
+			db = db.Where("id_modelo_trabalho IN ?", filter.IDModeloTrabalho)
+		}
+		if len(filter.AcessibilidadePCD) == 1 {
+			db = db.Where("acessibilidade_pcd = ?", filter.AcessibilidadePCD[0])
+		} else if len(filter.AcessibilidadePCD) > 1 {
+			db = db.Where("acessibilidade_pcd IN ?", filter.AcessibilidadePCD)
+		}
+		if len(filter.Bairro) > 0 {
+			conditions := make([]string, len(filter.Bairro))
+			args := make([]interface{}, len(filter.Bairro))
+			for i, b := range filter.Bairro {
+				conditions[i] = "bairro ILIKE ?"
+				args[i] = "%" + b + "%"
+			}
+			db = db.Where(strings.Join(conditions, " OR "), args...)
 		}
 		return db
 	}

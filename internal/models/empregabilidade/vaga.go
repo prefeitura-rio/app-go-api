@@ -92,10 +92,16 @@ func (v *Vaga) AfterFind(_ *gorm.DB) error {
 }
 
 type VagaFilter struct {
-	Status          string
-	Contratante     string
-	OrgaoParceiroID string
-	Search          string // ILIKE em titulo
+	Status              string
+	Contratante         string
+	OrgaoParceiroID     string
+	OrgaoParceiroIDs    []string
+	Search              string
+	IDRegimeContratacao []string
+	IDModeloTrabalho    []string
+	AcessibilidadePCD   []string
+	Bairro              []string
+	DataPublicacao      DataPublicacaoRange
 }
 
 type DataPublicacaoRange string
