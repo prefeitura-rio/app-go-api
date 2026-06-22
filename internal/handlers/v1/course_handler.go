@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -720,6 +721,8 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		})
 		return
 	}
+
+	maps.Copy(filter, middlewares.GetCourseFilters(c))
 
 	if organization := c.Query("organization"); organization != "" {
 		filter["organization"] = organization

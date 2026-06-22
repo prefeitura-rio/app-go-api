@@ -307,8 +307,8 @@ func ExtractSecretariaOrgaoIDs(resolver SecretariaOrgaoResolver) gin.HandlerFunc
 
 		orgaoIDs, err := resolver(c.Request.Context(), cpf)
 		if err != nil {
-			// fail-closed: error resolving secretaria → user sees nothing
-			orgaoIDs = []string{}
+			c.Next()
+			return
 		}
 
 		c.Set(UserSecretariaOrgaoIDsKey, orgaoIDs)
