@@ -1264,6 +1264,8 @@ definitions:
     type: object
   models.OrgaoSnapshot:
     properties:
+      cd_ua:
+        type: string
       created_at:
         type: string
       id:
@@ -1567,6 +1569,93 @@ info:
   title: API Go
   version: "1.0"
 paths:
+  /api/public/courses:
+    get:
+      description: 'Retorna lista paginada de cursos. Sem status: exclui rascunhos.
+        Com status: filtra pelos status informados (CSV). Derived statuses (scheduled,
+        accepting_enrollments, in_progress, finished) são mapeados para published.'
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Filtrar por status (CSV, ex: draft,published,in_review)'
+        in: query
+        name: status
+        type: string
+      - description: Filtrar por modalidade
+        in: query
+        name: modalidade
+        type: string
+      - description: Filtrar por organização (provedor do curso)
+        in: query
+        name: organization
+        type: string
+      - description: Buscar no título
+        in: query
+        name: search
+        type: string
+      - description: Filtrar por categoria
+        in: query
+        name: categoria_id
+        type: integer
+      - description: Filtrar por acessibilidade
+        in: query
+        name: acessibilidade_id
+        type: integer
+      - description: Filtrar por zona do bairro
+        in: query
+        name: neighborhood_zone
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar cursos criados
+      tags:
+      - courses
+  /api/public/courses/{courseId}:
+    get:
+      description: Retorna dados completos de um curso específico
+      parameters:
+      - description: ID do curso
+        in: path
+        name: courseId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Curso'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Buscar curso específico
+      tags:
+      - courses
   /api/public/empregabilidade/vagas:
     get:
       description: Retorna lista paginada de vagas publicadas. Sem filtro retorna
@@ -1590,23 +1679,23 @@ paths:
         in: query
         name: data_publicacao
         type: string
-      - description: UUID do regime de contratação
+      - description: 'UUID(s) do regime de contratação (CSV, ex: uuid1,uuid2)'
         in: query
         name: id_regime_contratacao
         type: string
-      - description: UUID do modelo de trabalho
+      - description: 'UUID(s) do modelo de trabalho (CSV, ex: uuid1,uuid2)'
         in: query
         name: id_modelo_trabalho
         type: string
-      - description: Nome ou CNPJ do contratante
+      - description: 'Nome(s) ou CNPJ(s) do contratante (CSV, ex: TechRio,12345678000100)'
         in: query
         name: contratante
         type: string
-      - description: Acessibilidade PCD (para_pcd, preferencial_pcd, exclusivo_pcd)
+      - description: 'Acessibilidade PCD (CSV, ex: para_pcd,exclusivo_pcd)'
         in: query
         name: acessibilidade_pcd
         type: string
-      - description: Bairro (busca parcial)
+      - description: 'Bairro(s) — busca parcial (CSV, ex: Centro,Tijuca)'
         in: query
         name: bairro
         type: string
@@ -1710,6 +1799,75 @@ paths:
       summary: Buscar vaga pública por slug
       tags:
       - empregabilidade-vagas-public
+  /api/public/oportunidades-mei:
+    get:
+      description: Retorna uma lista paginada de oportunidades MEI ativas
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10, max: 1000)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filtrar por órgão
+        in: query
+        name: orgaoId
+        type: string
+      - description: Filtrar por status (draft, active, expired)
+        in: query
+        name: status
+        type: string
+      - description: Buscar por título (case-insensitive)
+        in: query
+        name: titulo
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar oportunidades MEI
+      tags:
+      - oportunidades-mei
+  /api/public/oportunidades-mei/{id}:
+    get:
+      description: Retorna uma oportunidade MEI pelo seu ID
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OportunidadeMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter oportunidade MEI por ID
+      tags:
+      - oportunidades-mei
   /api/v1/acessibilidades:
     get:
       description: Retorna lista paginada de opções de acessibilidade
@@ -6449,7 +6607,7 @@ paths:
         in: query
         name: page
         type: integer
-      - description: 'Tamanho da página (default: 10)'
+      - description: 'Tamanho da página (default: 10, máx: 100)'
         in: query
         name: pageSize
         type: integer
@@ -6462,13 +6620,33 @@ paths:
         in: query
         name: contratante
         type: string
-      - description: Filtrar por ID do órgão parceiro
+      - description: Filtrar por ID do órgão parceiro (ignorado se middleware já restringiu)
         in: query
         name: orgao_parceiro_id
         type: string
       - description: Busca parcial no título da vaga
         in: query
         name: search
+        type: string
+      - description: Filtrar por data de publicação (hoje, ultima_semana, ultimo_mes)
+        in: query
+        name: data_publicacao
+        type: string
+      - description: 'UUID(s) do regime de contratação (CSV, ex: uuid1,uuid2)'
+        in: query
+        name: id_regime_contratacao
+        type: string
+      - description: 'UUID(s) do modelo de trabalho (CSV, ex: uuid1,uuid2)'
+        in: query
+        name: id_modelo_trabalho
+        type: string
+      - description: 'Acessibilidade PCD (CSV, ex: para_pcd,exclusivo_pcd)'
+        in: query
+        name: acessibilidade_pcd
+        type: string
+      - description: 'Bairro(s) — busca parcial (CSV, ex: Centro,Tijuca)'
+        in: query
+        name: bairro
         type: string
       produces:
       - application/json
@@ -6477,6 +6655,12 @@ paths:
           description: OK
           schema:
             additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
             type: object
         "500":
           description: Internal Server Error

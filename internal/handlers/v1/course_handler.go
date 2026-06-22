@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -227,6 +228,15 @@ func (h *CourseHandler) calculateRemainingVacanciesForCourses(c *gin.Context, cu
 	return nil
 }
 
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
 // @Summary      Criar curso
 // @Description  Cria um novo curso no sistema (status: "opened")
 // @Tags         courses
@@ -247,19 +257,11 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	// Set status to opened for published course
 	curso.Status = models.StatusCursoOpened
 
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
-			if len(secretariaIDs) == 0 {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: nenhuma secretaria associada"})
-				return
-			}
-			curso.OrgaoID = secretariaIDs[0]
-		} else if middlewares.HasRole(c, "go:cursos:editor") {
-			if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
-				curso.OrgaoID = orgaoID
-			}
-		}
+	allowedOrgaos := middlewares.GetUserAllowedOrgaos(c)
+	// Se allowedOrgaos for nil, significa que é admin/casa_civil – permite qualquer um
+	if allowedOrgaos != nil && !contains(allowedOrgaos, curso.OrgaoID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Você não tem permissão para criar cursos neste órgão"})
+		return
 	}
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
@@ -320,19 +322,11 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 	// Set status to draft
 	curso.Status = models.StatusCursoDraft
 
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
-			if len(secretariaIDs) == 0 {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: nenhuma secretaria associada"})
-				return
-			}
-			curso.OrgaoID = secretariaIDs[0]
-		} else if middlewares.HasRole(c, "go:cursos:editor") {
-			if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
-				curso.OrgaoID = orgaoID
-			}
-		}
+	allowedOrgaos := middlewares.GetUserAllowedOrgaos(c)
+	// Se allowedOrgaos for nil, significa que é admin/casa_civil – permite qualquer um
+	if allowedOrgaos != nil && !contains(allowedOrgaos, curso.OrgaoID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Você não tem permissão para criar cursos neste órgão"})
+		return
 	}
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
@@ -355,7 +349,6 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 
 	curso.ID = id
 
-	// Invalidate course list cache after create (if caching is enabled)
 	if h.courseCache != nil {
 		_ = h.courseCache.InvalidateAll(c.Request.Context())
 	}
@@ -392,7 +385,6 @@ func (h *CourseHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Check if course exists
 	existingCurso, err := h.cursoService.GetByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso: " + err.Error()})
@@ -401,24 +393,6 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	if existingCurso == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
 		return
-	}
-
-	// Secretaria ownership check: non-admins can only edit courses from their secretaria.
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
-			allowed := false
-			for _, sid := range secretariaIDs {
-				if existingCurso.OrgaoID == sid {
-					allowed = true
-					break
-				}
-			}
-			if !allowed {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
-				return
-			}
-		}
 	}
 
 	var curso models.Curso
@@ -554,6 +528,26 @@ func parseStatusFilter(param string) []string {
 // @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
 // @Success      200               {object}  object
 // @Failure      500               {object}  models.ErrorResponse
+// @Router       /api/public/courses [get]
+func (h *CourseHandler) ListPublic(c *gin.Context) {
+	h.List(c)
+}
+
+// @Summary      Listar cursos criados
+// @Description  Retorna lista paginada de cursos. Sem status: exclui rascunhos. Com status: filtra pelos status informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.
+// @Tags         courses
+// @Produce      json
+// @Param        page              query     int     false  "Número da página (default: 1)"
+// @Param        limit             query     int     false  "Tamanho da página (default: 10)"
+// @Param        status            query     string  false  "Filtrar por status (CSV, ex: draft,published,in_review)"
+// @Param        modalidade        query     string  false  "Filtrar por modalidade"
+// @Param        organization      query     string  false  "Filtrar por organização (provedor do curso)"
+// @Param        search            query     string  false  "Buscar no título"
+// @Param        categoria_id      query     int     false  "Filtrar por categoria"
+// @Param        acessibilidade_id query     int     false  "Filtrar por acessibilidade"
+// @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
+// @Success      200               {object}  object
+// @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/v1/courses [get]
 func (h *CourseHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -569,6 +563,26 @@ func (h *CourseHandler) List(c *gin.Context) {
 
 	filter := map[string]interface{}{}
 
+	for k, v := range middlewares.GetCourseFilters(c) {
+		filter[k] = v
+	}
+
+	if _, noResults := filter["_no_results"]; noResults {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"courses": []interface{}{},
+				"pagination": gin.H{
+					"page":        page,
+					"limit":       limit,
+					"total":       0,
+					"total_pages": 0,
+				},
+			},
+		})
+		return
+	}
+
 	if statusParam := c.Query("status"); statusParam != "" {
 		if statuses := parseStatusFilter(statusParam); len(statuses) > 0 {
 			filter["status IN"] = statuses
@@ -577,19 +591,6 @@ func (h *CourseHandler) List(c *gin.Context) {
 		}
 	} else {
 		filter["status NOT"] = models.StatusCursoDraft
-	}
-
-	// Secretaria-level filter: restrict to the user's allowed orgaos.
-	// Secretaria mapping (CPF-Secretaria) takes precedence over single-orgao Keycloak group.
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
-			filter["orgao_id IN"] = secretariaIDs
-		} else if middlewares.HasRole(c, "go:cursos:editor") {
-			if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
-				filter["orgao_id"] = orgaoID
-			}
-		}
 	}
 
 	if modalidade := c.Query("modalidade"); modalidade != "" {
@@ -702,22 +703,26 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		limit = 10
 	}
 
-	// Build filters - only drafts
 	filter := map[string]interface{}{
 		"status": models.StatusCursoDraft,
 	}
 
-	// Secretaria-level filter: restrict to the user's allowed orgaos.
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
-			filter["orgao_id IN"] = secretariaIDs
-		} else if middlewares.HasRole(c, "go:cursos:editor") {
-			if orgaoID := middlewares.GetUserOrgaoID(c); orgaoID != "" {
-				filter["orgao_id"] = orgaoID
-			}
-		}
+	for k, v := range middlewares.GetCourseFilters(c) {
+		filter[k] = v
 	}
+
+	if _, noResults := filter["_no_results"]; noResults {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"courses":    []interface{}{},
+				"pagination": gin.H{"page": page, "limit": limit, "total": 0, "total_pages": 0},
+			},
+		})
+		return
+	}
+
+	maps.Copy(filter, middlewares.GetCourseFilters(c))
 
 	if organization := c.Query("organization"); organization != "" {
 		filter["organization"] = organization
@@ -811,6 +816,20 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      404      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
+// @Router       /api/public/courses/{courseId} [get]
+func (h *CourseHandler) GetByIDPublic(c *gin.Context) {
+	h.GetByID(c)
+}
+
+// @Summary      Buscar curso específico
+// @Description  Retorna dados completos de um curso específico
+// @Tags         courses
+// @Produce      json
+// @Param        courseId path      int  true  "ID do curso"
+// @Success      200      {object}  models.Curso
+// @Failure      400      {object}  models.ErrorResponse
+// @Failure      404      {object}  models.ErrorResponse
+// @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId} [get]
 func (h *CourseHandler) GetByID(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("courseId"))
@@ -857,35 +876,6 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
 		return
-	}
-
-	// Check if course exists
-	curso, err := h.cursoService.GetByID(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso: " + err.Error()})
-		return
-	}
-	if curso == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
-		return
-	}
-
-	// Secretaria ownership check.
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
-			allowed := false
-			for _, sid := range secretariaIDs {
-				if curso.OrgaoID == sid {
-					allowed = true
-					break
-				}
-			}
-			if !allowed {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
-				return
-			}
-		}
 	}
 
 	if err := h.cursoService.Delete(c.Request.Context(), id); err != nil {

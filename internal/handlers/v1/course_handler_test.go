@@ -944,12 +944,6 @@ func TestCourseHandler_Delete_Success(t *testing.T) {
 	r := gin.New()
 	r.DELETE("/api/v1/courses/:courseId", handler.Delete)
 
-	curso := &models.Curso{
-		ID:     1,
-		Titulo: "Test Course",
-	}
-
-	mockService.On("GetByID", mock.Anything, 1).Return(curso, nil)
 	mockService.On("Delete", mock.Anything, 1).Return(nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1", nil)
@@ -968,7 +962,8 @@ func TestCourseHandler_Delete_Success(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// Test Delete - Not Found
+// Test Delete - Service Error (not-found via service is now middleware responsibility;
+// this test covers the handler's own error path: service.Delete returns an error).
 func TestCourseHandler_Delete_NotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockCursoService)
@@ -980,15 +975,14 @@ func TestCourseHandler_Delete_NotFound(t *testing.T) {
 	r := gin.New()
 	r.DELETE("/api/v1/courses/:courseId", handler.Delete)
 
-	mockService.On("GetByID", mock.Anything, 999).Return(nil, nil)
+	mockService.On("Delete", mock.Anything, 999).Return(errors.New("record not found"))
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/999", nil)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusNotFound, w.Code)
-	assert.Contains(t, w.Body.String(), "Curso não encontrado")
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 
 	mockService.AssertExpectations(t)
 }
@@ -1005,9 +999,6 @@ func TestCourseHandler_Delete_ServiceError(t *testing.T) {
 	r := gin.New()
 	r.DELETE("/api/v1/courses/:courseId", handler.Delete)
 
-	curso := &models.Curso{ID: 1}
-
-	mockService.On("GetByID", mock.Anything, 1).Return(curso, nil)
 	mockService.On("Delete", mock.Anything, 1).Return(errors.New("delete error"))
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1", nil)
@@ -1705,7 +1696,7 @@ func TestCourseHandler_Update_ValidationError(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// Test Delete with GetByID error
+// Test Delete with Delete service error
 func TestCourseHandler_Delete_GetByIDError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockCursoService)
@@ -1717,7 +1708,7 @@ func TestCourseHandler_Delete_GetByIDError(t *testing.T) {
 	r := gin.New()
 	r.DELETE("/api/v1/courses/:courseId", handler.Delete)
 
-	mockService.On("GetByID", mock.Anything, 1).Return(nil, errors.New("database error"))
+	mockService.On("Delete", mock.Anything, 1).Return(errors.New("database error"))
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1", nil)
 	w := httptest.NewRecorder()
@@ -1725,7 +1716,7 @@ func TestCourseHandler_Delete_GetByIDError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar curso")
+	assert.Contains(t, w.Body.String(), "Erro ao excluir curso")
 
 	mockService.AssertExpectations(t)
 }

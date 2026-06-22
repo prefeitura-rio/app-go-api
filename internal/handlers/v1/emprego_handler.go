@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -42,8 +43,9 @@ func (h *EmpregoHandler) Create(c *gin.Context) {
 
 	// Force orgao_id to the user's secretaria when applicable.
 	if !middlewares.IsAdmin(c) {
+		cpf := middlewares.GetUserCPF(c)
 		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
+		if cpf != "" && secretariaIDs != nil {
 			if len(secretariaIDs) == 0 {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: nenhuma secretaria associada"})
 				return
@@ -124,8 +126,9 @@ func (h *EmpregoHandler) Update(c *gin.Context) {
 
 	// Secretaria ownership check before updating.
 	if !middlewares.IsAdmin(c) {
+		cpf := middlewares.GetUserCPF(c)
 		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
+		if cpf != "" && secretariaIDs != nil {
 			existing, err := h.service.GetByID(c.Request.Context(), id)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar emprego: " + err.Error()})
@@ -135,13 +138,7 @@ func (h *EmpregoHandler) Update(c *gin.Context) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Emprego não encontrado"})
 				return
 			}
-			allowed := false
-			for _, sid := range secretariaIDs {
-				if existing.OrgaoID == sid {
-					allowed = true
-					break
-				}
-			}
+			allowed := slices.Contains(secretariaIDs, existing.OrgaoID)
 			if !allowed {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: emprego não pertence à sua secretaria"})
 				return
@@ -204,15 +201,10 @@ func (h *EmpregoHandler) Delete(c *gin.Context) {
 
 	// Secretaria ownership check.
 	if !middlewares.IsAdmin(c) {
+		cpf := middlewares.GetUserCPF(c)
 		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
-			allowed := false
-			for _, sid := range secretariaIDs {
-				if emprego.OrgaoID == sid {
-					allowed = true
-					break
-				}
-			}
+		if cpf != "" && secretariaIDs != nil {
+			allowed := slices.Contains(secretariaIDs, emprego.OrgaoID)
 			if !allowed {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: emprego não pertence à sua secretaria"})
 				return

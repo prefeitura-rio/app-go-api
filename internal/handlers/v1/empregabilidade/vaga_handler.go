@@ -104,14 +104,20 @@ func (h *VagaHandler) Create(c *gin.Context) {
 // @Description  Retorna lista paginada de vagas com filtros opcionais
 // @Tags         empregabilidade-vagas
 // @Produce      json
-// @Param        page              query     int     false  "Número da página (default: 1)"
-// @Param        pageSize          query     int     false  "Tamanho da página (default: 10)"
-// @Param        status            query     string  false  "Filtrar por status (em_edicao, em_aprovacao, publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)"
-// @Param        contratante       query     string  false  "Filtrar por CNPJ do contratante"
-// @Param        orgao_parceiro_id query     string  false  "Filtrar por ID do órgão parceiro"
-// @Param        search            query     string  false  "Busca parcial no título da vaga"
-// @Success      200               {object}  map[string]interface{}
-// @Failure      500               {object}  map[string]string
+// @Param        page                    query     int     false  "Número da página (default: 1)"
+// @Param        pageSize                query     int     false  "Tamanho da página (default: 10, máx: 100)"
+// @Param        status                  query     string  false  "Filtrar por status (em_edicao, em_aprovacao, publicado_ativo, publicado_expirado, vaga_congelada, vaga_descontinuada)"
+// @Param        contratante             query     string  false  "Filtrar por CNPJ do contratante"
+// @Param        orgao_parceiro_id       query     string  false  "Filtrar por ID do órgão parceiro (ignorado se middleware já restringiu)"
+// @Param        search                  query     string  false  "Busca parcial no título da vaga"
+// @Param        data_publicacao         query     string  false  "Filtrar por data de publicação (hoje, ultima_semana, ultimo_mes)"
+// @Param        id_regime_contratacao   query     string  false  "UUID(s) do regime de contratação (CSV, ex: uuid1,uuid2)"
+// @Param        id_modelo_trabalho      query     string  false  "UUID(s) do modelo de trabalho (CSV, ex: uuid1,uuid2)"
+// @Param        acessibilidade_pcd      query     string  false  "Acessibilidade PCD (CSV, ex: para_pcd,exclusivo_pcd)"
+// @Param        bairro                  query     string  false  "Bairro(s) — busca parcial (CSV, ex: Centro,Tijuca)"
+// @Success      200                     {object}  map[string]interface{}
+// @Failure      400                     {object}  map[string]string
+// @Failure      500                     {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas [get]
 func (h *VagaHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -120,15 +126,44 @@ func (h *VagaHandler) List(c *gin.Context) {
 	if page < 1 {
 		page = 1
 	}
-	if pageSize < 1 || pageSize > 1000 {
+	if pageSize < 1 || pageSize > 100 {
 		pageSize = 10
 	}
 
+	dataPublicacao := empregabilidade.DataPublicacaoRange(c.Query("data_publicacao"))
+	if dataPublicacao != "" && !dataPublicacao.IsValid() {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "data_publicacao inválido: deve ser hoje, ultima_semana ou ultimo_mes"})
+		return
+	}
+
+	acessibilidadePCDValues := parseCSVParam(c.Query("acessibilidade_pcd"))
+	for _, v := range acessibilidadePCDValues {
+		if !empregabilidade.AcessibilidadePCD(v).IsValid() {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "acessibilidade_pcd inválido: deve ser para_pcd, preferencial_pcd ou exclusivo_pcd"})
+			return
+		}
+	}
+
+	orgaoParceiroIDs := middlewares.GetVagaOrgaoParceiroIDs(c)
+
 	filter := empregabilidade.VagaFilter{
-		Status:          c.Query("status"),
-		Contratante:     c.Query("contratante"),
-		OrgaoParceiroID: c.Query("orgao_parceiro_id"),
-		Search:          c.Query("search"),
+		Status:              c.Query("status"),
+		Contratante:         c.Query("contratante"),
+		Search:              c.Query("search"),
+		DataPublicacao:      dataPublicacao,
+		IDRegimeContratacao: parseCSVParam(c.Query("id_regime_contratacao")),
+		IDModeloTrabalho:    parseCSVParam(c.Query("id_modelo_trabalho")),
+		AcessibilidadePCD:   acessibilidadePCDValues,
+		Bairro:              parseCSVParam(c.Query("bairro")),
+	}
+
+	switch {
+	case len(orgaoParceiroIDs) == 1:
+		filter.OrgaoParceiroID = orgaoParceiroIDs[0]
+	case len(orgaoParceiroIDs) > 1:
+		filter.OrgaoParceiroIDs = orgaoParceiroIDs
+	default:
+		filter.OrgaoParceiroID = c.Query("orgao_parceiro_id")
 	}
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
