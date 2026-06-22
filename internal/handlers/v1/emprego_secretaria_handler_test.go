@@ -68,6 +68,7 @@ func setupEmpregoRouterWithSecretaria(repo services.EmpregoRepositoryInterface, 
 		if role != "" {
 			c.Set(middlewares.UserRoleKey, role)
 		}
+		c.Set(middlewares.UserCPFKey, "12345678900")
 		if secretariaIDs != nil {
 			c.Set(middlewares.UserSecretariaOrgaoIDsKey, secretariaIDs)
 		}

@@ -307,6 +307,7 @@ func ExtractSecretariaOrgaoIDs(resolver SecretariaOrgaoResolver) gin.HandlerFunc
 
 		orgaoIDs, err := resolver(c.Request.Context(), cpf)
 		if err != nil {
+			c.Set(UserSecretariaOrgaoIDsKey, []string{})
 			c.Next()
 			return
 		}
