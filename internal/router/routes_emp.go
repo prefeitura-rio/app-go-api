@@ -36,7 +36,6 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 
 	// Vagas
 	empVagas := emp.Group("/vagas")
-	empVagas.Use()
 	{
 		empVagas.POST("", vagaAuth, app.EmpVagaHandler.Create)
 		empVagas.POST("/draft", vagaAuth, app.EmpVagaHandler.Create)

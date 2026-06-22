@@ -1799,7 +1799,7 @@ paths:
       summary: Buscar vaga pública por slug
       tags:
       - empregabilidade-vagas-public
-  /api/public/oportunidades-mei/{id}:
+  /api/public/oportunidades-mei:
     get:
       description: Retorna uma lista paginada de oportunidades MEI ativas
       parameters:
@@ -1835,6 +1835,37 @@ paths:
           schema:
             $ref: '#/definitions/models.ErrorResponse'
       summary: Listar oportunidades MEI
+      tags:
+      - oportunidades-mei
+  /api/public/oportunidades-mei/{id}:
+    get:
+      description: Retorna uma oportunidade MEI pelo seu ID
+      parameters:
+      - description: ID da oportunidade
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OportunidadeMEI'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Obter oportunidade MEI por ID
       tags:
       - oportunidades-mei
   /api/v1/acessibilidades:

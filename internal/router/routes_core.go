@@ -40,7 +40,6 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	courseAuth := middlewares.CourseAuthorization()
 
 	courses := apiV1.Group("/courses")
-	courses.Use()
 	{
 		courses.POST("", courseAuth, middlewares.CourseOrgaoInjector(), app.CourseHandler.Create)
 		courses.POST("/draft", courseAuth, middlewares.CourseOrgaoInjector(), app.CourseHandler.CreateDraft)

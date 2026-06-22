@@ -206,7 +206,7 @@ func (h *OportunidadeMEIHandler) Publish(c *gin.Context) {
 // @Success      200       {object}  object
 // @Failure      500       {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei [get]
-// @Router       /api/public/oportunidades-mei/{id} [get]
+// @Router       /api/public/oportunidades-mei [get]
 func (h *OportunidadeMEIHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))

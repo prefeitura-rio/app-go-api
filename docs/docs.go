@@ -360,7 +360,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/public/oportunidades-mei/{id}": {
+        "/api/public/oportunidades-mei": {
             "get": {
                 "description": "Retorna uma lista paginada de oportunidades MEI ativas",
                 "produces": [
@@ -407,6 +407,53 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/public/oportunidades-mei/{id}": {
+            "get": {
+                "description": "Retorna uma oportunidade MEI pelo seu ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oportunidades-mei"
+                ],
+                "summary": "Obter oportunidade MEI por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da oportunidade",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.OportunidadeMEI"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "500": {
