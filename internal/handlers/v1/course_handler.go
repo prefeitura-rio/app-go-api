@@ -706,6 +706,10 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 		"status": models.StatusCursoDraft,
 	}
 
+	for k, v := range middlewares.GetCourseFilters(c) {
+		filter[k] = v
+	}
+
 	if _, noResults := filter["_no_results"]; noResults {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -715,10 +719,6 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 			},
 		})
 		return
-	}
-
-	for k, v := range middlewares.GetCourseFilters(c) {
-		filter[k] = v
 	}
 
 	if organization := c.Query("organization"); organization != "" {
