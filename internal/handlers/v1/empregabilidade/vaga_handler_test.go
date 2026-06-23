@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -1731,5 +1732,95 @@ func TestVagaHandler_List_OrgaoParceiroID_FallsBackToQueryParam(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func setupVagaRouterWithAllowedOrgaos(vagaRepo services.VagaRepoInterface, empresaRepo services.EmpresaRepoInterface, allowedOrgaos []string) *gin.Engine {
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		if allowedOrgaos != nil {
+			c.Set("vaga_allowed_orgaos", allowedOrgaos)
+		}
+		c.Next()
+	})
+	candidaturaRepo := &mockCandidaturaRepoForVaga{}
+	svc := services.NewVagaServiceWithInterfaces(vagaRepo, empresaRepo, candidaturaRepo)
+	h := handlers.NewVagaHandler(svc)
+	r.POST("/vagas", h.Create)
+	return r
+}
+
+func TestVagaHandler_Create_SecretariaUser_AllowedOrgao_Success(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{entity: &empmodels.Empresa{CNPJ: "12345678000100"}}
+	r := setupVagaRouterWithAllowedOrgaos(vagaRepo, empresaRepo, []string{"orgao-1", "orgao-2"})
+
+	body := bodyOf(`{"titulo":"Dev Backend","id_orgao_parceiro":"orgao-1"}`)
+	req := httptest.NewRequest(http.MethodPost, "/vagas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_Create_SecretariaUser_ForbiddenOrgao_Forbidden(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{entity: &empmodels.Empresa{CNPJ: "12345678000100"}}
+	r := setupVagaRouterWithAllowedOrgaos(vagaRepo, empresaRepo, []string{"orgao-1", "orgao-2"})
+
+	body := bodyOf(`{"titulo":"Dev Backend","id_orgao_parceiro":"orgao-99"}`)
+	req := httptest.NewRequest(http.MethodPost, "/vagas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_Create_Admin_NoRestriction_Success(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{entity: &empmodels.Empresa{CNPJ: "12345678000100"}}
+	r := setupVagaRouterWithAllowedOrgaos(vagaRepo, empresaRepo, nil)
+
+	body := bodyOf(`{"titulo":"Dev Backend","id_orgao_parceiro":"any-orgao"}`)
+	req := httptest.NewRequest(http.MethodPost, "/vagas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_List_EmptyOrgaoParceiroIDs_ReturnsEmpty(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{
+		listItems: []*empmodels.Vaga{{Titulo: "Dev Go"}},
+		listTotal: 1,
+	}
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("vaga_orgao_parceiro_ids", []string{})
+		c.Next()
+	})
+	candidaturaRepo := &mockCandidaturaRepoForVaga{}
+	svc := services.NewVagaServiceWithInterfaces(vagaRepo, &mockEmpresaRepoForVaga{}, candidaturaRepo)
+	h := handlers.NewVagaHandler(svc)
+	r.GET("/vagas", h.List)
+
+	req := httptest.NewRequest(http.MethodGet, "/vagas", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"total":0`) {
+		t.Errorf("expected total=0, got: %s", w.Body.String())
 	}
 }

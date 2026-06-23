@@ -13,6 +13,15 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
+func containsString(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
 func isPublishedStatus(status empregabilidade.StatusVaga) bool {
 	switch status {
 	case empregabilidade.StatusVagaPublicadoAtivo,
@@ -90,6 +99,12 @@ func (h *VagaHandler) Create(c *gin.Context) {
 		return
 	}
 
+	allowedOrgaos := middlewares.GetVagaAllowedOrgaos(c)
+	if allowedOrgaos != nil && !containsString(allowedOrgaos, entity.IDOrgaoParceiro) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Você não tem permissão para criar vagas neste órgão parceiro"})
+		return
+	}
+
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
 		handleVagaError(c, err)
@@ -145,6 +160,14 @@ func (h *VagaHandler) List(c *gin.Context) {
 	}
 
 	orgaoParceiroIDs := middlewares.GetVagaOrgaoParceiroIDs(c)
+
+	if orgaoParceiroIDs != nil && len(orgaoParceiroIDs) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"data": []*empregabilidade.Vaga{},
+			"meta": gin.H{"page": page, "page_size": pageSize, "total": 0},
+		})
+		return
+	}
 
 	filter := empregabilidade.VagaFilter{
 		Status:              c.Query("status"),
