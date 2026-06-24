@@ -382,7 +382,7 @@ func (c *RMIClient) GetCPFSecretarias(ctx context.Context, serviceToken string, 
 		return nil, fmt.Errorf("RMI base URL not configured")
 	}
 
-	url := fmt.Sprintf("%s/cpf-secretaria/%s", c.baseURL, cpf)
+	url := fmt.Sprintf("%s/v1/cpf-secretaria/%s", c.baseURL, cpf)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
