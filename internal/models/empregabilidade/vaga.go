@@ -47,26 +47,27 @@ func (a AcessibilidadePCD) IsValid() bool {
 }
 
 type Vaga struct {
-	ID                  uuid.UUID          `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	Titulo              string             `json:"titulo" gorm:"type:varchar(500);not null"`
-	Descricao           string             `json:"descricao" gorm:"type:text;not null"`
-	IDContratante       string             `json:"id_contratante" gorm:"type:varchar(18);not null"`
-	IDRegimeContratacao uuid.UUID          `json:"id_regime_contratacao" gorm:"type:uuid;not null"`
-	IDModeloTrabalho    uuid.UUID          `json:"id_modelo_trabalho" gorm:"type:uuid;not null"`
-	AcessibilidadePCD   *AcessibilidadePCD `json:"acessibilidade_pcd,omitempty" gorm:"type:acessibilidade_pcd_enum"`
-	ValorVaga           *float64           `json:"valor_vaga" gorm:"type:decimal(12,2)"`
-	Bairro              string             `json:"bairro" gorm:"type:varchar(255)"`
-	DataLimite          *time.Time         `json:"data_limite" gorm:"type:timestamp with time zone"`
-	Requisitos          string             `json:"requisitos" gorm:"type:text"`
-	Diferenciais        string             `json:"diferenciais" gorm:"type:text"`
-	Responsabilidades   string             `json:"responsabilidades" gorm:"type:text"`
-	Beneficios          string             `json:"beneficios" gorm:"type:text"`
-	IDOrgaoParceiro     string             `json:"id_orgao_parceiro" gorm:"type:varchar(50)"`
-	Status              StatusVaga         `json:"status" gorm:"type:varchar(50);not null;default:'em_edicao'"`
-	Slug                string             `json:"slug" gorm:"-"`
-	DeletedAt           gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
-	CreatedAt           time.Time          `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt           time.Time          `json:"updated_at" gorm:"autoUpdateTime"`
+	ID                             uuid.UUID          `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	Titulo                         string             `json:"titulo" gorm:"type:varchar(500);not null"`
+	Descricao                      string             `json:"descricao" gorm:"type:text;not null"`
+	IDContratante                  string             `json:"id_contratante" gorm:"type:varchar(18);not null"`
+	IDRegimeContratacao            uuid.UUID          `json:"id_regime_contratacao" gorm:"type:uuid;not null"`
+	IDModeloTrabalho               uuid.UUID          `json:"id_modelo_trabalho" gorm:"type:uuid;not null"`
+	AcessibilidadePCD              *AcessibilidadePCD `json:"acessibilidade_pcd,omitempty" gorm:"type:acessibilidade_pcd_enum"`
+	ValorVaga                      *float64           `json:"valor_vaga" gorm:"type:decimal(12,2)"`
+	QuantidadeEstimadaContratacoes *int               `json:"quantidade_estimada_contratacoes,omitempty" gorm:"type:integer"`
+	Bairro                         string             `json:"bairro" gorm:"type:varchar(255)"`
+	DataLimite                     *time.Time         `json:"data_limite" gorm:"type:timestamp with time zone"`
+	Requisitos                     string             `json:"requisitos" gorm:"type:text"`
+	Diferenciais                   string             `json:"diferenciais" gorm:"type:text"`
+	Responsabilidades              string             `json:"responsabilidades" gorm:"type:text"`
+	Beneficios                     string             `json:"beneficios" gorm:"type:text"`
+	IDOrgaoParceiro                string             `json:"id_orgao_parceiro" gorm:"type:varchar(50)"`
+	Status                         StatusVaga         `json:"status" gorm:"type:varchar(50);not null;default:'em_edicao'"`
+	Slug                           string             `json:"slug" gorm:"-"`
+	DeletedAt                      gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
+	CreatedAt                      time.Time          `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt                      time.Time          `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relationships
 	Contratante               *Empresa                 `json:"contratante,omitempty" gorm:"foreignKey:IDContratante;references:CNPJ"`

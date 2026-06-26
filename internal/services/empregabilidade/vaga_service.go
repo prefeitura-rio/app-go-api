@@ -81,8 +81,18 @@ func (s *VagaService) validateContratante(ctx context.Context, cnpj string) erro
 	return nil
 }
 
+func validateQuantidadeEstimada(v *int) error {
+	if v != nil && *v <= 0 {
+		return errors.New("quantidade_estimada_contratacoes deve ser um número inteiro positivo")
+	}
+	return nil
+}
+
 func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
 	if err := s.validateContratante(ctx, entity.IDContratante); err != nil {
+		return uuid.Nil, err
+	}
+	if err := validateQuantidadeEstimada(entity.QuantidadeEstimadaContratacoes); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -121,6 +131,10 @@ func (s *VagaService) GetBySlug(ctx context.Context, vagaSlug string) (*empregab
 }
 
 func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
+	if err := validateQuantidadeEstimada(entity.QuantidadeEstimadaContratacoes); err != nil {
+		return err
+	}
+
 	existing, err := s.repo.GetByID(ctx, entity.ID)
 	if err != nil {
 		return err
