@@ -66,9 +66,10 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 
 	apiV1.Group("/jobs").GET("/:jobId/status", app.JobHandler.GetStatus)
 	apiV1.Group("/users").GET("/:userId/courses", app.CourseHandler.ListByUser)
+	enrollmentAuth := middlewares.EnrollmentAuthorization()
 	enrollments := apiV1.Group("/enrollments")
-	enrollments.GET("/user/:cpf", app.InscricaoHandler.ListByUser)
-	enrollments.PUT("/:enrollmentId/schedule", app.InscricaoHandler.ChangeSchedule)
+	enrollments.GET("/user/:cpf", enrollmentAuth, app.InscricaoHandler.ListByUser)
+	enrollments.PUT("/:enrollmentId/schedule", enrollmentAuth, app.InscricaoHandler.ChangeSchedule)
 
 	oportunidades := apiV1.Group("/oportunidades-mei")
 	{

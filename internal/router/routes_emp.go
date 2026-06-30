@@ -62,17 +62,17 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	empCandidaturas := emp.Group("/candidaturas")
 	{
 		empCandidaturas.POST("", app.EmpCandidaturaHandler.Create)
-		empCandidaturas.GET("", app.EmpCandidaturaHandler.List)
-		empCandidaturas.PUT("/bulk-status", app.EmpCandidaturaHandler.BulkUpdateStatus)
-		empCandidaturas.PUT("/bulk-etapa", app.EmpCandidaturaHandler.BulkUpdateEtapa)
+		empCandidaturas.GET("", vagaAuth, app.EmpCandidaturaHandler.List)
+		empCandidaturas.PUT("/bulk-status", vagaAuth, app.EmpCandidaturaHandler.BulkUpdateStatus)
+		empCandidaturas.PUT("/bulk-etapa", vagaAuth, app.EmpCandidaturaHandler.BulkUpdateEtapa)
 		empCandidaturas.GET("/usuario/:cpf", app.EmpCandidaturaHandler.ListByCPF)
 		empCandidaturas.GET("/:id", app.EmpCandidaturaHandler.GetByID)
 		empCandidaturas.PUT("/:id", app.EmpCandidaturaHandler.Update)
 		empCandidaturas.DELETE("/:id", app.EmpCandidaturaHandler.Delete)
-		empCandidaturas.PUT("/:id/status", app.EmpCandidaturaHandler.UpdateStatus)
-		empCandidaturas.PUT("/:id/approve", app.EmpCandidaturaHandler.Approve)
-		empCandidaturas.PUT("/:id/reject", app.EmpCandidaturaHandler.Reject)
-		empCandidaturas.PUT("/:id/etapa", app.EmpCandidaturaHandler.UpdateEtapa)
+		empCandidaturas.PUT("/:id/status", vagaAuth, app.EmpCandidaturaHandler.UpdateStatus)
+		empCandidaturas.PUT("/:id/approve", vagaAuth, app.EmpCandidaturaHandler.Approve)
+		empCandidaturas.PUT("/:id/reject", vagaAuth, app.EmpCandidaturaHandler.Reject)
+		empCandidaturas.PUT("/:id/etapa", vagaAuth, app.EmpCandidaturaHandler.UpdateEtapa)
 	}
 
 	// Curriculo

@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	vagaOrgaoParceiroIDsKey  = "vaga_orgao_parceiro_ids"
-	vagaAllowedOrgaosKey     = "vaga_allowed_orgaos"
+	vagaOrgaoParceiroIDsKey = "vaga_orgao_parceiro_ids"
+	vagaAllowedOrgaosKey    = "vaga_allowed_orgaos"
 )
 
 func VagaAuthorization() gin.HandlerFunc {
