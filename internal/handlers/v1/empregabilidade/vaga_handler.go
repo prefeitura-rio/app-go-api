@@ -63,7 +63,8 @@ func handleVagaError(c *gin.Context, err error) {
 	case strings.Contains(msg, "não está em estado"):
 		c.JSON(http.StatusConflict, gin.H{"error": msg})
 		return
-	case strings.Contains(msg, "contratante não encontrada"):
+	case strings.Contains(msg, "contratante não encontrada"),
+		strings.Contains(msg, "deve ser um número inteiro positivo"):
 		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
 		return
 	}
