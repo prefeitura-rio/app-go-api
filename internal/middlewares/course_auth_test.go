@@ -394,25 +394,17 @@ func TestCourseOrgaoInjector_SecretariaUser_EmptyIDs_Forbidden(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Sem permissão para criar: nenhuma secretaria associada")
 }
 
-func TestCourseOrgaoInjector_Editor_WithOrgao_SetsAllowedOrgaosList(t *testing.T) {
+func TestCourseOrgaoInjector_Editor_WithOrgao_Forbidden(t *testing.T) {
 	r := setupCourseTestRouter(
 		injectCourseRoles("go:cursos:editor", "orgao-42", nil),
 		middlewares.CourseOrgaoInjector(),
 	)
-	r.GET("/test", func(c *gin.Context) {
-		allowed := middlewares.GetUserAllowedOrgaos(c)
-		c.JSON(http.StatusOK, gin.H{"allowed": allowed})
-	})
+	r.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
-
-	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
-	allowed, ok := response["allowed"].([]interface{})
-	assert.True(t, ok)
-	assert.Equal(t, []interface{}{"orgao-42"}, allowed)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Editores não têm permissão para criar cursos")
 }
 
 func TestCourseOrgaoInjector_Editor_NoOrgao_Forbidden(t *testing.T) {
@@ -425,7 +417,20 @@ func TestCourseOrgaoInjector_Editor_NoOrgao_Forbidden(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
 	assert.Equal(t, http.StatusForbidden, w.Code)
-	assert.Contains(t, w.Body.String(), "Sem permissão para criar: órgão não identificado")
+	assert.Contains(t, w.Body.String(), "Editores não têm permissão para criar cursos")
+}
+
+func TestCourseOrgaoInjector_Editor_WithSecretaria_Forbidden(t *testing.T) {
+	r := setupCourseTestRouter(
+		injectCourseRoles("go:cursos:editor", "", []string{"orgao-1", "orgao-2"}),
+		middlewares.CourseOrgaoInjector(),
+	)
+	r.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Editores não têm permissão para criar cursos")
 }
 
 func TestCourseOrgaoInjector_NoRole_Forbidden(t *testing.T) {
@@ -570,6 +575,39 @@ func TestCourseOwnershipCheck_SecretariaUser_NonMatchingOrgao_Forbidden(t *testi
 	r.GET("/test/:courseId", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test/123", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Acesso negado: curso não pertence à sua secretaria")
+}
+
+func TestCourseOwnershipCheck_EditorWithSecretaria_SecretariaMatchesOrgao_Passes(t *testing.T) {
+	loader := func(ctx context.Context, id int) (string, bool, error) {
+		return "orgao-456", true, nil
+	}
+
+	r := setupCourseTestRouter(
+		injectCourseRoles("go:cursos:editor", "", []string{"orgao-456", "orgao-789"}),
+		middlewares.CourseOwnershipCheck(loader),
+	)
+	r.GET("/test/:courseId", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test/123", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseOwnershipCheck_EditorWithSecretaria_SecretariaNoMatch_Forbidden(t *testing.T) {
+	loader := func(ctx context.Context, id int) (string, bool, error) {
+		return "orgao-456", true, nil
+	}
+
+	r := setupCourseTestRouter(
+		injectCourseRoles("go:cursos:editor", "", []string{"orgao-999"}),
+		middlewares.CourseOwnershipCheck(loader),
+	)
+	r.GET("/test/:courseId", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test/123", nil))
