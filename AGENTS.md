@@ -490,7 +490,7 @@ Key variables (see `.env.example` for the full list):
 
 | Variable | Default | Description |
 |---|---|---|
-| `APP_ENV` | `development` | Environment: `development`, `staging`, `production` |
+| `APP_ENV` | `development` | Raw environment string, compared as-is by `cfg.App.Environment` / `IsDevelopment()` / `IsProduction()` / `IsTest()` — see note below, the deployed values are **not** `staging`/`production` |
 | `DB_HOST` | `localhost` | PostgreSQL host |
 | `DB_PORT` | `5432` | PostgreSQL port |
 | `DB_USER` | `postgres` | PostgreSQL user |
@@ -511,6 +511,14 @@ Key variables (see `.env.example` for the full list):
 | `ORGAO_SYNC_ENABLED` | `true` | Enable background org sync worker |
 | `CITIZEN_SYNC_ENABLED` | `true` | Enable background citizen sync worker |
 | `TRACING_ENABLED` | `false` | Enable OpenTelemetry tracing |
+
+> **Real `APP_ENV` values per deployed environment** (confirmed via `kubectl logs -n go <pod>`, which prints `Ambiente: <value>` on startup when `APP_DEBUG=true`; the value is not set in the committed `k8s/*/resources.yaml` — it comes from the Infisical-managed `go-secrets` SecretRef):
+>
+> - **Local dev**: `development` (the `.env.example` default)
+> - **Staging**: `development` — **not** `staging`. The `go-secrets` for staging sets `APP_ENV=development`, so any code that branches on `cfg.App.Environment == "development"` (or `IsDevelopment()`) is also active in staging. Today this is relied upon intentionally (e.g. environment-gated feature flags stay active in staging for homologation and only go no-op in production), but it means `IsDevelopment()`/`"development"` does **not** mean "only a developer's laptop".
+> - **Production**: `prod` — **not** `production`. `AppSettings.IsProduction()` compares against the literal string `"production"` and therefore never returns `true` for the real deployed value.
+>
+> Before writing a new environment-gated feature flag, check the real deployed value first (`kubectl logs -n go <pod> | grep Ambiente` in both the staging and production contexts) instead of assuming `staging`/`production` are used literally.
 
 ### Running Tests
 
