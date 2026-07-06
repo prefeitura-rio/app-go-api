@@ -37,6 +37,8 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	var vagaOrgaoInjector gin.HandlerFunc
 	var vagaListFilter gin.HandlerFunc
 
+	// "development" cobre local + staging (ver comentário de noOpHandler em router.go).
+	// vagaAuth também protege o grupo /candidaturas mais abaixo nesta função.
 	if cfg.App.Environment == "development" || cfg.App.Environment == "test" {
 		vagaAuth = middlewares.VagaAuthorization()
 		vagaOrgaoInjector = middlewares.VagaOrgaoInjector()

@@ -41,6 +41,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	var courseOrgaoInjector gin.HandlerFunc
 	var courseListFilter gin.HandlerFunc
 
+	// "development" cobre local + staging (ver comentário de noOpHandler em router.go).
 	if cfg.App.Environment == "development" || cfg.App.Environment == "test" {
 		ownershipCheck = middlewares.CourseOwnershipCheck(cursoLoader)
 		courseAuth = middlewares.CourseAuthorization()
