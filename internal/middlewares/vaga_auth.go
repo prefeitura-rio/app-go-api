@@ -24,7 +24,7 @@ func VagaAuthorization() gin.HandlerFunc {
 			return
 		}
 
-		if HasRole(c, "go:empregabilidade:editor") || HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
+		if HasRole(c, "go:empregabilidade:editor") || HasRole(c, "go:empregabilidade:editor_com_curadoria") || HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
 			if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
 				c.Next()
 				return
@@ -46,7 +46,7 @@ func VagaListFilter() gin.HandlerFunc {
 			secretariaIDs := GetUserSecretariaOrgaoIDs(c)
 			if secretariaIDs != nil {
 				c.Set(vagaOrgaoParceiroIDsKey, secretariaIDs)
-			} else if HasRole(c, "go:empregabilidade:editor") || HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
+			} else if HasRole(c, "go:empregabilidade:editor") || HasRole(c, "go:empregabilidade:editor_com_curadoria") || HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
 				if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
 					c.Set(vagaOrgaoParceiroIDsKey, []string{orgaoID})
 				} else {
@@ -95,7 +95,7 @@ func VagaOrgaoInjector() gin.HandlerFunc {
 			return
 		}
 
-		if HasRole(c, "go:empregabilidade:editor") || HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
+		if HasRole(c, "go:empregabilidade:editor") || HasRole(c, "go:empregabilidade:editor_com_curadoria") || HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
 			if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
 				c.Set(vagaAllowedOrgaosKey, []string{orgaoID})
 				c.Next()

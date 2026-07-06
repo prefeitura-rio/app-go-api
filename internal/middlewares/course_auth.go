@@ -71,6 +71,12 @@ func GetCourseFilters(c *gin.Context) map[string]interface{} {
 
 func CourseOrgaoInjector() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if HasRole(c, "go:cursos:editor") {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Editores não têm permissão para criar cursos"})
+			c.Abort()
+			return
+		}
+
 		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
 			c.Next()
 			return
@@ -143,18 +149,6 @@ func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 			return
 		}
 
-		if HasRole(c, "go:cursos:editor") {
-			userOrgao := GetUserOrgaoID(c)
-
-			if userOrgao != "" && userOrgao == orgaoID {
-				c.Next()
-				return
-			}
-			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
-			c.Abort()
-			return
-		}
-
 		secretariaIDs := GetUserSecretariaOrgaoIDs(c)
 
 		if secretariaIDs != nil {
@@ -163,6 +157,18 @@ func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 					c.Next()
 					return
 				}
+			}
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
+			c.Abort()
+			return
+		}
+
+		if HasRole(c, "go:cursos:editor") {
+			userOrgao := GetUserOrgaoID(c)
+
+			if userOrgao != "" && userOrgao == orgaoID {
+				c.Next()
+				return
 			}
 			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
 			c.Abort()
