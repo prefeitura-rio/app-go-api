@@ -6,12 +6,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/prefeitura-rio/app-go-api/internal/config"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
 
 func init() {
 	gin.SetMode(gin.TestMode)
+}
+
+// newTestCoreConfig returns a minimal AppConfig with environment set to "test"
+// so that the real authorization middlewares (CourseOwnershipCheck, CourseAuthorization,
+// CourseOrgaoInjector, CourseListFilter) are wired into the routes, matching
+// production intent while remaining exercisable in unit tests.
+func newTestCoreConfig() *config.AppConfig {
+	return &config.AppConfig{App: config.AppSettings{Environment: "test"}}
 }
 
 // TestRegisterCoreRoutes tests the complete core routes registration
@@ -21,7 +30,8 @@ func TestRegisterCoreRoutes(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -35,7 +45,7 @@ func TestRegisterCoreRoutes(t *testing.T) {
 	// - Oportunidades MEI group = 15 routes (8 oportunidades + 7 propostas)
 	// - Propostas MEI group = 1 route
 	// - Public routes = 4 routes
-	// Total = 79 routes (publish endpoint removed: approve goes directly to published)
+	// Total = 79 routes
 	expectedRoutes := 79
 	assert.Len(t, routes, expectedRoutes, "Should have all core routes registered")
 }
@@ -47,7 +57,8 @@ func TestRegisterCoreRoutes_LookupResources(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	lookupResources := []string{
 		"/api/v1/empregos",
@@ -82,7 +93,8 @@ func TestRegisterCoreRoutes_TypesenseRoutes(t *testing.T) {
 		apiPublic := router.Group("/api/public")
 
 		app := createMockApplicationContainer()
-		registerCoreRoutes(apiV1, apiPublic, app)
+		cfg := newTestCoreConfig()
+		registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 		routes := router.Routes()
 
@@ -115,7 +127,8 @@ func TestRegisterCoreRoutes_TypesenseRoutes(t *testing.T) {
 
 		app := createMockApplicationContainer()
 		app.TypesenseHandler = nil
-		registerCoreRoutes(apiV1, apiPublic, app)
+		cfg := newTestCoreConfig()
+		registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 		routes := router.Routes()
 
@@ -133,7 +146,8 @@ func TestRegisterCoreRoutes_CoursesGroup(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -181,7 +195,8 @@ func TestRegisterCoreRoutes_JobsGroup(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -202,7 +217,8 @@ func TestRegisterCoreRoutes_UsersGroup(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -223,7 +239,8 @@ func TestRegisterCoreRoutes_EnrollmentsGroup(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -254,7 +271,8 @@ func TestRegisterCoreRoutes_OportunidadesMEIGroup(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -300,7 +318,8 @@ func TestRegisterCoreRoutes_PropostasMEIGroup(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -321,7 +340,8 @@ func TestRegisterCoreRoutes_PublicRoutes(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -354,7 +374,8 @@ func TestRegisterCoreRoutes_RouteMethodCounts(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -376,7 +397,8 @@ func TestRegisterCoreRoutes_RouteGrouping(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -416,7 +438,8 @@ func TestRegisterCoreRoutes_NestedResources(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -467,7 +490,8 @@ func TestRegisterCoreRoutes_ParameterizedRoutes(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 
@@ -501,7 +525,8 @@ func TestRegisterCoreRoutes_PublicVsPrivate(t *testing.T) {
 	apiPublic := router.Group("/api/public")
 
 	app := createMockApplicationContainer()
-	registerCoreRoutes(apiV1, apiPublic, app)
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
 
 	routes := router.Routes()
 

@@ -4,9 +4,18 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/config"
 	empHandlers "github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
+
+// newTestEmpConfig returns a minimal AppConfig with environment set to "test"
+// so that the real authorization middlewares (VagaAuthorization, VagaOrgaoInjector,
+// VagaListFilter) are wired into the routes, matching production intent while
+// remaining exercisable in unit tests.
+func newTestEmpConfig() *config.AppConfig {
+	return &config.AppConfig{App: config.AppSettings{Environment: "test"}}
+}
 
 // createMockAppContainer creates a minimal ApplicationContainer with mock handlers.
 // We only need the handlers to satisfy interface requirements for route registration,
@@ -53,7 +62,8 @@ func TestRegisterEmpregabilidadeRoutes(t *testing.T) {
 		apiPublic := router.Group("/api/public")
 
 		app := createMockAppContainer()
-		registerEmpregabilidadeRoutes(apiV1, apiPublic, app)
+		cfg := newTestEmpConfig()
+		registerEmpregabilidadeRoutes(apiV1, apiPublic, app, cfg)
 
 		routes := router.Routes()
 
@@ -151,7 +161,8 @@ func TestRegisterEmpregabilidadeRoutes(t *testing.T) {
 		apiPublic := router.Group("/api/public")
 
 		app := createMockAppContainer()
-		registerEmpregabilidadeRoutes(apiV1, apiPublic, app)
+		cfg := newTestEmpConfig()
+		registerEmpregabilidadeRoutes(apiV1, apiPublic, app, cfg)
 
 		routes := router.Routes()
 
@@ -181,7 +192,8 @@ func TestRegisterEmpregabilidadeRoutes(t *testing.T) {
 		apiPublic := router.Group("/api/public")
 
 		app := createMockAppContainer()
-		registerEmpregabilidadeRoutes(apiV1, apiPublic, app)
+		cfg := newTestEmpConfig()
+		registerEmpregabilidadeRoutes(apiV1, apiPublic, app, cfg)
 
 		routes := router.Routes()
 
@@ -257,7 +269,8 @@ func TestRegisterEmpregabilidadeRoutes(t *testing.T) {
 		apiPublic := router.Group("/api/public")
 
 		app := createMockAppContainer()
-		registerEmpregabilidadeRoutes(apiV1, apiPublic, app)
+		cfg := newTestEmpConfig()
+		registerEmpregabilidadeRoutes(apiV1, apiPublic, app, cfg)
 
 		routes := router.Routes()
 
@@ -312,7 +325,8 @@ func TestRegisterEmpregabilidadeRoutes(t *testing.T) {
 		apiPublic := router.Group("/api/public")
 
 		app := createMockAppContainer()
-		registerEmpregabilidadeRoutes(apiV1, apiPublic, app)
+		cfg := newTestEmpConfig()
+		registerEmpregabilidadeRoutes(apiV1, apiPublic, app, cfg)
 
 		routes := router.Routes()
 
@@ -330,7 +344,8 @@ func TestRegisterEmpregabilidadeRoutes(t *testing.T) {
 		apiPublic := router.Group("/api/public")
 
 		app := createMockAppContainer()
-		registerEmpregabilidadeRoutes(apiV1, apiPublic, app)
+		cfg := newTestEmpConfig()
+		registerEmpregabilidadeRoutes(apiV1, apiPublic, app, cfg)
 
 		routes := router.Routes()
 
@@ -351,12 +366,16 @@ func TestRegisterEmpregabilidadeRoutes(t *testing.T) {
 		apiPublic := router.Group("/api/public")
 
 		app := createMockAppContainer()
-		registerEmpregabilidadeRoutes(apiV1, apiPublic, app)
+		cfg := newTestEmpConfig()
+		registerEmpregabilidadeRoutes(apiV1, apiPublic, app, cfg)
 
 		routes := router.Routes()
 
 		if !routeExists(routes, "GET", "/api/public/empregabilidade/vagas") {
 			t.Error("Expected GET /api/public/empregabilidade/vagas route")
+		}
+		if !routeExists(routes, "GET", "/api/public/empregabilidade/vagas/slug/:slug") {
+			t.Error("Expected GET /api/public/empregabilidade/vagas/slug/:slug route")
 		}
 		if !routeExists(routes, "GET", "/api/public/empregabilidade/vagas/:id") {
 			t.Error("Expected GET /api/public/empregabilidade/vagas/:id route")
@@ -577,7 +596,8 @@ func TestEmpregabilidadeRouteCount(t *testing.T) {
 		apiPublic := router.Group("/api/public")
 
 		app := createMockAppContainer()
-		registerEmpregabilidadeRoutes(apiV1, apiPublic, app)
+		cfg := newTestEmpConfig()
+		registerEmpregabilidadeRoutes(apiV1, apiPublic, app, cfg)
 
 		routes := router.Routes()
 

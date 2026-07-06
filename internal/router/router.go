@@ -18,6 +18,10 @@ import (
 	_ "github.com/prefeitura-rio/app-go-api/docs"
 )
 
+func noOpHandler(c *gin.Context) {
+	c.Next()
+}
+
 // SetupRouter initializes the Gin engine with all routes using Wire-managed dependencies.
 // ctx controls the lifetime of all background workers started here.
 func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error) {
@@ -85,13 +89,16 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 			}
 			return app.OrgaoSnapshotRepo.GetOrgaoIDsByCdUAs(ctx, cdUAs)
 		}
-		apiV1.Use(middlewares.ExtractSecretariaOrgaoIDs(resolver))
+
+		if cfg.App.Environment == "development" || cfg.App.Environment == "test" {
+			apiV1.Use(middlewares.ExtractSecretariaOrgaoIDs(resolver))
+		}
 	}
 
 	apiPublic := r.Group("/api/public")
 
-	registerCoreRoutes(apiV1, apiPublic, app)
-	registerEmpregabilidadeRoutes(apiV1, apiPublic, app)
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
+	registerEmpregabilidadeRoutes(apiV1, apiPublic, app, cfg)
 
 	return r, nil
 }
