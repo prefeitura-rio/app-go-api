@@ -84,6 +84,8 @@ func TestAppSettings_IsProduction(t *testing.T) {
 		{"production lowercase", "production", true},
 		{"production uppercase", "PRODUCTION", true},
 		{"production mixed case", "Production", true},
+		{"prod (real deployed value)", "prod", true},
+		{"prod uppercase", "PROD", true},
 		{"development", "development", false},
 		{"test", "test", false},
 		{"empty", "", false},

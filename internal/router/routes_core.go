@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
 
 // registerCoreRoutes registers all core (non-empregabilidade) API routes.
-func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.ApplicationContainer) {
+func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.ApplicationContainer, cfg *config.AppConfig) {
 	registerLookup(apiV1.Group("/empregos"), app.EmpregoHandler)
 	registerLookup(apiV1.Group("/acessibilidades"), app.AcessibilidadeHandler)
 	registerLookup(apiV1.Group("/categorias"), app.CategoriaHandler)
@@ -35,16 +36,30 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		return curso.OrgaoID, true, nil
 	}
 
-	ownershipCheck := middlewares.CourseOwnershipCheck(cursoLoader)
+	var ownershipCheck gin.HandlerFunc
+	var courseAuth gin.HandlerFunc
+	var courseOrgaoInjector gin.HandlerFunc
+	var courseListFilter gin.HandlerFunc
 
-	courseAuth := middlewares.CourseAuthorization()
+	// "development" cobre local + staging (ver comentário de noOpHandler em router.go).
+	if cfg.App.Environment == "development" || cfg.App.Environment == "test" {
+		ownershipCheck = middlewares.CourseOwnershipCheck(cursoLoader)
+		courseAuth = middlewares.CourseAuthorization()
+		courseOrgaoInjector = middlewares.CourseOrgaoInjector()
+		courseListFilter = middlewares.CourseListFilter()
+	} else {
+		ownershipCheck = noOpHandler
+		courseAuth = noOpHandler
+		courseOrgaoInjector = noOpHandler
+		courseListFilter = noOpHandler
+	}
 
 	courses := apiV1.Group("/courses")
 	{
-		courses.POST("", courseAuth, middlewares.CourseOrgaoInjector(), app.CourseHandler.Create)
-		courses.POST("/draft", courseAuth, middlewares.CourseOrgaoInjector(), app.CourseHandler.CreateDraft)
-		courses.GET("", middlewares.CourseListFilter(), app.CourseHandler.List)
-		courses.GET("/drafts", middlewares.CourseListFilter(), app.CourseHandler.ListDrafts)
+		courses.POST("", courseAuth, courseOrgaoInjector, app.CourseHandler.Create)
+		courses.POST("/draft", courseAuth, courseOrgaoInjector, app.CourseHandler.CreateDraft)
+		courses.GET("", courseListFilter, app.CourseHandler.List)
+		courses.GET("/drafts", courseListFilter, app.CourseHandler.ListDrafts)
 		courses.GET("/:courseId", app.CourseHandler.GetByID)
 		courses.DELETE("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.Delete)
 		courses.PUT("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.Update)

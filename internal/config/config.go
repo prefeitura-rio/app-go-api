@@ -219,9 +219,14 @@ func (a *AppSettings) IsDevelopment() bool {
 	return strings.ToLower(a.Environment) == "development"
 }
 
-// IsProduction verifica se o ambiente é de produção
+// IsProduction verifica se o ambiente é de produção.
+// Aceita tanto "prod" (valor real configurado no go-secrets de produção,
+// via kubectl logs -n go <pod> -> "Ambiente: prod") quanto "production"
+// (valor documentado/esperado), para não quebrar silenciosamente se o
+// secret for normalizado no futuro.
 func (a *AppSettings) IsProduction() bool {
-	return strings.ToLower(a.Environment) == "production"
+	env := strings.ToLower(a.Environment)
+	return env == "prod" || env == "production"
 }
 
 // IsTest verifica se o ambiente é de teste

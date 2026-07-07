@@ -2,12 +2,13 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
 
 // registerEmpregabilidadeRoutes registers all empregabilidade API routes.
-func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.ApplicationContainer) {
+func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.ApplicationContainer, cfg *config.AppConfig) {
 	emp := apiV1.Group("/empregabilidade")
 
 	// Lookup tables
@@ -32,14 +33,28 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empEmpresas.DELETE("/:cnpj", app.EmpEmpresaHandler.Delete)
 	}
 
-	vagaAuth := middlewares.VagaAuthorization()
+	var vagaAuth gin.HandlerFunc
+	var vagaOrgaoInjector gin.HandlerFunc
+	var vagaListFilter gin.HandlerFunc
+
+	// "development" cobre local + staging (ver comentário de noOpHandler em router.go).
+	// vagaAuth também protege o grupo /candidaturas mais abaixo nesta função.
+	if cfg.App.Environment == "development" || cfg.App.Environment == "test" {
+		vagaAuth = middlewares.VagaAuthorization()
+		vagaOrgaoInjector = middlewares.VagaOrgaoInjector()
+		vagaListFilter = middlewares.VagaListFilter()
+	} else {
+		vagaAuth = noOpHandler
+		vagaOrgaoInjector = noOpHandler
+		vagaListFilter = noOpHandler
+	}
 
 	// Vagas
 	empVagas := emp.Group("/vagas")
 	{
-		empVagas.POST("", vagaAuth, middlewares.VagaOrgaoInjector(), app.EmpVagaHandler.Create)
-		empVagas.POST("/draft", vagaAuth, middlewares.VagaOrgaoInjector(), app.EmpVagaHandler.Create)
-		empVagas.GET("", vagaAuth, middlewares.VagaListFilter(), app.EmpVagaHandler.List)
+		empVagas.POST("", vagaAuth, vagaOrgaoInjector, app.EmpVagaHandler.Create)
+		empVagas.POST("/draft", vagaAuth, vagaOrgaoInjector, app.EmpVagaHandler.Create)
+		empVagas.GET("", vagaAuth, vagaListFilter, app.EmpVagaHandler.List)
 		empVagas.GET("/:id", app.EmpVagaHandler.GetByID)
 		empVagas.PUT("/:id", vagaAuth, app.EmpVagaHandler.Update)
 		empVagas.DELETE("/:id", vagaAuth, app.EmpVagaHandler.Delete)
