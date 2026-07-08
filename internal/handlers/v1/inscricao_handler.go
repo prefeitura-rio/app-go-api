@@ -534,29 +534,45 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 }
 
 // @Summary      Excluir inscrição
-// @Description  Remove uma inscrição específica
+// @Description  Remove permanentemente uma inscrição específica. Apenas administradores podem executar esta ação.
 // @Tags         inscricoes
 // @Produce      json
 // @Param        courseId     path      int     true  "ID do curso"
 // @Param        enrollmentId path      string  true  "UUID da inscrição"
 // @Success      200          {object}  object
 // @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId} [delete]
 func (h *InscricaoHandler) Delete(c *gin.Context) {
+	userRole := c.GetString("user_role")
+	if userRole != "ADMIN" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: apenas administradores podem excluir inscrições"})
+		return
+	}
+
+	cursoID, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
+		return
+	}
+
 	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
 		return
 	}
 
-	if err := h.service.Delete(c.Request.Context(), enrollmentID); err != nil {
-		if err.Error() == "inscrição não encontrada" {
+	if err := h.service.Delete(c.Request.Context(), enrollmentID, cursoID); err != nil {
+		switch err.Error() {
+		case "inscrição não encontrada":
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
+		case "inscrição não pertence ao curso especificado":
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir inscrição: " + err.Error()})
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir inscrição: " + err.Error()})
 		return
 	}
 

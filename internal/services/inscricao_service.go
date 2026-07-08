@@ -497,14 +497,17 @@ func (s *InscricaoService) GetSummaryByCursoID(ctx context.Context, cursoID int)
 	return s.repo.GetSummaryByCursoID(ctx, cursoID)
 }
 
-func (s *InscricaoService) Delete(ctx context.Context, id uuid.UUID) error {
-	// Validate enrollment exists
+func (s *InscricaoService) Delete(ctx context.Context, id uuid.UUID, cursoID int) error {
 	inscricao, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("erro ao verificar inscrição: %w", err)
 	}
 	if inscricao == nil {
 		return fmt.Errorf("inscrição não encontrada")
+	}
+
+	if inscricao.CursoID != cursoID {
+		return fmt.Errorf("inscrição não pertence ao curso especificado")
 	}
 
 	return s.repo.Delete(ctx, id)
