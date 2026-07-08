@@ -11382,6 +11382,9 @@ const docTemplate = `{
                 "orgao_parceiro": {
                     "$ref": "#/definitions/models.OrgaoSnapshot"
                 },
+                "quantidade_estimada_contratacoes": {
+                    "type": "integer"
+                },
                 "regime_contratacao": {
                     "$ref": "#/definitions/empregabilidade.RegimeContratacao"
                 },

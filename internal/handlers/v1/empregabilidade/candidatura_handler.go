@@ -67,7 +67,7 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 		return
 	}
 
-	if middlewares.IsAdmin(c) && entity.CPF != "" {
+	if (middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:empregabilidade:admin")) && entity.CPF != "" {
 		// Admin criando candidatura para outro usuário — usa CPF do body, sem sobrescrever nome/email
 	} else {
 		cpf := middlewares.GetUserCPF(c)
@@ -288,7 +288,7 @@ func (h *CandidaturaHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	if !requireOwnership(c, entity.CPF) {
+	if !requireOwnership(c, entity.CPF) && !middlewares.HasRole(c, "go:empregabilidade:admin") {
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *CandidaturaHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if !requireOwnership(c, existing.CPF) {
+	if !requireOwnership(c, existing.CPF) && !middlewares.HasRole(c, "go:empregabilidade:admin") {
 		return
 	}
 
@@ -371,7 +371,7 @@ func (h *CandidaturaHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if !requireOwnership(c, existing.CPF) {
+	if !requireOwnership(c, existing.CPF) && !middlewares.HasRole(c, "go:empregabilidade:admin") {
 		return
 	}
 

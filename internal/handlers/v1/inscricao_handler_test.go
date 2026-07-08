@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
 )
@@ -155,6 +156,10 @@ func TestInscricaoHandler_UpdateStatus_InvalidJSON(t *testing.T) {
 func TestInscricaoHandler_UpdateIndividualStatus_InvalidEnrollmentID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	h := v1.NewInscricaoHandler(nil, nil, nil)
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/status", h.UpdateIndividualStatus)
 
@@ -171,6 +176,10 @@ func TestInscricaoHandler_UpdateIndividualStatus_InvalidEnrollmentID(t *testing.
 func TestInscricaoHandler_UpdateIndividualStatus_InvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	h := v1.NewInscricaoHandler(nil, nil, nil)
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/status", h.UpdateIndividualStatus)
 
