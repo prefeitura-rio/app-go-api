@@ -76,7 +76,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courses.PUT("/:courseId/enrollments/:enrollmentId/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateIndividualStatus)
 		courses.GET("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.GetByID)
 		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateCertificate)
-		courses.DELETE("/:courseId/enrollments/:enrollmentId", courseAuth, ownershipCheck, app.InscricaoHandler.Delete)
+		courses.DELETE("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.Delete)
 	}
 
 	apiV1.Group("/jobs").GET("/:jobId/status", app.JobHandler.GetStatus)
