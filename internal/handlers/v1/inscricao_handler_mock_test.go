@@ -254,6 +254,10 @@ func TestInscricaoHandler_Create_Success(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
 	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
 
 	inscricaoID := uuid.New()
@@ -267,7 +271,6 @@ func TestInscricaoHandler_Create_Success(t *testing.T) {
 		Return(nil)
 
 	reqBody := map[string]interface{}{
-		"cpf":   "12345678901",
 		"name":  "Test User",
 		"email": "test@example.com",
 	}
@@ -293,17 +296,16 @@ func TestInscricaoHandler_Create_DuplicateEnrollment(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
 	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
 
 	mockService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
 		Return(errors.New("CPF já inscrito neste curso"))
 
-	reqBody := map[string]interface{}{
-		"cpf": "12345678901",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader([]byte(`{}`)))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -323,17 +325,16 @@ func TestInscricaoHandler_Create_ServiceError(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
 	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
 
 	mockService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
 		Return(errors.New("database error"))
 
-	reqBody := map[string]interface{}{
-		"cpf": "12345678901",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader([]byte(`{}`)))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -479,8 +480,8 @@ func TestInscricaoHandler_Update_NotFound(t *testing.T) {
 
 	enrollmentID := uuid.New()
 
-	mockService.On("UpdateInscricao", mock.Anything, enrollmentID, 1, mock.AnythingOfType("*models.InscricaoUpdateRequest")).
-		Return(errors.New("inscrição não encontrada"))
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(nil, nil)
 
 	reqBody := map[string]interface{}{
 		"name": "Updated Name",
@@ -653,6 +654,12 @@ func TestInscricaoHandler_Delete_Success(t *testing.T) {
 
 	enrollmentID := uuid.New()
 
+	existing := &models.Inscricao{
+		ID: enrollmentID,
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(existing, nil)
 	mockService.On("Delete", mock.Anything, enrollmentID).
 		Return(nil)
 
@@ -682,8 +689,8 @@ func TestInscricaoHandler_Delete_NotFound(t *testing.T) {
 
 	enrollmentID := uuid.New()
 
-	mockService.On("Delete", mock.Anything, enrollmentID).
-		Return(errors.New("inscrição não encontrada"))
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(nil, nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
 	w := httptest.NewRecorder()
@@ -940,6 +947,12 @@ func TestInscricaoHandler_Delete_Admin_AnyEnrollment_Success(t *testing.T) {
 
 	enrollmentID := uuid.New()
 
+	inscricao := &models.Inscricao{
+		ID: enrollmentID,
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
 	mockService.On("Delete", mock.Anything, enrollmentID).Return(nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)

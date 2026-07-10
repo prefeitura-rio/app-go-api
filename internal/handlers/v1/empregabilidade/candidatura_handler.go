@@ -288,7 +288,7 @@ func (h *CandidaturaHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	if !requireOwnership(c, entity.CPF) && !middlewares.HasRole(c, "go:empregabilidade:admin") {
+	if !middlewares.HasRole(c, "go:empregabilidade:admin") && !requireOwnership(c, entity.CPF) {
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *CandidaturaHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if !requireOwnership(c, existing.CPF) && !middlewares.HasRole(c, "go:empregabilidade:admin") {
+	if !middlewares.HasRole(c, "go:empregabilidade:admin") && !requireOwnership(c, existing.CPF) {
 		return
 	}
 
@@ -371,7 +371,7 @@ func (h *CandidaturaHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if !requireOwnership(c, existing.CPF) && !middlewares.HasRole(c, "go:empregabilidade:admin") {
+	if !middlewares.HasRole(c, "go:empregabilidade:admin") && !requireOwnership(c, existing.CPF) {
 		return
 	}
 
