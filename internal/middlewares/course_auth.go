@@ -3,6 +3,7 @@ package middlewares
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -152,11 +153,9 @@ func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 		secretariaIDs := GetUserSecretariaOrgaoIDs(c)
 
 		if secretariaIDs != nil {
-			for _, sid := range secretariaIDs {
-				if orgaoID == sid {
-					c.Next()
-					return
-				}
+			if slices.Contains(secretariaIDs, orgaoID) {
+				c.Next()
+				return
 			}
 			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
 			c.Abort()

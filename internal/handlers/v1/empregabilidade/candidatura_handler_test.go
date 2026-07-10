@@ -187,6 +187,41 @@ func setupCandidaturaRouter(
 	return r
 }
 
+func setupCandidaturaRouterWithRoles(
+	candRepo empServices.CandidaturaRepositoryInterface,
+	vagaRepo empServices.VagaRepositoryInterface,
+	cpf string,
+	roles []string,
+) *gin.Engine {
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		if cpf != "" {
+			c.Set(middlewares.UserCPFKey, cpf)
+		}
+		if len(roles) > 0 {
+			c.Set(middlewares.UserRolesKey, roles)
+		}
+		c.Next()
+	})
+	curriculoSvc := &mockCurriculoSvcH{}
+	emailSvc := services.NewEmailNotificationService(nil, nil, nil, nil, false, "")
+	svc := empServices.NewCandidaturaService(candRepo, vagaRepo, curriculoSvc, nil, nil, emailSvc)
+	h := handlers.NewCandidaturaHandler(svc)
+	r.POST("/candidaturas", h.Create)
+	r.GET("/candidaturas", h.List)
+	r.GET("/candidaturas/usuario/:cpf", h.ListByCPF)
+	r.GET("/candidaturas/:id", h.GetByID)
+	r.PUT("/candidaturas/:id", h.Update)
+	r.DELETE("/candidaturas/:id", h.Delete)
+	r.PUT("/candidaturas/:id/status", h.UpdateStatus)
+	r.PUT("/candidaturas/:id/approve", h.Approve)
+	r.PUT("/candidaturas/:id/reject", h.Reject)
+	r.PUT("/candidaturas/bulk-status", h.BulkUpdateStatus)
+	r.PUT("/candidaturas/bulk-etapa", h.BulkUpdateEtapa)
+	r.PUT("/candidaturas/:id/etapa", h.UpdateEtapa)
+	return r
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Tests: Create
 // ──────────────────────────────────────────────────────────────────────────────
@@ -381,6 +416,22 @@ func TestCandidaturaHandler_GetByID_Forbidden(t *testing.T) {
 	}
 }
 
+func TestCandidaturaHandler_GetByID_AsEmpregabilidadeAdmin_OtherOwner(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	candRepo := &mockCandidaturaRepoH{entity: &empmodels.Candidatura{ID: id, CPF: "12345678900"}}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouterWithRoles(candRepo, vagaRepo, "99999999999", []string{"go:empregabilidade:admin"})
+	req := httptest.NewRequest(http.MethodGet, "/candidaturas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if got := w.Body.String(); got == "" {
+		t.Error("expected non-empty body")
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Tests: Delete
 // ──────────────────────────────────────────────────────────────────────────────
@@ -419,6 +470,19 @@ func TestCandidaturaHandler_Delete_InvalidID(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCandidaturaHandler_Delete_AsEmpregabilidadeAdmin_OtherOwner(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	candRepo := &mockCandidaturaRepoH{entity: &empmodels.Candidatura{ID: id, CPF: "12345678900"}}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouterWithRoles(candRepo, vagaRepo, "99999999999", []string{"go:empregabilidade:admin"})
+	req := httptest.NewRequest(http.MethodDelete, "/candidaturas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -593,6 +657,25 @@ func TestCandidaturaHandler_Update_Success_AsAdmin(t *testing.T) {
 	}
 	vagaRepo := &mockVagaForCandidaturaH{}
 	r := setupCandidaturaRouter(candRepo, vagaRepo, "admin", true)
+	body := bodyOf(`{"id_vaga":"` + validUUID + `"}`)
+	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCandidaturaHandler_Update_AsEmpregabilidadeAdmin_OtherOwner(t *testing.T) {
+	candRepo := &mockCandidaturaRepoH{
+		entity: &empmodels.Candidatura{
+			ID:  uuid.MustParse(validUUID),
+			CPF: "12345678900",
+		},
+	}
+	vagaRepo := &mockVagaForCandidaturaH{}
+	r := setupCandidaturaRouterWithRoles(candRepo, vagaRepo, "99999999999", []string{"go:empregabilidade:admin"})
 	body := bodyOf(`{"id_vaga":"` + validUUID + `"}`)
 	req := httptest.NewRequest(http.MethodPut, "/candidaturas/"+validUUID, body)
 	req.Header.Set("Content-Type", "application/json")

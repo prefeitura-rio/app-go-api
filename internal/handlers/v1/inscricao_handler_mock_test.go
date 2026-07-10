@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -253,6 +254,10 @@ func TestInscricaoHandler_Create_Success(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
 	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
 
 	inscricaoID := uuid.New()
@@ -266,7 +271,6 @@ func TestInscricaoHandler_Create_Success(t *testing.T) {
 		Return(nil)
 
 	reqBody := map[string]interface{}{
-		"cpf":   "12345678901",
 		"name":  "Test User",
 		"email": "test@example.com",
 	}
@@ -292,17 +296,16 @@ func TestInscricaoHandler_Create_DuplicateEnrollment(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
 	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
 
 	mockService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
 		Return(errors.New("CPF já inscrito neste curso"))
 
-	reqBody := map[string]interface{}{
-		"cpf": "12345678901",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader([]byte(`{}`)))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -322,17 +325,16 @@ func TestInscricaoHandler_Create_ServiceError(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
 	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
 
 	mockService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
 		Return(errors.New("database error"))
 
-	reqBody := map[string]interface{}{
-		"cpf": "12345678901",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader([]byte(`{}`)))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -428,6 +430,10 @@ func TestInscricaoHandler_Update_Success(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Update)
 
 	enrollmentID := uuid.New()
@@ -457,7 +463,6 @@ func TestInscricaoHandler_Update_Success(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// Test Update with not found error
 func TestInscricaoHandler_Update_NotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockInscricaoService)
@@ -467,12 +472,16 @@ func TestInscricaoHandler_Update_NotFound(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Update)
 
 	enrollmentID := uuid.New()
 
-	mockService.On("UpdateInscricao", mock.Anything, enrollmentID, 1, mock.AnythingOfType("*models.InscricaoUpdateRequest")).
-		Return(errors.New("inscrição não encontrada"))
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(nil, nil)
 
 	reqBody := map[string]interface{}{
 		"name": "Updated Name",
@@ -535,6 +544,10 @@ func TestInscricaoHandler_UpdateIndividualStatus_Success(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/status", handler.UpdateIndividualStatus)
 
 	enrollmentID := uuid.New()
@@ -624,7 +637,6 @@ func TestInscricaoHandler_GetByID_NotFound(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// Test Delete with success
 func TestInscricaoHandler_Delete_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockInscricaoService)
@@ -634,10 +646,20 @@ func TestInscricaoHandler_Delete_Success(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
 	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
 
 	enrollmentID := uuid.New()
 
+	existing := &models.Inscricao{
+		ID: enrollmentID,
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(existing, nil)
 	mockService.On("Delete", mock.Anything, enrollmentID).
 		Return(nil)
 
@@ -650,7 +672,6 @@ func TestInscricaoHandler_Delete_Success(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// Test Delete with not found
 func TestInscricaoHandler_Delete_NotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockInscricaoService)
@@ -660,18 +681,285 @@ func TestInscricaoHandler_Delete_NotFound(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
 	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
 
 	enrollmentID := uuid.New()
 
-	mockService.On("Delete", mock.Anything, enrollmentID).
-		Return(errors.New("inscrição não encontrada"))
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(nil, nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_Create_NonAdmin_UsesCPFFromToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "USER")
+		c.Set("user_cpf", "11111111111")
+		c.Next()
+	})
+	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
+
+	enrollmentID := uuid.New()
+	mockService.On("Create", mock.Anything, mock.MatchedBy(func(i *models.Inscricao) bool {
+		return i.CPF == "11111111111"
+	})).
+		Run(func(args mock.Arguments) {
+			i := args.Get(1).(*models.Inscricao)
+			i.ID = enrollmentID
+			i.Status = models.StatusInscricaoPending
+		}).
+		Return(nil)
+
+	body, _ := json.Marshal(map[string]interface{}{"cpf": "99999999999"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_Create_Admin_UsesBodyCPF(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Set("user_cpf", "11111111111")
+		c.Next()
+	})
+	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
+
+	enrollmentID := uuid.New()
+	mockService.On("CreateByAdmin", mock.Anything, mock.MatchedBy(func(i *models.Inscricao) bool {
+		return i.CPF == "99999999999"
+	})).
+		Run(func(args mock.Arguments) {
+			i := args.Get(1).(*models.Inscricao)
+			i.ID = enrollmentID
+			i.Status = models.StatusInscricaoPending
+		}).
+		Return(nil)
+
+	body, _ := json.Marshal(map[string]interface{}{"cpf": "99999999999"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_Update_NonAdmin_OwnEnrollment_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "USER")
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Update)
+
+	enrollmentID := uuid.New()
+	existing := &models.Inscricao{ID: enrollmentID, CursoID: 1, CPF: "12345678901"}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil).Once()
+	mockService.On("UpdateInscricao", mock.Anything, enrollmentID, 1, mock.AnythingOfType("*models.InscricaoUpdateRequest")).Return(nil)
+	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
+
+	body, _ := json.Marshal(map[string]interface{}{"name": "New Name"})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_Update_NonAdmin_OtherEnrollment_Forbidden(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "USER")
+		c.Set("user_cpf", "11111111111")
+		c.Next()
+	})
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Update)
+
+	enrollmentID := uuid.New()
+	existing := &models.Inscricao{ID: enrollmentID, CursoID: 1, CPF: "99999999999"}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
+
+	body, _ := json.Marshal(map[string]interface{}{"name": "Hack"})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_Update_Admin_AnyEnrollment_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Set("user_cpf", "11111111111")
+		c.Next()
+	})
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Update)
+
+	enrollmentID := uuid.New()
+	existing := &models.Inscricao{ID: enrollmentID, CursoID: 1, CPF: "99999999999"}
+
+	mockService.On("UpdateInscricao", mock.Anything, enrollmentID, 1, mock.AnythingOfType("*models.InscricaoUpdateRequest")).Return(nil)
+	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
+
+	body, _ := json.Marshal(map[string]interface{}{"name": "Admin Edit"})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_Delete_NonAdmin_OwnEnrollment_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "USER")
+		c.Set("user_cpf", "12345678901")
+		c.Next()
+	})
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+
+	enrollmentID := uuid.New()
+	existing := &models.Inscricao{ID: enrollmentID, CPF: "12345678901"}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
+	mockService.On("Delete", mock.Anything, enrollmentID).Return(nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_Delete_NonAdmin_OtherEnrollment_Forbidden(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "USER")
+		c.Set("user_cpf", "11111111111")
+		c.Next()
+	})
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+
+	enrollmentID := uuid.New()
+	existing := &models.Inscricao{ID: enrollmentID, CPF: "99999999999"}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_Delete_Admin_AnyEnrollment_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Set("user_cpf", "11111111111")
+		c.Next()
+	})
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+
+	enrollmentID := uuid.New()
+
+	inscricao := &models.Inscricao{
+		ID: enrollmentID,
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
+	mockService.On("Delete", mock.Anything, enrollmentID).Return(nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
 	mockService.AssertExpectations(t)
 }
 

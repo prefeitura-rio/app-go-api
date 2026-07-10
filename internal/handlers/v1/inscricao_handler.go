@@ -16,6 +16,7 @@ import (
 	"gorm.io/datatypes"
 
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -166,12 +167,25 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 	// Set the course ID from URL
 	inscricao.CursoID = cursoID
 
-	if err := h.service.Create(c.Request.Context(), &inscricao); err != nil {
-		if err.Error() == "CPF já inscrito neste curso" {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	var createErr error
+	if middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:cursos:casa_civil") {
+		createErr = h.service.CreateByAdmin(c.Request.Context(), &inscricao)
+	} else {
+		cpf := middlewares.GetUserCPF(c)
+		if cpf == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "CPF não encontrado no token de autenticação"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + err.Error()})
+		inscricao.CPF = cpf
+		createErr = h.service.Create(c.Request.Context(), &inscricao)
+	}
+
+	if createErr != nil {
+		if createErr.Error() == "CPF já inscrito neste curso" {
+			c.JSON(http.StatusConflict, gin.H{"error": createErr.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + createErr.Error()})
 		return
 	}
 
@@ -301,17 +315,34 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UpdateInscricao(c.Request.Context(), enrollmentID, cursoID, &updateData); err != nil {
-		if err.Error() == "inscrição não encontrada" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
+	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("erro ao buscar inscrição: %w", err).Error()})
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "inscrição não encontrada"})
+		return
+	}
+	if existing.CursoID != cursoID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "inscrição não pertence ao curso especificado"})
+		return
+	}
+
+	isAdmin := middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:cursos:casa_civil")
+	if !isAdmin && existing.CPF != middlewares.GetUserCPF(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
+		return
+	}
+
+	if err := h.service.UpdateInscricao(c.Request.Context(), existing.ID, cursoID, &updateData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	inscricao, _ := h.service.GetByID(c.Request.Context(), enrollmentID)
-	c.JSON(http.StatusOK, inscricao)
+	updated, _ := h.service.GetByID(c.Request.Context(), existing.ID)
+	c.JSON(http.StatusOK, updated)
 }
 
 // @Summary      Atualizar status de múltiplas inscrições
@@ -383,6 +414,11 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 		return
 	}
 
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado"})
+		return
+	}
+
 	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
@@ -449,6 +485,13 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 	if inscricao == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Inscrição não encontrada"})
 		return
+	}
+
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		if inscricao.CPF != middlewares.GetUserCPF(c) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
+			return
+		}
 	}
 
 	// Calculate remaining vacancies for enrolled_unit schedules
@@ -549,13 +592,27 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
 		return
+
+	}
+	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("erro ao verificar inscrição: %w", err).Error()})
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "inscrição não encontrada"})
+		return
+	}
+
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		if existing.CPF != middlewares.GetUserCPF(c) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
+			return
+		}
 	}
 
 	if err := h.service.Delete(c.Request.Context(), enrollmentID); err != nil {
-		if err.Error() == "inscrição não encontrada" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir inscrição: " + err.Error()})
 		return
 	}

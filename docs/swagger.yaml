@@ -561,6 +561,8 @@ definitions:
         $ref: '#/definitions/empregabilidade.ModeloTrabalho'
       orgao_parceiro:
         $ref: '#/definitions/models.OrgaoSnapshot'
+      quantidade_estimada_contratacoes:
+        type: integer
       regime_contratacao:
         $ref: '#/definitions/empregabilidade.RegimeContratacao'
       requisitos:
