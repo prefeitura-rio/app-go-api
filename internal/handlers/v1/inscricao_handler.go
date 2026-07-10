@@ -341,7 +341,8 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, existing)
+	updated, _ := h.service.GetByID(c.Request.Context(), existing.ID)
+	c.JSON(http.StatusOK, updated)
 }
 
 // @Summary      Atualizar status de múltiplas inscrições
