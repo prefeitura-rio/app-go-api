@@ -111,6 +111,8 @@ definitions:
         items:
           $ref: '#/definitions/empregabilidade.CurriculoIdioma'
         type: array
+      resumo_profissional:
+        type: string
       situacao_interesses:
         $ref: '#/definitions/empregabilidade.CurriculoSituacaoInteresses'
     type: object
@@ -324,6 +326,8 @@ definitions:
         items:
           $ref: '#/definitions/empregabilidade.CurriculoExperiencia'
         type: array
+      resumo_profissional:
+        type: string
     type: object
   empregabilidade.FormacaoAccordionRequest:
     properties:

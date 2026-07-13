@@ -8,4 +8,5 @@ type CurriculoCompleto struct {
 	Experiencias         []*CurriculoExperiencia       `json:"experiencias"`
 	Conquistas           []*CurriculoConquista         `json:"conquistas"`
 	SituacaoInteresses   *CurriculoSituacaoInteresses  `json:"situacao_interesses"`
+	ResumoProfissional   string                        `json:"resumo_profissional"`
 }

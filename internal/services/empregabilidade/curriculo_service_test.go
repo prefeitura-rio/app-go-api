@@ -28,6 +28,7 @@ type mockCurriculoRepo struct {
 	experiencias []*empregabilidade.CurriculoExperiencia
 	conquistas   []*empregabilidade.CurriculoConquista
 	situacao     *empregabilidade.CurriculoSituacaoInteresses
+	perfil       *empregabilidade.CurriculoPerfil
 	err          error
 }
 
@@ -163,7 +164,7 @@ func (m *mockCurriculoRepo) ReplaceAllExperienciasByCPF(_ context.Context, _ str
 	return m.err
 }
 
-func (m *mockCurriculoRepo) ReplaceAllExperienciaProfissionalAccordionByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoExperiencia, _ []*empregabilidade.CurriculoConquista) error {
+func (m *mockCurriculoRepo) ReplaceAllExperienciaProfissionalAccordionByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoExperiencia, _ []*empregabilidade.CurriculoConquista, _ string) error {
 	return m.err
 }
 
@@ -185,6 +186,10 @@ func (m *mockCurriculoRepo) UpsertSituacaoInteresses(_ context.Context, _ *empre
 
 func (m *mockCurriculoRepo) GetSituacaoInteressesByCPF(_ context.Context, _ string) (*empregabilidade.CurriculoSituacaoInteresses, error) {
 	return m.situacao, m.err
+}
+
+func (m *mockCurriculoRepo) GetPerfilByCPF(_ context.Context, _ string) (*empregabilidade.CurriculoPerfil, error) {
+	return m.perfil, m.err
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -619,7 +624,7 @@ func TestCurriculoService_ReplaceAllExperienciaProfissionalAccordionByCPF(t *tes
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	experiencias := []*empregabilidade.CurriculoExperiencia{}
 	conquistas := []*empregabilidade.CurriculoConquista{}
-	err := svc.ReplaceAllExperienciaProfissionalAccordionByCPF(context.Background(), "12345678900", experiencias, conquistas)
+	err := svc.ReplaceAllExperienciaProfissionalAccordionByCPF(context.Background(), "12345678900", experiencias, conquistas, "")
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
@@ -943,7 +948,7 @@ func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllExperienciasByCPF(_ co
 	return nil
 }
 
-func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllExperienciaProfissionalAccordionByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoExperiencia, _ []*empregabilidade.CurriculoConquista) error {
+func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllExperienciaProfissionalAccordionByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoExperiencia, _ []*empregabilidade.CurriculoConquista, _ string) error {
 	return nil
 }
 
@@ -966,6 +971,13 @@ func (m *mockCurriculoRepoWithSequentialErrors) UpsertSituacaoInteresses(_ conte
 func (m *mockCurriculoRepoWithSequentialErrors) GetSituacaoInteressesByCPF(_ context.Context, _ string) (*empregabilidade.CurriculoSituacaoInteresses, error) {
 	if m.step == 6 {
 		return nil, errors.New("situacao error")
+	}
+	return nil, nil
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) GetPerfilByCPF(_ context.Context, _ string) (*empregabilidade.CurriculoPerfil, error) {
+	if m.step == 7 {
+		return nil, errors.New("perfil error")
 	}
 	return nil, nil
 }

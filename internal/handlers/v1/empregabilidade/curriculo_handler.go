@@ -1037,7 +1037,7 @@ func (h *CurriculoHandler) ReplaceAllExperienciasByCPF(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.ReplaceAllExperienciaProfissionalAccordionByCPF(c.Request.Context(), cpf, req.Experiencias, req.Conquistas); err != nil {
+	if err := h.service.ReplaceAllExperienciaProfissionalAccordionByCPF(c.Request.Context(), cpf, req.Experiencias, req.Conquistas, req.ResumoProfissional); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
