@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -502,6 +503,13 @@ func TestVagaRepository_GetByID_Success(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "emp_vagas_tipos_pcd"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id_vaga", "id_tipo_pcd"}))
 
+	// Zonas is a many2many relation, so it queries the junction table first
+	mock.ExpectQuery(`SELECT \* FROM "emp_vagas_zonas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id_vaga", "id_zona"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_vagas_idiomas_requisitos"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id_vaga", "id_idioma", "id_nivel_minimo"}))
+
 	mock.ExpectQuery(`SELECT \* FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
@@ -530,6 +538,63 @@ func TestVagaRepository_GetByID_NotFound(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestVagaRepository_GetByIDPrefix_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+	regimeID := uuid.New()
+	modeloID := uuid.New()
+
+	mock.MatchExpectationsInOrder(false)
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_vagas"`).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "titulo", "descricao", "id_contratante", "id_regime_contratacao",
+			"id_modelo_trabalho", "status", "bairro", "requisitos", "diferenciais",
+			"responsabilidades", "beneficios", "id_orgao_parceiro",
+		}).AddRow(
+			vagaID, "Test Vaga", "Test Description", "12345678000190", regimeID,
+			modeloID, "em_edicao", "", "", "", "", "", "",
+		))
+
+	// id_orgao_parceiro is zero-value ("") for this row, so GORM skips the
+	// OrgaoParceiro preload query entirely (no rows to look up) - no mock needed.
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_empresas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"cnpj"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_regimes_contratacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_modelos_trabalho"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_vagas_tipos_pcd"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id_vaga", "id_tipo_pcd"}))
+
+	// Zonas is a many2many relation, so it queries the junction table first
+	mock.ExpectQuery(`SELECT \* FROM "emp_vagas_zonas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id_vaga", "id_zona"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_vagas_idiomas_requisitos"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id_vaga", "id_idioma", "id_nivel_minimo"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_etapas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_informacoes_complementares"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	result, err := repo.GetByIDPrefix(ctx, strings.ReplaceAll(vagaID.String(), "-", "")[:12])
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, vagaID, result.ID)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestVagaRepository_Update_Success(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
@@ -549,6 +614,42 @@ func TestVagaRepository_Update_Success(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	err := repo.Update(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestVagaRepository_Update_IncludesCriteriosElegibilidadeColumns(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	idadeMin := 18
+	idadeMax := 65
+	escolaridadeID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                         uuid.New(),
+		Titulo:                     "Desenvolvedor Go",
+		Descricao:                  "Vaga para desenvolvedor Go",
+		IDContratante:              "12345678000190",
+		IDRegimeContratacao:        uuid.New(),
+		IDModeloTrabalho:           uuid.New(),
+		Status:                     empregabilidade.StatusVagaEmEdicao,
+		IdadeMinima:                &idadeMin,
+		IdadeMaxima:                &idadeMax,
+		BairrosElegibilidade:       []string{"Centro", "Tijuca"},
+		IDEscolaridadeMinima:       &escolaridadeID,
+		AreasFormacaoElegibilidade: []string{"Tecnologia"},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`(?s)UPDATE "emp_vagas" SET.*"areas_formacao_elegibilidade".*"bairros_elegibilidade".*"id_escolaridade_minima".*"idade_maxima".*"idade_minima".*WHERE`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
@@ -745,6 +846,133 @@ func TestVagaRepository_UpdateTiposPCD_EmptyList(t *testing.T) {
 	err := repo.UpdateTiposPCD(ctx, vagaID, []uuid.UUID{})
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestVagaRepository_UpdateZonas_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+	zonaID := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM emp_vagas_zonas`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`INSERT INTO emp_vagas_zonas`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	err := repo.UpdateZonas(ctx, vagaID, []uuid.UUID{zonaID})
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestVagaRepository_UpdateZonas_EmptyList(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM emp_vagas_zonas`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
+
+	err := repo.UpdateZonas(ctx, vagaID, []uuid.UUID{})
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestVagaRepository_UpdateIdiomasRequisito_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+	idiomaID := uuid.New()
+	nivelID := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM emp_vagas_idiomas_requisitos`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`INSERT INTO emp_vagas_idiomas_requisitos`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	requisitos := []empregabilidade.VagaIdiomaRequisito{
+		{IDIdioma: idiomaID, IDNivelMinimo: nivelID},
+	}
+
+	err := repo.UpdateIdiomasRequisito(ctx, vagaID, requisitos)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestVagaRepository_UpdateIdiomasRequisito_EmptyList(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM emp_vagas_idiomas_requisitos`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
+
+	err := repo.UpdateIdiomasRequisito(ctx, vagaID, []empregabilidade.VagaIdiomaRequisito{})
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestVagaRepository_UpdateIdiomasRequisito_DeleteError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM emp_vagas_idiomas_requisitos`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.UpdateIdiomasRequisito(ctx, vagaID, []empregabilidade.VagaIdiomaRequisito{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao remover requisitos de idioma")
+}
+
+func TestVagaRepository_UpdateIdiomasRequisito_InsertError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+	idiomaID := uuid.New()
+	nivelID := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM emp_vagas_idiomas_requisitos`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`INSERT INTO emp_vagas_idiomas_requisitos`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	requisitos := []empregabilidade.VagaIdiomaRequisito{
+		{IDIdioma: idiomaID, IDNivelMinimo: nivelID},
+	}
+
+	err := repo.UpdateIdiomasRequisito(ctx, vagaID, requisitos)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao inserir requisito de idioma")
 }
 
 // Error path tests
@@ -1012,6 +1240,42 @@ func TestVagaRepository_ListByOrgaoParceiro_FindError(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Equal(t, 0, total)
 	assert.Contains(t, err.Error(), "erro ao listar vagas por órgão parceiro")
+}
+
+func TestVagaRepository_UpdateWithAssociations_IncludesCriteriosElegibilidadeColumns(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	idadeMin := 18
+	idadeMax := 65
+	escolaridadeID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                         uuid.New(),
+		Titulo:                     "Desenvolvedor Go",
+		Descricao:                  "Vaga para desenvolvedor Go",
+		IDContratante:              "12345678000190",
+		IDRegimeContratacao:        uuid.New(),
+		IDModeloTrabalho:           uuid.New(),
+		Status:                     empregabilidade.StatusVagaEmEdicao,
+		IdadeMinima:                &idadeMin,
+		IdadeMaxima:                &idadeMax,
+		BairrosElegibilidade:       []string{"Centro"},
+		IDEscolaridadeMinima:       &escolaridadeID,
+		AreasFormacaoElegibilidade: []string{"Tecnologia"},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`(?s)UPDATE "emp_vagas" SET.*"areas_formacao_elegibilidade".*"bairros_elegibilidade".*"id_escolaridade_minima".*"idade_maxima".*"idade_minima".*WHERE`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestVagaRepository_UpdateWithAssociations_UpdateError(t *testing.T) {
@@ -1305,6 +1569,45 @@ func TestVagaRepository_UpdateTiposPCD_InsertError(t *testing.T) {
 	err := repo.UpdateTiposPCD(ctx, vagaID, []uuid.UUID{tipoPCDID})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "erro ao inserir tipo PCD")
+}
+
+func TestVagaRepository_UpdateZonas_DeleteError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM emp_vagas_zonas`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.UpdateZonas(ctx, vagaID, []uuid.UUID{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao remover zonas")
+}
+
+func TestVagaRepository_UpdateZonas_InsertError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+	vagaID := uuid.New()
+	zonaID := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM emp_vagas_zonas`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`INSERT INTO emp_vagas_zonas`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.UpdateZonas(ctx, vagaID, []uuid.UUID{zonaID})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao inserir zona")
 }
 
 // ==================== Multi-Select Filter Query Generation Tests ====================

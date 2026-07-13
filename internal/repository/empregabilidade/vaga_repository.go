@@ -39,6 +39,8 @@ func (r *VagaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empregabil
 		Preload("ModeloTrabalho").
 		Preload("OrgaoParceiro").
 		Preload("TiposPCD").
+		Preload("Zonas").
+		Preload("IdiomasRequisito").
 		Preload("Etapas", func(db *gorm.DB) *gorm.DB {
 			return db.Order("ordem ASC")
 		}).
@@ -71,6 +73,11 @@ func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vag
 		"beneficios":                       entity.Beneficios,
 		"id_orgao_parceiro":                entity.IDOrgaoParceiro,
 		"status":                           entity.Status,
+		"idade_minima":                     entity.IdadeMinima,
+		"idade_maxima":                     entity.IdadeMaxima,
+		"bairros_elegibilidade":            entity.BairrosElegibilidade,
+		"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
+		"areas_formacao_elegibilidade":     entity.AreasFormacaoElegibilidade,
 	}
 
 	result := r.db.WithContext(ctx).
@@ -102,6 +109,11 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			"beneficios":                       entity.Beneficios,
 			"id_orgao_parceiro":                entity.IDOrgaoParceiro,
 			"status":                           entity.Status,
+			"idade_minima":                     entity.IdadeMinima,
+			"idade_maxima":                     entity.IdadeMaxima,
+			"bairros_elegibilidade":            entity.BairrosElegibilidade,
+			"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
+			"areas_formacao_elegibilidade":     entity.AreasFormacaoElegibilidade,
 		}
 
 		if err := tx.Model(&empregabilidade.Vaga{}).Where("id = ?", entity.ID).Updates(updates).Error; err != nil {
@@ -159,6 +171,17 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			for _, tipo := range entity.TiposPCD {
 				if err := tx.Exec("INSERT INTO emp_vagas_tipos_pcd (id_vaga, id_tipo_pcd) VALUES (?, ?)", entity.ID, tipo.ID).Error; err != nil {
 					return fmt.Errorf("erro ao inserir tipo PCD: %w", err)
+				}
+			}
+		}
+
+		if entity.Zonas != nil {
+			if err := tx.Exec("DELETE FROM emp_vagas_zonas WHERE id_vaga = ?", entity.ID).Error; err != nil {
+				return fmt.Errorf("erro ao remover zonas: %w", err)
+			}
+			for _, zona := range entity.Zonas {
+				if err := tx.Exec("INSERT INTO emp_vagas_zonas (id_vaga, id_zona) VALUES (?, ?)", entity.ID, zona.ID).Error; err != nil {
+					return fmt.Errorf("erro ao inserir zona: %w", err)
 				}
 			}
 		}
@@ -300,6 +323,41 @@ func (r *VagaRepository) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, t
 		for _, tipoPCDID := range tiposPCDIDs {
 			if err := tx.Exec("INSERT INTO emp_vagas_tipos_pcd (id_vaga, id_tipo_pcd) VALUES (?, ?)", vagaID, tipoPCDID).Error; err != nil {
 				return fmt.Errorf("erro ao inserir tipo PCD: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
+func (r *VagaRepository) UpdateZonas(ctx context.Context, vagaID uuid.UUID, zonaIDs []uuid.UUID) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM emp_vagas_zonas WHERE id_vaga = ?", vagaID).Error; err != nil {
+			return fmt.Errorf("erro ao remover zonas: %w", err)
+		}
+
+		for _, zonaID := range zonaIDs {
+			if err := tx.Exec("INSERT INTO emp_vagas_zonas (id_vaga, id_zona) VALUES (?, ?)", vagaID, zonaID).Error; err != nil {
+				return fmt.Errorf("erro ao inserir zona: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
+func (r *VagaRepository) UpdateIdiomasRequisito(ctx context.Context, vagaID uuid.UUID, requisitos []empregabilidade.VagaIdiomaRequisito) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM emp_vagas_idiomas_requisitos WHERE id_vaga = ?", vagaID).Error; err != nil {
+			return fmt.Errorf("erro ao remover requisitos de idioma: %w", err)
+		}
+
+		for _, requisito := range requisitos {
+			if err := tx.Exec(
+				"INSERT INTO emp_vagas_idiomas_requisitos (id_vaga, id_idioma, id_nivel_minimo) VALUES (?, ?, ?)",
+				vagaID, requisito.IDIdioma, requisito.IDNivelMinimo,
+			).Error; err != nil {
+				return fmt.Errorf("erro ao inserir requisito de idioma: %w", err)
 			}
 		}
 
@@ -460,6 +518,8 @@ func (r *VagaRepository) GetByIDPrefix(ctx context.Context, idPrefix string) (*e
 		Preload("ModeloTrabalho").
 		Preload("OrgaoParceiro").
 		Preload("TiposPCD").
+		Preload("Zonas").
+		Preload("IdiomasRequisito").
 		Preload("Etapas", func(db *gorm.DB) *gorm.DB {
 			return db.Order("ordem ASC")
 		}).

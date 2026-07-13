@@ -69,6 +69,14 @@ func (m *mockVagaRepoH) UpdateTiposPCD(_ context.Context, _ uuid.UUID, _ []uuid.
 	return m.err
 }
 
+func (m *mockVagaRepoH) UpdateZonas(_ context.Context, _ uuid.UUID, _ []uuid.UUID) error {
+	return m.err
+}
+
+func (m *mockVagaRepoH) UpdateIdiomasRequisito(_ context.Context, _ uuid.UUID, _ []empmodels.VagaIdiomaRequisito) error {
+	return m.err
+}
+
 func (m *mockVagaRepoH) ListByContratante(_ context.Context, _ string, _, _ int) ([]*empmodels.Vaga, int, error) {
 	return m.listItems, m.listTotal, m.err
 }
@@ -130,6 +138,8 @@ func setupVagaRouter(vagaRepo services.VagaRepoInterface, empresaRepo services.E
 	r.PUT("/vagas/:id/send-to-approval", h.SendToApproval)
 	r.PUT("/vagas/:id/publish", h.Publish)
 	r.PUT("/vagas/:id/tipos-pcd", h.UpdateTiposPCD)
+	r.PUT("/vagas/:id/zonas", h.UpdateZonas)
+	r.PUT("/vagas/:id/idiomas-requisito", h.UpdateIdiomasRequisito)
 	r.PUT("/vagas/:id/freeze", h.Freeze)
 	r.PUT("/vagas/:id/unfreeze", h.Unfreeze)
 	r.PUT("/vagas/:id/discontinue", h.Discontinue)
@@ -844,6 +854,154 @@ func TestVagaHandler_UpdateTiposPCD_EmptyArray(t *testing.T) {
 	r := setupVagaRouter(vagaRepo, empresaRepo, true)
 	body := bodyOf(`{"tipos_pcd_ids":[]}`)
 	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/tipos-pcd", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: UpdateZonas
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_UpdateZonas_Success(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	body := bodyOf(`{"zona_ids":["` + validUUID + `"]}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/zonas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_UpdateZonas_InvalidID(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	body := bodyOf(`{"zona_ids":[]}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/bad-id/zonas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_UpdateZonas_BadJSON(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	body := bodyOf(`{bad}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/zonas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_UpdateZonas_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	body := bodyOf(`{"zona_ids":["` + validUUID + `"]}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/zonas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_UpdateZonas_EmptyArray(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	body := bodyOf(`{"zona_ids":[]}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/zonas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: UpdateIdiomasRequisito
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_UpdateIdiomasRequisito_Success(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	body := bodyOf(`{"requisitos":[{"id_idioma":"` + validUUID + `","id_nivel_minimo":"` + validUUID + `"}]}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/idiomas-requisito", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_UpdateIdiomasRequisito_InvalidID(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	body := bodyOf(`{"requisitos":[]}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/bad-id/idiomas-requisito", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_UpdateIdiomasRequisito_BadJSON(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	body := bodyOf(`{bad}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/idiomas-requisito", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestVagaHandler_UpdateIdiomasRequisito_ServiceError(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{err: errTest}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	body := bodyOf(`{"requisitos":[{"id_idioma":"` + validUUID + `","id_nivel_minimo":"` + validUUID + `"}]}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/idiomas-requisito", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Error("expected error status")
+	}
+}
+
+func TestVagaHandler_UpdateIdiomasRequisito_EmptyArray(t *testing.T) {
+	vagaRepo := &mockVagaRepoH{}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
+	body := bodyOf(`{"requisitos":[]}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/idiomas-requisito", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

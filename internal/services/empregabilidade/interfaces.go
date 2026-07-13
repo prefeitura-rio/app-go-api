@@ -61,6 +61,21 @@ type EmpEscolaridadeRepositoryInterface interface {
 	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Escolaridade, int, error)
 }
 
+// ZonaRepositoryInterface defines the interface for Zona repository.
+type ZonaRepositoryInterface interface {
+	Create(ctx context.Context, entity *empregabilidade.Zona) (uuid.UUID, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Zona, error)
+	Update(ctx context.Context, entity *empregabilidade.Zona) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.Zona, int, error)
+}
+
+// CandidaturaBloqueioRepositoryInterface defines the interface for CandidaturaBloqueio repository.
+type CandidaturaBloqueioRepositoryInterface interface {
+	Create(ctx context.Context, entity *empregabilidade.CandidaturaBloqueio) (uuid.UUID, error)
+	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.CandidaturaBloqueio, int, error)
+}
+
 // TipoConquistaRepositoryInterface defines the interface for TipoConquista repository.
 type TipoConquistaRepositoryInterface interface {
 	Create(ctx context.Context, entity *empregabilidade.TipoConquista) (uuid.UUID, error)

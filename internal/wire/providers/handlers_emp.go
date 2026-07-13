@@ -84,3 +84,13 @@ func ProvideEmpOnboardingHandler(service *empServices.OnboardingService) *empHan
 func ProvideEmpTermosUsoHandler(service *empServices.TermosUsoService) *empHandlers.TermosUsoHandler {
 	return empHandlers.NewTermosUsoHandler(service)
 }
+
+// ProvideEmpZonaHandler creates empregabilidade ZonaHandler
+func ProvideEmpZonaHandler(service *empServices.ZonaService) *empHandlers.ZonaHandler {
+	return empHandlers.NewZonaHandler(service)
+}
+
+// ProvideEmpCandidaturaBloqueioHandler creates empregabilidade CandidaturaBloqueioHandler
+func ProvideEmpCandidaturaBloqueioHandler(service *empServices.CandidaturaBloqueioService) *empHandlers.CandidaturaBloqueioHandler {
+	return empHandlers.NewCandidaturaBloqueioHandler(service)
+}
