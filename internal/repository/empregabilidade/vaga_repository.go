@@ -209,16 +209,16 @@ func syncInformacoesComplementares(tx *gorm.DB, vagaID uuid.UUID, informacoes []
 			continue
 		}
 
+		// Update baseado em struct (não em map) é obrigatório aqui: apenas o update
+		// baseado em struct aplica o serializer:json do GORM ao campo Opcoes. Um
+		// map[string]interface{} ignora o serializer e expande o []string em uma
+		// expressão SQL inválida para a coluna jsonb. Select(...) força a
+		// atualização de todos os campos listados mesmo quando estão em zero-value
+		// (ex.: Obrigatorio == false), que de outra forma seria omitido pelo GORM.
 		if err := tx.Model(&empregabilidade.InformacaoComplementar{}).
 			Where("id = ? AND id_vaga = ?", informacoes[i].ID, vagaID).
-			Updates(map[string]interface{}{
-				"titulo":       informacoes[i].Titulo,
-				"obrigatorio":  informacoes[i].Obrigatorio,
-				"tipo_campo":   informacoes[i].TipoCampo,
-				"valor_minimo": informacoes[i].ValorMinimo,
-				"valor_maximo": informacoes[i].ValorMaximo,
-				"opcoes":       informacoes[i].Opcoes,
-			}).Error; err != nil {
+			Select("titulo", "obrigatorio", "tipo_campo", "valor_minimo", "valor_maximo", "opcoes").
+			Updates(&informacoes[i]).Error; err != nil {
 			return fmt.Errorf("erro ao atualizar informação complementar: %w", err)
 		}
 	}

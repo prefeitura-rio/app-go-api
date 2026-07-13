@@ -2,6 +2,8 @@ package empregabilidade
 
 import (
 	"context"
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -14,6 +16,37 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 )
+
+// jsonStringSliceArg é um sqlmock.Argument que decodifica o argumento recebido
+// como JSON e compara com o slice esperado. Usado para provar que Opcoes chega
+// ao driver como JSON serializado (e não como uma expressão SQL expandida, que
+// é o que um Updates baseado em map produziria para uma coluna jsonb).
+type jsonStringSliceArg struct{ want []string }
+
+func (m jsonStringSliceArg) Match(v driver.Value) bool {
+	var raw []byte
+	switch t := v.(type) {
+	case []byte:
+		raw = t
+	case string:
+		raw = []byte(t)
+	default:
+		return false
+	}
+	var got []string
+	if err := json.Unmarshal(raw, &got); err != nil {
+		return false
+	}
+	if len(got) != len(m.want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != m.want[i] {
+			return false
+		}
+	}
+	return true
+}
 
 func TestVagaRepository_List_ApplyFilters(t *testing.T) {
 	db, _, cleanup := repository.SetupMockDB(t)
@@ -1509,6 +1542,65 @@ func TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_Preserv
 
 	assert.Equal(t, infoID, vaga.InformacoesComplementares[0].ID,
 		"UUID de informação complementar existente nunca deve ser regenerado")
+}
+
+// TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_UpdateSerializesOpcoes
+// cobre a regressão descoberta em review do PREF-373: um Updates baseado em
+// map[string]interface{} ignora o serializer:json do GORM para o campo Opcoes
+// (jsonb) e gera uma expressão SQL inválida para perguntas de seleção
+// única/múltipla. O update de um item existente precisa serializar Opcoes como
+// JSON de verdade.
+func TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_UpdateSerializesOpcoes(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+	infoID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  vagaID,
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		InformacoesComplementares: []empregabilidade.InformacaoComplementar{
+			{
+				ID:        infoID,
+				Titulo:    "Qual seu nível de experiência?",
+				TipoCampo: empregabilidade.TipoCampoSelecaoUnica,
+				Opcoes:    []string{"Júnior", "Pleno", "Sênior"},
+			},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(`DELETE FROM "emp_informacoes_complementares".*id NOT IN`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`UPDATE "emp_informacoes_complementares" SET`).
+		WithArgs(
+			vaga.InformacoesComplementares[0].Titulo,
+			vaga.InformacoesComplementares[0].Obrigatorio,
+			vaga.InformacoesComplementares[0].TipoCampo,
+			sqlmock.AnyArg(), // ValorMinimo
+			sqlmock.AnyArg(), // ValorMaximo
+			jsonStringSliceArg{want: []string{"Júnior", "Pleno", "Sênior"}},
+			sqlmock.AnyArg(), // updated_at
+			infoID,
+			vagaID,
+		).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_MixExistingAndNew
