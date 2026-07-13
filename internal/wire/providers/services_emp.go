@@ -102,6 +102,16 @@ func ProvideEmpTermosUsoService(repo *empRepository.TermosUsoRepository) *empSer
 	return empServices.NewTermosUsoService(repo)
 }
 
+// ProvideEmpZonaService creates empregabilidade ZonaService
+func ProvideEmpZonaService(repo *empRepository.ZonaRepository) *empServices.ZonaService {
+	return empServices.NewZonaService(repo)
+}
+
+// ProvideEmpCandidaturaBloqueioService creates empregabilidade CandidaturaBloqueioService
+func ProvideEmpCandidaturaBloqueioService(repo *empRepository.CandidaturaBloqueioRepository) *empServices.CandidaturaBloqueioService {
+	return empServices.NewCandidaturaBloqueioService(repo)
+}
+
 // ProvideEmpCNPJConsultaService creates empregabilidade CNPJConsultaService.
 // Returns nil when the token manager is not configured (Keycloak not set up).
 func ProvideEmpCNPJConsultaService(rmiClient *clients.RMIClient, tokenManager *auth.ServiceAccountTokenManager) *empServices.CNPJConsultaService {

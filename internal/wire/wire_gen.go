@@ -85,6 +85,8 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 	curriculoRepository := providers.ProvideEmpCurriculoRepository(db)
 	onboardingRepository := providers.ProvideEmpOnboardingRepository(db)
 	termosUsoRepository := providers.ProvideEmpTermosUsoRepository(db)
+	zonaRepository := providers.ProvideEmpZonaRepository(db)
+	candidaturaBloqueioRepository := providers.ProvideEmpCandidaturaBloqueioRepository(db)
 	cursoService := providers.ProvideCursoService(cursoRepository)
 	emailNotificationService := providers.ProvideEmailNotificationService(dataRelayClient, cursoRepository, orgaoSnapshotRepository, citizenSnapshotRepository, cfg)
 	emailWorker := providers.ProvideEmailWorker(client, emailNotificationService)
@@ -116,6 +118,8 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 	candidaturaService := providers.ProvideEmpCandidaturaService(candidaturaRepository, vagaRepository, curriculoService, citizenSnapshotRepository, emailWorker)
 	onboardingService := providers.ProvideEmpOnboardingService(onboardingRepository)
 	termosUsoService := providers.ProvideEmpTermosUsoService(termosUsoRepository)
+	zonaService := providers.ProvideEmpZonaService(zonaRepository)
+	candidaturaBloqueioService := providers.ProvideEmpCandidaturaBloqueioService(candidaturaBloqueioRepository)
 	cnpjConsultaService := providers.ProvideEmpCNPJConsultaService(rmiClient, serviceAccountTokenManager)
 	empregoHandler := providers.ProvideEmpregoHandler(empregoService)
 	acessibilidadeHandler := providers.ProvideAcessibilidadeHandler(acessibilidadeService, referenceCaches)
@@ -145,105 +149,113 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 	curriculoHandler := providers.ProvideEmpCurriculoHandler(curriculoService)
 	onboardingHandler := providers.ProvideEmpOnboardingHandler(onboardingService)
 	termosUsoHandler := providers.ProvideEmpTermosUsoHandler(termosUsoService)
+	zonaHandler := providers.ProvideEmpZonaHandler(zonaService)
+	candidaturaBloqueioHandler := providers.ProvideEmpCandidaturaBloqueioHandler(candidaturaBloqueioService)
 	applicationContainer := &ApplicationContainer{
-		DB:                          db,
-		Config:                      cfg,
-		RedisClient:                 client,
-		RMIClient:                   rmiClient,
-		TokenManager:                serviceAccountTokenManager,
-		DataRelayClient:             dataRelayClient,
-		ReferenceCaches:             referenceCaches,
-		LegalEntitiesCache:          legalEntitiesCache,
-		CourseCache:                 courseCache,
-		CursoRepo:                   cursoRepository,
-		InscricaoRepo:               inscricaoRepository,
-		EmpregoRepo:                 empregoRepository,
-		AcessibilidadeRepo:          acessibilidadeRepository,
-		CategoriaRepo:               categoriaRepositoryInterface,
-		EscolaridadeRepo:            escolaridadeRepository,
-		EmpresaRepo:                 empresaRepository,
-		InstituicaoRepo:             instituicaoRepository,
-		JobRepo:                     jobRepository,
-		OportunidadeMEIRepo:         oportunidadeMEIRepository,
-		PropostaMEIRepo:             propostaMEIRepository,
-		OrgaoSnapshotRepo:           orgaoSnapshotRepository,
-		CitizenSnapshotRepo:         citizenSnapshotRepository,
-		EmpRegimeContratacaoRepo:    regimeContratacaoRepository,
-		EmpModeloTrabalhoRepo:       modeloTrabalhoRepository,
-		EmpTipoPCDRepo:              tipoPCDRepository,
-		EmpIdiomaRepo:               idiomaRepository,
-		EmpNivelIdiomaRepo:          nivelIdiomaRepository,
-		EmpEscolaridadeRepo:         empregabilidadeEscolaridadeRepository,
-		EmpTipoConquistaRepo:        tipoConquistaRepository,
-		EmpSituacaoAtualRepo:        situacaoAtualRepository,
-		EmpDisponibilidadeRepo:      disponibilidadeRepository,
-		EmpEmpresaRepo:              empregabilidadeEmpresaRepository,
-		EmpVagaRepo:                 vagaRepository,
-		EmpEtapaRepo:                etapaRepository,
-		EmpCandidaturaRepo:          candidaturaRepository,
-		EmpCurriculoRepo:            curriculoRepository,
-		EmpOnboardingRepo:           onboardingRepository,
-		EmpTermosUsoRepo:            termosUsoRepository,
-		CursoService:                cursoService,
-		InscricaoService:            inscricaoService,
-		EmpregoService:              empregoService,
-		AcessibilidadeService:       acessibilidadeService,
-		CategoriaService:            categoriaService,
-		EscolaridadeService:         escolaridadeService,
-		EmpresaService:              empresaService,
-		InstituicaoService:          instituicaoService,
-		JobService:                  jobService,
-		OportunidadeMEIService:      oportunidadeMEIService,
-		PropostaMEIService:          propostaMEIService,
-		CNAEValidationService:       cnaeValidationService,
-		ContactInfoService:          contactInfoService,
-		EmailNotificationService:    emailNotificationService,
-		EmailWorker:                 emailWorker,
-		EmpRegimeContratacaoService: regimeContratacaoService,
-		EmpModeloTrabalhoService:    modeloTrabalhoService,
-		EmpTipoPCDService:           tipoPCDService,
-		EmpIdiomaService:            idiomaService,
-		EmpNivelIdiomaService:       nivelIdiomaService,
-		EmpEscolaridadeService:      empregabilidadeEscolaridadeService,
-		EmpTipoConquistaService:     tipoConquistaService,
-		EmpSituacaoAtualService:     situacaoAtualService,
-		EmpDisponibilidadeService:   disponibilidadeService,
-		EmpEmpresaService:           empregabilidadeEmpresaService,
-		EmpVagaService:              vagaService,
-		EmpEtapaService:             etapaService,
-		EmpCurriculoService:         curriculoService,
-		EmpCandidaturaService:       candidaturaService,
-		EmpOnboardingService:        onboardingService,
-		EmpTermosUsoService:         termosUsoService,
-		EmpCNPJConsultaService:      cnpjConsultaService,
-		EmpregoHandler:              empregoHandler,
-		AcessibilidadeHandler:       acessibilidadeHandler,
-		CategoriaHandler:            categoriaHandler,
-		EmpresaHandler:              empresaHandler,
-		EscolaridadeHandler:         escolaridadeHandler,
-		InstituicaoHandler:          instituicaoHandler,
-		InscricaoHandler:            inscricaoHandler,
-		CourseHandler:               courseHandler,
-		JobHandler:                  jobHandler,
-		OportunidadeMEIHandler:      oportunidadeMEIHandler,
-		PropostaMEIHandler:          propostaMEIHandler,
-		TypesenseHandler:            typesenseHandler,
-		EmpRegimeContratacaoHandler: regimeContratacaoHandler,
-		EmpModeloTrabalhoHandler:    modeloTrabalhoHandler,
-		EmpTipoPCDHandler:           tipoPCDHandler,
-		EmpIdiomaHandler:            idiomaHandler,
-		EmpNivelIdiomaHandler:       nivelIdiomaHandler,
-		EmpEscolaridadeHandler:      empregabilidadeEscolaridadeHandler,
-		EmpTipoConquistaHandler:     tipoConquistaHandler,
-		EmpSituacaoAtualHandler:     situacaoAtualHandler,
-		EmpDisponibilidadeHandler:   disponibilidadeHandler,
-		EmpEmpresaHandler:           empregabilidadeEmpresaHandler,
-		EmpVagaHandler:              vagaHandler,
-		EmpEtapaHandler:             etapaHandler,
-		EmpCandidaturaHandler:       candidaturaHandler,
-		EmpCurriculoHandler:         curriculoHandler,
-		EmpOnboardingHandler:        onboardingHandler,
-		EmpTermosUsoHandler:         termosUsoHandler,
+		DB:                            db,
+		Config:                        cfg,
+		RedisClient:                   client,
+		RMIClient:                     rmiClient,
+		TokenManager:                  serviceAccountTokenManager,
+		DataRelayClient:               dataRelayClient,
+		ReferenceCaches:               referenceCaches,
+		LegalEntitiesCache:            legalEntitiesCache,
+		CourseCache:                   courseCache,
+		CursoRepo:                     cursoRepository,
+		InscricaoRepo:                 inscricaoRepository,
+		EmpregoRepo:                   empregoRepository,
+		AcessibilidadeRepo:            acessibilidadeRepository,
+		CategoriaRepo:                 categoriaRepositoryInterface,
+		EscolaridadeRepo:              escolaridadeRepository,
+		EmpresaRepo:                   empresaRepository,
+		InstituicaoRepo:               instituicaoRepository,
+		JobRepo:                       jobRepository,
+		OportunidadeMEIRepo:           oportunidadeMEIRepository,
+		PropostaMEIRepo:               propostaMEIRepository,
+		OrgaoSnapshotRepo:             orgaoSnapshotRepository,
+		CitizenSnapshotRepo:           citizenSnapshotRepository,
+		EmpRegimeContratacaoRepo:      regimeContratacaoRepository,
+		EmpModeloTrabalhoRepo:         modeloTrabalhoRepository,
+		EmpTipoPCDRepo:                tipoPCDRepository,
+		EmpIdiomaRepo:                 idiomaRepository,
+		EmpNivelIdiomaRepo:            nivelIdiomaRepository,
+		EmpEscolaridadeRepo:           empregabilidadeEscolaridadeRepository,
+		EmpTipoConquistaRepo:          tipoConquistaRepository,
+		EmpSituacaoAtualRepo:          situacaoAtualRepository,
+		EmpDisponibilidadeRepo:        disponibilidadeRepository,
+		EmpEmpresaRepo:                empregabilidadeEmpresaRepository,
+		EmpVagaRepo:                   vagaRepository,
+		EmpEtapaRepo:                  etapaRepository,
+		EmpCandidaturaRepo:            candidaturaRepository,
+		EmpCurriculoRepo:              curriculoRepository,
+		EmpOnboardingRepo:             onboardingRepository,
+		EmpTermosUsoRepo:              termosUsoRepository,
+		EmpZonaRepo:                   zonaRepository,
+		EmpCandidaturaBloqueioRepo:    candidaturaBloqueioRepository,
+		CursoService:                  cursoService,
+		InscricaoService:              inscricaoService,
+		EmpregoService:                empregoService,
+		AcessibilidadeService:         acessibilidadeService,
+		CategoriaService:              categoriaService,
+		EscolaridadeService:           escolaridadeService,
+		EmpresaService:                empresaService,
+		InstituicaoService:            instituicaoService,
+		JobService:                    jobService,
+		OportunidadeMEIService:        oportunidadeMEIService,
+		PropostaMEIService:            propostaMEIService,
+		CNAEValidationService:         cnaeValidationService,
+		ContactInfoService:            contactInfoService,
+		EmailNotificationService:      emailNotificationService,
+		EmailWorker:                   emailWorker,
+		EmpRegimeContratacaoService:   regimeContratacaoService,
+		EmpModeloTrabalhoService:      modeloTrabalhoService,
+		EmpTipoPCDService:             tipoPCDService,
+		EmpIdiomaService:              idiomaService,
+		EmpNivelIdiomaService:         nivelIdiomaService,
+		EmpEscolaridadeService:        empregabilidadeEscolaridadeService,
+		EmpTipoConquistaService:       tipoConquistaService,
+		EmpSituacaoAtualService:       situacaoAtualService,
+		EmpDisponibilidadeService:     disponibilidadeService,
+		EmpEmpresaService:             empregabilidadeEmpresaService,
+		EmpVagaService:                vagaService,
+		EmpEtapaService:               etapaService,
+		EmpCurriculoService:           curriculoService,
+		EmpCandidaturaService:         candidaturaService,
+		EmpOnboardingService:          onboardingService,
+		EmpTermosUsoService:           termosUsoService,
+		EmpZonaService:                zonaService,
+		EmpCandidaturaBloqueioService: candidaturaBloqueioService,
+		EmpCNPJConsultaService:        cnpjConsultaService,
+		EmpregoHandler:                empregoHandler,
+		AcessibilidadeHandler:         acessibilidadeHandler,
+		CategoriaHandler:              categoriaHandler,
+		EmpresaHandler:                empresaHandler,
+		EscolaridadeHandler:           escolaridadeHandler,
+		InstituicaoHandler:            instituicaoHandler,
+		InscricaoHandler:              inscricaoHandler,
+		CourseHandler:                 courseHandler,
+		JobHandler:                    jobHandler,
+		OportunidadeMEIHandler:        oportunidadeMEIHandler,
+		PropostaMEIHandler:            propostaMEIHandler,
+		TypesenseHandler:              typesenseHandler,
+		EmpRegimeContratacaoHandler:   regimeContratacaoHandler,
+		EmpModeloTrabalhoHandler:      modeloTrabalhoHandler,
+		EmpTipoPCDHandler:             tipoPCDHandler,
+		EmpIdiomaHandler:              idiomaHandler,
+		EmpNivelIdiomaHandler:         nivelIdiomaHandler,
+		EmpEscolaridadeHandler:        empregabilidadeEscolaridadeHandler,
+		EmpTipoConquistaHandler:       tipoConquistaHandler,
+		EmpSituacaoAtualHandler:       situacaoAtualHandler,
+		EmpDisponibilidadeHandler:     disponibilidadeHandler,
+		EmpEmpresaHandler:             empregabilidadeEmpresaHandler,
+		EmpVagaHandler:                vagaHandler,
+		EmpEtapaHandler:               etapaHandler,
+		EmpCandidaturaHandler:         candidaturaHandler,
+		EmpCurriculoHandler:           curriculoHandler,
+		EmpOnboardingHandler:          onboardingHandler,
+		EmpTermosUsoHandler:           termosUsoHandler,
+		EmpZonaHandler:                zonaHandler,
+		EmpCandidaturaBloqueioHandler: candidaturaBloqueioHandler,
 	}
 	return applicationContainer, nil
 }
@@ -282,22 +294,24 @@ type ApplicationContainer struct {
 	CitizenSnapshotRepo *repository.CitizenSnapshotRepository
 
 	// Empregabilidade Repositories
-	EmpRegimeContratacaoRepo *empregabilidade.RegimeContratacaoRepository
-	EmpModeloTrabalhoRepo    *empregabilidade.ModeloTrabalhoRepository
-	EmpTipoPCDRepo           *empregabilidade.TipoPCDRepository
-	EmpIdiomaRepo            *empregabilidade.IdiomaRepository
-	EmpNivelIdiomaRepo       *empregabilidade.NivelIdiomaRepository
-	EmpEscolaridadeRepo      *empregabilidade.EscolaridadeRepository
-	EmpTipoConquistaRepo     *empregabilidade.TipoConquistaRepository
-	EmpSituacaoAtualRepo     *empregabilidade.SituacaoAtualRepository
-	EmpDisponibilidadeRepo   *empregabilidade.DisponibilidadeRepository
-	EmpEmpresaRepo           *empregabilidade.EmpresaRepository
-	EmpVagaRepo              *empregabilidade.VagaRepository
-	EmpEtapaRepo             *empregabilidade.EtapaRepository
-	EmpCandidaturaRepo       *empregabilidade.CandidaturaRepository
-	EmpCurriculoRepo         *empregabilidade.CurriculoRepository
-	EmpOnboardingRepo        *empregabilidade.OnboardingRepository
-	EmpTermosUsoRepo         *empregabilidade.TermosUsoRepository
+	EmpRegimeContratacaoRepo   *empregabilidade.RegimeContratacaoRepository
+	EmpModeloTrabalhoRepo      *empregabilidade.ModeloTrabalhoRepository
+	EmpTipoPCDRepo             *empregabilidade.TipoPCDRepository
+	EmpIdiomaRepo              *empregabilidade.IdiomaRepository
+	EmpNivelIdiomaRepo         *empregabilidade.NivelIdiomaRepository
+	EmpEscolaridadeRepo        *empregabilidade.EscolaridadeRepository
+	EmpTipoConquistaRepo       *empregabilidade.TipoConquistaRepository
+	EmpSituacaoAtualRepo       *empregabilidade.SituacaoAtualRepository
+	EmpDisponibilidadeRepo     *empregabilidade.DisponibilidadeRepository
+	EmpEmpresaRepo             *empregabilidade.EmpresaRepository
+	EmpVagaRepo                *empregabilidade.VagaRepository
+	EmpEtapaRepo               *empregabilidade.EtapaRepository
+	EmpCandidaturaRepo         *empregabilidade.CandidaturaRepository
+	EmpCurriculoRepo           *empregabilidade.CurriculoRepository
+	EmpOnboardingRepo          *empregabilidade.OnboardingRepository
+	EmpTermosUsoRepo           *empregabilidade.TermosUsoRepository
+	EmpZonaRepo                *empregabilidade.ZonaRepository
+	EmpCandidaturaBloqueioRepo *empregabilidade.CandidaturaBloqueioRepository
 
 	// Core Services
 	CursoService             *services.CursoService
@@ -317,23 +331,25 @@ type ApplicationContainer struct {
 	EmailWorker              *workers.EmailWorker
 
 	// Empregabilidade Services
-	EmpRegimeContratacaoService *empregabilidade2.RegimeContratacaoService
-	EmpModeloTrabalhoService    *empregabilidade2.ModeloTrabalhoService
-	EmpTipoPCDService           *empregabilidade2.TipoPCDService
-	EmpIdiomaService            *empregabilidade2.IdiomaService
-	EmpNivelIdiomaService       *empregabilidade2.NivelIdiomaService
-	EmpEscolaridadeService      *empregabilidade2.EscolaridadeService
-	EmpTipoConquistaService     *empregabilidade2.TipoConquistaService
-	EmpSituacaoAtualService     *empregabilidade2.SituacaoAtualService
-	EmpDisponibilidadeService   *empregabilidade2.DisponibilidadeService
-	EmpEmpresaService           *empregabilidade2.EmpresaService
-	EmpVagaService              *empregabilidade2.VagaService
-	EmpEtapaService             *empregabilidade2.EtapaService
-	EmpCurriculoService         *empregabilidade2.CurriculoService
-	EmpCandidaturaService       *empregabilidade2.CandidaturaService
-	EmpOnboardingService        *empregabilidade2.OnboardingService
-	EmpTermosUsoService         *empregabilidade2.TermosUsoService
-	EmpCNPJConsultaService      *empregabilidade2.CNPJConsultaService
+	EmpRegimeContratacaoService   *empregabilidade2.RegimeContratacaoService
+	EmpModeloTrabalhoService      *empregabilidade2.ModeloTrabalhoService
+	EmpTipoPCDService             *empregabilidade2.TipoPCDService
+	EmpIdiomaService              *empregabilidade2.IdiomaService
+	EmpNivelIdiomaService         *empregabilidade2.NivelIdiomaService
+	EmpEscolaridadeService        *empregabilidade2.EscolaridadeService
+	EmpTipoConquistaService       *empregabilidade2.TipoConquistaService
+	EmpSituacaoAtualService       *empregabilidade2.SituacaoAtualService
+	EmpDisponibilidadeService     *empregabilidade2.DisponibilidadeService
+	EmpEmpresaService             *empregabilidade2.EmpresaService
+	EmpVagaService                *empregabilidade2.VagaService
+	EmpEtapaService               *empregabilidade2.EtapaService
+	EmpCurriculoService           *empregabilidade2.CurriculoService
+	EmpCandidaturaService         *empregabilidade2.CandidaturaService
+	EmpOnboardingService          *empregabilidade2.OnboardingService
+	EmpTermosUsoService           *empregabilidade2.TermosUsoService
+	EmpZonaService                *empregabilidade2.ZonaService
+	EmpCandidaturaBloqueioService *empregabilidade2.CandidaturaBloqueioService
+	EmpCNPJConsultaService        *empregabilidade2.CNPJConsultaService
 
 	// Core Handlers
 	EmpregoHandler         *v1.EmpregoHandler
@@ -350,22 +366,24 @@ type ApplicationContainer struct {
 	TypesenseHandler       *v1.TypesenseHandler
 
 	// Empregabilidade Handlers
-	EmpRegimeContratacaoHandler *empregabilidade3.RegimeContratacaoHandler
-	EmpModeloTrabalhoHandler    *empregabilidade3.ModeloTrabalhoHandler
-	EmpTipoPCDHandler           *empregabilidade3.TipoPCDHandler
-	EmpIdiomaHandler            *empregabilidade3.IdiomaHandler
-	EmpNivelIdiomaHandler       *empregabilidade3.NivelIdiomaHandler
-	EmpEscolaridadeHandler      *empregabilidade3.EscolaridadeHandler
-	EmpTipoConquistaHandler     *empregabilidade3.TipoConquistaHandler
-	EmpSituacaoAtualHandler     *empregabilidade3.SituacaoAtualHandler
-	EmpDisponibilidadeHandler   *empregabilidade3.DisponibilidadeHandler
-	EmpEmpresaHandler           *empregabilidade3.EmpresaHandler
-	EmpVagaHandler              *empregabilidade3.VagaHandler
-	EmpEtapaHandler             *empregabilidade3.EtapaHandler
-	EmpCandidaturaHandler       *empregabilidade3.CandidaturaHandler
-	EmpCurriculoHandler         *empregabilidade3.CurriculoHandler
-	EmpOnboardingHandler        *empregabilidade3.OnboardingHandler
-	EmpTermosUsoHandler         *empregabilidade3.TermosUsoHandler
+	EmpRegimeContratacaoHandler   *empregabilidade3.RegimeContratacaoHandler
+	EmpModeloTrabalhoHandler      *empregabilidade3.ModeloTrabalhoHandler
+	EmpTipoPCDHandler             *empregabilidade3.TipoPCDHandler
+	EmpIdiomaHandler              *empregabilidade3.IdiomaHandler
+	EmpNivelIdiomaHandler         *empregabilidade3.NivelIdiomaHandler
+	EmpEscolaridadeHandler        *empregabilidade3.EscolaridadeHandler
+	EmpTipoConquistaHandler       *empregabilidade3.TipoConquistaHandler
+	EmpSituacaoAtualHandler       *empregabilidade3.SituacaoAtualHandler
+	EmpDisponibilidadeHandler     *empregabilidade3.DisponibilidadeHandler
+	EmpEmpresaHandler             *empregabilidade3.EmpresaHandler
+	EmpVagaHandler                *empregabilidade3.VagaHandler
+	EmpEtapaHandler               *empregabilidade3.EtapaHandler
+	EmpCandidaturaHandler         *empregabilidade3.CandidaturaHandler
+	EmpCurriculoHandler           *empregabilidade3.CurriculoHandler
+	EmpOnboardingHandler          *empregabilidade3.OnboardingHandler
+	EmpTermosUsoHandler           *empregabilidade3.TermosUsoHandler
+	EmpZonaHandler                *empregabilidade3.ZonaHandler
+	EmpCandidaturaBloqueioHandler *empregabilidade3.CandidaturaBloqueioHandler
 }
 
 // CategoriaContainer holds wired components for Categorias proof-of-concept
@@ -383,15 +401,15 @@ var CacheSet = wire.NewSet(providers.ProvideLegalEntitiesCache, providers.Provid
 
 var CoreRepositorySet = wire.NewSet(providers.ProvideCategoriaRepository, providers.ProvideCursoRepository, providers.ProvideInscricaoRepository, providers.ProvideEmpregoRepository, providers.ProvideAcessibilidadeRepository, providers.ProvideEscolaridadeRepository, providers.ProvideEmpresaRepository, providers.ProvideInstituicaoRepository, providers.ProvideJobRepository, providers.ProvideOportunidadeMEIRepository, providers.ProvidePropostaMEIRepository, providers.ProvideOrgaoSnapshotRepository, providers.ProvideCitizenSnapshotRepository)
 
-var EmpRepositorySet = wire.NewSet(providers.ProvideEmpRegimeContratacaoRepository, providers.ProvideEmpModeloTrabalhoRepository, providers.ProvideEmpTipoPCDRepository, providers.ProvideEmpIdiomaRepository, providers.ProvideEmpNivelIdiomaRepository, providers.ProvideEmpEscolaridadeRepository, providers.ProvideEmpTipoConquistaRepository, providers.ProvideEmpSituacaoAtualRepository, providers.ProvideEmpDisponibilidadeRepository, providers.ProvideEmpEmpresaRepository, providers.ProvideEmpVagaRepository, providers.ProvideEmpEtapaRepository, providers.ProvideEmpCandidaturaRepository, providers.ProvideEmpCurriculoRepository, providers.ProvideEmpOnboardingRepository, providers.ProvideEmpTermosUsoRepository)
+var EmpRepositorySet = wire.NewSet(providers.ProvideEmpRegimeContratacaoRepository, providers.ProvideEmpModeloTrabalhoRepository, providers.ProvideEmpTipoPCDRepository, providers.ProvideEmpIdiomaRepository, providers.ProvideEmpNivelIdiomaRepository, providers.ProvideEmpEscolaridadeRepository, providers.ProvideEmpTipoConquistaRepository, providers.ProvideEmpSituacaoAtualRepository, providers.ProvideEmpDisponibilidadeRepository, providers.ProvideEmpEmpresaRepository, providers.ProvideEmpVagaRepository, providers.ProvideEmpEtapaRepository, providers.ProvideEmpCandidaturaRepository, providers.ProvideEmpCurriculoRepository, providers.ProvideEmpOnboardingRepository, providers.ProvideEmpTermosUsoRepository, providers.ProvideEmpZonaRepository, providers.ProvideEmpCandidaturaBloqueioRepository)
 
 var CoreServiceSet = wire.NewSet(providers.ProvideCategoriaService, providers.ProvideCursoService, providers.ProvideEmpregoService, providers.ProvideAcessibilidadeService, providers.ProvideEscolaridadeService, providers.ProvideEmpresaService, providers.ProvideInstituicaoService, providers.ProvideJobService, providers.ProvideOportunidadeMEIService, providers.ProvideCNAEValidationService, providers.ProvideContactInfoService, providers.ProvideEmailNotificationService, providers.ProvideEmailWorker, wire.Bind(new(services.EmailNotifier), new(*workers.EmailWorker)), providers.ProvideInscricaoService, providers.ProvidePropostaMEIService)
 
-var EmpServiceSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoService, providers.ProvideEmpModeloTrabalhoService, providers.ProvideEmpTipoPCDService, providers.ProvideEmpIdiomaService, providers.ProvideEmpNivelIdiomaService, providers.ProvideEmpEscolaridadeService, providers.ProvideEmpTipoConquistaService, providers.ProvideEmpSituacaoAtualService, providers.ProvideEmpDisponibilidadeService, providers.ProvideEmpEmpresaService, providers.ProvideEmpVagaService, providers.ProvideEmpEtapaService, providers.ProvideEmpCurriculoService, providers.ProvideEmpCandidaturaService, providers.ProvideEmpOnboardingService, providers.ProvideEmpTermosUsoService, providers.ProvideEmpCNPJConsultaService)
+var EmpServiceSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoService, providers.ProvideEmpModeloTrabalhoService, providers.ProvideEmpTipoPCDService, providers.ProvideEmpIdiomaService, providers.ProvideEmpNivelIdiomaService, providers.ProvideEmpEscolaridadeService, providers.ProvideEmpTipoConquistaService, providers.ProvideEmpSituacaoAtualService, providers.ProvideEmpDisponibilidadeService, providers.ProvideEmpEmpresaService, providers.ProvideEmpVagaService, providers.ProvideEmpEtapaService, providers.ProvideEmpCurriculoService, providers.ProvideEmpCandidaturaService, providers.ProvideEmpOnboardingService, providers.ProvideEmpTermosUsoService, providers.ProvideEmpCNPJConsultaService, providers.ProvideEmpZonaService, providers.ProvideEmpCandidaturaBloqueioService)
 
 var CoreHandlerSet = wire.NewSet(providers.ProvideEmpregoHandler, providers.ProvideAcessibilidadeHandler, providers.ProvideCategoriaHandlerWithCache, providers.ProvideEmpresaHandler, providers.ProvideEscolaridadeHandler, providers.ProvideInstituicaoHandler, providers.ProvideInscricaoHandler, providers.ProvideCourseHandler, providers.ProvideJobHandler, providers.ProvideOportunidadeMEIHandler, providers.ProvidePropostaMEIHandler, providers.ProvideTypesenseHandler)
 
-var EmpHandlerSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoHandler, providers.ProvideEmpModeloTrabalhoHandler, providers.ProvideEmpTipoPCDHandler, providers.ProvideEmpIdiomaHandler, providers.ProvideEmpNivelIdiomaHandler, providers.ProvideEmpEscolaridadeHandler, providers.ProvideEmpTipoConquistaHandler, providers.ProvideEmpSituacaoAtualHandler, providers.ProvideEmpDisponibilidadeHandler, providers.ProvideEmpEmpresaHandler, providers.ProvideEmpVagaHandler, providers.ProvideEmpEtapaHandler, providers.ProvideEmpCandidaturaHandler, providers.ProvideEmpCurriculoHandler, providers.ProvideEmpOnboardingHandler, providers.ProvideEmpTermosUsoHandler)
+var EmpHandlerSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoHandler, providers.ProvideEmpModeloTrabalhoHandler, providers.ProvideEmpTipoPCDHandler, providers.ProvideEmpIdiomaHandler, providers.ProvideEmpNivelIdiomaHandler, providers.ProvideEmpEscolaridadeHandler, providers.ProvideEmpTipoConquistaHandler, providers.ProvideEmpSituacaoAtualHandler, providers.ProvideEmpDisponibilidadeHandler, providers.ProvideEmpEmpresaHandler, providers.ProvideEmpVagaHandler, providers.ProvideEmpEtapaHandler, providers.ProvideEmpCandidaturaHandler, providers.ProvideEmpCurriculoHandler, providers.ProvideEmpOnboardingHandler, providers.ProvideEmpTermosUsoHandler, providers.ProvideEmpZonaHandler, providers.ProvideEmpCandidaturaBloqueioHandler)
 
 // Legacy set kept for backward compatibility with the Categorias POC
 var CategoriaSet = wire.NewSet(providers.ProvideCategoriaRepository, providers.ProvideCategoriaService, wire.Bind(new(services.CategoriaServiceInterface), new(*services.CategoriaService)), v1.NewCategoriaHandler)

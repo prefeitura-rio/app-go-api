@@ -74,6 +74,21 @@ definitions:
         - $ref: '#/definitions/empregabilidade.Vaga'
         description: Relationships
     type: object
+  empregabilidade.CandidaturaBloqueio:
+    properties:
+      cpf:
+        type: string
+      created_at:
+        type: string
+      criterios_nao_atendidos:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      id_vaga:
+        type: string
+    type: object
   empregabilidade.CurriculoCompleto:
     properties:
       conquistas:
@@ -273,6 +288,8 @@ definitions:
         type: string
       id:
         type: string
+      ordem:
+        type: integer
       updated_at:
         type: string
     type: object
@@ -378,6 +395,8 @@ definitions:
         type: string
       id:
         type: string
+      ordem:
+        type: integer
       updated_at:
         type: string
     type: object
@@ -504,6 +523,13 @@ definitions:
       id_etapa_atual:
         type: string
     type: object
+  empregabilidade.UpdateIdiomasRequisitoRequest:
+    properties:
+      requisitos:
+        items:
+          $ref: '#/definitions/empregabilidade.VagaIdiomaRequisito'
+        type: array
+    type: object
   empregabilidade.UpdateStatusRequest:
     properties:
       status:
@@ -516,12 +542,27 @@ definitions:
           type: string
         type: array
     type: object
+  empregabilidade.UpdateZonasRequest:
+    properties:
+      zona_ids:
+        items:
+          type: string
+        type: array
+    type: object
   empregabilidade.Vaga:
     properties:
       acessibilidade_pcd:
         $ref: '#/definitions/empregabilidade.AcessibilidadePCD'
+      areas_formacao_elegibilidade:
+        items:
+          type: string
+        type: array
       bairro:
         type: string
+      bairros_elegibilidade:
+        items:
+          type: string
+        type: array
       beneficios:
         type: string
       contratante:
@@ -539,6 +580,8 @@ definitions:
         type: string
       diferenciais:
         type: string
+      escolaridade_minima:
+        $ref: '#/definitions/empregabilidade.Escolaridade'
       etapas:
         items:
           $ref: '#/definitions/empregabilidade.Etapa'
@@ -547,12 +590,23 @@ definitions:
         type: string
       id_contratante:
         type: string
+      id_escolaridade_minima:
+        type: string
       id_modelo_trabalho:
         type: string
       id_orgao_parceiro:
         type: string
       id_regime_contratacao:
         type: string
+      idade_maxima:
+        type: integer
+      idade_minima:
+        description: Critérios de elegibilidade
+        type: integer
+      idiomas_requisito:
+        items:
+          $ref: '#/definitions/empregabilidade.VagaIdiomaRequisito'
+        type: array
       informacoes_complementares:
         items:
           $ref: '#/definitions/empregabilidade.InformacaoComplementar'
@@ -583,6 +637,42 @@ definitions:
         type: string
       valor_vaga:
         type: number
+      zonas:
+        items:
+          $ref: '#/definitions/empregabilidade.Zona'
+        type: array
+    type: object
+  empregabilidade.VagaIdiomaRequisito:
+    properties:
+      created_at:
+        type: string
+      id_idioma:
+        type: string
+      id_nivel_minimo:
+        type: string
+      id_vaga:
+        type: string
+      idioma:
+        $ref: '#/definitions/empregabilidade.Idioma'
+      nivel_minimo:
+        $ref: '#/definitions/empregabilidade.NivelIdioma'
+      updated_at:
+        type: string
+      vaga:
+        allOf:
+        - $ref: '#/definitions/empregabilidade.Vaga'
+        description: Relationships
+    type: object
+  empregabilidade.Zona:
+    properties:
+      created_at:
+        type: string
+      descricao:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
     type: object
   models.Acessibilidade:
     properties:
@@ -2895,6 +2985,84 @@ paths:
       summary: Listar cursos rascunho
       tags:
       - courses
+  /api/v1/empregabilidade/candidatura-bloqueios:
+    get:
+      description: Retorna lista paginada de bloqueios de candidatura, com filtros
+        opcionais. Restrito a administradores.
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filtrar por CPF
+        in: query
+        name: cpf
+        type: string
+      - description: Filtrar por ID da vaga
+        in: query
+        name: id_vaga
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar bloqueios de candidatura (admin)
+      tags:
+      - empregabilidade-candidatura-bloqueios
+    post:
+      consumes:
+      - application/json
+      description: Registra a tentativa de candidatura de um CPF a uma vaga que foi
+        bloqueada por não atender critérios de elegibilidade
+      parameters:
+      - description: Dados do bloqueio
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CandidaturaBloqueio'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.CandidaturaBloqueio'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Registrar bloqueio de candidatura
+      tags:
+      - empregabilidade-candidatura-bloqueios
   /api/v1/empregabilidade/candidaturas:
     get:
       description: Retorna lista paginada de candidaturas com filtros e busca universal.
@@ -7097,6 +7265,48 @@ paths:
       summary: Congelar vaga
       tags:
       - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/{id}/idiomas-requisito:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os idiomas e níveis mínimos exigidos como critério de
+        elegibilidade da vaga
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Requisitos de idioma
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.UpdateIdiomasRequisitoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar requisitos de idioma da vaga
+      tags:
+      - empregabilidade-vagas
   /api/v1/empregabilidade/vagas/{id}/publish:
     put:
       description: Publica uma vaga em edição
@@ -7365,6 +7575,47 @@ paths:
       summary: Descongelar vaga
       tags:
       - empregabilidade-vagas
+  /api/v1/empregabilidade/vagas/{id}/zonas:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza as zonas geográficas de elegibilidade da vaga
+      parameters:
+      - description: ID da vaga
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: IDs das zonas
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.UpdateZonasRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar zonas de elegibilidade da vaga
+      tags:
+      - empregabilidade-vagas
   /api/v1/empregabilidade/vagas/draft:
     post:
       consumes:
@@ -7399,6 +7650,171 @@ paths:
       summary: Criar vaga
       tags:
       - empregabilidade-vagas
+  /api/v1/empregabilidade/zonas:
+    get:
+      description: Retorna uma lista paginada de zonas
+      parameters:
+      - default: 1
+        description: Número da página
+        in: query
+        name: page
+        type: integer
+      - default: 100
+        description: Tamanho da página
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar zonas
+      tags:
+      - empregabilidade-zonas
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova zona
+      parameters:
+      - description: Dados da zona
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Zona'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/empregabilidade.Zona'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Criar zona
+      tags:
+      - empregabilidade-zonas
+  /api/v1/empregabilidade/zonas/{id}:
+    delete:
+      description: Remove uma zona
+      parameters:
+      - description: ID da zona
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Excluir zona
+      tags:
+      - empregabilidade-zonas
+    get:
+      description: Retorna uma zona específica
+      parameters:
+      - description: ID da zona
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Zona'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar zona por ID
+      tags:
+      - empregabilidade-zonas
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma zona existente
+      parameters:
+      - description: ID da zona
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados da zona
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.Zona'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.Zona'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar zona
+      tags:
+      - empregabilidade-zonas
   /api/v1/empregos:
     get:
       description: Retorna uma lista paginada de empregos com filtros opcionais

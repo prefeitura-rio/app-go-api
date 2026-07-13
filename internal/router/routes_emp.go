@@ -21,6 +21,7 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	registerLookup(emp.Group("/tipos-conquista"), app.EmpTipoConquistaHandler)
 	registerLookup(emp.Group("/situacoes-atual"), app.EmpSituacaoAtualHandler)
 	registerLookup(emp.Group("/disponibilidades"), app.EmpDisponibilidadeHandler)
+	registerLookup(emp.Group("/zonas"), app.EmpZonaHandler)
 
 	// Empresas
 	empEmpresas := emp.Group("/empresas")
@@ -66,6 +67,8 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empVagas.PUT("/:id/discontinue", vagaAuth, app.EmpVagaHandler.Discontinue)
 		empVagas.PUT("/:id/reactivate", vagaAuth, app.EmpVagaHandler.Reactivate)
 		empVagas.PUT("/:id/tipos-pcd", vagaAuth, app.EmpVagaHandler.UpdateTiposPCD)
+		empVagas.PUT("/:id/zonas", vagaAuth, app.EmpVagaHandler.UpdateZonas)
+		empVagas.PUT("/:id/idiomas-requisito", vagaAuth, app.EmpVagaHandler.UpdateIdiomasRequisito)
 		empVagas.POST("/:id/etapas", vagaAuth, app.EmpEtapaHandler.Create)
 		empVagas.GET("/:id/etapas", app.EmpEtapaHandler.ListByVaga)
 		empVagas.GET("/:id/etapas/:etapaId", app.EmpEtapaHandler.GetByID)
@@ -88,6 +91,13 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empCandidaturas.PUT("/:id/approve", vagaAuth, app.EmpCandidaturaHandler.Approve)
 		empCandidaturas.PUT("/:id/reject", vagaAuth, app.EmpCandidaturaHandler.Reject)
 		empCandidaturas.PUT("/:id/etapa", vagaAuth, app.EmpCandidaturaHandler.UpdateEtapa)
+	}
+
+	// Candidatura Bloqueios (tentativas de candidatura bloqueadas por critérios de elegibilidade)
+	empCandidaturaBloqueios := emp.Group("/candidatura-bloqueios")
+	{
+		empCandidaturaBloqueios.POST("", app.EmpCandidaturaBloqueioHandler.Create)
+		empCandidaturaBloqueios.GET("", vagaAuth, app.EmpCandidaturaBloqueioHandler.List)
 	}
 
 	// Curriculo
