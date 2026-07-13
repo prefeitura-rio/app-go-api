@@ -11182,6 +11182,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/empregabilidade.CurriculoIdioma"
                     }
                 },
+                "resumo_profissional": {
+                    "type": "string"
+                },
                 "situacao_interesses": {
                     "$ref": "#/definitions/empregabilidade.CurriculoSituacaoInteresses"
                 }
@@ -11516,6 +11519,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/empregabilidade.CurriculoExperiencia"
                     }
+                },
+                "resumo_profissional": {
+                    "type": "string"
                 }
             }
         },

@@ -185,7 +185,7 @@ func (m *mockCurriculoRepoH) ReplaceAllExperienciasByCPF(_ context.Context, _ st
 	return m.err
 }
 
-func (m *mockCurriculoRepoH) ReplaceAllExperienciaProfissionalAccordionByCPF(_ context.Context, _ string, _ []*empmodels.CurriculoExperiencia, _ []*empmodels.CurriculoConquista) error {
+func (m *mockCurriculoRepoH) ReplaceAllExperienciaProfissionalAccordionByCPF(_ context.Context, _ string, _ []*empmodels.CurriculoExperiencia, _ []*empmodels.CurriculoConquista, _ string) error {
 	return m.err
 }
 
@@ -209,6 +209,12 @@ func (m *mockCurriculoRepoH) UpsertSituacaoInteresses(_ context.Context, _ *empm
 
 func (m *mockCurriculoRepoH) GetSituacaoInteressesByCPF(_ context.Context, _ string) (*empmodels.CurriculoSituacaoInteresses, error) {
 	return m.situacao, m.err
+}
+
+// Perfil
+
+func (m *mockCurriculoRepoH) GetPerfilByCPF(_ context.Context, _ string) (*empmodels.CurriculoPerfil, error) {
+	return nil, m.err
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

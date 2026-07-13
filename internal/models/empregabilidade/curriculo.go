@@ -120,8 +120,20 @@ type FormacaoAccordionRequest struct {
 }
 
 type ExperienciaProfissionalAccordionRequest struct {
-	Experiencias []*CurriculoExperiencia `json:"experiencias"`
-	Conquistas   []*CurriculoConquista   `json:"conquistas"`
+	Experiencias       []*CurriculoExperiencia `json:"experiencias"`
+	Conquistas         []*CurriculoConquista   `json:"conquistas"`
+	ResumoProfissional string                  `json:"resumo_profissional"`
+}
+
+type CurriculoPerfil struct {
+	CPF                string    `json:"cpf" gorm:"type:varchar(14);primaryKey"`
+	ResumoProfissional string    `json:"resumo_profissional" gorm:"type:text"`
+	CreatedAt          time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt          time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+func (CurriculoPerfil) TableName() string {
+	return "emp_curriculo_perfil"
 }
 
 type CurriculoSituacaoInteresses struct {
