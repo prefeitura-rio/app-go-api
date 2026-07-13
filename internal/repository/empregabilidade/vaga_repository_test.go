@@ -1467,6 +1467,174 @@ func TestVagaRepository_UpdateWithAssociations_CreateInformacoesError(t *testing
 	assert.Contains(t, err.Error(), "erro ao criar informações complementares")
 }
 
+// TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_PreservesExistingUUID
+// covers PREF-373: editar uma vaga não deve regenerar o UUID de uma informação
+// complementar já existente, pois candidaturas antigas guardam esse UUID em
+// respostas_info_complementares.
+func TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_PreservesExistingUUID(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+	infoID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  vagaID,
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		InformacoesComplementares: []empregabilidade.InformacaoComplementar{
+			{ID: infoID, Titulo: "Disponibilidade para trabalho remoto?", TipoCampo: empregabilidade.TipoCampoSelecaoUnica},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(`DELETE FROM "emp_informacoes_complementares".*id NOT IN`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`UPDATE "emp_informacoes_complementares" SET`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+
+	assert.Equal(t, infoID, vaga.InformacoesComplementares[0].ID,
+		"UUID de informação complementar existente nunca deve ser regenerado")
+}
+
+// TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_MixExistingAndNew
+// cobre o cenário de adicionar uma nova pergunta mantendo as existentes: apenas o
+// item novo deve ser inserido (com UUID gerado pelo banco); o existente deve ser
+// atualizado in-place, preservando seu UUID.
+func TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_MixExistingAndNew(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+	existingInfoID := uuid.New()
+	generatedInfoID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  vagaID,
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		InformacoesComplementares: []empregabilidade.InformacaoComplementar{
+			{ID: existingInfoID, Titulo: "Pergunta existente", TipoCampo: empregabilidade.TipoCampoRespostaCurta},
+			{Titulo: "Pergunta nova", TipoCampo: empregabilidade.TipoCampoRespostaCurta}, // ID == uuid.Nil
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(`DELETE FROM "emp_informacoes_complementares".*id NOT IN`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`UPDATE "emp_informacoes_complementares" SET`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`INSERT INTO "emp_informacoes_complementares"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(generatedInfoID))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+
+	assert.Equal(t, existingInfoID, vaga.InformacoesComplementares[0].ID,
+		"UUID existente deve ser preservado")
+	assert.NotEqual(t, uuid.Nil, vaga.InformacoesComplementares[1].ID,
+		"novo item deve receber um UUID gerado")
+}
+
+// TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_AllNew_DeletesAll
+// cobre a retrocompatibilidade: se todos os itens do payload têm ID == uuid.Nil
+// (comportamento atual do frontend), o resultado deve ser idêntico ao de hoje —
+// delete-all seguido de insert-all.
+func TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_AllNew_DeletesAll(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  uuid.New(),
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		InformacoesComplementares: []empregabilidade.InformacaoComplementar{
+			{Titulo: "Info 1", TipoCampo: empregabilidade.TipoCampoRespostaCurta},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(`DELETE FROM "emp_informacoes_complementares"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery(`INSERT INTO "emp_informacoes_complementares"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// TestVagaRepository_UpdateWithAssociations_UpdateInformacaoComplementarError garante
+// que falha ao atualizar um item existente propaga erro com contexto e faz rollback.
+func TestVagaRepository_UpdateWithAssociations_UpdateInformacaoComplementarError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  uuid.New(),
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		InformacoesComplementares: []empregabilidade.InformacaoComplementar{
+			{ID: uuid.New(), Titulo: "Pergunta", TipoCampo: empregabilidade.TipoCampoRespostaCurta},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(`DELETE FROM "emp_informacoes_complementares"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`UPDATE "emp_informacoes_complementares" SET`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao atualizar informação complementar")
+}
+
 func TestVagaRepository_UpdateWithAssociations_DeleteTiposPCDError(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()

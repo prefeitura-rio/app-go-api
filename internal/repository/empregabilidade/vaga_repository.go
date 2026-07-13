@@ -147,20 +147,8 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 		}
 
 		if entity.InformacoesComplementares != nil {
-			if err := tx.Where("id_vaga = ?", entity.ID).Delete(&empregabilidade.InformacaoComplementar{}).Error; err != nil {
-				return fmt.Errorf("erro ao remover informações complementares existentes: %w", err)
-			}
-
-			for i := range entity.InformacoesComplementares {
-				entity.InformacoesComplementares[i].ID = uuid.Nil
-				entity.InformacoesComplementares[i].IDVaga = entity.ID
-				entity.InformacoesComplementares[i].Vaga = nil
-			}
-
-			if len(entity.InformacoesComplementares) > 0 {
-				if err := tx.Create(&entity.InformacoesComplementares).Error; err != nil {
-					return fmt.Errorf("erro ao criar informações complementares: %w", err)
-				}
+			if err := syncInformacoesComplementares(tx, entity.ID, entity.InformacoesComplementares); err != nil {
+				return err
 			}
 		}
 
@@ -188,6 +176,68 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 
 		return nil
 	})
+}
+
+// syncInformacoesComplementares reconcilia as informações complementares de uma vaga
+// pelo UUID em vez de deletar e recriar tudo: itens com ID preenchido são atualizados
+// in-place (preservando o UUID referenciado pelas respostas de candidaturas já
+// submetidas); itens ausentes do payload são removidos; itens com ID == uuid.Nil são
+// inseridos como novos, recebendo um UUID gerado pelo banco.
+func syncInformacoesComplementares(tx *gorm.DB, vagaID uuid.UUID, informacoes []empregabilidade.InformacaoComplementar) error {
+	existentesIDs := make([]uuid.UUID, 0, len(informacoes))
+	for i := range informacoes {
+		if informacoes[i].ID != uuid.Nil {
+			existentesIDs = append(existentesIDs, informacoes[i].ID)
+		}
+	}
+
+	deleteQuery := tx.Where("id_vaga = ?", vagaID)
+	if len(existentesIDs) > 0 {
+		deleteQuery = deleteQuery.Where("id NOT IN ?", existentesIDs)
+	}
+	if err := deleteQuery.Delete(&empregabilidade.InformacaoComplementar{}).Error; err != nil {
+		return fmt.Errorf("erro ao remover informações complementares existentes: %w", err)
+	}
+
+	var novos []empregabilidade.InformacaoComplementar
+	for i := range informacoes {
+		informacoes[i].IDVaga = vagaID
+		informacoes[i].Vaga = nil
+
+		if informacoes[i].ID == uuid.Nil {
+			novos = append(novos, informacoes[i])
+			continue
+		}
+
+		if err := tx.Model(&empregabilidade.InformacaoComplementar{}).
+			Where("id = ? AND id_vaga = ?", informacoes[i].ID, vagaID).
+			Updates(map[string]interface{}{
+				"titulo":       informacoes[i].Titulo,
+				"obrigatorio":  informacoes[i].Obrigatorio,
+				"tipo_campo":   informacoes[i].TipoCampo,
+				"valor_minimo": informacoes[i].ValorMinimo,
+				"valor_maximo": informacoes[i].ValorMaximo,
+				"opcoes":       informacoes[i].Opcoes,
+			}).Error; err != nil {
+			return fmt.Errorf("erro ao atualizar informação complementar: %w", err)
+		}
+	}
+
+	if len(novos) > 0 {
+		if err := tx.Create(&novos).Error; err != nil {
+			return fmt.Errorf("erro ao criar informações complementares: %w", err)
+		}
+
+		novoIdx := 0
+		for i := range informacoes {
+			if informacoes[i].ID == uuid.Nil {
+				informacoes[i].ID = novos[novoIdx].ID
+				novoIdx++
+			}
+		}
+	}
+
+	return nil
 }
 
 func (r *VagaRepository) Delete(ctx context.Context, id uuid.UUID) error {
