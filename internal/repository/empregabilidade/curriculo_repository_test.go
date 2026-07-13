@@ -1341,7 +1341,7 @@ func TestCurriculoRepository_ReplaceAllExperienciaProfissionalAccordionByCPF(t *
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_conquistas"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
-		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_curriculo_perfil"`)).
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_perfil" ("cpf","resumo_profissional","created_at","updated_at") VALUES ($1,$2,$3,$4) ON CONFLICT ("cpf") DO UPDATE SET "resumo_profissional"="excluded"."resumo_profissional","updated_at"="excluded"."updated_at"`)).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
@@ -1436,7 +1436,7 @@ func TestCurriculoRepository_ReplaceAllExperienciaProfissionalAccordionByCPF(t *
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_conquistas"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
-		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_curriculo_perfil"`)).
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_perfil" ("cpf","resumo_profissional","created_at","updated_at") VALUES ($1,$2,$3,$4) ON CONFLICT ("cpf") DO UPDATE SET "resumo_profissional"="excluded"."resumo_profissional","updated_at"="excluded"."updated_at"`)).
 			WillReturnError(assert.AnError)
 		mock.ExpectRollback()
 

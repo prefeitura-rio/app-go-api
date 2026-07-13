@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
@@ -341,7 +342,10 @@ func (r *CurriculoRepository) ReplaceAllExperienciaProfissionalAccordionByCPF(ct
 				return fmt.Errorf("erro ao inserir conquistas: %w", err)
 			}
 		}
-		if err := tx.Save(&empregabilidade.CurriculoPerfil{
+		if err := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "cpf"}},
+			DoUpdates: clause.AssignmentColumns([]string{"resumo_profissional", "updated_at"}),
+		}).Create(&empregabilidade.CurriculoPerfil{
 			CPF:                cpf,
 			ResumoProfissional: resumoProfissional,
 		}).Error; err != nil {
