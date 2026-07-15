@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
@@ -317,7 +318,7 @@ func (r *CurriculoRepository) ReplaceAllExperienciasByCPF(ctx context.Context, c
 	})
 }
 
-func (r *CurriculoRepository) ReplaceAllExperienciaProfissionalAccordionByCPF(ctx context.Context, cpf string, experiencias []*empregabilidade.CurriculoExperiencia, conquistas []*empregabilidade.CurriculoConquista) error {
+func (r *CurriculoRepository) ReplaceAllExperienciaProfissionalAccordionByCPF(ctx context.Context, cpf string, experiencias []*empregabilidade.CurriculoExperiencia, conquistas []*empregabilidade.CurriculoConquista, resumoProfissional string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoExperiencia{}).Error; err != nil {
 			return fmt.Errorf("erro ao remover experiências: %w", err)
@@ -341,8 +342,29 @@ func (r *CurriculoRepository) ReplaceAllExperienciaProfissionalAccordionByCPF(ct
 				return fmt.Errorf("erro ao inserir conquistas: %w", err)
 			}
 		}
+		if err := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "cpf"}},
+			DoUpdates: clause.AssignmentColumns([]string{"resumo_profissional", "updated_at"}),
+		}).Create(&empregabilidade.CurriculoPerfil{
+			CPF:                cpf,
+			ResumoProfissional: resumoProfissional,
+		}).Error; err != nil {
+			return fmt.Errorf("erro ao salvar resumo profissional: %w", err)
+		}
 		return nil
 	})
+}
+
+func (r *CurriculoRepository) GetPerfilByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoPerfil, error) {
+	var entity empregabilidade.CurriculoPerfil
+	result := r.db.WithContext(ctx).First(&entity, "cpf = ?", cpf)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("erro ao buscar perfil: %w", result.Error)
+	}
+	return &entity, nil
 }
 
 func (r *CurriculoRepository) ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error {

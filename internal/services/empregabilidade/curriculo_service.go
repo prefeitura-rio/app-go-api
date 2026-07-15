@@ -150,8 +150,8 @@ func (s *CurriculoService) ReplaceAllExperienciasByCPF(ctx context.Context, cpf 
 	return s.repo.ReplaceAllExperienciasByCPF(ctx, cpf, items)
 }
 
-func (s *CurriculoService) ReplaceAllExperienciaProfissionalAccordionByCPF(ctx context.Context, cpf string, experiencias []*empregabilidade.CurriculoExperiencia, conquistas []*empregabilidade.CurriculoConquista) error {
-	return s.repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas)
+func (s *CurriculoService) ReplaceAllExperienciaProfissionalAccordionByCPF(ctx context.Context, cpf string, experiencias []*empregabilidade.CurriculoExperiencia, conquistas []*empregabilidade.CurriculoConquista, resumoProfissional string) error {
+	return s.repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas, resumoProfissional)
 }
 
 func (s *CurriculoService) ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error {
@@ -209,6 +209,16 @@ func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string)
 		return nil, err
 	}
 
+	perfil, err := s.repo.GetPerfilByCPF(ctx, cpf)
+	if err != nil {
+		return nil, err
+	}
+
+	resumoProfissional := ""
+	if perfil != nil {
+		resumoProfissional = perfil.ResumoProfissional
+	}
+
 	return &empregabilidade.CurriculoCompleto{
 		Formacoes:            formacoes,
 		Idiomas:              idiomas,
@@ -216,5 +226,6 @@ func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string)
 		Experiencias:         experiencias,
 		Conquistas:           conquistas,
 		SituacaoInteresses:   situacao,
+		ResumoProfissional:   resumoProfissional,
 	}, nil
 }

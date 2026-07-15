@@ -28,7 +28,7 @@ func TestNivelIdiomaRepository_Create(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_niveis_idioma"`)).
-		WithArgs(entity.Descricao, sqlmock.AnyArg(), sqlmock.AnyArg(), entity.ID).
+		WithArgs(entity.Descricao, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), entity.ID).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(entity.ID))
 	mock.ExpectCommit()
 

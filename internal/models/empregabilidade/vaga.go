@@ -69,14 +69,24 @@ type Vaga struct {
 	CreatedAt                      time.Time          `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt                      time.Time          `json:"updated_at" gorm:"autoUpdateTime"`
 
+	// Critérios de elegibilidade
+	IdadeMinima                *int       `json:"idade_minima,omitempty" gorm:"type:integer"`
+	IdadeMaxima                *int       `json:"idade_maxima,omitempty" gorm:"type:integer"`
+	BairrosElegibilidade       []string   `json:"bairros_elegibilidade,omitempty" gorm:"type:jsonb;serializer:json"`
+	IDEscolaridadeMinima       *uuid.UUID `json:"id_escolaridade_minima,omitempty" gorm:"type:uuid"`
+	AreasFormacaoElegibilidade []string   `json:"areas_formacao_elegibilidade,omitempty" gorm:"type:jsonb;serializer:json"`
+
 	// Relationships
 	Contratante               *Empresa                 `json:"contratante,omitempty" gorm:"foreignKey:IDContratante;references:CNPJ"`
 	RegimeContratacao         *RegimeContratacao       `json:"regime_contratacao,omitempty" gorm:"foreignKey:IDRegimeContratacao"`
 	ModeloTrabalho            *ModeloTrabalho          `json:"modelo_trabalho,omitempty" gorm:"foreignKey:IDModeloTrabalho"`
 	OrgaoParceiro             *models.OrgaoSnapshot    `json:"orgao_parceiro,omitempty" gorm:"foreignKey:IDOrgaoParceiro;references:OrgaoID"`
 	TiposPCD                  []TipoPCD                `json:"tipos_pcd,omitempty" gorm:"many2many:emp_vagas_tipos_pcd;foreignKey:ID;joinForeignKey:id_vaga;References:ID;joinReferences:id_tipo_pcd"`
+	Zonas                     []Zona                   `json:"zonas,omitempty" gorm:"many2many:emp_vagas_zonas;foreignKey:ID;joinForeignKey:id_vaga;References:ID;joinReferences:id_zona"`
+	IdiomasRequisito          []VagaIdiomaRequisito    `json:"idiomas_requisito,omitempty" gorm:"foreignKey:IDVaga"`
 	Etapas                    []Etapa                  `json:"etapas,omitempty" gorm:"foreignKey:IDVaga"`
 	InformacoesComplementares []InformacaoComplementar `json:"informacoes_complementares,omitempty" gorm:"foreignKey:IDVaga"`
+	EscolaridadeMinima        *Escolaridade            `json:"escolaridade_minima,omitempty" gorm:"foreignKey:IDEscolaridadeMinima"`
 }
 
 func (Vaga) TableName() string {

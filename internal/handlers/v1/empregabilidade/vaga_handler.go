@@ -451,6 +451,82 @@ func (h *VagaHandler) UpdateTiposPCD(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Tipos PCD atualizados com sucesso"})
 }
 
+type UpdateZonasRequest struct {
+	ZonaIDs []uuid.UUID `json:"zona_ids"`
+}
+
+// @Summary      Atualizar zonas de elegibilidade da vaga
+// @Description  Atualiza as zonas geográficas de elegibilidade da vaga
+// @Tags         empregabilidade-vagas
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string              true  "ID da vaga"
+// @Param        request  body      UpdateZonasRequest  true  "IDs das zonas"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/zonas [put]
+func (h *VagaHandler) UpdateZonas(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	var request UpdateZonasRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.UpdateZonas(c.Request.Context(), id, request.ZonaIDs); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Zonas atualizadas com sucesso"})
+}
+
+type UpdateIdiomasRequisitoRequest struct {
+	Requisitos []empregabilidade.VagaIdiomaRequisito `json:"requisitos"`
+}
+
+// @Summary      Atualizar requisitos de idioma da vaga
+// @Description  Atualiza os idiomas e níveis mínimos exigidos como critério de elegibilidade da vaga
+// @Tags         empregabilidade-vagas
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string                         true  "ID da vaga"
+// @Param        request  body      UpdateIdiomasRequisitoRequest  true  "Requisitos de idioma"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /api/v1/empregabilidade/vagas/{id}/idiomas-requisito [put]
+func (h *VagaHandler) UpdateIdiomasRequisito(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	var request UpdateIdiomasRequisitoRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	for i := range request.Requisitos {
+		request.Requisitos[i].IDVaga = id
+	}
+
+	if err := h.service.UpdateIdiomasRequisito(c.Request.Context(), id, request.Requisitos); err != nil {
+		handleVagaError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Requisitos de idioma atualizados com sucesso"})
+}
+
 // @Summary      Congelar vaga
 // @Description  Congela uma vaga publicada e atualiza o status de todas as candidaturas vinculadas para vaga_congelada
 // @Tags         empregabilidade-vagas

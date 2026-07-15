@@ -1,8 +1,12 @@
 package empregabilidade
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // StatusVaga tests
@@ -190,6 +194,76 @@ func TestCurriculoFormacao_Validate_InvalidStatus(t *testing.T) {
 	}
 }
 
+// Escolaridade.Ordem tests
+
+func TestEscolaridade_Ordem_JSONRoundTrip(t *testing.T) {
+	ordem := 3
+	e := Escolaridade{ID: uuid.New(), Descricao: "Superior completo", Ordem: &ordem}
+
+	data, err := json.Marshal(e)
+	if err != nil {
+		t.Fatalf("unexpected error marshaling: %v", err)
+	}
+	if !strings.Contains(string(data), `"ordem":3`) {
+		t.Errorf("expected JSON to contain ordem key with value 3, got %s", data)
+	}
+
+	var decoded Escolaridade
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unexpected error unmarshaling: %v", err)
+	}
+	if decoded.Ordem == nil || *decoded.Ordem != 3 {
+		t.Errorf("expected decoded Ordem to be 3, got %v", decoded.Ordem)
+	}
+}
+
+func TestEscolaridade_Ordem_NilOmitted(t *testing.T) {
+	e := Escolaridade{ID: uuid.New(), Descricao: "Sem ordem"}
+
+	data, err := json.Marshal(e)
+	if err != nil {
+		t.Fatalf("unexpected error marshaling: %v", err)
+	}
+	if strings.Contains(string(data), `"ordem"`) {
+		t.Errorf("expected JSON to omit nil ordem key, got %s", data)
+	}
+}
+
+// NivelIdioma.Ordem tests
+
+func TestNivelIdioma_Ordem_JSONRoundTrip(t *testing.T) {
+	ordem := 2
+	n := NivelIdioma{ID: uuid.New(), Descricao: "Intermediário", Ordem: &ordem}
+
+	data, err := json.Marshal(n)
+	if err != nil {
+		t.Fatalf("unexpected error marshaling: %v", err)
+	}
+	if !strings.Contains(string(data), `"ordem":2`) {
+		t.Errorf("expected JSON to contain ordem key with value 2, got %s", data)
+	}
+
+	var decoded NivelIdioma
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unexpected error unmarshaling: %v", err)
+	}
+	if decoded.Ordem == nil || *decoded.Ordem != 2 {
+		t.Errorf("expected decoded Ordem to be 2, got %v", decoded.Ordem)
+	}
+}
+
+func TestNivelIdioma_Ordem_NilOmitted(t *testing.T) {
+	n := NivelIdioma{ID: uuid.New(), Descricao: "Sem ordem"}
+
+	data, err := json.Marshal(n)
+	if err != nil {
+		t.Fatalf("unexpected error marshaling: %v", err)
+	}
+	if strings.Contains(string(data), `"ordem"`) {
+		t.Errorf("expected JSON to omit nil ordem key, got %s", data)
+	}
+}
+
 // TableName tests (ensures they compile and return correct values)
 
 func TestTableNames(t *testing.T) {
@@ -220,6 +294,9 @@ func TestTableNames(t *testing.T) {
 		{"Empresa", Empresa{}.TableName(), "emp_empresas"},
 		{"Etapa", Etapa{}.TableName(), "emp_etapas"},
 		{"InformacaoComplementar", InformacaoComplementar{}.TableName(), "emp_informacoes_complementares"},
+		{"Zona", Zona{}.TableName(), "emp_zonas"},
+		{"VagaIdiomaRequisito", VagaIdiomaRequisito{}.TableName(), "emp_vagas_idiomas_requisitos"},
+		{"CandidaturaBloqueio", CandidaturaBloqueio{}.TableName(), "emp_candidatura_bloqueios"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

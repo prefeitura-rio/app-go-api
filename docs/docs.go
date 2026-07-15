@@ -1999,6 +1999,121 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/empregabilidade/candidatura-bloqueios": {
+            "get": {
+                "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a administradores.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidatura-bloqueios"
+                ],
+                "summary": "Listar bloqueios de candidatura (admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por CPF",
+                        "name": "cpf",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por ID da vaga",
+                        "name": "id_vaga",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-candidatura-bloqueios"
+                ],
+                "summary": "Registrar bloqueio de candidatura",
+                "parameters": [
+                    {
+                        "description": "Dados do bloqueio",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.CandidaturaBloqueio"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.CandidaturaBloqueio"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/empregabilidade/candidaturas": {
             "get": {
                 "description": "Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores.",
@@ -8359,6 +8474,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/empregabilidade/vagas/{id}/idiomas-requisito": {
+            "put": {
+                "description": "Atualiza os idiomas e níveis mínimos exigidos como critério de elegibilidade da vaga",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Atualizar requisitos de idioma da vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Requisitos de idioma",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.UpdateIdiomasRequisitoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/empregabilidade/vagas/{id}/publish": {
             "put": {
                 "description": "Publica uma vaga em edição",
@@ -8742,6 +8919,316 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/vagas/{id}/zonas": {
+            "put": {
+                "description": "Atualiza as zonas geográficas de elegibilidade da vaga",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-vagas"
+                ],
+                "summary": "Atualizar zonas de elegibilidade da vaga",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da vaga",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "IDs das zonas",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.UpdateZonasRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/zonas": {
+            "get": {
+                "description": "Retorna uma lista paginada de zonas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-zonas"
+                ],
+                "summary": "Listar zonas",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Número da página",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Tamanho da página",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova zona",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-zonas"
+                ],
+                "summary": "Criar zona",
+                "parameters": [
+                    {
+                        "description": "Dados da zona",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Zona"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Zona"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/zonas/{id}": {
+            "get": {
+                "description": "Retorna uma zona específica",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-zonas"
+                ],
+                "summary": "Buscar zona por ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da zona",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Zona"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza uma zona existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-zonas"
+                ],
+                "summary": "Atualizar zona",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da zona",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da zona",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Zona"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.Zona"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma zona",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-zonas"
+                ],
+                "summary": "Excluir zona",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da zona",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -10639,6 +11126,29 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.CandidaturaBloqueio": {
+            "type": "object",
+            "properties": {
+                "cpf": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "criterios_nao_atendidos": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "id_vaga": {
+                    "type": "string"
+                }
+            }
+        },
         "empregabilidade.CurriculoCompleto": {
             "type": "object",
             "properties": {
@@ -10671,6 +11181,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/empregabilidade.CurriculoIdioma"
                     }
+                },
+                "resumo_profissional": {
+                    "type": "string"
                 },
                 "situacao_interesses": {
                     "$ref": "#/definitions/empregabilidade.CurriculoSituacaoInteresses"
@@ -10950,6 +11463,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "ordem": {
+                    "type": "integer"
+                },
                 "updated_at": {
                     "type": "string"
                 }
@@ -11003,6 +11519,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/empregabilidade.CurriculoExperiencia"
                     }
+                },
+                "resumo_profissional": {
+                    "type": "string"
                 }
             }
         },
@@ -11114,6 +11633,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "ordem": {
+                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
@@ -11294,6 +11816,17 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.UpdateIdiomasRequisitoRequest": {
+            "type": "object",
+            "properties": {
+                "requisitos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.VagaIdiomaRequisito"
+                    }
+                }
+            }
+        },
         "empregabilidade.UpdateStatusRequest": {
             "type": "object",
             "properties": {
@@ -11313,14 +11846,37 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.UpdateZonasRequest": {
+            "type": "object",
+            "properties": {
+                "zona_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "empregabilidade.Vaga": {
             "type": "object",
             "properties": {
                 "acessibilidade_pcd": {
                     "$ref": "#/definitions/empregabilidade.AcessibilidadePCD"
                 },
+                "areas_formacao_elegibilidade": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "bairro": {
                     "type": "string"
+                },
+                "bairros_elegibilidade": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "beneficios": {
                     "type": "string"
@@ -11349,6 +11905,9 @@ const docTemplate = `{
                 "diferenciais": {
                     "type": "string"
                 },
+                "escolaridade_minima": {
+                    "$ref": "#/definitions/empregabilidade.Escolaridade"
+                },
                 "etapas": {
                     "type": "array",
                     "items": {
@@ -11361,6 +11920,9 @@ const docTemplate = `{
                 "id_contratante": {
                     "type": "string"
                 },
+                "id_escolaridade_minima": {
+                    "type": "string"
+                },
                 "id_modelo_trabalho": {
                     "type": "string"
                 },
@@ -11369,6 +11931,19 @@ const docTemplate = `{
                 },
                 "id_regime_contratacao": {
                     "type": "string"
+                },
+                "idade_maxima": {
+                    "type": "integer"
+                },
+                "idade_minima": {
+                    "description": "Critérios de elegibilidade",
+                    "type": "integer"
+                },
+                "idiomas_requisito": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.VagaIdiomaRequisito"
+                    }
                 },
                 "informacoes_complementares": {
                     "type": "array",
@@ -11414,6 +11989,63 @@ const docTemplate = `{
                 },
                 "valor_vaga": {
                     "type": "number"
+                },
+                "zonas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.Zona"
+                    }
+                }
+            }
+        },
+        "empregabilidade.VagaIdiomaRequisito": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id_idioma": {
+                    "type": "string"
+                },
+                "id_nivel_minimo": {
+                    "type": "string"
+                },
+                "id_vaga": {
+                    "type": "string"
+                },
+                "idioma": {
+                    "$ref": "#/definitions/empregabilidade.Idioma"
+                },
+                "nivel_minimo": {
+                    "$ref": "#/definitions/empregabilidade.NivelIdioma"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vaga": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    ]
+                }
+            }
+        },
+        "empregabilidade.Zona": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },

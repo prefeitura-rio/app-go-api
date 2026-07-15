@@ -22,6 +22,8 @@ type VagaRepoInterface interface {
 	ListPublicActive(ctx context.Context, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	ListPublic(ctx context.Context, filter empregabilidade.VagaPublicFilter, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error
+	UpdateZonas(ctx context.Context, vagaID uuid.UUID, zonaIDs []uuid.UUID) error
+	UpdateIdiomasRequisito(ctx context.Context, vagaID uuid.UUID, requisitos []empregabilidade.VagaIdiomaRequisito) error
 	ListByContratante(ctx context.Context, cnpj string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	ListByOrgaoParceiro(ctx context.Context, orgaoID string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 }
@@ -196,6 +198,14 @@ func (s *VagaService) ListPublic(ctx context.Context, filter empregabilidade.Vag
 
 func (s *VagaService) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error {
 	return s.repo.UpdateTiposPCD(ctx, vagaID, tiposPCDIDs)
+}
+
+func (s *VagaService) UpdateZonas(ctx context.Context, vagaID uuid.UUID, zonaIDs []uuid.UUID) error {
+	return s.repo.UpdateZonas(ctx, vagaID, zonaIDs)
+}
+
+func (s *VagaService) UpdateIdiomasRequisito(ctx context.Context, vagaID uuid.UUID, requisitos []empregabilidade.VagaIdiomaRequisito) error {
+	return s.repo.UpdateIdiomasRequisito(ctx, vagaID, requisitos)
 }
 
 func (s *VagaService) ListByContratante(ctx context.Context, cnpj string, page, pageSize int) ([]*empregabilidade.Vaga, int, error) {

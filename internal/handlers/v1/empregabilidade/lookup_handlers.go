@@ -1231,3 +1231,155 @@ func (h *DisponibilidadeHandler) Delete(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Disponibilidade excluída com sucesso"})
 }
+
+// ZonaHandler
+
+type ZonaHandler struct {
+	service *services.ZonaService
+}
+
+func NewZonaHandler(service *services.ZonaService) *ZonaHandler {
+	return &ZonaHandler{service: service}
+}
+
+// @Summary      Criar zona
+// @Description  Cria uma nova zona
+// @Tags         empregabilidade-zonas
+// @Accept       json
+// @Produce      json
+// @Param        body  body      empregabilidade.Zona  true  "Dados da zona"
+// @Success      201   {object}  empregabilidade.Zona
+// @Failure      400   {object}  map[string]string
+// @Failure      500   {object}  map[string]string
+// @Router       /api/v1/empregabilidade/zonas [post]
+func (h *ZonaHandler) Create(c *gin.Context) {
+	var entity empregabilidade.Zona
+	if err := c.ShouldBindJSON(&entity); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	id, err := h.service.Create(c.Request.Context(), &entity)
+	if err != nil {
+		handleLookupError(c, err)
+		return
+	}
+
+	entity.ID = id
+	c.JSON(http.StatusCreated, entity)
+}
+
+// @Summary      Listar zonas
+// @Description  Retorna uma lista paginada de zonas
+// @Tags         empregabilidade-zonas
+// @Produce      json
+// @Param        page      query     int  false  "Número da página"  default(1)
+// @Param        pageSize  query     int  false  "Tamanho da página"  default(100)
+// @Success      200       {object}  map[string]interface{}
+// @Failure      500       {object}  map[string]string
+// @Router       /api/v1/empregabilidade/zonas [get]
+func (h *ZonaHandler) List(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "100"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 1000 {
+		pageSize = 100
+	}
+
+	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
+	if err != nil {
+		handleLookupError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": entities, "meta": gin.H{"page": page, "page_size": pageSize, "total": total}})
+}
+
+// @Summary      Buscar zona por ID
+// @Description  Retorna uma zona específica
+// @Tags         empregabilidade-zonas
+// @Produce      json
+// @Param        id   path      string  true  "ID da zona"
+// @Success      200  {object}  empregabilidade.Zona
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/zonas/{id} [get]
+func (h *ZonaHandler) GetByID(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	entity, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		handleLookupError(c, err)
+		return
+	}
+
+	if entity == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Zona não encontrada"})
+		return
+	}
+
+	c.JSON(http.StatusOK, entity)
+}
+
+// @Summary      Atualizar zona
+// @Description  Atualiza uma zona existente
+// @Tags         empregabilidade-zonas
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string                true  "ID da zona"
+// @Param        body  body      empregabilidade.Zona  true  "Dados da zona"
+// @Success      200   {object}  empregabilidade.Zona
+// @Failure      400   {object}  map[string]string
+// @Failure      500   {object}  map[string]string
+// @Router       /api/v1/empregabilidade/zonas/{id} [put]
+func (h *ZonaHandler) Update(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	var entity empregabilidade.Zona
+	if err := c.ShouldBindJSON(&entity); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	entity.ID = id
+	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
+		handleLookupError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, entity)
+}
+
+// @Summary      Excluir zona
+// @Description  Remove uma zona
+// @Tags         empregabilidade-zonas
+// @Produce      json
+// @Param        id   path      string  true  "ID da zona"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/zonas/{id} [delete]
+func (h *ZonaHandler) Delete(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.service.Delete(c.Request.Context(), id); err != nil {
+		handleLookupError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Zona excluída com sucesso"})
+}

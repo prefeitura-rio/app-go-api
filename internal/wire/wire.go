@@ -54,22 +54,24 @@ type ApplicationContainer struct {
 	CitizenSnapshotRepo *repository.CitizenSnapshotRepository
 
 	// Empregabilidade Repositories
-	EmpRegimeContratacaoRepo *empRepository.RegimeContratacaoRepository
-	EmpModeloTrabalhoRepo    *empRepository.ModeloTrabalhoRepository
-	EmpTipoPCDRepo           *empRepository.TipoPCDRepository
-	EmpIdiomaRepo            *empRepository.IdiomaRepository
-	EmpNivelIdiomaRepo       *empRepository.NivelIdiomaRepository
-	EmpEscolaridadeRepo      *empRepository.EscolaridadeRepository
-	EmpTipoConquistaRepo     *empRepository.TipoConquistaRepository
-	EmpSituacaoAtualRepo     *empRepository.SituacaoAtualRepository
-	EmpDisponibilidadeRepo   *empRepository.DisponibilidadeRepository
-	EmpEmpresaRepo           *empRepository.EmpresaRepository
-	EmpVagaRepo              *empRepository.VagaRepository
-	EmpEtapaRepo             *empRepository.EtapaRepository
-	EmpCandidaturaRepo       *empRepository.CandidaturaRepository
-	EmpCurriculoRepo         *empRepository.CurriculoRepository
-	EmpOnboardingRepo        *empRepository.OnboardingRepository
-	EmpTermosUsoRepo         *empRepository.TermosUsoRepository
+	EmpRegimeContratacaoRepo   *empRepository.RegimeContratacaoRepository
+	EmpModeloTrabalhoRepo      *empRepository.ModeloTrabalhoRepository
+	EmpTipoPCDRepo             *empRepository.TipoPCDRepository
+	EmpIdiomaRepo              *empRepository.IdiomaRepository
+	EmpNivelIdiomaRepo         *empRepository.NivelIdiomaRepository
+	EmpEscolaridadeRepo        *empRepository.EscolaridadeRepository
+	EmpTipoConquistaRepo       *empRepository.TipoConquistaRepository
+	EmpSituacaoAtualRepo       *empRepository.SituacaoAtualRepository
+	EmpDisponibilidadeRepo     *empRepository.DisponibilidadeRepository
+	EmpEmpresaRepo             *empRepository.EmpresaRepository
+	EmpVagaRepo                *empRepository.VagaRepository
+	EmpEtapaRepo               *empRepository.EtapaRepository
+	EmpCandidaturaRepo         *empRepository.CandidaturaRepository
+	EmpCurriculoRepo           *empRepository.CurriculoRepository
+	EmpOnboardingRepo          *empRepository.OnboardingRepository
+	EmpTermosUsoRepo           *empRepository.TermosUsoRepository
+	EmpZonaRepo                *empRepository.ZonaRepository
+	EmpCandidaturaBloqueioRepo *empRepository.CandidaturaBloqueioRepository
 
 	// Core Services
 	CursoService             *services.CursoService
@@ -89,23 +91,25 @@ type ApplicationContainer struct {
 	EmailWorker              *workers.EmailWorker
 
 	// Empregabilidade Services
-	EmpRegimeContratacaoService *empServices.RegimeContratacaoService
-	EmpModeloTrabalhoService    *empServices.ModeloTrabalhoService
-	EmpTipoPCDService           *empServices.TipoPCDService
-	EmpIdiomaService            *empServices.IdiomaService
-	EmpNivelIdiomaService       *empServices.NivelIdiomaService
-	EmpEscolaridadeService      *empServices.EscolaridadeService
-	EmpTipoConquistaService     *empServices.TipoConquistaService
-	EmpSituacaoAtualService     *empServices.SituacaoAtualService
-	EmpDisponibilidadeService   *empServices.DisponibilidadeService
-	EmpEmpresaService           *empServices.EmpresaService
-	EmpVagaService              *empServices.VagaService
-	EmpEtapaService             *empServices.EtapaService
-	EmpCurriculoService         *empServices.CurriculoService
-	EmpCandidaturaService       *empServices.CandidaturaService
-	EmpOnboardingService        *empServices.OnboardingService
-	EmpTermosUsoService         *empServices.TermosUsoService
-	EmpCNPJConsultaService      *empServices.CNPJConsultaService
+	EmpRegimeContratacaoService   *empServices.RegimeContratacaoService
+	EmpModeloTrabalhoService      *empServices.ModeloTrabalhoService
+	EmpTipoPCDService             *empServices.TipoPCDService
+	EmpIdiomaService              *empServices.IdiomaService
+	EmpNivelIdiomaService         *empServices.NivelIdiomaService
+	EmpEscolaridadeService        *empServices.EscolaridadeService
+	EmpTipoConquistaService       *empServices.TipoConquistaService
+	EmpSituacaoAtualService       *empServices.SituacaoAtualService
+	EmpDisponibilidadeService     *empServices.DisponibilidadeService
+	EmpEmpresaService             *empServices.EmpresaService
+	EmpVagaService                *empServices.VagaService
+	EmpEtapaService               *empServices.EtapaService
+	EmpCurriculoService           *empServices.CurriculoService
+	EmpCandidaturaService         *empServices.CandidaturaService
+	EmpOnboardingService          *empServices.OnboardingService
+	EmpTermosUsoService           *empServices.TermosUsoService
+	EmpZonaService                *empServices.ZonaService
+	EmpCandidaturaBloqueioService *empServices.CandidaturaBloqueioService
+	EmpCNPJConsultaService        *empServices.CNPJConsultaService
 
 	// Core Handlers
 	EmpregoHandler         *v1.EmpregoHandler
@@ -122,22 +126,24 @@ type ApplicationContainer struct {
 	TypesenseHandler       *v1.TypesenseHandler
 
 	// Empregabilidade Handlers
-	EmpRegimeContratacaoHandler *empHandlers.RegimeContratacaoHandler
-	EmpModeloTrabalhoHandler    *empHandlers.ModeloTrabalhoHandler
-	EmpTipoPCDHandler           *empHandlers.TipoPCDHandler
-	EmpIdiomaHandler            *empHandlers.IdiomaHandler
-	EmpNivelIdiomaHandler       *empHandlers.NivelIdiomaHandler
-	EmpEscolaridadeHandler      *empHandlers.EscolaridadeHandler
-	EmpTipoConquistaHandler     *empHandlers.TipoConquistaHandler
-	EmpSituacaoAtualHandler     *empHandlers.SituacaoAtualHandler
-	EmpDisponibilidadeHandler   *empHandlers.DisponibilidadeHandler
-	EmpEmpresaHandler           *empHandlers.EmpresaHandler
-	EmpVagaHandler              *empHandlers.VagaHandler
-	EmpEtapaHandler             *empHandlers.EtapaHandler
-	EmpCandidaturaHandler       *empHandlers.CandidaturaHandler
-	EmpCurriculoHandler         *empHandlers.CurriculoHandler
-	EmpOnboardingHandler        *empHandlers.OnboardingHandler
-	EmpTermosUsoHandler         *empHandlers.TermosUsoHandler
+	EmpRegimeContratacaoHandler   *empHandlers.RegimeContratacaoHandler
+	EmpModeloTrabalhoHandler      *empHandlers.ModeloTrabalhoHandler
+	EmpTipoPCDHandler             *empHandlers.TipoPCDHandler
+	EmpIdiomaHandler              *empHandlers.IdiomaHandler
+	EmpNivelIdiomaHandler         *empHandlers.NivelIdiomaHandler
+	EmpEscolaridadeHandler        *empHandlers.EscolaridadeHandler
+	EmpTipoConquistaHandler       *empHandlers.TipoConquistaHandler
+	EmpSituacaoAtualHandler       *empHandlers.SituacaoAtualHandler
+	EmpDisponibilidadeHandler     *empHandlers.DisponibilidadeHandler
+	EmpEmpresaHandler             *empHandlers.EmpresaHandler
+	EmpVagaHandler                *empHandlers.VagaHandler
+	EmpEtapaHandler               *empHandlers.EtapaHandler
+	EmpCandidaturaHandler         *empHandlers.CandidaturaHandler
+	EmpCurriculoHandler           *empHandlers.CurriculoHandler
+	EmpOnboardingHandler          *empHandlers.OnboardingHandler
+	EmpTermosUsoHandler           *empHandlers.TermosUsoHandler
+	EmpZonaHandler                *empHandlers.ZonaHandler
+	EmpCandidaturaBloqueioHandler *empHandlers.CandidaturaBloqueioHandler
 }
 
 // CategoriaContainer holds wired components for Categorias proof-of-concept
@@ -200,6 +206,8 @@ var EmpRepositorySet = wire.NewSet(
 	providers.ProvideEmpCurriculoRepository,
 	providers.ProvideEmpOnboardingRepository,
 	providers.ProvideEmpTermosUsoRepository,
+	providers.ProvideEmpZonaRepository,
+	providers.ProvideEmpCandidaturaBloqueioRepository,
 )
 
 var CoreServiceSet = wire.NewSet(
@@ -239,6 +247,8 @@ var EmpServiceSet = wire.NewSet(
 	providers.ProvideEmpOnboardingService,
 	providers.ProvideEmpTermosUsoService,
 	providers.ProvideEmpCNPJConsultaService,
+	providers.ProvideEmpZonaService,
+	providers.ProvideEmpCandidaturaBloqueioService,
 )
 
 var CoreHandlerSet = wire.NewSet(
@@ -273,6 +283,8 @@ var EmpHandlerSet = wire.NewSet(
 	providers.ProvideEmpCurriculoHandler,
 	providers.ProvideEmpOnboardingHandler,
 	providers.ProvideEmpTermosUsoHandler,
+	providers.ProvideEmpZonaHandler,
+	providers.ProvideEmpCandidaturaBloqueioHandler,
 )
 
 // Legacy set kept for backward compatibility with the Categorias POC

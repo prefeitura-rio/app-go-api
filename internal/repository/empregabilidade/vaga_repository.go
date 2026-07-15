@@ -39,6 +39,8 @@ func (r *VagaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empregabil
 		Preload("ModeloTrabalho").
 		Preload("OrgaoParceiro").
 		Preload("TiposPCD").
+		Preload("Zonas").
+		Preload("IdiomasRequisito").
 		Preload("Etapas", func(db *gorm.DB) *gorm.DB {
 			return db.Order("ordem ASC")
 		}).
@@ -71,6 +73,11 @@ func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vag
 		"beneficios":                       entity.Beneficios,
 		"id_orgao_parceiro":                entity.IDOrgaoParceiro,
 		"status":                           entity.Status,
+		"idade_minima":                     entity.IdadeMinima,
+		"idade_maxima":                     entity.IdadeMaxima,
+		"bairros_elegibilidade":            entity.BairrosElegibilidade,
+		"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
+		"areas_formacao_elegibilidade":     entity.AreasFormacaoElegibilidade,
 	}
 
 	result := r.db.WithContext(ctx).
@@ -102,6 +109,11 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			"beneficios":                       entity.Beneficios,
 			"id_orgao_parceiro":                entity.IDOrgaoParceiro,
 			"status":                           entity.Status,
+			"idade_minima":                     entity.IdadeMinima,
+			"idade_maxima":                     entity.IdadeMaxima,
+			"bairros_elegibilidade":            entity.BairrosElegibilidade,
+			"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
+			"areas_formacao_elegibilidade":     entity.AreasFormacaoElegibilidade,
 		}
 
 		if err := tx.Model(&empregabilidade.Vaga{}).Where("id = ?", entity.ID).Updates(updates).Error; err != nil {
@@ -135,20 +147,8 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 		}
 
 		if entity.InformacoesComplementares != nil {
-			if err := tx.Where("id_vaga = ?", entity.ID).Delete(&empregabilidade.InformacaoComplementar{}).Error; err != nil {
-				return fmt.Errorf("erro ao remover informações complementares existentes: %w", err)
-			}
-
-			for i := range entity.InformacoesComplementares {
-				entity.InformacoesComplementares[i].ID = uuid.Nil
-				entity.InformacoesComplementares[i].IDVaga = entity.ID
-				entity.InformacoesComplementares[i].Vaga = nil
-			}
-
-			if len(entity.InformacoesComplementares) > 0 {
-				if err := tx.Create(&entity.InformacoesComplementares).Error; err != nil {
-					return fmt.Errorf("erro ao criar informações complementares: %w", err)
-				}
+			if err := syncInformacoesComplementares(tx, entity.ID, entity.InformacoesComplementares); err != nil {
+				return err
 			}
 		}
 
@@ -163,8 +163,81 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			}
 		}
 
+		if entity.Zonas != nil {
+			if err := tx.Exec("DELETE FROM emp_vagas_zonas WHERE id_vaga = ?", entity.ID).Error; err != nil {
+				return fmt.Errorf("erro ao remover zonas: %w", err)
+			}
+			for _, zona := range entity.Zonas {
+				if err := tx.Exec("INSERT INTO emp_vagas_zonas (id_vaga, id_zona) VALUES (?, ?)", entity.ID, zona.ID).Error; err != nil {
+					return fmt.Errorf("erro ao inserir zona: %w", err)
+				}
+			}
+		}
+
 		return nil
 	})
+}
+
+// syncInformacoesComplementares reconcilia as informações complementares de uma vaga
+// pelo UUID em vez de deletar e recriar tudo: itens com ID preenchido são atualizados
+// in-place (preservando o UUID referenciado pelas respostas de candidaturas já
+// submetidas); itens ausentes do payload são removidos; itens com ID == uuid.Nil são
+// inseridos como novos, recebendo um UUID gerado pelo banco.
+func syncInformacoesComplementares(tx *gorm.DB, vagaID uuid.UUID, informacoes []empregabilidade.InformacaoComplementar) error {
+	existentesIDs := make([]uuid.UUID, 0, len(informacoes))
+	for i := range informacoes {
+		if informacoes[i].ID != uuid.Nil {
+			existentesIDs = append(existentesIDs, informacoes[i].ID)
+		}
+	}
+
+	deleteQuery := tx.Where("id_vaga = ?", vagaID)
+	if len(existentesIDs) > 0 {
+		deleteQuery = deleteQuery.Where("id NOT IN ?", existentesIDs)
+	}
+	if err := deleteQuery.Delete(&empregabilidade.InformacaoComplementar{}).Error; err != nil {
+		return fmt.Errorf("erro ao remover informações complementares existentes: %w", err)
+	}
+
+	var novos []empregabilidade.InformacaoComplementar
+	for i := range informacoes {
+		informacoes[i].IDVaga = vagaID
+		informacoes[i].Vaga = nil
+
+		if informacoes[i].ID == uuid.Nil {
+			novos = append(novos, informacoes[i])
+			continue
+		}
+
+		// Update baseado em struct (não em map) é obrigatório aqui: apenas o update
+		// baseado em struct aplica o serializer:json do GORM ao campo Opcoes. Um
+		// map[string]interface{} ignora o serializer e expande o []string em uma
+		// expressão SQL inválida para a coluna jsonb. Select(...) força a
+		// atualização de todos os campos listados mesmo quando estão em zero-value
+		// (ex.: Obrigatorio == false), que de outra forma seria omitido pelo GORM.
+		if err := tx.Model(&empregabilidade.InformacaoComplementar{}).
+			Where("id = ? AND id_vaga = ?", informacoes[i].ID, vagaID).
+			Select("titulo", "obrigatorio", "tipo_campo", "valor_minimo", "valor_maximo", "opcoes").
+			Updates(&informacoes[i]).Error; err != nil {
+			return fmt.Errorf("erro ao atualizar informação complementar: %w", err)
+		}
+	}
+
+	if len(novos) > 0 {
+		if err := tx.Create(&novos).Error; err != nil {
+			return fmt.Errorf("erro ao criar informações complementares: %w", err)
+		}
+
+		novoIdx := 0
+		for i := range informacoes {
+			if informacoes[i].ID == uuid.Nil {
+				informacoes[i].ID = novos[novoIdx].ID
+				novoIdx++
+			}
+		}
+	}
+
+	return nil
 }
 
 func (r *VagaRepository) Delete(ctx context.Context, id uuid.UUID) error {
@@ -300,6 +373,41 @@ func (r *VagaRepository) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, t
 		for _, tipoPCDID := range tiposPCDIDs {
 			if err := tx.Exec("INSERT INTO emp_vagas_tipos_pcd (id_vaga, id_tipo_pcd) VALUES (?, ?)", vagaID, tipoPCDID).Error; err != nil {
 				return fmt.Errorf("erro ao inserir tipo PCD: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
+func (r *VagaRepository) UpdateZonas(ctx context.Context, vagaID uuid.UUID, zonaIDs []uuid.UUID) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM emp_vagas_zonas WHERE id_vaga = ?", vagaID).Error; err != nil {
+			return fmt.Errorf("erro ao remover zonas: %w", err)
+		}
+
+		for _, zonaID := range zonaIDs {
+			if err := tx.Exec("INSERT INTO emp_vagas_zonas (id_vaga, id_zona) VALUES (?, ?)", vagaID, zonaID).Error; err != nil {
+				return fmt.Errorf("erro ao inserir zona: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
+func (r *VagaRepository) UpdateIdiomasRequisito(ctx context.Context, vagaID uuid.UUID, requisitos []empregabilidade.VagaIdiomaRequisito) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM emp_vagas_idiomas_requisitos WHERE id_vaga = ?", vagaID).Error; err != nil {
+			return fmt.Errorf("erro ao remover requisitos de idioma: %w", err)
+		}
+
+		for _, requisito := range requisitos {
+			if err := tx.Exec(
+				"INSERT INTO emp_vagas_idiomas_requisitos (id_vaga, id_idioma, id_nivel_minimo) VALUES (?, ?, ?)",
+				vagaID, requisito.IDIdioma, requisito.IDNivelMinimo,
+			).Error; err != nil {
+				return fmt.Errorf("erro ao inserir requisito de idioma: %w", err)
 			}
 		}
 
@@ -460,6 +568,8 @@ func (r *VagaRepository) GetByIDPrefix(ctx context.Context, idPrefix string) (*e
 		Preload("ModeloTrabalho").
 		Preload("OrgaoParceiro").
 		Preload("TiposPCD").
+		Preload("Zonas").
+		Preload("IdiomasRequisito").
 		Preload("Etapas", func(db *gorm.DB) *gorm.DB {
 			return db.Order("ordem ASC")
 		}).

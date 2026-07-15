@@ -90,3 +90,13 @@ func ProvideEmpTermosUsoRepository(db *gorm.DB) *empRepository.TermosUsoReposito
 func ProvideEmpInformacaoComplementarRepository(db *gorm.DB) *empRepository.InformacaoComplementarRepository {
 	return empRepository.NewInformacaoComplementarRepository(db)
 }
+
+// ProvideEmpZonaRepository creates empregabilidade ZonaRepository
+func ProvideEmpZonaRepository(db *gorm.DB) *empRepository.ZonaRepository {
+	return empRepository.NewZonaRepository(db)
+}
+
+// ProvideEmpCandidaturaBloqueioRepository creates empregabilidade CandidaturaBloqueioRepository
+func ProvideEmpCandidaturaBloqueioRepository(db *gorm.DB) *empRepository.CandidaturaBloqueioRepository {
+	return empRepository.NewCandidaturaBloqueioRepository(db)
+}

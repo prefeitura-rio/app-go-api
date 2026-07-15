@@ -1333,21 +1333,19 @@ func TestCurriculoRepository_ReplaceAllExperienciaProfissionalAccordionByCPF(t *
 		}
 
 		mock.ExpectBegin()
-		// Delete existing experiencias
 		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_experiencias"`)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
-		// Insert experiencias
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_experiencias"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
-		// Delete existing conquistas
 		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_conquistas"`)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
-		// Insert conquistas
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_conquistas"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_perfil" ("cpf","resumo_profissional","created_at","updated_at") VALUES ($1,$2,$3,$4) ON CONFLICT ("cpf") DO UPDATE SET "resumo_profissional"="excluded"."resumo_profissional","updated_at"="excluded"."updated_at"`)).
+			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
-		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas)
+		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas, "texto resumo")
 		assert.NoError(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -1362,7 +1360,7 @@ func TestCurriculoRepository_ReplaceAllExperienciaProfissionalAccordionByCPF(t *
 			WillReturnError(assert.AnError)
 		mock.ExpectRollback()
 
-		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas)
+		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao remover experiências")
 	})
@@ -1383,7 +1381,7 @@ func TestCurriculoRepository_ReplaceAllExperienciaProfissionalAccordionByCPF(t *
 			WillReturnError(assert.AnError)
 		mock.ExpectRollback()
 
-		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas)
+		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao inserir conquistas")
 	})
@@ -1402,7 +1400,7 @@ func TestCurriculoRepository_ReplaceAllExperienciaProfissionalAccordionByCPF(t *
 			WillReturnError(assert.AnError)
 		mock.ExpectRollback()
 
-		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas)
+		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao remover conquistas")
 	})
@@ -1419,9 +1417,32 @@ func TestCurriculoRepository_ReplaceAllExperienciaProfissionalAccordionByCPF(t *
 			WillReturnError(assert.AnError)
 		mock.ExpectRollback()
 
-		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas)
+		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao inserir experiências")
+	})
+
+	t.Run("upsert perfil error", func(t *testing.T) {
+		cpf := "12345678900"
+		experiencias := []*empregabilidade.CurriculoExperiencia{{Cargo: "Dev"}}
+		conquistas := []*empregabilidade.CurriculoConquista{{Descricao: "Award"}}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_experiencias"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_experiencias"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_conquistas"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_conquistas"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_perfil" ("cpf","resumo_profissional","created_at","updated_at") VALUES ($1,$2,$3,$4) ON CONFLICT ("cpf") DO UPDATE SET "resumo_profissional"="excluded"."resumo_profissional","updated_at"="excluded"."updated_at"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas, "texto")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao salvar resumo profissional")
 	})
 }
 

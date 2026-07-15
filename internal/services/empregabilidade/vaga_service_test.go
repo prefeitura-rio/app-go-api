@@ -22,12 +22,26 @@ func TestNewVagaService(t *testing.T) {
 
 // Mock Vaga Repository for VagaService tests
 type MockVagaRepoForService struct {
-	vagas       map[uuid.UUID]*empregabilidade.Vaga
-	createError error
-	getError    error
-	updateError error
-	deleteError error
-	listError   error
+	vagas                       map[uuid.UUID]*empregabilidade.Vaga
+	createError                 error
+	getError                    error
+	updateError                 error
+	deleteError                 error
+	listError                   error
+	updateZonasError            error
+	updateZonasCalls            []updateZonasCall
+	updateIdiomasRequisitoError error
+	updateIdiomasRequisitoCalls []updateIdiomasRequisitoCall
+}
+
+type updateZonasCall struct {
+	vagaID  uuid.UUID
+	zonaIDs []uuid.UUID
+}
+
+type updateIdiomasRequisitoCall struct {
+	vagaID     uuid.UUID
+	requisitos []empregabilidade.VagaIdiomaRequisito
 }
 
 func NewMockVagaRepoForService() *MockVagaRepoForService {
@@ -106,6 +120,22 @@ func (m *MockVagaRepoForService) List(ctx context.Context, filter empregabilidad
 }
 
 func (m *MockVagaRepoForService) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error {
+	return nil
+}
+
+func (m *MockVagaRepoForService) UpdateZonas(ctx context.Context, vagaID uuid.UUID, zonaIDs []uuid.UUID) error {
+	m.updateZonasCalls = append(m.updateZonasCalls, updateZonasCall{vagaID: vagaID, zonaIDs: zonaIDs})
+	if m.updateZonasError != nil {
+		return m.updateZonasError
+	}
+	return nil
+}
+
+func (m *MockVagaRepoForService) UpdateIdiomasRequisito(ctx context.Context, vagaID uuid.UUID, requisitos []empregabilidade.VagaIdiomaRequisito) error {
+	m.updateIdiomasRequisitoCalls = append(m.updateIdiomasRequisitoCalls, updateIdiomasRequisitoCall{vagaID: vagaID, requisitos: requisitos})
+	if m.updateIdiomasRequisitoError != nil {
+		return m.updateIdiomasRequisitoError
+	}
 	return nil
 }
 
@@ -1457,6 +1487,58 @@ func TestVagaService_ListByOrgaoParceiro_RepoError(t *testing.T) {
 	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
 
 	_, _, err := service.ListByOrgaoParceiro(context.Background(), "ORG-001", 1, 10)
+
+	assert.Error(t, err)
+}
+
+func TestVagaService_UpdateZonas_Success(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	vagaID := uuid.New()
+	zonaID := uuid.New()
+
+	err := service.UpdateZonas(context.Background(), vagaID, []uuid.UUID{zonaID})
+
+	assert.NoError(t, err)
+	assert.Len(t, mockVagaRepo.updateZonasCalls, 1)
+	assert.Equal(t, vagaID, mockVagaRepo.updateZonasCalls[0].vagaID)
+	assert.Equal(t, []uuid.UUID{zonaID}, mockVagaRepo.updateZonasCalls[0].zonaIDs)
+}
+
+func TestVagaService_UpdateZonas_RepoError(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	mockVagaRepo.updateZonasError = errors.New("db error")
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	err := service.UpdateZonas(context.Background(), uuid.New(), []uuid.UUID{})
+
+	assert.Error(t, err)
+}
+
+func TestVagaService_UpdateIdiomasRequisito_Success(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	vagaID := uuid.New()
+	requisitos := []empregabilidade.VagaIdiomaRequisito{
+		{IDIdioma: uuid.New(), IDNivelMinimo: uuid.New()},
+	}
+
+	err := service.UpdateIdiomasRequisito(context.Background(), vagaID, requisitos)
+
+	assert.NoError(t, err)
+	assert.Len(t, mockVagaRepo.updateIdiomasRequisitoCalls, 1)
+	assert.Equal(t, vagaID, mockVagaRepo.updateIdiomasRequisitoCalls[0].vagaID)
+	assert.Equal(t, requisitos, mockVagaRepo.updateIdiomasRequisitoCalls[0].requisitos)
+}
+
+func TestVagaService_UpdateIdiomasRequisito_RepoError(t *testing.T) {
+	mockVagaRepo := NewMockVagaRepoForService()
+	mockVagaRepo.updateIdiomasRequisitoError = errors.New("db error")
+	service := services.NewVagaServiceWithInterfaces(mockVagaRepo, NewMockEmpresaRepoForService(), nil)
+
+	err := service.UpdateIdiomasRequisito(context.Background(), uuid.New(), []empregabilidade.VagaIdiomaRequisito{})
 
 	assert.Error(t, err)
 }
