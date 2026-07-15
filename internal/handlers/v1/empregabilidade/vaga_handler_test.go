@@ -1010,17 +1010,51 @@ func TestVagaHandler_Update_PublishedAllowedForEmpregabilidadeAdmin(t *testing.T
 }
 
 func TestVagaHandler_Update_PublishedAllowedForEmpregabilidadeEditorSemCuradoria(t *testing.T) {
+	const testOrgao = "orgao-test-sem-curadoria"
 	id := uuid.MustParse(validUUID)
-	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo, IDOrgaoParceiro: testOrgao}}
 	empresaRepo := &mockEmpresaRepoForVaga{}
-	r := setupVagaRouterWithRoles(vagaRepo, empresaRepo, []string{"go:empregabilidade:editor_sem_curadoria"})
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRolesKey, []string{"go:empregabilidade:editor_sem_curadoria"})
+		c.Set(middlewares.UserGroupsKey, []string{"go:orgao:" + testOrgao})
+		c.Next()
+	})
+	candidaturaRepo := &mockCandidaturaRepoForVaga{}
+	svc := services.NewVagaServiceWithInterfaces(vagaRepo, empresaRepo, candidaturaRepo)
+	h := handlers.NewVagaHandler(svc)
+	r.PUT("/vagas/:id", h.Update)
 	body := bodyOf(`{"titulo":"Dev Editor"}`)
 	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 for empregabilidade:editor_sem_curadoria, got %d: %s", w.Code, w.Body.String())
+		t.Errorf("expected 200 for empregabilidade:editor_sem_curadoria same-org, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_Update_CrossOrgForbiddenForEditorSemCuradoria(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo, IDOrgaoParceiro: "orgao-outro"}}
+	empresaRepo := &mockEmpresaRepoForVaga{}
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRolesKey, []string{"go:empregabilidade:editor_sem_curadoria"})
+		c.Set(middlewares.UserGroupsKey, []string{"go:orgao:orgao-meu"})
+		c.Next()
+	})
+	candidaturaRepo := &mockCandidaturaRepoForVaga{}
+	svc := services.NewVagaServiceWithInterfaces(vagaRepo, empresaRepo, candidaturaRepo)
+	h := handlers.NewVagaHandler(svc)
+	r.PUT("/vagas/:id", h.Update)
+	body := bodyOf(`{"titulo":"Dev Editor Cross"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for empregabilidade:editor_sem_curadoria cross-org, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

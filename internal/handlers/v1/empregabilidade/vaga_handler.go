@@ -265,10 +265,7 @@ func (h *VagaHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Cross-org ownership check: org-scoped roles can only edit vagas of their own orgao(s).
-	// editor_sem_curadoria is platform-wide and bypasses this check.
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:empregabilidade:admin") &&
-		!middlewares.HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:empregabilidade:admin") {
 		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
 		if secretariaIDs != nil {
 			if !containsString(secretariaIDs, existing.IDOrgaoParceiro) {
@@ -276,7 +273,8 @@ func (h *VagaHandler) Update(c *gin.Context) {
 				return
 			}
 		} else if middlewares.HasRole(c, "go:empregabilidade:editor") ||
-			middlewares.HasRole(c, "go:empregabilidade:editor_com_curadoria") {
+			middlewares.HasRole(c, "go:empregabilidade:editor_com_curadoria") ||
+			middlewares.HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
 			userOrgao := middlewares.GetUserOrgaoID(c)
 			if userOrgao == "" || userOrgao != existing.IDOrgaoParceiro {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence ao seu órgão"})
