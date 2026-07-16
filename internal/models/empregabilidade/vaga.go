@@ -30,6 +30,17 @@ func (s StatusVaga) IsValid() bool {
 	return false
 }
 
+// IsPublished reports whether the vaga has already been published (in any of the
+// post-publication states). Used to gate who may edit an already-published vaga.
+func (s StatusVaga) IsPublished() bool {
+	switch s {
+	case StatusVagaPublicadoAtivo, StatusVagaPublicadoExpirado,
+		StatusVagaCongelada, StatusVagaDescontinuada:
+		return true
+	}
+	return false
+}
+
 type AcessibilidadePCD string
 
 const (

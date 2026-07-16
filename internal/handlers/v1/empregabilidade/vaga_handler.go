@@ -23,14 +23,7 @@ func containsString(slice []string, item string) bool {
 }
 
 func isPublishedStatus(status empregabilidade.StatusVaga) bool {
-	switch status {
-	case empregabilidade.StatusVagaPublicadoAtivo,
-		empregabilidade.StatusVagaPublicadoExpirado,
-		empregabilidade.StatusVagaCongelada,
-		empregabilidade.StatusVagaDescontinuada:
-		return true
-	}
-	return false
+	return status.IsPublished()
 }
 
 func parseCSVParam(param string) []string {
@@ -265,36 +258,8 @@ func (h *VagaHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:empregabilidade:admin") {
-		isEditor := middlewares.HasRole(c, "go:empregabilidade:editor") ||
-			middlewares.HasRole(c, "go:empregabilidade:editor_com_curadoria") ||
-			middlewares.HasRole(c, "go:empregabilidade:editor_sem_curadoria")
-		if !isEditor {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
-			return
-		}
-		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if len(secretariaIDs) > 0 {
-			if !containsString(secretariaIDs, existing.IDOrgaoParceiro) {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence à sua secretaria"})
-				return
-			}
-		} else {
-			userOrgao := middlewares.GetUserOrgaoID(c)
-			if userOrgao == "" || userOrgao != existing.IDOrgaoParceiro {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence ao seu órgão"})
-				return
-			}
-		}
-	}
-
-	canEditPublished := middlewares.IsAdmin(c) ||
-		middlewares.HasRole(c, "go:empregabilidade:admin") ||
-		middlewares.HasRole(c, "go:empregabilidade:editor_sem_curadoria")
-	if isPublishedStatus(existing.Status) && !canEditPublished {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores, empregabilidade:admin ou editor_sem_curadoria podem editar vagas publicadas"})
-		return
-	}
+	// A autorização por órgão/secretaria e a regra de edição de vaga publicada
+	// ficam em VagaOwnershipCheck (middleware), que só é ativo em dev/test.
 
 	var entity empregabilidade.Vaga
 	if err := c.ShouldBindJSON(&entity); err != nil {

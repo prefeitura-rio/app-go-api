@@ -1,7 +1,10 @@
 package router
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
@@ -34,9 +37,25 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empEmpresas.DELETE("/:cnpj", app.EmpEmpresaHandler.Delete)
 	}
 
+	vagaLoader := func(ctx context.Context, id uuid.UUID) (*middlewares.VagaOwnershipInfo, error) {
+		vaga, err := app.EmpVagaService.GetByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if vaga == nil {
+			return nil, nil
+		}
+		return &middlewares.VagaOwnershipInfo{
+			OrgaoParceiroID: vaga.IDOrgaoParceiro,
+			IsPublished:     vaga.Status.IsPublished(),
+		}, nil
+	}
+
 	var vagaAuth gin.HandlerFunc
 	var vagaOrgaoInjector gin.HandlerFunc
 	var vagaListFilter gin.HandlerFunc
+	var vagaOwnership gin.HandlerFunc     // ownership por órgão (mutações)
+	var vagaOwnershipEdit gin.HandlerFunc // ownership + regra de vaga publicada (Update)
 
 	// "development" cobre local + staging (ver comentário de noOpHandler em router.go).
 	// vagaAuth também protege o grupo /candidaturas mais abaixo nesta função.
@@ -44,10 +63,14 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		vagaAuth = middlewares.VagaAuthorization()
 		vagaOrgaoInjector = middlewares.VagaOrgaoInjector()
 		vagaListFilter = middlewares.VagaListFilter()
+		vagaOwnership = middlewares.VagaOwnershipCheck(vagaLoader, false)
+		vagaOwnershipEdit = middlewares.VagaOwnershipCheck(vagaLoader, true)
 	} else {
 		vagaAuth = noOpHandler
 		vagaOrgaoInjector = noOpHandler
 		vagaListFilter = noOpHandler
+		vagaOwnership = noOpHandler
+		vagaOwnershipEdit = noOpHandler
 	}
 
 	// Vagas
@@ -57,23 +80,23 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empVagas.POST("/draft", vagaAuth, vagaOrgaoInjector, app.EmpVagaHandler.Create)
 		empVagas.GET("", vagaAuth, vagaListFilter, app.EmpVagaHandler.List)
 		empVagas.GET("/:id", app.EmpVagaHandler.GetByID)
-		empVagas.PUT("/:id", vagaAuth, app.EmpVagaHandler.Update)
-		empVagas.DELETE("/:id", vagaAuth, app.EmpVagaHandler.Delete)
-		empVagas.PUT("/:id/send-to-draft", vagaAuth, app.EmpVagaHandler.SendToDraft)
-		empVagas.PUT("/:id/send-to-approval", vagaAuth, app.EmpVagaHandler.SendToApproval)
-		empVagas.PUT("/:id/publish", vagaAuth, app.EmpVagaHandler.Publish)
-		empVagas.PUT("/:id/freeze", vagaAuth, app.EmpVagaHandler.Freeze)
-		empVagas.PUT("/:id/unfreeze", vagaAuth, app.EmpVagaHandler.Unfreeze)
-		empVagas.PUT("/:id/discontinue", vagaAuth, app.EmpVagaHandler.Discontinue)
-		empVagas.PUT("/:id/reactivate", vagaAuth, app.EmpVagaHandler.Reactivate)
-		empVagas.PUT("/:id/tipos-pcd", vagaAuth, app.EmpVagaHandler.UpdateTiposPCD)
-		empVagas.PUT("/:id/zonas", vagaAuth, app.EmpVagaHandler.UpdateZonas)
-		empVagas.PUT("/:id/idiomas-requisito", vagaAuth, app.EmpVagaHandler.UpdateIdiomasRequisito)
-		empVagas.POST("/:id/etapas", vagaAuth, app.EmpEtapaHandler.Create)
+		empVagas.PUT("/:id", vagaAuth, vagaOwnershipEdit, app.EmpVagaHandler.Update)
+		empVagas.DELETE("/:id", vagaAuth, vagaOwnership, app.EmpVagaHandler.Delete)
+		empVagas.PUT("/:id/send-to-draft", vagaAuth, vagaOwnership, app.EmpVagaHandler.SendToDraft)
+		empVagas.PUT("/:id/send-to-approval", vagaAuth, vagaOwnership, app.EmpVagaHandler.SendToApproval)
+		empVagas.PUT("/:id/publish", vagaAuth, vagaOwnership, app.EmpVagaHandler.Publish)
+		empVagas.PUT("/:id/freeze", vagaAuth, vagaOwnership, app.EmpVagaHandler.Freeze)
+		empVagas.PUT("/:id/unfreeze", vagaAuth, vagaOwnership, app.EmpVagaHandler.Unfreeze)
+		empVagas.PUT("/:id/discontinue", vagaAuth, vagaOwnership, app.EmpVagaHandler.Discontinue)
+		empVagas.PUT("/:id/reactivate", vagaAuth, vagaOwnership, app.EmpVagaHandler.Reactivate)
+		empVagas.PUT("/:id/tipos-pcd", vagaAuth, vagaOwnership, app.EmpVagaHandler.UpdateTiposPCD)
+		empVagas.PUT("/:id/zonas", vagaAuth, vagaOwnership, app.EmpVagaHandler.UpdateZonas)
+		empVagas.PUT("/:id/idiomas-requisito", vagaAuth, vagaOwnership, app.EmpVagaHandler.UpdateIdiomasRequisito)
+		empVagas.POST("/:id/etapas", vagaAuth, vagaOwnership, app.EmpEtapaHandler.Create)
 		empVagas.GET("/:id/etapas", app.EmpEtapaHandler.ListByVaga)
 		empVagas.GET("/:id/etapas/:etapaId", app.EmpEtapaHandler.GetByID)
-		empVagas.PUT("/:id/etapas/:etapaId", vagaAuth, app.EmpEtapaHandler.Update)
-		empVagas.DELETE("/:id/etapas/:etapaId", vagaAuth, app.EmpEtapaHandler.Delete)
+		empVagas.PUT("/:id/etapas/:etapaId", vagaAuth, vagaOwnership, app.EmpEtapaHandler.Update)
+		empVagas.DELETE("/:id/etapas/:etapaId", vagaAuth, vagaOwnership, app.EmpEtapaHandler.Delete)
 	}
 
 	// Candidaturas

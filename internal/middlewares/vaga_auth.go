@@ -1,9 +1,12 @@
 package middlewares
 
 import (
+	"context"
 	"net/http"
+	"slices"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 const (
@@ -113,4 +116,80 @@ func GetVagaAllowedOrgaos(c *gin.Context) []string {
 		}
 	}
 	return nil
+}
+
+// VagaOwnershipInfo carries the vaga fields VagaOwnershipCheck needs.
+type VagaOwnershipInfo struct {
+	OrgaoParceiroID string
+	IsPublished     bool
+}
+
+// VagaLoaderFunc loads ownership info for a vaga. Returns nil when the vaga does
+// not exist.
+type VagaLoaderFunc func(ctx context.Context, id uuid.UUID) (*VagaOwnershipInfo, error)
+
+// VagaOwnershipCheck enforces per-vaga org ownership on mutation routes.
+//
+// admin / go:empregabilidade:admin bypass every check. Any other caller must be
+// an empregabilidade editor whose secretaria/orgao scope contains the vaga's
+// orgao_parceiro. When enforcePublishedEdit is true, an already-published vaga
+// may only be edited by admin / go:empregabilidade:admin / editor_sem_curadoria.
+//
+// Like the other vaga/course authorization middlewares, this is wired only in
+// development/test (no-op in prod — see routes_emp.go / noOpHandler).
+func VagaOwnershipCheck(loader VagaLoaderFunc, enforcePublishedEdit bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if IsAdmin(c) || HasRole(c, "go:empregabilidade:admin") {
+			c.Next()
+			return
+		}
+
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+			c.Abort()
+			return
+		}
+
+		info, err := loader(c.Request.Context(), id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao carregar vaga"})
+			c.Abort()
+			return
+		}
+		if info == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
+			c.Abort()
+			return
+		}
+
+		if !isEmpEditor(c) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
+			c.Abort()
+			return
+		}
+
+		if secretariaIDs := GetUserSecretariaOrgaoIDs(c); len(secretariaIDs) > 0 {
+			if !slices.Contains(secretariaIDs, info.OrgaoParceiroID) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence à sua secretaria"})
+				c.Abort()
+				return
+			}
+		} else {
+			userOrgao := GetUserOrgaoID(c)
+			if userOrgao == "" || userOrgao != info.OrgaoParceiroID {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence ao seu órgão"})
+				c.Abort()
+				return
+			}
+		}
+
+		if enforcePublishedEdit && info.IsPublished && !HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores, empregabilidade:admin ou editor_sem_curadoria podem editar vagas publicadas"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
 }
