@@ -286,10 +286,11 @@ func TestVagaHandler_GetByID_ServiceError(t *testing.T) {
 
 func TestVagaHandler_Update_Success(t *testing.T) {
 	id := uuid.MustParse(validUUID)
-	// Vaga in em_edicao status (non-published) so no admin required
+	// Vaga in em_edicao status (non-published) so no admin required for published-edit rule;
+	// ADMIN bypasses org-scoped ownership check.
 	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}}
 	empresaRepo := &mockEmpresaRepoForVaga{}
-	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
 	body := bodyOf(`{"titulo":"Dev Go Atualizado"}`)
 	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
 	req.Header.Set("Content-Type", "application/json")
@@ -787,7 +788,7 @@ func TestVagaHandler_Update_BadJSON(t *testing.T) {
 	id := uuid.MustParse(validUUID)
 	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}}
 	empresaRepo := &mockEmpresaRepoForVaga{}
-	r := setupVagaRouter(vagaRepo, empresaRepo, false)
+	r := setupVagaRouter(vagaRepo, empresaRepo, true)
 	body := bodyOf(`{bad}`)
 	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
 	req.Header.Set("Content-Type", "application/json")

@@ -266,15 +266,20 @@ func (h *VagaHandler) Update(c *gin.Context) {
 	}
 
 	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:empregabilidade:admin") {
+		isEditor := middlewares.HasRole(c, "go:empregabilidade:editor") ||
+			middlewares.HasRole(c, "go:empregabilidade:editor_com_curadoria") ||
+			middlewares.HasRole(c, "go:empregabilidade:editor_sem_curadoria")
+		if !isEditor {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
+			return
+		}
 		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
+		if len(secretariaIDs) > 0 {
 			if !containsString(secretariaIDs, existing.IDOrgaoParceiro) {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence à sua secretaria"})
 				return
 			}
-		} else if middlewares.HasRole(c, "go:empregabilidade:editor") ||
-			middlewares.HasRole(c, "go:empregabilidade:editor_com_curadoria") ||
-			middlewares.HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
+		} else {
 			userOrgao := middlewares.GetUserOrgaoID(c)
 			if userOrgao == "" || userOrgao != existing.IDOrgaoParceiro {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence ao seu órgão"})

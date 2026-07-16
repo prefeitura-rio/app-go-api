@@ -11,6 +11,18 @@ const (
 	vagaAllowedOrgaosKey    = "vaga_allowed_orgaos"
 )
 
+func isEmpEditor(c *gin.Context) bool {
+	return HasRole(c, "go:empregabilidade:editor") ||
+		HasRole(c, "go:empregabilidade:editor_com_curadoria") ||
+		HasRole(c, "go:empregabilidade:editor_sem_curadoria")
+}
+
+func hasVagaOrgaoScope(c *gin.Context) bool {
+	return len(GetUserSecretariaOrgaoIDs(c)) > 0 || GetUserOrgaoID(c) != ""
+}
+
+// VagaAuthorization allows only total admins, go:empregabilidade:admin, or emp editors
+// with secretaria/orgao scope. Secretaria alone is not enough.
 func VagaAuthorization() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if IsAdmin(c) || HasRole(c, "go:empregabilidade:admin") {
@@ -18,17 +30,9 @@ func VagaAuthorization() gin.HandlerFunc {
 			return
 		}
 
-		secretariaIDs := GetUserSecretariaOrgaoIDs(c)
-		if len(secretariaIDs) > 0 {
+		if isEmpEditor(c) && hasVagaOrgaoScope(c) {
 			c.Next()
 			return
-		}
-
-		if HasRole(c, "go:empregabilidade:editor") || HasRole(c, "go:empregabilidade:editor_com_curadoria") || HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
-			if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
-				c.Next()
-				return
-			}
 		}
 
 		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
@@ -37,17 +41,15 @@ func VagaAuthorization() gin.HandlerFunc {
 }
 
 // VagaListFilter injects orgao_parceiro_id restrictions into the context.
-// Admin and go:empregabilidade:admin see everything (no filter injected).
-// Secretaria users are restricted to their mapped orgao IDs.
-// Editor users are restricted to their single orgao ID.
+// Without an empregabilidade editor/admin role, injects an empty list (no results).
 func VagaListFilter() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !IsAdmin(c) && !HasRole(c, "go:empregabilidade:admin") {
-			secretariaIDs := GetUserSecretariaOrgaoIDs(c)
-			if secretariaIDs != nil {
-				c.Set(vagaOrgaoParceiroIDsKey, secretariaIDs)
-			} else if HasRole(c, "go:empregabilidade:editor") || HasRole(c, "go:empregabilidade:editor_com_curadoria") || HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
-				if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
+			if isEmpEditor(c) {
+				secretariaIDs := GetUserSecretariaOrgaoIDs(c)
+				if len(secretariaIDs) > 0 {
+					c.Set(vagaOrgaoParceiroIDsKey, secretariaIDs)
+				} else if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
 					c.Set(vagaOrgaoParceiroIDsKey, []string{orgaoID})
 				} else {
 					c.Set(vagaOrgaoParceiroIDsKey, []string{})
@@ -71,11 +73,8 @@ func GetVagaOrgaoParceiroIDs(c *gin.Context) []string {
 	return nil
 }
 
-// VagaOrgaoInjector injects allowed orgao IDs into the context for write operations (POST).
-// Admin and go:empregabilidade:admin bypass all restrictions (nil injected = unrestricted).
-// Secretaria users are restricted to their mapped orgao IDs (injected into context).
-// Editor/editor_sem_curadoria users are restricted to their single orgao ID.
-// Anyone else is denied with 403.
+// VagaOrgaoInjector injects allowed orgao IDs for write operations (POST).
+// Requires emp admin bypass or an editor role with secretaria/orgao scope.
 func VagaOrgaoInjector() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if IsAdmin(c) || HasRole(c, "go:empregabilidade:admin") {
@@ -83,24 +82,21 @@ func VagaOrgaoInjector() gin.HandlerFunc {
 			return
 		}
 
-		secretariaIDs := GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
-			if len(secretariaIDs) == 0 {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: nenhuma secretaria associada"})
-				c.Abort()
+		if isEmpEditor(c) {
+			secretariaIDs := GetUserSecretariaOrgaoIDs(c)
+			if len(secretariaIDs) > 0 {
+				c.Set(vagaAllowedOrgaosKey, secretariaIDs)
+				c.Next()
 				return
 			}
-			c.Set(vagaAllowedOrgaosKey, secretariaIDs)
-			c.Next()
-			return
-		}
-
-		if HasRole(c, "go:empregabilidade:editor") || HasRole(c, "go:empregabilidade:editor_com_curadoria") || HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
 			if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
 				c.Set(vagaAllowedOrgaosKey, []string{orgaoID})
 				c.Next()
 				return
 			}
+			c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: nenhuma secretaria associada"})
+			c.Abort()
+			return
 		}
 
 		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: órgão não identificado"})

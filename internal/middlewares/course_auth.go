@@ -14,6 +14,16 @@ const (
 	courseAllowedOrgaosKey = "course_allowed_orgaos"
 )
 
+func isCursosEditor(c *gin.Context) bool {
+	return HasRole(c, "go:cursos:editor")
+}
+
+func hasCourseOrgaoScope(c *gin.Context) bool {
+	return len(GetUserSecretariaOrgaoIDs(c)) > 0 || GetUserOrgaoID(c) != ""
+}
+
+// CourseAuthorization allows only total admins, go:cursos:casa_civil, or go:cursos:editor
+// with secretaria/orgao scope. Secretaria alone is not enough.
 func CourseAuthorization() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
@@ -21,17 +31,9 @@ func CourseAuthorization() gin.HandlerFunc {
 			return
 		}
 
-		secretariaIDs := GetUserSecretariaOrgaoIDs(c)
-		if len(secretariaIDs) > 0 {
+		if isCursosEditor(c) && hasCourseOrgaoScope(c) {
 			c.Next()
 			return
-		}
-
-		if HasRole(c, "go:cursos:editor") {
-			if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
-				c.Next()
-				return
-			}
 		}
 
 		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
@@ -39,15 +41,17 @@ func CourseAuthorization() gin.HandlerFunc {
 	}
 }
 
+// CourseListFilter scopes list queries. Without a cursos role, results are empty
+// (secretaria alone does not grant access).
 func CourseListFilter() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		filters := make(map[string]interface{})
 		if !IsAdmin(c) && !HasRole(c, "go:cursos:casa_civil") {
-			secretariaIDs := GetUserSecretariaOrgaoIDs(c)
-			if len(secretariaIDs) > 0 {
-				filters["orgao_id IN"] = secretariaIDs
-			} else if HasRole(c, "go:cursos:editor") {
-				if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
+			if isCursosEditor(c) {
+				secretariaIDs := GetUserSecretariaOrgaoIDs(c)
+				if len(secretariaIDs) > 0 {
+					filters["orgao_id IN"] = secretariaIDs
+				} else if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
 					filters["orgao_id"] = orgaoID
 				} else {
 					filters["_no_results"] = true
@@ -70,9 +74,11 @@ func GetCourseFilters(c *gin.Context) map[string]interface{} {
 	return make(map[string]interface{})
 }
 
+// CourseOrgaoInjector: only total admins / casa_civil may create courses.
+// Editors and secretaria-only users are denied.
 func CourseOrgaoInjector() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if HasRole(c, "go:cursos:editor") {
+		if isCursosEditor(c) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Editores não têm permissão para criar cursos"})
 			c.Abort()
 			return
@@ -81,26 +87,6 @@ func CourseOrgaoInjector() gin.HandlerFunc {
 		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
 			c.Next()
 			return
-		}
-
-		secretariaIDs := GetUserSecretariaOrgaoIDs(c)
-		if secretariaIDs != nil {
-			if len(secretariaIDs) == 0 {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: nenhuma secretaria associada"})
-				c.Abort()
-				return
-			}
-			c.Set(courseAllowedOrgaosKey, secretariaIDs)
-			c.Next()
-			return
-		}
-
-		if HasRole(c, "go:cursos:editor") {
-			if orgaoID := GetUserOrgaoID(c); orgaoID != "" {
-				c.Set(courseAllowedOrgaosKey, []string{orgaoID})
-				c.Next()
-				return
-			}
 		}
 
 		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar: órgão não identificado"})
@@ -150,21 +136,19 @@ func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 			return
 		}
 
-		secretariaIDs := GetUserSecretariaOrgaoIDs(c)
-
-		if secretariaIDs != nil {
-			if slices.Contains(secretariaIDs, orgaoID) {
-				c.Next()
+		if isCursosEditor(c) {
+			secretariaIDs := GetUserSecretariaOrgaoIDs(c)
+			if len(secretariaIDs) > 0 {
+				if slices.Contains(secretariaIDs, orgaoID) {
+					c.Next()
+					return
+				}
+				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
+				c.Abort()
 				return
 			}
-			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
-			c.Abort()
-			return
-		}
 
-		if HasRole(c, "go:cursos:editor") {
 			userOrgao := GetUserOrgaoID(c)
-
 			if userOrgao != "" && userOrgao == orgaoID {
 				c.Next()
 				return
@@ -174,7 +158,8 @@ func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 			return
 		}
 
-		c.Next()
+		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
+		c.Abort()
 	}
 }
 

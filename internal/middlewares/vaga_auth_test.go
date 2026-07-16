@@ -52,10 +52,22 @@ func TestVagaAuthorization_EmpAdmin_Passes(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestVagaAuthorization_SecretariaUser_Passes(t *testing.T) {
+func TestVagaAuthorization_SecretariaOnly_Forbidden(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(injectVagaRoles("", "", []string{"orgao-1"}))
+	r.Use(middlewares.VagaAuthorization())
+	r.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestVagaAuthorization_Editor_WithSecretaria_Passes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(injectVagaRoles("go:empregabilidade:editor_com_curadoria", "", []string{"orgao-1"}))
 	r.Use(middlewares.VagaAuthorization())
 	r.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
 
@@ -169,10 +181,27 @@ func TestVagaListFilter_EmpAdmin_NoFilterInjected(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"is_nil":true`)
 }
 
-func TestVagaListFilter_SecretariaUser_InjectsIDs(t *testing.T) {
+func TestVagaListFilter_SecretariaOnly_InjectsEmptySlice(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(injectVagaRoles("", "", []string{"orgao-1", "orgao-2"}))
+	r.Use(middlewares.VagaListFilter())
+	r.GET("/test", func(c *gin.Context) {
+		ids := middlewares.GetVagaOrgaoParceiroIDs(c)
+		c.JSON(http.StatusOK, gin.H{"ids": ids, "len": len(ids)})
+	})
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"len":0`)
+	assert.NotContains(t, w.Body.String(), "orgao-1")
+}
+
+func TestVagaListFilter_Editor_WithSecretaria_InjectsIDs(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(injectVagaRoles("go:empregabilidade:editor", "", []string{"orgao-1", "orgao-2"}))
 	r.Use(middlewares.VagaListFilter())
 	r.GET("/test", func(c *gin.Context) {
 		ids := middlewares.GetVagaOrgaoParceiroIDs(c)
@@ -280,10 +309,22 @@ func TestVagaOrgaoInjector_EmpAdmin_NoRestriction(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"is_nil":true`)
 }
 
-func TestVagaOrgaoInjector_SecretariaUser_InjectsIDs(t *testing.T) {
+func TestVagaOrgaoInjector_SecretariaOnly_Forbidden(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(injectVagaRoles("", "", []string{"orgao-1", "orgao-2"}))
+	r.Use(middlewares.VagaOrgaoInjector())
+	r.POST("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/test", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestVagaOrgaoInjector_Editor_WithSecretaria_InjectsIDs(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(injectVagaRoles("go:empregabilidade:editor", "", []string{"orgao-1", "orgao-2"}))
 	r.Use(middlewares.VagaOrgaoInjector())
 	r.POST("/test", func(c *gin.Context) {
 		ids := middlewares.GetVagaAllowedOrgaos(c)
