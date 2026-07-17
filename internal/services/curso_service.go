@@ -362,6 +362,34 @@ func (s *CursoService) normalizeCurso(curso *models.Curso) {
 			}
 		}
 	}
+
+	// Enrollment period is managed per turma. Backfill any turma missing its
+	// window from the course-level dates (backward compatibility with payloads
+	// that only set the course period), then derive the course period back from
+	// the turmas so the denormalized course dates stay in sync.
+	fillFromCourse := func(start, end **time.Time) {
+		if *start == nil && curso.EnrollmentStartDate != nil {
+			v := *curso.EnrollmentStartDate
+			*start = &v
+		}
+		if *end == nil && curso.EnrollmentEndDate != nil {
+			v := *curso.EnrollmentEndDate
+			*end = &v
+		}
+	}
+	for i := range curso.LocationClasses {
+		for j := range curso.LocationClasses[i].Schedules {
+			sched := &curso.LocationClasses[i].Schedules[j]
+			fillFromCourse(&sched.EnrollmentStartDate, &sched.EnrollmentEndDate)
+		}
+	}
+	if curso.RemoteClass != nil {
+		for j := range curso.RemoteClass.Schedules {
+			sched := &curso.RemoteClass.Schedules[j]
+			fillFromCourse(&sched.EnrollmentStartDate, &sched.EnrollmentEndDate)
+		}
+	}
+	curso.ApplyDerivedEnrollmentPeriod()
 }
 
 // validateLocationClasses validates location classes and their schedules
@@ -416,6 +444,17 @@ func (s *CursoService) validateSchedules(schedules []models.CourseSchedule, loca
 
 		if schedule.ClassEndDate.Before(schedule.ClassStartDate) {
 			return fmt.Errorf("location[%d].schedule[%d]: data de término deve ser maior ou igual à data de início", locationIndex, j)
+		}
+
+		// Validate enrollment window (per turma). Checked when present; missing
+		// dates are backfilled from the course period during normalization.
+		if schedule.EnrollmentStartDate != nil && schedule.EnrollmentEndDate != nil &&
+			schedule.EnrollmentEndDate.Before(*schedule.EnrollmentStartDate) {
+			return fmt.Errorf("location[%d].schedule[%d]: fim das inscrições deve ser maior ou igual ao início das inscrições", locationIndex, j)
+		}
+		if schedule.EnrollmentStartDate != nil && !schedule.ClassStartDate.IsZero() &&
+			schedule.ClassStartDate.Before(*schedule.EnrollmentStartDate) {
+			return fmt.Errorf("location[%d].schedule[%d]: início das aulas deve ser maior ou igual ao início das inscrições", locationIndex, j)
 		}
 
 		// Validate class time
@@ -515,6 +554,17 @@ func (s *CursoService) validateRemoteSchedules(schedules []models.RemoteSchedule
 			if schedule.ClassDays != nil && len(*schedule.ClassDays) > 20000 {
 				return fmt.Errorf("remote schedule[%d]: dias da semana deve ter no máximo 20000 caracteres", j)
 			}
+		}
+
+		// Validate enrollment window (per turma). Checked when present; missing
+		// dates are backfilled from the course period during normalization.
+		if schedule.EnrollmentStartDate != nil && schedule.EnrollmentEndDate != nil &&
+			schedule.EnrollmentEndDate.Before(*schedule.EnrollmentStartDate) {
+			return fmt.Errorf("remote schedule[%d]: fim das inscrições deve ser maior ou igual ao início das inscrições", j)
+		}
+		if schedule.EnrollmentStartDate != nil && schedule.ClassStartDate != nil &&
+			schedule.ClassStartDate.Before(*schedule.EnrollmentStartDate) {
+			return fmt.Errorf("remote schedule[%d]: início das aulas deve ser maior ou igual ao início das inscrições", j)
 		}
 	}
 
