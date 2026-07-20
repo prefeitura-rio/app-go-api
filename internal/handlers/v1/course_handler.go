@@ -227,15 +227,6 @@ func (h *CourseHandler) calculateRemainingVacanciesForCourses(c *gin.Context, cu
 	return nil
 }
 
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
-
 // @Summary      Criar curso
 // @Description  Cria um novo curso no sistema (status: "opened")
 // @Tags         courses
@@ -256,13 +247,10 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	// Set status to opened for published course
 	curso.Status = models.StatusCursoOpened
 
-	allowedOrgaos := middlewares.GetUserAllowedOrgaos(c)
-	// Se allowedOrgaos for nil, significa que é admin/casa_civil – permite qualquer um
-	if allowedOrgaos != nil && !contains(allowedOrgaos, curso.OrgaoID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Você não tem permissão para criar cursos neste órgão"})
-		return
-	}
-
+	// A criação de curso é restrita a admin / go:cursos:casa_civil pelo
+	// CourseOrgaoInjector (dev/test) e, em produção, pelo gateway Heimdall — e
+	// esses papéis podem criar em qualquer órgão. Não há, portanto, filtro de
+	// órgão adicional a aplicar aqui.
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
 		// Check if it's a validation error (not a database error)
@@ -321,13 +309,10 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 	// Set status to draft
 	curso.Status = models.StatusCursoDraft
 
-	allowedOrgaos := middlewares.GetUserAllowedOrgaos(c)
-	// Se allowedOrgaos for nil, significa que é admin/casa_civil – permite qualquer um
-	if allowedOrgaos != nil && !contains(allowedOrgaos, curso.OrgaoID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Você não tem permissão para criar cursos neste órgão"})
-		return
-	}
-
+	// A criação de curso é restrita a admin / go:cursos:casa_civil pelo
+	// CourseOrgaoInjector (dev/test) e, em produção, pelo gateway Heimdall — e
+	// esses papéis podem criar em qualquer órgão. Não há, portanto, filtro de
+	// órgão adicional a aplicar aqui.
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
 		// Check if it's a validation error (not a database error)
@@ -815,7 +800,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/public/courses/{courseId} [get]
 func (h *CourseHandler) GetByIDPublic(c *gin.Context) {
-	h.GetByID(c)
+	h.getByID(c, true)
 }
 
 // @Summary      Buscar curso específico
@@ -829,6 +814,13 @@ func (h *CourseHandler) GetByIDPublic(c *gin.Context) {
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId} [get]
 func (h *CourseHandler) GetByID(c *gin.Context) {
+	h.getByID(c, false)
+}
+
+// getByID busca um curso por ID. Quando publicOnly é true (rota /api/public),
+// cursos em rascunho não são expostos — retornam 404 —, mantendo o mesmo
+// contrato da listagem pública, que já esconde rascunhos (status NOT draft).
+func (h *CourseHandler) getByID(c *gin.Context, publicOnly bool) {
 	id, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
@@ -842,6 +834,11 @@ func (h *CourseHandler) GetByID(c *gin.Context) {
 	}
 
 	if curso == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
+		return
+	}
+
+	if publicOnly && curso.Status.Normalize() == models.StatusCursoDraft {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
 		return
 	}

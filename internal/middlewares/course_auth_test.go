@@ -366,7 +366,7 @@ func TestGetCourseFilters_KeyExistsWithWrongType_ReturnsEmptyMap(t *testing.T) {
 
 // ============ CourseOrgaoInjector Tests ============
 
-func TestCourseOrgaoInjector_Admin_SetsNilAllowed(t *testing.T) {
+func TestCourseOrgaoInjector_Admin_Passes(t *testing.T) {
 	r := setupCourseTestRouter(
 		func(c *gin.Context) {
 			c.Set(middlewares.UserRoleKey, "ADMIN")
@@ -374,37 +374,23 @@ func TestCourseOrgaoInjector_Admin_SetsNilAllowed(t *testing.T) {
 		},
 		middlewares.CourseOrgaoInjector(),
 	)
-	r.GET("/test", func(c *gin.Context) {
-		allowed := middlewares.GetUserAllowedOrgaos(c)
-		c.JSON(http.StatusOK, gin.H{"allowed": allowed})
-	})
+	r.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
-
-	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
-	assert.Nil(t, response["allowed"])
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestCourseOrgaoInjector_CasaCivil_SetsAllowedOrgaosNil(t *testing.T) {
+func TestCourseOrgaoInjector_CasaCivil_Passes(t *testing.T) {
 	r := setupCourseTestRouter(
 		injectCourseRoles("go:cursos:casa_civil", "", nil),
 		middlewares.CourseOrgaoInjector(),
 	)
-	r.GET("/test", func(c *gin.Context) {
-		allowed := middlewares.GetUserAllowedOrgaos(c)
-		c.JSON(http.StatusOK, gin.H{"allowed": allowed})
-	})
+	r.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
-
-	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
-	assert.Nil(t, response["allowed"])
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestCourseOrgaoInjector_SecretariaOnly_Forbidden(t *testing.T) {
@@ -479,60 +465,6 @@ func TestCourseOrgaoInjector_NoRole_Forbidden(t *testing.T) {
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
 	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Contains(t, w.Body.String(), "Sem permissão para criar: órgão não identificado")
-}
-
-// ============ GetUserAllowedOrgaos Tests ============
-
-func TestGetUserAllowedOrgaos_KeyNotSet_ReturnsNil(t *testing.T) {
-	r := setupCourseTestRouter()
-	r.GET("/test", func(c *gin.Context) {
-		allowed := middlewares.GetUserAllowedOrgaos(c)
-		c.JSON(http.StatusOK, gin.H{"allowed": allowed})
-	})
-
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
-
-	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
-	assert.Nil(t, response["allowed"])
-}
-
-func TestGetUserAllowedOrgaos_KeyExists_ReturnsList(t *testing.T) {
-	r := setupCourseTestRouter()
-	r.GET("/test", func(c *gin.Context) {
-		c.Set("course_allowed_orgaos", []string{"a", "b"})
-		allowed := middlewares.GetUserAllowedOrgaos(c)
-		c.JSON(http.StatusOK, gin.H{"allowed": allowed})
-	})
-
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
-
-	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
-	allowed, ok := response["allowed"].([]interface{})
-	assert.True(t, ok)
-	assert.ElementsMatch(t, []interface{}{"a", "b"}, allowed)
-}
-
-func TestGetUserAllowedOrgaos_KeyExistsWithWrongType_ReturnsNil(t *testing.T) {
-	r := setupCourseTestRouter()
-	r.GET("/test", func(c *gin.Context) {
-		c.Set("course_allowed_orgaos", 123) // tipo errado
-		allowed := middlewares.GetUserAllowedOrgaos(c)
-		c.JSON(http.StatusOK, gin.H{"allowed": allowed})
-	})
-
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
-
-	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
-	assert.Nil(t, response["allowed"])
 }
 
 // ============ CourseOwnershipCheck Tests ============
