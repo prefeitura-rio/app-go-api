@@ -202,7 +202,7 @@ func (p *EnrollmentImportProcessor) Process(ctx context.Context, job *models.Job
 	}
 
 	var customFields []models.CustomField
-	if err := p.db.Where("curso_id = ?", metadata.CursoID).Find(&customFields).Error; err != nil {
+	if err := p.db.Where("curso_id = ?", metadata.CursoID).Order("display_order ASC").Find(&customFields).Error; err != nil {
 		log.Printf("Aviso: erro ao carregar custom_fields: %v", err)
 	}
 

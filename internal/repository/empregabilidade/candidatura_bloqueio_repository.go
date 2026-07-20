@@ -3,6 +3,7 @@ package empregabilidade
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -32,8 +33,15 @@ func (r *CandidaturaBloqueioRepository) List(ctx context.Context, filter map[str
 
 	db := r.db.WithContext(ctx).Model(&empregabilidade.CandidaturaBloqueio{})
 
-	for key, value := range filter {
-		db = db.Where(key+" = ?", value)
+	// Ordena as chaves para gerar SQL determinística (a iteração de map em Go
+	// é aleatória, o que tornava o WHERE — e o teste que o espera — instável).
+	keys := make([]string, 0, len(filter))
+	for key := range filter {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		db = db.Where(key+" = ?", filter[key])
 	}
 
 	db.Count(&total)

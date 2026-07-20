@@ -38,7 +38,9 @@ func (r *CursoRepository) GetByID(ctx context.Context, id int) (*models.Curso, e
 		Preload("Categorias").
 		Preload("Acessibilidades").
 		Preload("Instituicao").
-		Preload("CustomFields").
+		Preload("CustomFields", func(db *gorm.DB) *gorm.DB {
+			return db.Order("display_order ASC")
+		}).
 		Preload("LocationClasses.Schedules", func(db *gorm.DB) *gorm.DB {
 			return db.Order("display_order ASC")
 		}).
@@ -284,6 +286,11 @@ func (r *CursoRepository) CreateCustomFields(ctx context.Context, customFields [
 		return nil
 	}
 
+	// Persist array position as display order so reads return a stable order
+	for i := range customFields {
+		customFields[i].DisplayOrder = i + 1
+	}
+
 	result := r.db.WithContext(ctx).Create(&customFields)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao criar custom fields: %w", result.Error)
@@ -343,6 +350,8 @@ func (r *CursoRepository) updateCustomFieldsWithTx(ctx context.Context, tx *gorm
 			// Reset ID to ensure new ones are created
 			curso.CustomFields[i].ID = uuid.UUID{}
 			curso.CustomFields[i].CursoID = curso.ID
+			// Persist array position as display order so reads return a stable order
+			curso.CustomFields[i].DisplayOrder = i + 1
 		}
 
 		if err := tx.WithContext(ctx).Create(&curso.CustomFields).Error; err != nil {
