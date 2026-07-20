@@ -489,7 +489,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 
 	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
 		if inscricao.CPF != middlewares.GetUserCPF(c) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode visualizar suas próprias inscrições"})
 			return
 		}
 	}
@@ -502,17 +502,6 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 
 	// Enrich enrollment with personal info from citizen snapshot
 	h.service.EnrichWithPersonalInfo(c.Request.Context(), inscricao)
-
-	// Verificar se o usuário tem permissão para ver esta inscrição
-	userCPF := c.GetString("user_cpf")
-	userRole := c.GetString("user_role")
-
-	// Admin pode ver todas as inscrições
-	// Usuário comum só pode ver suas próprias inscrições
-	if userRole != "ADMIN" && userCPF != "" && inscricao.CPF != userCPF {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode visualizar suas próprias inscrições"})
-		return
-	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
