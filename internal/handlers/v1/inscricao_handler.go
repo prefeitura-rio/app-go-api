@@ -808,15 +808,14 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 		return
 	}
 
-	// Verificar se o usuário tem permissão para ver estas inscrições
-	userCPF := c.GetString("user_cpf")
-	userRole := c.GetString("user_role")
-
-	// Admin pode ver inscrições de qualquer pessoa
-	// Usuário comum só pode ver suas próprias inscrições
-	if userRole != "ADMIN" && userCPF != "" && cpf != userCPF {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode visualizar suas próprias inscrições"})
-		return
+	// Admin / casa_civil podem ver inscrições de qualquer CPF.
+	// Cidadão só pode ver as próprias.
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+		userCPF := middlewares.GetUserCPF(c)
+		if userCPF != "" && cpf != userCPF {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode visualizar suas próprias inscrições"})
+			return
+		}
 	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -917,7 +916,7 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 	}
 
 	// Get user CPF from token
-	userCPF := c.GetString("user_cpf")
+	userCPF := middlewares.GetUserCPF(c)
 	if userCPF == "" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "CPF do usuário não encontrado no token"})
 		return
