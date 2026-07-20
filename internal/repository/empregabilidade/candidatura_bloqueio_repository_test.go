@@ -142,11 +142,13 @@ func TestCandidaturaBloqueioRepository_List_WithFilter(t *testing.T) {
 	rows := sqlmock.NewRows([]string{"id", "cpf", "id_vaga"}).
 		AddRow(expectedEntity.ID, expectedEntity.CPF, expectedEntity.IDVaga)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "emp_candidatura_bloqueios" WHERE id_vaga = $1 AND cpf = $2`)).
-		WithArgs(vagaID, "12345678900").
+	// As chaves do filtro são ordenadas alfabeticamente pelo repositório
+	// (cpf antes de id_vaga), garantindo SQL determinística.
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "emp_candidatura_bloqueios" WHERE cpf = $1 AND id_vaga = $2`)).
+		WithArgs("12345678900", vagaID).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidatura_bloqueios" WHERE id_vaga = $1 AND cpf = $2`)).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidatura_bloqueios" WHERE cpf = $1 AND id_vaga = $2`)).
 		WillReturnRows(rows)
 
 	results, total, err := repo.List(ctx, filter, 10, 0)

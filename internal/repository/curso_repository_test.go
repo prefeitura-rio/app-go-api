@@ -694,15 +694,19 @@ func TestCursoRepository_CreateCustomFields(t *testing.T) {
 	t.Run("create custom fields success", func(t *testing.T) {
 		customFields := []models.CustomField{
 			{CursoID: 1, Title: "Pergunta 1"},
+			{CursoID: 1, Title: "Pergunta 2"},
 		}
 
 		mock.ExpectBegin()
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "custom_fields"`)).
-			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()).AddRow(uuid.New()))
 		mock.ExpectCommit()
 
 		err := repo.CreateCustomFields(ctx, customFields)
 		assert.NoError(t, err)
+		// display_order must follow the array position so reads return a stable order
+		assert.Equal(t, 1, customFields[0].DisplayOrder)
+		assert.Equal(t, 2, customFields[1].DisplayOrder)
 	})
 
 	t.Run("create custom fields empty", func(t *testing.T) {
