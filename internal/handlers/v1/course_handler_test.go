@@ -733,6 +733,56 @@ func TestCourseHandler_GetByID_Success(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
+// A rota pública não deve expor cursos em rascunho: retorna 404 mesmo quando o
+// curso existe, mantendo o mesmo contrato da listagem pública (status NOT draft).
+func TestCourseHandler_GetByIDPublic_Draft_NotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/public/courses/:courseId", handler.GetByIDPublic)
+
+	curso := &models.Curso{ID: 1, Titulo: "Rascunho", Status: models.StatusCursoDraft}
+	mockService.On("GetByID", mock.Anything, 1).Return(curso, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/public/courses/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Contains(t, w.Body.String(), "Curso não encontrado")
+	mockService.AssertExpectations(t)
+}
+
+// A rota autenticada (GetByID) continua expondo rascunhos para quem já passou
+// pela autorização de rota.
+func TestCourseHandler_GetByID_Draft_Visible(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockCursoService)
+	mockInscricaoService := new(MockInscricaoServiceForCourse)
+	mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+	handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+
+	r := gin.New()
+	r.GET("/api/v1/courses/:courseId", handler.GetByID)
+
+	curso := &models.Curso{ID: 1, Titulo: "Rascunho", Status: models.StatusCursoDraft}
+	mockService.On("GetByID", mock.Anything, 1).Return(curso, nil)
+	mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).Return(make(map[uuid.UUID]int64), nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
 // Test GetByID - Not Found
 func TestCourseHandler_GetByID_NotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)

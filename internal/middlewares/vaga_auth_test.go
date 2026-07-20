@@ -492,7 +492,11 @@ const ownershipVagaUUID = "550e8400-e29b-41d4-a716-446655440000"
 
 // vagaLoaderStub returns a loader that always yields the given ownership info
 // (or nil / error to simulate not-found / failure).
-func vagaLoaderStub(orgaoID string, published, notFound bool, err error) middlewares.VagaLoaderFunc {
+//
+// A regra de "quem pode editar vaga publicada" NÃO é responsabilidade deste
+// middleware (fica no VagaHandler.Update, coberto em vaga_handler_test.go), por
+// isso o stub não carrega mais o status de publicação.
+func vagaLoaderStub(orgaoID string, notFound bool, err error) middlewares.VagaLoaderFunc {
 	return func(_ context.Context, _ uuid.UUID) (*middlewares.VagaOwnershipInfo, error) {
 		if err != nil {
 			return nil, err
@@ -500,17 +504,17 @@ func vagaLoaderStub(orgaoID string, published, notFound bool, err error) middlew
 		if notFound {
 			return nil, nil
 		}
-		return &middlewares.VagaOwnershipInfo{OrgaoParceiroID: orgaoID, IsPublished: published}, nil
+		return &middlewares.VagaOwnershipInfo{OrgaoParceiroID: orgaoID}, nil
 	}
 }
 
-func runVagaOwnership(inject gin.HandlerFunc, loader middlewares.VagaLoaderFunc, enforcePublishedEdit bool, id string) int {
+func runVagaOwnership(inject gin.HandlerFunc, loader middlewares.VagaLoaderFunc, id string) int {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	if inject != nil {
 		r.Use(inject)
 	}
-	r.PUT("/vagas/:id", middlewares.VagaOwnershipCheck(loader, enforcePublishedEdit),
+	r.PUT("/vagas/:id", middlewares.VagaOwnershipCheck(loader),
 		func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	w := httptest.NewRecorder()
@@ -525,90 +529,79 @@ func injectAdminRole() gin.HandlerFunc {
 	}
 }
 
-func TestVagaOwnershipCheck_Admin_BypassesEvenCrossOrgPublished(t *testing.T) {
+func TestVagaOwnershipCheck_Admin_BypassesEvenCrossOrg(t *testing.T) {
 	code := runVagaOwnership(injectAdminRole(),
-		vagaLoaderStub("orgao-b", true, false, nil), true, ownershipVagaUUID)
+		vagaLoaderStub("orgao-b", false, nil), ownershipVagaUUID)
 	assert.Equal(t, http.StatusOK, code)
 }
 
 func TestVagaOwnershipCheck_EmpAdmin_Bypasses(t *testing.T) {
 	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:admin", "", nil),
-		vagaLoaderStub("orgao-b", true, false, nil), true, ownershipVagaUUID)
+		vagaLoaderStub("orgao-b", false, nil), ownershipVagaUUID)
 	assert.Equal(t, http.StatusOK, code)
 }
 
-// Non-admin editor updating a non-published, same-org vaga (via go:orgao group).
-func TestVagaOwnershipCheck_Editor_SameOrgUnpublished_Passes(t *testing.T) {
+// Non-admin editor acting on a same-org vaga (scope via go:orgao role).
+func TestVagaOwnershipCheck_Editor_SameOrg_Passes(t *testing.T) {
 	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor_com_curadoria", "orgao-a", nil),
-		vagaLoaderStub("orgao-a", false, false, nil), true, ownershipVagaUUID)
+		vagaLoaderStub("orgao-a", false, nil), ownershipVagaUUID)
 	assert.Equal(t, http.StatusOK, code)
 }
 
 // Same as above, but scope comes from the CPF→secretaria mapping.
-func TestVagaOwnershipCheck_Editor_SameSecretariaUnpublished_Passes(t *testing.T) {
+func TestVagaOwnershipCheck_Editor_SameSecretaria_Passes(t *testing.T) {
 	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor", "", []string{"orgao-a", "orgao-x"}),
-		vagaLoaderStub("orgao-a", false, false, nil), true, ownershipVagaUUID)
+		vagaLoaderStub("orgao-a", false, nil), ownershipVagaUUID)
 	assert.Equal(t, http.StatusOK, code)
 }
 
-func TestVagaOwnershipCheck_EditorSemCuradoria_SameOrgPublished_Passes(t *testing.T) {
-	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor_sem_curadoria", "orgao-a", nil),
-		vagaLoaderStub("orgao-a", true, false, nil), true, ownershipVagaUUID)
-	assert.Equal(t, http.StatusOK, code)
-}
-
-func TestVagaOwnershipCheck_EditorComCuradoria_SameOrgPublished_Forbidden(t *testing.T) {
-	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor_com_curadoria", "orgao-a", nil),
-		vagaLoaderStub("orgao-a", true, false, nil), true, ownershipVagaUUID)
-	assert.Equal(t, http.StatusForbidden, code)
-}
-
-// When published-edit is not enforced (e.g. Delete/status transitions), an
-// editor_com_curadoria may still act on a same-org published vaga.
-func TestVagaOwnershipCheck_EditorComCuradoria_SameOrgPublished_NoEnforce_Passes(t *testing.T) {
-	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor_com_curadoria", "orgao-a", nil),
-		vagaLoaderStub("orgao-a", true, false, nil), false, ownershipVagaUUID)
+// Escopo por secretaria e por órgão (role go:orgao) coexistem: uma vaga que casa
+// apenas com o órgão do usuário (fora da lista de secretarias) ainda deve passar,
+// alinhado ao que a VagaAuthorization autoriza (F4).
+func TestVagaOwnershipCheck_Editor_MatchesOrgaoNotSecretaria_Passes(t *testing.T) {
+	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor", "orgao-a", []string{"orgao-x", "orgao-y"}),
+		vagaLoaderStub("orgao-a", false, nil), ownershipVagaUUID)
 	assert.Equal(t, http.StatusOK, code)
 }
 
 func TestVagaOwnershipCheck_Editor_CrossOrg_Forbidden(t *testing.T) {
 	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor_sem_curadoria", "orgao-a", nil),
-		vagaLoaderStub("orgao-b", false, false, nil), false, ownershipVagaUUID)
+		vagaLoaderStub("orgao-b", false, nil), ownershipVagaUUID)
 	assert.Equal(t, http.StatusForbidden, code)
 }
 
 func TestVagaOwnershipCheck_Editor_CrossSecretaria_Forbidden(t *testing.T) {
 	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor", "", []string{"orgao-a", "orgao-x"}),
-		vagaLoaderStub("orgao-b", false, false, nil), false, ownershipVagaUUID)
+		vagaLoaderStub("orgao-b", false, nil), ownershipVagaUUID)
 	assert.Equal(t, http.StatusForbidden, code)
 }
 
 func TestVagaOwnershipCheck_UnrelatedRole_Forbidden(t *testing.T) {
 	code := runVagaOwnership(injectVagaRoles("go:cursos:editor", "orgao-a", nil),
-		vagaLoaderStub("orgao-a", false, false, nil), false, ownershipVagaUUID)
+		vagaLoaderStub("orgao-a", false, nil), ownershipVagaUUID)
 	assert.Equal(t, http.StatusForbidden, code)
 }
 
 func TestVagaOwnershipCheck_Editor_NoScope_Forbidden(t *testing.T) {
 	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor", "", nil),
-		vagaLoaderStub("orgao-a", false, false, nil), false, ownershipVagaUUID)
+		vagaLoaderStub("orgao-a", false, nil), ownershipVagaUUID)
 	assert.Equal(t, http.StatusForbidden, code)
 }
 
 func TestVagaOwnershipCheck_NotFound(t *testing.T) {
 	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor", "orgao-a", nil),
-		vagaLoaderStub("", false, true, nil), false, ownershipVagaUUID)
+		vagaLoaderStub("", true, nil), ownershipVagaUUID)
 	assert.Equal(t, http.StatusNotFound, code)
 }
 
 func TestVagaOwnershipCheck_InvalidID(t *testing.T) {
 	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor", "orgao-a", nil),
-		vagaLoaderStub("orgao-a", false, false, nil), false, "not-a-uuid")
+		vagaLoaderStub("orgao-a", false, nil), "not-a-uuid")
 	assert.Equal(t, http.StatusBadRequest, code)
 }
 
 func TestVagaOwnershipCheck_LoaderError(t *testing.T) {
 	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor", "orgao-a", nil),
-		vagaLoaderStub("", false, false, errors.New("boom")), false, ownershipVagaUUID)
+		vagaLoaderStub("", false, errors.New("boom")), ownershipVagaUUID)
 	assert.Equal(t, http.StatusInternalServerError, code)
 }

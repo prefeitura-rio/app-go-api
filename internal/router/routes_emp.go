@@ -47,15 +47,13 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		}
 		return &middlewares.VagaOwnershipInfo{
 			OrgaoParceiroID: vaga.IDOrgaoParceiro,
-			IsPublished:     vaga.Status.IsPublished(),
 		}, nil
 	}
 
 	var vagaAuth gin.HandlerFunc
 	var vagaOrgaoInjector gin.HandlerFunc
 	var vagaListFilter gin.HandlerFunc
-	var vagaOwnership gin.HandlerFunc     // ownership por órgão (mutações)
-	var vagaOwnershipEdit gin.HandlerFunc // ownership + regra de vaga publicada (Update)
+	var vagaOwnership gin.HandlerFunc // ownership por órgão (mutações)
 
 	// "development" cobre local + staging (ver comentário de noOpHandler em router.go).
 	// vagaAuth também protege o grupo /candidaturas mais abaixo nesta função.
@@ -63,14 +61,12 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		vagaAuth = middlewares.VagaAuthorization()
 		vagaOrgaoInjector = middlewares.VagaOrgaoInjector()
 		vagaListFilter = middlewares.VagaListFilter()
-		vagaOwnership = middlewares.VagaOwnershipCheck(vagaLoader, false)
-		vagaOwnershipEdit = middlewares.VagaOwnershipCheck(vagaLoader, true)
+		vagaOwnership = middlewares.VagaOwnershipCheck(vagaLoader)
 	} else {
 		vagaAuth = noOpHandler
 		vagaOrgaoInjector = noOpHandler
 		vagaListFilter = noOpHandler
 		vagaOwnership = noOpHandler
-		vagaOwnershipEdit = noOpHandler
 	}
 
 	// Vagas
@@ -80,7 +76,7 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empVagas.POST("/draft", vagaAuth, vagaOrgaoInjector, app.EmpVagaHandler.Create)
 		empVagas.GET("", vagaAuth, vagaListFilter, app.EmpVagaHandler.List)
 		empVagas.GET("/:id", app.EmpVagaHandler.GetByID)
-		empVagas.PUT("/:id", vagaAuth, vagaOwnershipEdit, app.EmpVagaHandler.Update)
+		empVagas.PUT("/:id", vagaAuth, vagaOwnership, app.EmpVagaHandler.Update)
 		empVagas.DELETE("/:id", vagaAuth, vagaOwnership, app.EmpVagaHandler.Delete)
 		empVagas.PUT("/:id/send-to-draft", vagaAuth, vagaOwnership, app.EmpVagaHandler.SendToDraft)
 		empVagas.PUT("/:id/send-to-approval", vagaAuth, vagaOwnership, app.EmpVagaHandler.SendToApproval)

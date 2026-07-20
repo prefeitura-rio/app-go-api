@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	courseLoadedCursoKey   = "course_loaded_curso"
-	courseAllowedOrgaosKey = "course_allowed_orgaos"
+	courseLoadedCursoKey = "course_loaded_curso"
 )
 
 func isCursosEditor(c *gin.Context) bool {
@@ -20,6 +19,19 @@ func isCursosEditor(c *gin.Context) bool {
 
 func hasCourseOrgaoScope(c *gin.Context) bool {
 	return len(GetUserSecretariaOrgaoIDs(c)) > 0 || GetUserOrgaoID(c) != ""
+}
+
+// courseOrgaoInScope reports whether orgaoID is within the caller's authorized
+// scope, considering both the CPF→secretaria mapping and a single go:orgao role.
+// This mirrors hasCourseOrgaoScope (either source grants access) so that a caller
+// authorized by CourseAuthorization is never denied by CourseOwnershipCheck for a
+// course in the other source's scope.
+func courseOrgaoInScope(c *gin.Context, orgaoID string) bool {
+	if slices.Contains(GetUserSecretariaOrgaoIDs(c), orgaoID) {
+		return true
+	}
+	userOrgao := GetUserOrgaoID(c)
+	return userOrgao != "" && userOrgao == orgaoID
 }
 
 // CourseAuthorization allows only total admins, go:cursos:casa_civil, or go:cursos:editor
@@ -94,15 +106,6 @@ func CourseOrgaoInjector() gin.HandlerFunc {
 	}
 }
 
-func GetUserAllowedOrgaos(c *gin.Context) []string {
-	if v, exists := c.Get(courseAllowedOrgaosKey); exists {
-		if id, ok := v.([]string); ok {
-			return id
-		}
-	}
-	return nil
-}
-
 type courseLoaderFunc func(ctx context.Context, id int) (orgaoID string, found bool, err error)
 
 func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
@@ -137,19 +140,7 @@ func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 		}
 
 		if isCursosEditor(c) {
-			secretariaIDs := GetUserSecretariaOrgaoIDs(c)
-			if len(secretariaIDs) > 0 {
-				if slices.Contains(secretariaIDs, orgaoID) {
-					c.Next()
-					return
-				}
-				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
-				c.Abort()
-				return
-			}
-
-			userOrgao := GetUserOrgaoID(c)
-			if userOrgao != "" && userOrgao == orgaoID {
+			if courseOrgaoInScope(c, orgaoID) {
 				c.Next()
 				return
 			}
