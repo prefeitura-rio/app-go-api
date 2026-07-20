@@ -1100,6 +1100,43 @@ func TestInscricaoHandler_ListByUser_Forbidden(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
+func TestInscricaoHandler_ListByUser_CasaCivil_CanViewOtherUser(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserCPFKey, "02929367024")
+		c.Set(middlewares.UserRoleKey, "USER")
+		c.Set(middlewares.UserRolesKey, []string{"go:cursos:casa_civil"})
+		c.Next()
+	})
+	r.GET("/api/v1/enrollments/user/:cpf", handler.ListByUser)
+
+	targetCPF := "49806617090"
+	inscricoes := []*models.Inscricao{
+		{ID: uuid.New(), CursoID: 2746, CPF: targetCPF},
+	}
+
+	mockService.On("ListByCPF", mock.Anything, targetCPF, mock.Anything, 0, 10).
+		Return(inscricoes, 1, nil)
+	mockCursoRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).
+		Return(make(map[uuid.UUID]int64), nil)
+	mockService.On("EnrichMultipleWithPersonalInfo", mock.Anything, inscricoes).
+		Return()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/enrollments/user/"+targetCPF, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
+	mockService.AssertExpectations(t)
+}
+
 // --- Import Tests ---
 
 // Test Import with CSV file - validates request and creates job
