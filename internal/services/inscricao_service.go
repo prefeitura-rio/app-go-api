@@ -116,7 +116,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 			return fmt.Errorf("curso não encontrado")
 		}
 
-		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
+		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, true); err != nil {
 			return err
 		}
 
@@ -217,7 +217,7 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 		if curso == nil {
 			return fmt.Errorf("curso não encontrado")
 		}
-		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
+		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, false); err != nil {
 			return err
 		}
 		if autoApprove {
@@ -309,7 +309,7 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 		if curso == nil {
 			return fmt.Errorf("curso não encontrado")
 		}
-		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso); err != nil {
+		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, false); err != nil {
 			return err
 		}
 		// Check vacancy availability to prevent overbooking when auto-approving
@@ -608,15 +608,30 @@ func (s *InscricaoService) findScheduleVacancies(scheduleID uuid.UUID, curso *mo
 }
 
 // validateScheduleID validates that the schedule exists, belongs to the course, and is accepting enrollments
-func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uuid.UUID, curso *models.Curso) error {
+func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uuid.UUID, curso *models.Curso, enforceWindow bool) error {
+	// checkTurma validates a matched turma: it must be accepting enrollments and,
+	// when enforceWindow is set (citizen flow), be within its own enrollment window.
+	checkTurma := func(accepting *bool, enrollmentStart, enrollmentEnd *time.Time) error {
+		if accepting != nil && !*accepting {
+			return fmt.Errorf("esta turma não está aceitando inscrições no momento")
+		}
+		if enforceWindow {
+			now := time.Now()
+			if enrollmentStart != nil && now.Before(*enrollmentStart) {
+				return fmt.Errorf("as inscrições desta turma ainda não iniciaram")
+			}
+			if enrollmentEnd != nil && now.After(*enrollmentEnd) {
+				return fmt.Errorf("as inscrições desta turma já encerraram")
+			}
+		}
+		return nil
+	}
+
 	// Check all locations and schedules in the course
 	for _, location := range curso.LocationClasses {
 		for _, schedule := range location.Schedules {
 			if schedule.ID == scheduleID {
-				if schedule.AcceptingEnrollments != nil && !*schedule.AcceptingEnrollments {
-					return fmt.Errorf("esta turma não está aceitando inscrições no momento")
-				}
-				return nil
+				return checkTurma(schedule.AcceptingEnrollments, schedule.EnrollmentStartDate, schedule.EnrollmentEndDate)
 			}
 		}
 	}
@@ -625,10 +640,7 @@ func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uu
 	if curso.RemoteClass != nil {
 		for _, schedule := range curso.RemoteClass.Schedules {
 			if schedule.ID == scheduleID {
-				if schedule.AcceptingEnrollments != nil && !*schedule.AcceptingEnrollments {
-					return fmt.Errorf("esta turma não está aceitando inscrições no momento")
-				}
-				return nil
+				return checkTurma(schedule.AcceptingEnrollments, schedule.EnrollmentStartDate, schedule.EnrollmentEndDate)
 			}
 		}
 	}

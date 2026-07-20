@@ -321,6 +321,55 @@ func collectClassDateRange(c *Curso) (minStart, maxEnd time.Time, has bool) {
 	return
 }
 
+// collectEnrollmentDateRange returns the earliest opening and latest closing
+// enrollment dates across all turmas (schedules) of the course.
+func collectEnrollmentDateRange(c *Curso) (minStart, maxEnd time.Time, has bool) {
+	apply := func(start, end *time.Time) {
+		if start == nil || end == nil {
+			return
+		}
+		if !has {
+			minStart, maxEnd, has = *start, *end, true
+			return
+		}
+		if start.Before(minStart) {
+			minStart = *start
+		}
+		if end.After(maxEnd) {
+			maxEnd = *end
+		}
+	}
+
+	for _, loc := range c.LocationClasses {
+		for _, s := range loc.Schedules {
+			apply(s.EnrollmentStartDate, s.EnrollmentEndDate)
+		}
+	}
+	if c.RemoteClass != nil {
+		for _, s := range c.RemoteClass.Schedules {
+			apply(s.EnrollmentStartDate, s.EnrollmentEndDate)
+		}
+	}
+	return
+}
+
+// ApplyDerivedEnrollmentPeriod recomputes the course-level enrollment window from
+// its turmas (earliest opening, latest closing) and stores it on the course. This
+// keeps the denormalized course period in sync so existing course-level reads,
+// status filters and enrollment-window checks keep working unchanged.
+// No-op for LIVRE_FORMACAO_ONLINE, which has no turmas and keeps its own dates.
+func (c *Curso) ApplyDerivedEnrollmentPeriod() {
+	if c.Modalidade == ModalidadeLivreFormacaoOnline {
+		return
+	}
+	minStart, maxEnd, has := collectEnrollmentDateRange(c)
+	if !has {
+		return
+	}
+	c.EnrollmentStartDate = &minStart
+	c.EnrollmentEndDate = &maxEnd
+}
+
 // Validate validates a course instance
 func (c *Curso) Validate() error {
 	if strings.TrimSpace(c.Titulo) == "" {

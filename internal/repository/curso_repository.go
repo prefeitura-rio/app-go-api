@@ -38,7 +38,9 @@ func (r *CursoRepository) GetByID(ctx context.Context, id int) (*models.Curso, e
 		Preload("Categorias").
 		Preload("Acessibilidades").
 		Preload("Instituicao").
-		Preload("CustomFields").
+		Preload("CustomFields", func(db *gorm.DB) *gorm.DB {
+			return db.Order("display_order ASC")
+		}).
 		Preload("LocationClasses.Schedules", func(db *gorm.DB) *gorm.DB {
 			return db.Order("display_order ASC")
 		}).
@@ -284,6 +286,11 @@ func (r *CursoRepository) CreateCustomFields(ctx context.Context, customFields [
 		return nil
 	}
 
+	// Persist array position as display order so reads return a stable order
+	for i := range customFields {
+		customFields[i].DisplayOrder = i + 1
+	}
+
 	result := r.db.WithContext(ctx).Create(&customFields)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao criar custom fields: %w", result.Error)
@@ -343,6 +350,8 @@ func (r *CursoRepository) updateCustomFieldsWithTx(ctx context.Context, tx *gorm
 			// Reset ID to ensure new ones are created
 			curso.CustomFields[i].ID = uuid.UUID{}
 			curso.CustomFields[i].CursoID = curso.ID
+			// Persist array position as display order so reads return a stable order
+			curso.CustomFields[i].DisplayOrder = i + 1
 		}
 
 		if err := tx.WithContext(ctx).Create(&curso.CustomFields).Error; err != nil {
@@ -399,7 +408,7 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 				if curso.RemoteClass.Schedules[j].ID.String() != "00000000-0000-0000-0000-000000000000" {
 					// Update existing schedule
 					if err := tx.WithContext(ctx).Model(&curso.RemoteClass.Schedules[j]).
-						Select("vacancies", "class_start_date", "class_end_date", "class_time", "class_days", "display_order", "accepting_enrollments", "updated_at").
+						Select("vacancies", "enrollment_start_date", "enrollment_end_date", "class_start_date", "class_end_date", "class_time", "class_days", "display_order", "accepting_enrollments", "updated_at").
 						Updates(&curso.RemoteClass.Schedules[j]).Error; err != nil {
 						return fmt.Errorf("erro ao atualizar remote schedule: %w", err)
 					}
@@ -488,7 +497,7 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 				if curso.LocationClasses[i].Schedules[j].ID.String() != "00000000-0000-0000-0000-000000000000" {
 					// Update existing schedule
 					if err := tx.WithContext(ctx).Model(&curso.LocationClasses[i].Schedules[j]).
-						Select("vacancies", "class_start_date", "class_end_date", "class_time", "class_days", "display_order", "accepting_enrollments", "updated_at").
+						Select("vacancies", "enrollment_start_date", "enrollment_end_date", "class_start_date", "class_end_date", "class_time", "class_days", "display_order", "accepting_enrollments", "updated_at").
 						Updates(&curso.LocationClasses[i].Schedules[j]).Error; err != nil {
 						return fmt.Errorf("erro ao atualizar course schedule: %w", err)
 					}
