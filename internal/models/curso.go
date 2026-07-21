@@ -292,6 +292,114 @@ func (c *Curso) DeriveStatus(now time.Time) StatusCurso {
 	return c.Status
 }
 
+// IsEnrollmentAvailable reports whether a citizen can still enroll in this course
+// right now. It mirrors the frontend getCourseEnrollmentInfo(...).canEnroll logic
+// (with no user enrollment) so that API-side ordering matches the enrollment button
+// state shown in the portal: a course is available only when its (derived) status
+// allows new enrollments, the enrollment window is open, the classes have not ended
+// and at least one turma still has vacancies.
+//
+// RemainingVacancies must already be populated on the schedules (see the handler's
+// vacancy calculation); otherwise every turma looks sold out.
+func (c *Curso) IsEnrollmentAvailable(now time.Time) bool {
+	status := c.DeriveStatus(now)
+
+	// Derived terminal / not-yet-open states are never enrollable.
+	switch status {
+	case StatusCursoFinished, StatusCursoScheduled:
+		return false
+	}
+
+	// Stored terminal / non-published states (also covers legacy via Normalize).
+	switch status.Normalize() {
+	case StatusCursoClosed, StatusCursoCanceled, StatusCursoDraft,
+		StatusCursoInReview, StatusCursoNeedsChanges, StatusCursoApproved,
+		StatusCursoPendingDeletion:
+		return false
+	}
+
+	// When the backend has not explicitly derived accepting_enrollments, apply the
+	// same date-based checks the frontend does before looking at vacancies.
+	if status != StatusCursoAcceptingEnrollments {
+		if c.EnrollmentStartDate != nil && now.Before(*c.EnrollmentStartDate) {
+			return false // inscrições ainda não abriram
+		}
+		if end, ok := latestClassEndDate(c); ok && now.After(end) {
+			return false // curso encerrado
+		}
+		if c.EnrollmentEndDate != nil && now.After(*c.EnrollmentEndDate) {
+			return false // inscrições encerradas
+		}
+	}
+
+	// Vacancy check, gated by modalidade exactly like the frontend (hibrido and
+	// LIVRE_FORMACAO_ONLINE are intentionally not blocked by vacancies).
+	switch strings.ToLower(string(c.Modalidade)) {
+	case "online", "remoto":
+		if !hasAvailableRemoteVacancies(c) {
+			return false // vagas encerradas
+		}
+	case "presencial", "semipresencial":
+		if !hasAvailableInPersonVacancies(c) {
+			return false // vagas encerradas
+		}
+	}
+
+	return true
+}
+
+// latestClassEndDate returns the latest class end date across all turmas (remote and
+// location schedules), mirroring the frontend getLatestClassEndDate helper.
+func latestClassEndDate(c *Curso) (latest time.Time, has bool) {
+	apply := func(end time.Time) {
+		if !has || end.After(latest) {
+			latest, has = end, true
+		}
+	}
+	for _, loc := range c.LocationClasses {
+		for _, s := range loc.Schedules {
+			apply(s.ClassEndDate)
+		}
+	}
+	if c.RemoteClass != nil {
+		for _, s := range c.RemoteClass.Schedules {
+			if s.ClassEndDate != nil {
+				apply(*s.ClassEndDate)
+			}
+		}
+	}
+	return
+}
+
+// hasAvailableRemoteVacancies mirrors the negation of the frontend
+// hasNoAvailableOnlineClasses for online/remoto courses.
+func hasAvailableRemoteVacancies(c *Curso) bool {
+	if c.RemoteClass != nil && len(c.RemoteClass.Schedules) > 0 {
+		for _, s := range c.RemoteClass.Schedules {
+			if s.RemainingVacancies > 0 {
+				return true
+			}
+		}
+		return false
+	}
+	// A remote class with no turmas has no vacancies; no remote class at all means
+	// this check does not apply (the frontend does not block enrollment on it).
+	return c.RemoteClass == nil
+}
+
+// hasAvailableInPersonVacancies mirrors the negation of the frontend
+// hasNoAvailableInPersonClasses for presencial/semipresencial courses.
+func hasAvailableInPersonVacancies(c *Curso) bool {
+	for _, loc := range c.LocationClasses {
+		for _, s := range loc.Schedules {
+			if s.RemainingVacancies > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func collectClassDateRange(c *Curso) (minStart, maxEnd time.Time, has bool) {
 	apply := func(start, end time.Time) {
 		if !has {
