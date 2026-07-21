@@ -775,6 +775,22 @@ func TestCourseEnrollmentListAccess_SelfSearchOtherCPF_Forbidden(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Sem permissão para acessar este recurso")
 }
 
+func TestCourseEnrollmentListAccess_NonNumericUsernameAndSearch_Forbidden(t *testing.T) {
+	r := setupCourseTestRouter(
+		func(c *gin.Context) {
+			c.Set(middlewares.UserCPFKey, "joao@gmail.com")
+			c.Next()
+		},
+		middlewares.CourseEnrollmentListAccess(enrollmentListLoader("orgao-a", true, nil)),
+	)
+	r.GET("/courses/:courseId/enrollments", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/2852/enrollments?search=silva", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Sem permissão para acessar este recurso")
+}
+
 func TestCourseEnrollmentListAccess_NoSearch_NoRole_Forbidden(t *testing.T) {
 	r := setupCourseTestRouter(
 		func(c *gin.Context) {

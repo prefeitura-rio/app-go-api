@@ -199,7 +199,8 @@ func CourseEnrollmentListAccess(loader courseLoaderFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userCPF := GetUserCPF(c)
 		search := c.Query("search")
-		if userCPF != "" && search != "" && digitsOnly(search) == digitsOnly(userCPF) {
+		cpfDigits := digitsOnly(userCPF)
+		if cpfDigits != "" && digitsOnly(search) == cpfDigits {
 			id, err := strconv.Atoi(c.Param("courseId"))
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
