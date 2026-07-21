@@ -162,3 +162,78 @@ func GetLoadedCursoOrgaoID(c *gin.Context) string {
 	}
 	return ""
 }
+
+const enrollmentListSelfAccessKey = "enrollment_list_self_access"
+
+func digitsOnly(s string) string {
+	var b []byte
+	for i := 0; i < len(s); i++ {
+		if s[i] >= '0' && s[i] <= '9' {
+			b = append(b, s[i])
+		}
+	}
+	return string(b)
+}
+
+// IsEnrollmentListSelfAccess reports whether CourseEnrollmentListAccess allowed
+// the request because search CPF matches the JWT CPF (citizen self-read).
+func IsEnrollmentListSelfAccess(c *gin.Context) bool {
+	v, ok := c.Get(enrollmentListSelfAccessKey)
+	if !ok {
+		return false
+	}
+	flag, _ := v.(bool)
+	return flag
+}
+
+// CourseEnrollmentListAccess authorizes GET /courses/:courseId/enrollments.
+//
+// Allows:
+//   - admin / go:cursos:casa_civil / go:cursos:editor with org ownership (same as
+//     CourseAuthorization + CourseOwnershipCheck)
+//   - citizen self-read when ?search= matches the JWT CPF (digits-only compare)
+//
+// Self-read sets IsEnrollmentListSelfAccess so the handler can omit the
+// course-wide enrollment summary (search already scopes the list).
+func CourseEnrollmentListAccess(loader courseLoaderFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userCPF := GetUserCPF(c)
+		search := c.Query("search")
+		if userCPF != "" && search != "" && digitsOnly(search) == digitsOnly(userCPF) {
+			id, err := strconv.Atoi(c.Param("courseId"))
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
+				c.Abort()
+				return
+			}
+			orgaoID, found, err := loader(c.Request.Context(), id)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso: " + err.Error()})
+				c.Abort()
+				return
+			}
+			if !found {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
+				c.Abort()
+				return
+			}
+			c.Set(courseLoadedCursoKey, orgaoID)
+			c.Set(enrollmentListSelfAccessKey, true)
+			c.Next()
+			return
+		}
+
+		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
+			CourseOwnershipCheck(loader)(c)
+			return
+		}
+
+		if isCursosEditor(c) && hasCourseOrgaoScope(c) {
+			CourseOwnershipCheck(loader)(c)
+			return
+		}
+
+		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
+		c.Abort()
+	}
+}
