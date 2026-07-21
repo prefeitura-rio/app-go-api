@@ -88,6 +88,15 @@ const docTemplate = `{
                         "description": "Filtrar por zona do bairro",
                         "name": "neighborhood_zone",
                         "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "availability"
+                        ],
+                        "type": "string",
+                        "description": "Ordenação opcional. 'availability': cursos com inscrição disponível primeiro; os sem inscrição (status final, prazo vencido ou vagas esgotadas — inclusive accepting_enrollments sem vagas) vão para o final. A ordenação é aplicada antes da paginação. Omitido = ordem padrão (id desc).",
+                        "name": "sort",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1066,6 +1075,15 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filtrar por zona do bairro",
                         "name": "neighborhood_zone",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "availability"
+                        ],
+                        "type": "string",
+                        "description": "Ordenação opcional. 'availability': cursos com inscrição disponível primeiro; os sem inscrição (status final, prazo vencido ou vagas esgotadas — inclusive accepting_enrollments sem vagas) vão para o final. A ordenação é aplicada antes da paginação. Omitido = ordem padrão (id desc).",
+                        "name": "sort",
                         "in": "query"
                     }
                 ],
