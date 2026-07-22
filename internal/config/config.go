@@ -50,6 +50,9 @@ type AppSettings struct {
 	LogLevel    string
 	APIPrefix   string
 	APIToken    string
+	// Timezone define o fuso do processo (time.Local). Controla como os
+	// timestamps são serializados na resposta da API (ex.: -03:00 em vez de Z).
+	Timezone string
 }
 
 // DatabaseSettings define configurações do banco de dados
@@ -358,6 +361,7 @@ func Load() (*AppConfig, error) {
 			LogLevel:    getEnv(v, "LOG_LEVEL", "info"),
 			APIPrefix:   getEnv(v, "API_PREFIX", "/api"),
 			APIToken:    getEnv(v, "API_TOKEN", ""),
+			Timezone:    getEnv(v, "APP_TIMEZONE", "America/Sao_Paulo"),
 		},
 		Database: DatabaseSettings{
 			Host:            getEnv(v, "DB_HOST", "localhost"),
