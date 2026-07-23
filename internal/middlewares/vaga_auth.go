@@ -24,6 +24,19 @@ func hasVagaOrgaoScope(c *gin.Context) bool {
 	return len(GetUserSecretariaOrgaoIDs(c)) > 0 || GetUserOrgaoID(c) != ""
 }
 
+// vagaOrgaoInScope reports whether orgaoID is within the caller's authorized
+// scope, considering both the CPF→secretaria mapping and a single go:orgao role.
+// This mirrors hasVagaOrgaoScope (either source grants access) so that a caller
+// authorized by VagaAuthorization is never denied by VagaOwnershipCheck for a
+// vaga in the other source's scope.
+func vagaOrgaoInScope(c *gin.Context, orgaoID string) bool {
+	if slices.Contains(GetUserSecretariaOrgaoIDs(c), orgaoID) {
+		return true
+	}
+	userOrgao := GetUserOrgaoID(c)
+	return userOrgao != "" && userOrgao == orgaoID
+}
+
 // VagaAuthorization allows only total admins, go:empregabilidade:admin, or emp editors
 // with secretaria/orgao scope. Secretaria alone is not enough.
 func VagaAuthorization() gin.HandlerFunc {
@@ -44,7 +57,14 @@ func VagaAuthorization() gin.HandlerFunc {
 }
 
 // VagaListFilter injects orgao_parceiro_id restrictions into the context.
-// Without an empregabilidade editor/admin role, injects an empty list (no results).
+//
+// admin / go:empregabilidade:admin: sem restrição (nada injetado, veem tudo).
+// editor com escopo (secretaria ou órgão): restrito aos seus orgaos.
+// Qualquer outro caso — inclusive quem tem apenas secretaria mapeada mas NENHUMA
+// role de empregabilidade — recebe lista vazia ([]string{}), resultando em zero
+// resultados no handler. Isso é intencional: secretaria sozinha não libera acesso
+// (mesma regra da VagaAuthorization); listar tudo aqui vazaria vagas de todos os
+// órgãos para quem não deveria enxergá-las.
 func VagaListFilter() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !IsAdmin(c) && !HasRole(c, "go:empregabilidade:admin") {
@@ -121,7 +141,6 @@ func GetVagaAllowedOrgaos(c *gin.Context) []string {
 // VagaOwnershipInfo carries the vaga fields VagaOwnershipCheck needs.
 type VagaOwnershipInfo struct {
 	OrgaoParceiroID string
-	IsPublished     bool
 }
 
 // VagaLoaderFunc loads ownership info for a vaga. Returns nil when the vaga does
@@ -132,12 +151,14 @@ type VagaLoaderFunc func(ctx context.Context, id uuid.UUID) (*VagaOwnershipInfo,
 //
 // admin / go:empregabilidade:admin bypass every check. Any other caller must be
 // an empregabilidade editor whose secretaria/orgao scope contains the vaga's
-// orgao_parceiro. When enforcePublishedEdit is true, an already-published vaga
-// may only be edited by admin / go:empregabilidade:admin / editor_sem_curadoria.
+// orgao_parceiro.
 //
-// Like the other vaga/course authorization middlewares, this is wired only in
-// development/test (no-op in prod — see routes_emp.go / noOpHandler).
-func VagaOwnershipCheck(loader VagaLoaderFunc, enforcePublishedEdit bool) gin.HandlerFunc {
+// A regra de "quem pode editar vaga já publicada" NÃO fica aqui: ela depende do
+// status da vaga (que o gateway Heimdall não conhece) e por isso é aplicada no
+// handler (VagaHandler.Update), ativa em qualquer ambiente. Este middleware,
+// como os demais de autorização, roda só em development/test (no-op em prod —
+// ver routes_emp.go / noOpHandler).
+func VagaOwnershipCheck(loader VagaLoaderFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if IsAdmin(c) || HasRole(c, "go:empregabilidade:admin") {
 			c.Next()
@@ -169,23 +190,8 @@ func VagaOwnershipCheck(loader VagaLoaderFunc, enforcePublishedEdit bool) gin.Ha
 			return
 		}
 
-		if secretariaIDs := GetUserSecretariaOrgaoIDs(c); len(secretariaIDs) > 0 {
-			if !slices.Contains(secretariaIDs, info.OrgaoParceiroID) {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence à sua secretaria"})
-				c.Abort()
-				return
-			}
-		} else {
-			userOrgao := GetUserOrgaoID(c)
-			if userOrgao == "" || userOrgao != info.OrgaoParceiroID {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence ao seu órgão"})
-				c.Abort()
-				return
-			}
-		}
-
-		if enforcePublishedEdit && info.IsPublished && !HasRole(c, "go:empregabilidade:editor_sem_curadoria") {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores, empregabilidade:admin ou editor_sem_curadoria podem editar vagas publicadas"})
+		if !vagaOrgaoInScope(c, info.OrgaoParceiroID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence à sua secretaria"})
 			c.Abort()
 			return
 		}

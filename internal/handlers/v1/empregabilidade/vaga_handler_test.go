@@ -286,8 +286,10 @@ func TestVagaHandler_GetByID_ServiceError(t *testing.T) {
 
 func TestVagaHandler_Update_Success(t *testing.T) {
 	id := uuid.MustParse(validUUID)
-	// O handler não faz mais RBAC (isso vive em VagaOwnershipCheck); aqui só
-	// exercitamos o caminho feliz do handler.
+	// Vaga em edição (não publicada): o handler libera para qualquer chamador que
+	// tenha passado pela autorização de rota. O escopo por órgão vive em
+	// VagaOwnershipCheck; a única regra RBAC que permanece no handler é a de vaga
+	// publicada (coberta nos testes abaixo).
 	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}}
 	empresaRepo := &mockEmpresaRepoForVaga{}
 	r := setupVagaRouter(vagaRepo, empresaRepo, false)
@@ -298,6 +300,89 @@ func TestVagaHandler_Update_Success(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// setupVagaRouterWithRoles monta um router de vaga cujo contexto carrega as roles
+// Heimdall informadas (não-admin). Usado para exercitar a regra de "quem pode
+// editar vaga publicada", que roda no handler em qualquer ambiente.
+func setupVagaRouterWithRoles(vagaRepo services.VagaRepoInterface, empresaRepo services.EmpresaRepoInterface, roles []string) *gin.Engine {
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRolesKey, roles)
+		c.Next()
+	})
+	candidaturaRepo := &mockCandidaturaRepoForVaga{}
+	svc := services.NewVagaServiceWithInterfaces(vagaRepo, empresaRepo, candidaturaRepo)
+	h := handlers.NewVagaHandler(svc)
+	r.PUT("/vagas/:id", h.Update)
+	return r
+}
+
+// updatePublishedVaga dispara um PUT de edição sobre uma vaga já publicada.
+func updatePublishedVaga(r *gin.Engine) *httptest.ResponseRecorder {
+	body := bodyOf(`{"titulo":"Nova versão"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w
+}
+
+func TestVagaHandler_Update_Published_Admin_Allowed(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, true) // admin
+	w := updatePublishedVaga(r)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for admin, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_Update_Published_EmpAdmin_Allowed(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	r := setupVagaRouterWithRoles(vagaRepo, &mockEmpresaRepoForVaga{}, []string{"go:empregabilidade:admin"})
+	w := updatePublishedVaga(r)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for empregabilidade:admin, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_Update_Published_EditorSemCuradoria_Allowed(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	r := setupVagaRouterWithRoles(vagaRepo, &mockEmpresaRepoForVaga{}, []string{"go:empregabilidade:editor_sem_curadoria"})
+	w := updatePublishedVaga(r)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for editor_sem_curadoria, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_Update_Published_EditorComCuradoria_Forbidden(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaPublicadoAtivo}}
+	r := setupVagaRouterWithRoles(vagaRepo, &mockEmpresaRepoForVaga{}, []string{"go:empregabilidade:editor_com_curadoria"})
+	w := updatePublishedVaga(r)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for editor_com_curadoria on published vaga, got %d", w.Code)
+	}
+}
+
+// A regra vale para todos os status pós-publicação, não só publicado_ativo.
+func TestVagaHandler_Update_PublishedStates_NonPrivileged_Forbidden(t *testing.T) {
+	for _, status := range []empmodels.StatusVaga{
+		empmodels.StatusVagaPublicadoExpirado,
+		empmodels.StatusVagaCongelada,
+		empmodels.StatusVagaDescontinuada,
+	} {
+		id := uuid.MustParse(validUUID)
+		vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: status}}
+		r := setupVagaRouterWithRoles(vagaRepo, &mockEmpresaRepoForVaga{}, []string{"go:empregabilidade:editor_com_curadoria"})
+		w := updatePublishedVaga(r)
+		if w.Code != http.StatusForbidden {
+			t.Errorf("status %s: expected 403, got %d", status, w.Code)
+		}
 	}
 }
 

@@ -3,8 +3,10 @@ package v1
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -227,15 +229,6 @@ func (h *CourseHandler) calculateRemainingVacanciesForCourses(c *gin.Context, cu
 	return nil
 }
 
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
-
 // @Summary      Criar curso
 // @Description  Cria um novo curso no sistema (status: "opened")
 // @Tags         courses
@@ -256,13 +249,10 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	// Set status to opened for published course
 	curso.Status = models.StatusCursoOpened
 
-	allowedOrgaos := middlewares.GetUserAllowedOrgaos(c)
-	// Se allowedOrgaos for nil, significa que é admin/casa_civil – permite qualquer um
-	if allowedOrgaos != nil && !contains(allowedOrgaos, curso.OrgaoID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Você não tem permissão para criar cursos neste órgão"})
-		return
-	}
-
+	// A criação de curso é restrita a admin / go:cursos:casa_civil pelo
+	// CourseOrgaoInjector (dev/test) e, em produção, pelo gateway Heimdall — e
+	// esses papéis podem criar em qualquer órgão. Não há, portanto, filtro de
+	// órgão adicional a aplicar aqui.
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
 		// Check if it's a validation error (not a database error)
@@ -321,13 +311,10 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 	// Set status to draft
 	curso.Status = models.StatusCursoDraft
 
-	allowedOrgaos := middlewares.GetUserAllowedOrgaos(c)
-	// Se allowedOrgaos for nil, significa que é admin/casa_civil – permite qualquer um
-	if allowedOrgaos != nil && !contains(allowedOrgaos, curso.OrgaoID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Você não tem permissão para criar cursos neste órgão"})
-		return
-	}
-
+	// A criação de curso é restrita a admin / go:cursos:casa_civil pelo
+	// CourseOrgaoInjector (dev/test) e, em produção, pelo gateway Heimdall — e
+	// esses papéis podem criar em qualquer órgão. Não há, portanto, filtro de
+	// órgão adicional a aplicar aqui.
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
 		// Check if it's a validation error (not a database error)
@@ -525,6 +512,7 @@ func parseStatusFilter(param string) []string {
 // @Param        categoria_id      query     int     false  "Filtrar por categoria"
 // @Param        acessibilidade_id query     int     false  "Filtrar por acessibilidade"
 // @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
+// @Param        sort              query     string  false  "Ordenação opcional. 'availability': cursos com inscrição disponível primeiro; os sem inscrição (status final, prazo vencido ou vagas esgotadas — inclusive accepting_enrollments sem vagas) vão para o final. A ordenação é aplicada antes da paginação. Omitido = ordem padrão (id desc)."  Enums(availability)
 // @Success      200               {object}  object
 // @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/public/courses [get]
@@ -545,6 +533,7 @@ func (h *CourseHandler) ListPublic(c *gin.Context) {
 // @Param        categoria_id      query     int     false  "Filtrar por categoria"
 // @Param        acessibilidade_id query     int     false  "Filtrar por acessibilidade"
 // @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
+// @Param        sort              query     string  false  "Ordenação opcional. 'availability': cursos com inscrição disponível primeiro; os sem inscrição (status final, prazo vencido ou vagas esgotadas — inclusive accepting_enrollments sem vagas) vão para o final. A ordenação é aplicada antes da paginação. Omitido = ordem padrão (id desc)."  Enums(availability)
 // @Success      200               {object}  object
 // @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/v1/courses [get]
@@ -620,9 +609,16 @@ func (h *CourseHandler) List(c *gin.Context) {
 		filter["neighborhood_zone"] = neighborhoodZone
 	}
 
+	// Optional ordering: put courses a citizen can still enroll in first.
+	sortByAvailability := strings.EqualFold(strings.TrimSpace(c.Query("sort")), sortAvailability)
+
+	// The cache key must vary by ordering so the sorted and unsorted variants of the
+	// same filter/page do not collide. The sort marker is kept out of `filter` (which
+	// is passed to the repository query) to avoid it being treated as a column filter.
+	filterHash := cache.HashFilter(cacheFilter(filter, sortByAvailability), page, limit)
+
 	// Try cache first (if caching is enabled)
 	if h.courseCache != nil {
-		filterHash := cache.HashFilter(filter, page, limit)
 		cachedData, err := h.courseCache.GetList(c.Request.Context(), filterHash)
 		if err == nil && cachedData != nil {
 			var cachedResponse gin.H
@@ -634,16 +630,29 @@ func (h *CourseHandler) List(c *gin.Context) {
 		}
 	}
 
-	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos: " + err.Error()})
-		return
-	}
+	var cursos []*models.Curso
+	var total int
 
-	// Calculate remaining vacancies for all courses in a single batched query
-	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
-		return
+	if sortByAvailability {
+		var err error
+		cursos, total, err = h.listSortedByAvailability(c, filter, page, limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos: " + err.Error()})
+			return
+		}
+	} else {
+		var err error
+		cursos, total, err = h.cursoService.List(c.Request.Context(), filter, page, limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos: " + err.Error()})
+			return
+		}
+
+		// Calculate remaining vacancies for all courses in a single batched query
+		if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+			return
+		}
 	}
 
 	totalPages := (total + limit - 1) / limit
@@ -668,11 +677,77 @@ func (h *CourseHandler) List(c *gin.Context) {
 
 	// Cache the result (if caching is enabled)
 	if h.courseCache != nil {
-		filterHash := cache.HashFilter(filter, page, limit)
 		_ = h.courseCache.SetList(c.Request.Context(), filterHash, response)
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// sortAvailability is the value of the `sort` query param that orders courses by
+// enrollment availability (available first, sold-out/closed last).
+const sortAvailability = "availability"
+
+// cacheFilter returns a copy of filter augmented with the ordering marker when
+// availability sorting is active, so cached responses key on the ordering too. The
+// original filter is never mutated (it is used verbatim by the repository query).
+func cacheFilter(filter map[string]interface{}, sortByAvailability bool) map[string]interface{} {
+	if !sortByAvailability {
+		return filter
+	}
+	out := make(map[string]interface{}, len(filter)+1)
+	for k, v := range filter {
+		out[k] = v
+	}
+	out["_sort"] = sortAvailability
+	return out
+}
+
+// listSortedByAvailability fetches every course matching filter, orders those a
+// citizen can still enroll in ahead of the rest, and returns the requested page.
+// Ordering must happen before pagination, so the full result set is materialized
+// and sorted in memory; within each group the repository's id-desc order is kept.
+func (h *CourseHandler) listSortedByAvailability(c *gin.Context, filter map[string]interface{}, page, limit int) ([]*models.Curso, int, error) {
+	// limit <= 0 tells the repository to skip the SQL LIMIT and return every match.
+	allCursos, total, err := h.cursoRepo.List(c.Request.Context(), filter, -1, 0)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Vacancies feed the availability check, so they must be computed before sorting.
+	if err := h.calculateRemainingVacanciesForCourses(c, allCursos); err != nil {
+		return nil, 0, err
+	}
+
+	now := time.Now()
+	type rankedCurso struct {
+		curso     *models.Curso
+		available bool
+	}
+	ranked := make([]rankedCurso, len(allCursos))
+	for i, curso := range allCursos {
+		ranked[i] = rankedCurso{curso: curso, available: curso.IsEnrollmentAvailable(now)}
+	}
+	// Stable so the repository's id-desc order is preserved within each group.
+	sort.SliceStable(ranked, func(a, b int) bool {
+		return ranked[a].available && !ranked[b].available
+	})
+
+	start := (page - 1) * limit
+	if start > len(ranked) {
+		start = len(ranked)
+	}
+	end := start + limit
+	if end > len(ranked) {
+		end = len(ranked)
+	}
+
+	pageCursos := make([]*models.Curso, 0, end-start)
+	for _, r := range ranked[start:end] {
+		// Apply the derived status for the response, mirroring CursoService.List.
+		r.curso.Status = r.curso.DeriveStatus(now)
+		pageCursos = append(pageCursos, r.curso)
+	}
+	return pageCursos, total, nil
 }
 
 // @Summary      Listar cursos rascunho
@@ -815,7 +890,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/public/courses/{courseId} [get]
 func (h *CourseHandler) GetByIDPublic(c *gin.Context) {
-	h.GetByID(c)
+	h.getByID(c, true)
 }
 
 // @Summary      Buscar curso específico
@@ -829,6 +904,13 @@ func (h *CourseHandler) GetByIDPublic(c *gin.Context) {
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId} [get]
 func (h *CourseHandler) GetByID(c *gin.Context) {
+	h.getByID(c, false)
+}
+
+// getByID busca um curso por ID. Quando publicOnly é true (rota /api/public),
+// cursos em rascunho não são expostos — retornam 404 —, mantendo o mesmo
+// contrato da listagem pública, que já esconde rascunhos (status NOT draft).
+func (h *CourseHandler) getByID(c *gin.Context, publicOnly bool) {
 	id, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
@@ -842,6 +924,11 @@ func (h *CourseHandler) GetByID(c *gin.Context) {
 	}
 
 	if curso == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
+		return
+	}
+
+	if publicOnly && curso.Status.Normalize() == models.StatusCursoDraft {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
 		return
 	}
