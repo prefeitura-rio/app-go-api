@@ -47,6 +47,14 @@ func TestCursoRepository_applyFilters(t *testing.T) {
 			description:        "title ILIKE filter should generate ILIKE condition",
 		},
 		{
+			name: "is_visible NOT_FALSE filter",
+			filter: map[string]interface{}{
+				"is_visible NOT_FALSE": true,
+			},
+			expectedConditions: []string{"is_visible IS DISTINCT FROM false"},
+			description:        "is_visible NOT_FALSE filter should exclude only explicit false",
+		},
+		{
 			name: "categoria_id filter",
 			filter: map[string]interface{}{
 				"categoria_id": 5,
@@ -126,11 +134,12 @@ func TestCursoRepository_applyFilters_AllFilterTypes(t *testing.T) {
 
 	// Test that all special filter keys are handled correctly
 	specialFilters := map[string]string{
-		"status NOT":        "status !=",
-		"title ILIKE":       "titulo ILIKE",
-		"categoria_id":      "curso_id FROM cursos_categorias WHERE categoria_id",
-		"acessibilidade_id": "curso_id FROM cursos_acessibilidades WHERE acessibilidade_id",
-		"neighborhood_zone": "curso_id FROM location_classes WHERE neighborhood_zone",
+		"status NOT":           "status !=",
+		"is_visible NOT_FALSE": "is_visible IS DISTINCT FROM false",
+		"title ILIKE":          "titulo ILIKE",
+		"categoria_id":         "curso_id FROM cursos_categorias WHERE categoria_id",
+		"acessibilidade_id":    "curso_id FROM cursos_acessibilidades WHERE acessibilidade_id",
+		"neighborhood_zone":    "curso_id FROM location_classes WHERE neighborhood_zone",
 	}
 
 	for filterKey, expectedSQLFragment := range specialFilters {

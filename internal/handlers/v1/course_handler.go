@@ -500,7 +500,7 @@ func parseStatusFilter(param string) []string {
 }
 
 // @Summary      Listar cursos criados
-// @Description  Retorna lista paginada de cursos. Sem status: exclui rascunhos. Com status: filtra pelos status informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.
+// @Description  Retorna lista paginada de cursos públicos. Exclui rascunhos e cursos marcados como não visíveis publicamente (is_visible=false); estes continuam acessíveis por link direto via GET /api/public/courses/{id}. Com status: filtra pelos status informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.
 // @Tags         courses
 // @Produce      json
 // @Param        page              query     int     false  "Número da página (default: 1)"
@@ -517,7 +517,7 @@ func parseStatusFilter(param string) []string {
 // @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/public/courses [get]
 func (h *CourseHandler) ListPublic(c *gin.Context) {
-	h.List(c)
+	h.list(c, true)
 }
 
 // @Summary      Listar cursos criados
@@ -538,6 +538,14 @@ func (h *CourseHandler) ListPublic(c *gin.Context) {
 // @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/v1/courses [get]
 func (h *CourseHandler) List(c *gin.Context) {
+	h.list(c, false)
+}
+
+// list backs both the admin (/api/v1/courses) and public (/api/public/courses)
+// listings. When publicOnly is true, courses flagged as not publicly visible
+// (is_visible=false) are excluded so they are reachable only by direct link; the
+// admin listing always includes them.
+func (h *CourseHandler) list(c *gin.Context, publicOnly bool) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
@@ -579,6 +587,12 @@ func (h *CourseHandler) List(c *gin.Context) {
 		}
 	} else {
 		filter["status NOT"] = models.StatusCursoDraft
+	}
+
+	// Public listing hides courses marked as not publicly visible. They remain
+	// reachable by direct link (GetByIDPublic) and in the admin listing.
+	if publicOnly {
+		filter["is_visible NOT_FALSE"] = true
 	}
 
 	if modalidade := c.Query("modalidade"); modalidade != "" {
