@@ -539,6 +539,40 @@ func TestCursoRepository_List(t *testing.T) {
 		assert.Len(t, cursos, 2)
 	})
 
+	t.Run("list without pagination when limit <= 0 returns all rows", func(t *testing.T) {
+		// A non-positive limit is used by availability sorting to fetch the full
+		// result set (no SQL LIMIT/OFFSET) before ordering and slicing in memory.
+		db2, mock2, cleanup2 := SetupMockDB(t)
+		defer cleanup2()
+		repo2 := NewCursoRepository(db2)
+		mock2.MatchExpectationsInOrder(false)
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "cursos"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
+
+		rows := sqlmock.NewRows([]string{"id", "titulo", "status"}).
+			AddRow(3, "Curso 3", "published").
+			AddRow(2, "Curso 2", "published").
+			AddRow(1, "Curso 1", "published")
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnRows(rows)
+
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_categorias"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "categoria_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos_acessibilidades"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"curso_id", "acessibilidade_id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		mock2.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		cursos, total, err := repo2.List(ctx, nil, -1, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, total)
+		assert.Len(t, cursos, 3)
+		assert.NoError(t, mock2.ExpectationsWereMet())
+	})
+
 	t.Run("list count error", func(t *testing.T) {
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "cursos"`)).
 			WillReturnError(assert.AnError)

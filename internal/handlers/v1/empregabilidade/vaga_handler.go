@@ -22,10 +22,6 @@ func containsString(slice []string, item string) bool {
 	return false
 }
 
-func isPublishedStatus(status empregabilidade.StatusVaga) bool {
-	return status.IsPublished()
-}
-
 func parseCSVParam(param string) []string {
 	if param == "" {
 		return nil
@@ -258,8 +254,17 @@ func (h *VagaHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// A autorização por órgão/secretaria e a regra de edição de vaga publicada
-	// ficam em VagaOwnershipCheck (middleware), que só é ativo em dev/test.
+	// A autorização por órgão/secretaria fica em VagaOwnershipCheck (middleware,
+	// só ativo em dev/test). Já a regra de "quem pode editar vaga publicada"
+	// depende do status da vaga — algo que o gateway Heimdall não conhece —, então
+	// precisa ser aplicada aqui no handler, em qualquer ambiente.
+	canEditPublished := middlewares.IsAdmin(c) ||
+		middlewares.HasRole(c, "go:empregabilidade:admin") ||
+		middlewares.HasRole(c, "go:empregabilidade:editor_sem_curadoria")
+	if existing.Status.IsPublished() && !canEditPublished {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores, empregabilidade:admin ou editor_sem_curadoria podem editar vagas publicadas"})
+		return
+	}
 
 	var entity empregabilidade.Vaga
 	if err := c.ShouldBindJSON(&entity); err != nil {
@@ -632,7 +637,7 @@ func (h *VagaHandler) PublicList(c *gin.Context) {
 	}
 
 	status := c.Query("status")
-	if status != "" && !isPublishedStatus(empregabilidade.StatusVaga(status)) {
+	if status != "" && !empregabilidade.StatusVaga(status).IsPublished() {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "status inválido: deve ser publicado_ativo, publicado_expirado, vaga_congelada ou vaga_descontinuada"})
 		return
 	}
@@ -696,7 +701,7 @@ func (h *VagaHandler) PublicGetBySlug(c *gin.Context) {
 		return
 	}
 
-	if entity == nil || !isPublishedStatus(entity.Status) {
+	if entity == nil || !entity.Status.IsPublished() {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
 		return
 	}
@@ -737,7 +742,7 @@ func (h *VagaHandler) PublicGetByID(c *gin.Context) {
 		return
 	}
 
-	if entity == nil || !isPublishedStatus(entity.Status) {
+	if entity == nil || !entity.Status.IsPublished() {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
 		return
 	}

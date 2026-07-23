@@ -612,6 +612,79 @@ func TestInscricaoHandler_GetByID_Success(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
+// casa_civil may view any enrollment (not only their own CPF), even without ADMIN role.
+func TestInscricaoHandler_GetByID_CasaCivil_CanViewOthersEnrollment(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserCPFKey, "02929367024")
+		c.Set(middlewares.UserRoleKey, "USER")
+		c.Set(middlewares.UserRolesKey, []string{"go:cursos:casa_civil"})
+		c.Next()
+	})
+	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
+
+	enrollmentID := uuid.New()
+	inscricao := &models.Inscricao{
+		ID:      enrollmentID,
+		CursoID: 2746,
+		CPF:     "11122233344", // different from caller CPF
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
+	mockService.On("EnrichWithPersonalInfo", mock.Anything, inscricao).
+		Return()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/2746/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_GetByID_Citizen_CannotViewOthersEnrollment(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserCPFKey, "99988877766")
+		c.Set(middlewares.UserRoleKey, "USER")
+		c.Next()
+	})
+	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
+
+	enrollmentID := uuid.New()
+	inscricao := &models.Inscricao{
+		ID:      enrollmentID,
+		CursoID: 2746,
+		CPF:     "11122233344",
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/2746/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "você só pode visualizar suas próprias inscrições")
+	mockService.AssertExpectations(t)
+}
+
 // Test GetByID with not found
 func TestInscricaoHandler_GetByID_NotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -1025,6 +1098,43 @@ func TestInscricaoHandler_ListByUser_Forbidden(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestInscricaoHandler_ListByUser_CasaCivil_CanViewOtherUser(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserCPFKey, "02929367024")
+		c.Set(middlewares.UserRoleKey, "USER")
+		c.Set(middlewares.UserRolesKey, []string{"go:cursos:casa_civil"})
+		c.Next()
+	})
+	r.GET("/api/v1/enrollments/user/:cpf", handler.ListByUser)
+
+	targetCPF := "49806617090"
+	inscricoes := []*models.Inscricao{
+		{ID: uuid.New(), CursoID: 2746, CPF: targetCPF},
+	}
+
+	mockService.On("ListByCPF", mock.Anything, targetCPF, mock.Anything, 0, 10).
+		Return(inscricoes, 1, nil)
+	mockCursoRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).
+		Return(make(map[uuid.UUID]int64), nil)
+	mockService.On("EnrichMultipleWithPersonalInfo", mock.Anything, inscricoes).
+		Return()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/enrollments/user/"+targetCPF, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
+	mockService.AssertExpectations(t)
 }
 
 // --- Import Tests ---

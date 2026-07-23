@@ -2,6 +2,7 @@ package v1_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,6 +24,8 @@ type mockInscricaoServiceForList struct {
 	enrollments   []*models.Inscricao
 	total         int
 	summary       *models.EnrollmentSummary
+	lastFilter    map[string]interface{}
+	summaryCalls  int
 }
 
 func (m *mockInscricaoServiceForList) Create(ctx context.Context, inscricao *models.Inscricao) error {
@@ -41,6 +45,7 @@ func (m *mockInscricaoServiceForList) GetByID(ctx context.Context, id uuid.UUID)
 }
 
 func (m *mockInscricaoServiceForList) GetByCursoID(ctx context.Context, cursoID int, filter map[string]interface{}, page, limit int) ([]*models.Inscricao, int, error) {
+	m.lastFilter = filter
 	if m.getByCursoErr != nil {
 		return nil, 0, m.getByCursoErr
 	}
@@ -48,6 +53,7 @@ func (m *mockInscricaoServiceForList) GetByCursoID(ctx context.Context, cursoID 
 }
 
 func (m *mockInscricaoServiceForList) GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error) {
+	m.summaryCalls++
 	if m.summaryErr != nil {
 		return nil, m.summaryErr
 	}
@@ -326,4 +332,38 @@ func TestInscricaoHandler_ListByUser_ServiceError(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Contains(t, w.Body.String(), "Erro ao listar inscrições do usuário")
+}
+
+func TestInscricaoHandler_List_SelfAccess_KeepsSearchAndSkipsSummary(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const cpf = "00044242719"
+	mockSvc := &mockInscricaoServiceForList{
+		enrollments: []*models.Inscricao{{ID: uuid.New(), CursoID: 2852, CPF: cpf}},
+		total:       1,
+		summary:     &models.EnrollmentSummary{},
+	}
+	h := v1.NewInscricaoHandler(mockSvc, nil, nil)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserCPFKey, cpf)
+		c.Set("enrollment_list_self_access", true)
+		c.Next()
+	})
+	r.GET("/api/v1/courses/:courseId/enrollments", h.List)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/2852/enrollments?search="+cpf, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, cpf, mockSvc.lastFilter["search"])
+	_, hasCPF := mockSvc.lastFilter["cpf"]
+	assert.False(t, hasCPF)
+	assert.Equal(t, 0, mockSvc.summaryCalls)
+
+	var body map[string]interface{}
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	data := body["data"].(map[string]interface{})
+	assert.Nil(t, data["summary"])
 }

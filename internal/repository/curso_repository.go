@@ -137,7 +137,7 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 	// Fetch records with selective preloading
 	// List view only needs basic info + schedules for vacancy calculation
 	// Skip CustomFields, Instituicao details to reduce data transfer
-	result := baseQuery.
+	query := baseQuery.
 		Preload("Categorias").
 		Preload("Acessibilidades").
 		Preload("LocationClasses.Schedules", func(db *gorm.DB) *gorm.DB {
@@ -146,10 +146,16 @@ func (r *CursoRepository) List(ctx context.Context, filter map[string]interface{
 		Preload("RemoteClass.Schedules", func(db *gorm.DB) *gorm.DB {
 			return db.Order("display_order ASC")
 		}).
-		Order("id DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&cursos)
+		Order("id DESC")
+
+	// A non-positive limit means "no pagination" — return every matching row. This
+	// is used by availability sorting, which must order the full result set before
+	// slicing it into pages.
+	if limit > 0 {
+		query = query.Limit(limit).Offset(offset)
+	}
+
+	result := query.Find(&cursos)
 
 	if result.Error != nil {
 		return nil, 0, fmt.Errorf("erro ao listar cursos: %w", result.Error)
