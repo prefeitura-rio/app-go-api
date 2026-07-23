@@ -259,11 +259,15 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 	// Enrich enrollments with personal info from citizen snapshots
 	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), inscricoes)
 
-	// Get summary
-	summary, err := h.service.GetSummaryByCursoID(c.Request.Context(), cursoID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao obter resumo: " + err.Error()})
-		return
+	var summary interface{}
+	selfAccess := middlewares.IsEnrollmentListSelfAccess(c)
+
+	if !selfAccess {
+		summary, err = h.service.GetSummaryByCursoID(c.Request.Context(), cursoID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao obter resumo: " + err.Error()})
+			return
+		}
 	}
 
 	totalPages := (total + limit - 1) / limit

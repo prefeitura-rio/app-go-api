@@ -40,6 +40,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	var courseAuth gin.HandlerFunc
 	var courseOrgaoInjector gin.HandlerFunc
 	var courseListFilter gin.HandlerFunc
+	var enrollmentListAccess gin.HandlerFunc
 
 	// "development" cobre local + staging (ver comentário de noOpHandler em router.go).
 	if cfg.App.Environment == "development" || cfg.App.Environment == "test" {
@@ -47,11 +48,13 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courseAuth = middlewares.CourseAuthorization()
 		courseOrgaoInjector = middlewares.CourseOrgaoInjector()
 		courseListFilter = middlewares.CourseListFilter()
+		enrollmentListAccess = middlewares.CourseEnrollmentListAccess(cursoLoader)
 	} else {
 		ownershipCheck = noOpHandler
 		courseAuth = noOpHandler
 		courseOrgaoInjector = noOpHandler
 		courseListFilter = noOpHandler
+		enrollmentListAccess = noOpHandler
 	}
 
 	courses := apiV1.Group("/courses")
@@ -70,7 +73,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courses.POST("/:courseId/enrollments", app.InscricaoHandler.Create)
 		courses.POST("/:courseId/enrollments/manual", courseAuth, ownershipCheck, app.InscricaoHandler.CreateManual)
 		courses.POST("/:courseId/enrollments/import", courseAuth, ownershipCheck, app.InscricaoHandler.Import)
-		courses.GET("/:courseId/enrollments", courseAuth, ownershipCheck, app.InscricaoHandler.List)
+		courses.GET("/:courseId/enrollments", enrollmentListAccess, app.InscricaoHandler.List)
 		courses.PUT("/:courseId/enrollments/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateStatus)
 		courses.PUT("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.Update)
 		courses.PUT("/:courseId/enrollments/:enrollmentId/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateIndividualStatus)

@@ -717,3 +717,121 @@ func TestGetLoadedCursoOrgaoID_KeyExistsWithWrongType_ReturnsEmpty(t *testing.T)
 	assert.NoError(t, err)
 	assert.Equal(t, "", response["orgao_id"])
 }
+
+// ============ CourseEnrollmentListAccess Tests ============
+
+func enrollmentListLoader(orgaoID string, found bool, err error) func(context.Context, int) (string, bool, error) {
+	return func(context.Context, int) (string, bool, error) {
+		return orgaoID, found, err
+	}
+}
+
+func TestCourseEnrollmentListAccess_SelfSearchMatchingCPF_Passes(t *testing.T) {
+	r := setupCourseTestRouter(
+		func(c *gin.Context) {
+			c.Set(middlewares.UserCPFKey, "00044242719")
+			c.Next()
+		},
+		middlewares.CourseEnrollmentListAccess(enrollmentListLoader("orgao-a", true, nil)),
+	)
+	r.GET("/courses/:courseId/enrollments", func(c *gin.Context) {
+		assert.True(t, middlewares.IsEnrollmentListSelfAccess(c))
+		c.Status(http.StatusOK)
+	})
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/2852/enrollments?search=00044242719", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseEnrollmentListAccess_SelfSearchMatchingCPF_IgnoresFormatting(t *testing.T) {
+	r := setupCourseTestRouter(
+		func(c *gin.Context) {
+			c.Set(middlewares.UserCPFKey, "00044242719")
+			c.Next()
+		},
+		middlewares.CourseEnrollmentListAccess(enrollmentListLoader("orgao-a", true, nil)),
+	)
+	r.GET("/courses/:courseId/enrollments", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/2852/enrollments?search=000.442.427-19", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseEnrollmentListAccess_SelfSearchOtherCPF_Forbidden(t *testing.T) {
+	r := setupCourseTestRouter(
+		func(c *gin.Context) {
+			c.Set(middlewares.UserCPFKey, "00044242719")
+			c.Next()
+		},
+		middlewares.CourseEnrollmentListAccess(enrollmentListLoader("orgao-a", true, nil)),
+	)
+	r.GET("/courses/:courseId/enrollments", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/2852/enrollments?search=11122233344", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Sem permissão para acessar este recurso")
+}
+
+func TestCourseEnrollmentListAccess_NonNumericUsernameAndSearch_Forbidden(t *testing.T) {
+	r := setupCourseTestRouter(
+		func(c *gin.Context) {
+			c.Set(middlewares.UserCPFKey, "joao@gmail.com")
+			c.Next()
+		},
+		middlewares.CourseEnrollmentListAccess(enrollmentListLoader("orgao-a", true, nil)),
+	)
+	r.GET("/courses/:courseId/enrollments", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/2852/enrollments?search=silva", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Sem permissão para acessar este recurso")
+}
+
+func TestCourseEnrollmentListAccess_NoSearch_NoRole_Forbidden(t *testing.T) {
+	r := setupCourseTestRouter(
+		func(c *gin.Context) {
+			c.Set(middlewares.UserCPFKey, "00044242719")
+			c.Next()
+		},
+		middlewares.CourseEnrollmentListAccess(enrollmentListLoader("orgao-a", true, nil)),
+	)
+	r.GET("/courses/:courseId/enrollments", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/2852/enrollments", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestCourseEnrollmentListAccess_EditorWithScope_PassesWithoutSearch(t *testing.T) {
+	r := setupCourseTestRouter(
+		injectCourseRoles("go:cursos:editor", "orgao-a", nil),
+		middlewares.CourseEnrollmentListAccess(enrollmentListLoader("orgao-a", true, nil)),
+	)
+	r.GET("/courses/:courseId/enrollments", func(c *gin.Context) {
+		assert.False(t, middlewares.IsEnrollmentListSelfAccess(c))
+		c.Status(http.StatusOK)
+	})
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/2852/enrollments", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseEnrollmentListAccess_SelfSearch_CourseNotFound(t *testing.T) {
+	r := setupCourseTestRouter(
+		func(c *gin.Context) {
+			c.Set(middlewares.UserCPFKey, "00044242719")
+			c.Next()
+		},
+		middlewares.CourseEnrollmentListAccess(enrollmentListLoader("", false, nil)),
+	)
+	r.GET("/courses/:courseId/enrollments", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/2852/enrollments?search=00044242719", nil))
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
