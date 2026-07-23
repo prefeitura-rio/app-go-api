@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
@@ -365,6 +366,35 @@ func TestRegisterCoreRoutes_PublicRoutes(t *testing.T) {
 		}
 		assert.True(t, found, "Should have public route %s %s", expected.method, expected.path)
 	}
+}
+
+// TestRegisterCoreRoutes_PublicCoursesUsesListPublic guards the wiring of the
+// public courses listing. It must resolve to CourseHandler.ListPublic (which
+// hides is_visible=false courses), not the admin List handler — a regression
+// that would silently expose non-visible courses in /api/public/courses.
+func TestRegisterCoreRoutes_PublicCoursesUsesListPublic(t *testing.T) {
+	router := gin.New()
+	apiV1 := router.Group("/api/v1")
+	apiPublic := router.Group("/api/public")
+
+	app := createMockApplicationContainer()
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
+
+	var handler string
+	found := false
+	for _, route := range router.Routes() {
+		if route.Method == "GET" && route.Path == "/api/public/courses" {
+			handler = route.Handler
+			found = true
+			break
+		}
+	}
+
+	require.True(t, found, "GET /api/public/courses must be registered")
+	// The "CourseHandler)." prefix keeps this from matching the admin ".List-fm".
+	assert.Contains(t, handler, "CourseHandler).ListPublic",
+		"public courses listing must be wired to ListPublic, got %q", handler)
 }
 
 // TestRegisterCoreRoutes_RouteMethodCounts tests HTTP method distribution
