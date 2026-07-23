@@ -100,6 +100,66 @@ func TestCourseHandler_List_SortByAvailability(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
+// The public listing must hide courses flagged is_visible=false; it does so by
+// passing the "is_visible NOT_FALSE" marker to the service filter. The admin
+// listing must not, so invisible courses remain manageable.
+func TestCourseHandler_ListPublic_FiltersInvisible(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	filterHasVisibility := func(filter map[string]interface{}) bool {
+		_, ok := filter["is_visible NOT_FALSE"]
+		return ok
+	}
+
+	t.Run("public list adds the visibility filter", func(t *testing.T) {
+		mockService := new(MockCursoService)
+		mockInscricaoService := new(MockInscricaoServiceForCourse)
+		mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+		handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+		r := gin.New()
+		r.GET("/api/public/courses", handler.ListPublic)
+
+		cursos := []*models.Curso{{ID: 1, Titulo: "Course 1"}}
+		mockService.On("List", mock.Anything,
+			mock.MatchedBy(filterHasVisibility), 1, 10).Return(cursos, 1, nil)
+		mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).
+			Return(make(map[uuid.UUID]int64), nil)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/public/courses", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("admin list does not add the visibility filter", func(t *testing.T) {
+		mockService := new(MockCursoService)
+		mockInscricaoService := new(MockInscricaoServiceForCourse)
+		mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+		handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+		r := gin.New()
+		r.GET("/api/v1/courses", handler.List)
+
+		cursos := []*models.Curso{{ID: 1, Titulo: "Course 1"}}
+		mockService.On("List", mock.Anything,
+			mock.MatchedBy(func(filter map[string]interface{}) bool {
+				return !filterHasVisibility(filter)
+			}), 1, 10).Return(cursos, 1, nil)
+		mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).
+			Return(make(map[uuid.UUID]int64), nil)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/courses", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		mockService.AssertExpectations(t)
+	})
+}
+
 // Without the sort param, the handler keeps the existing behavior: it delegates to
 // the paginated service.List and does not fetch the full result set.
 func TestCourseHandler_List_NoSort_UsesService(t *testing.T) {

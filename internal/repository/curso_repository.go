@@ -169,6 +169,10 @@ func (r *CursoRepository) applyFilters(db *gorm.DB, filter map[string]interface{
 		switch key {
 		case "status NOT":
 			db = db.Where("status != ?", value)
+		case "is_visible NOT_FALSE":
+			// Include courses that are visible (true) or unset (null), excluding
+			// only those explicitly flagged is_visible=false.
+			db = db.Where("is_visible IS DISTINCT FROM false")
 		case "status IN":
 			if statuses, ok := value.([]string); ok && len(statuses) > 0 {
 				db = applyStatusINFilter(db, statuses)
