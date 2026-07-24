@@ -19,6 +19,11 @@ RUN chmod +x /docker-entrypoint.sh
 
 ENV GIN_MODE=release
 ENV RUN_MIGRATIONS=true
+# Fuso do processo. O binário embute time/tzdata, então não precisa do pacote
+# tzdata do SO. O código aplica time.Local a partir de APP_TIMEZONE (default
+# America/Sao_Paulo); TZ mantém o restante do container coerente.
+ENV TZ=America/Sao_Paulo
+ENV APP_TIMEZONE=America/Sao_Paulo
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["./api"]
