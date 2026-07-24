@@ -16,12 +16,11 @@ func init() {
 	gin.SetMode(gin.TestMode)
 }
 
-// newTestCoreConfig returns a minimal AppConfig with environment set to "test"
-// so that the real authorization middlewares (CourseOwnershipCheck, CourseAuthorization,
-// CourseOrgaoInjector, CourseListFilter) are wired into the routes, matching
-// production intent while remaining exercisable in unit tests.
+// newTestCoreConfig returns a minimal AppConfig with RBAC enabled so that the
+// real authorization middlewares (CourseOwnershipCheck, CourseAuthorization,
+// CourseOrgaoInjector, CourseListFilter) are wired into the routes.
 func newTestCoreConfig() *config.AppConfig {
-	return &config.AppConfig{App: config.AppSettings{Environment: "test"}}
+	return &config.AppConfig{App: config.AppSettings{RBACEnabled: true}}
 }
 
 // TestRegisterCoreRoutes tests the complete core routes registration

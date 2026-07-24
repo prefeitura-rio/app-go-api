@@ -36,26 +36,11 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		return curso.OrgaoID, true, nil
 	}
 
-	var ownershipCheck gin.HandlerFunc
-	var courseAuth gin.HandlerFunc
-	var courseOrgaoInjector gin.HandlerFunc
-	var courseListFilter gin.HandlerFunc
-	var enrollmentListAccess gin.HandlerFunc
-
-	// "development" cobre local + staging (ver comentário de noOpHandler em router.go).
-	if cfg.App.Environment == "development" || cfg.App.Environment == "test" {
-		ownershipCheck = middlewares.CourseOwnershipCheck(cursoLoader)
-		courseAuth = middlewares.CourseAuthorization()
-		courseOrgaoInjector = middlewares.CourseOrgaoInjector()
-		courseListFilter = middlewares.CourseListFilter()
-		enrollmentListAccess = middlewares.CourseEnrollmentListAccess(cursoLoader)
-	} else {
-		ownershipCheck = noOpHandler
-		courseAuth = noOpHandler
-		courseOrgaoInjector = noOpHandler
-		courseListFilter = noOpHandler
-		enrollmentListAccess = noOpHandler
-	}
+	ownershipCheck := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOwnershipCheck(cursoLoader))
+	courseAuth := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseAuthorization())
+	courseOrgaoInjector := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOrgaoInjector())
+	courseListFilter := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseListFilter())
+	enrollmentListAccess := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseEnrollmentListAccess(cursoLoader))
 
 	courses := apiV1.Group("/courses")
 	{

@@ -50,6 +50,11 @@ type AppSettings struct {
 	LogLevel    string
 	APIPrefix   string
 	APIToken    string
+	// RBACEnabled controla os middlewares de autorização de cursos e vagas
+	// (CourseAuthorization, VagaAuthorization, ownership checks, etc.).
+	// Independente de APP_ENV — use RBAC_ENABLED=false em produção enquanto
+	// o RBAC não estiver homologado lá.
+	RBACEnabled bool
 }
 
 // DatabaseSettings define configurações do banco de dados
@@ -358,6 +363,7 @@ func Load() (*AppConfig, error) {
 			LogLevel:    getEnv(v, "LOG_LEVEL", "info"),
 			APIPrefix:   getEnv(v, "API_PREFIX", "/api"),
 			APIToken:    getEnv(v, "API_TOKEN", ""),
+			RBACEnabled: getBool(v, "RBAC_ENABLED", true),
 		},
 		Database: DatabaseSettings{
 			Host:            getEnv(v, "DB_HOST", "localhost"),
@@ -624,6 +630,7 @@ func logConfig(config *AppConfig) {
 	log.Printf("Debug: %v", config.App.Debug)
 	log.Printf("Log Level: %s", config.App.LogLevel)
 	log.Printf("API Prefix: %s", config.App.APIPrefix)
+	log.Printf("RBAC Enabled: %v", config.App.RBACEnabled)
 	log.Printf("DB: %s@%s:%d/%s", config.Database.User, config.Database.Host, config.Database.Port, config.Database.Name)
 	log.Printf("Server: %s:%d", config.Server.Host, config.Server.Port)
 	log.Printf("Migrations: %v", config.Migrations.Run)
