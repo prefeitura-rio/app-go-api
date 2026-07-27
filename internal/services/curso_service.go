@@ -289,6 +289,79 @@ func (s *CursoService) validatePublishedCurso(curso *models.Curso) error {
 	return nil
 }
 
+// brtLocation is America/Sao_Paulo, resolved once. The server already pins
+// time.Local to it via setupTimezone; this falls back to time.Local if the tzdata
+// lookup fails for any reason.
+var brtLocation = mustLoadBRT()
+
+func mustLoadBRT() *time.Location {
+	if loc, err := time.LoadLocation("America/Sao_Paulo"); err == nil {
+		return loc
+	}
+	return time.Local
+}
+
+// isMidnightUTC reports whether t falls exactly on 00:00:00.000000000 UTC — the
+// signature of a day-granular date encoded as midnight UTC (e.g. a date-picker
+// value serialized without an explicit -03:00 offset). Real timestamps and dates
+// carrying a time-of-day have a non-zero UTC time and are left untouched.
+func isMidnightUTC(t time.Time) bool {
+	u := t.UTC()
+	return u.Hour() == 0 && u.Minute() == 0 && u.Second() == 0 && u.Nanosecond() == 0
+}
+
+// normalizeDayStartBRT re-anchors a midnight-UTC instant to 00:00:00 America/Sao_Paulo
+// of the same calendar day (start-of-day). No-op for nil, zero or non-midnight-UTC values.
+func normalizeDayStartBRT(t *time.Time) {
+	if t == nil || t.IsZero() || !isMidnightUTC(*t) {
+		return
+	}
+	u := t.UTC()
+	*t = time.Date(u.Year(), u.Month(), u.Day(), 0, 0, 0, 0, brtLocation)
+}
+
+// normalizeDayEndBRT re-anchors a midnight-UTC instant to 23:59:59 America/Sao_Paulo
+// of the same calendar day (end-of-day), keeping the whole intended day inside the
+// window. No-op for nil, zero or non-midnight-UTC values.
+func normalizeDayEndBRT(t *time.Time) {
+	if t == nil || t.IsZero() || !isMidnightUTC(*t) {
+		return
+	}
+	u := t.UTC()
+	*t = time.Date(u.Year(), u.Month(), u.Day(), 23, 59, 59, 0, brtLocation)
+}
+
+// normalizeCourseDates re-anchors day-granular date fields that arrived at midnight
+// UTC to the intended day in BRT: openings/starts to start-of-day, closings/ends to
+// end-of-day. Without this, the API's -03:00 serialization plus the client's
+// date-string truncation would render such dates one day early. Turma dates are
+// normalized here so the course-level enrollment window derived afterwards stays
+// consistent with them.
+func normalizeCourseDates(curso *models.Curso) {
+	normalizeDayStartBRT(curso.EnrollmentStartDate)
+	normalizeDayEndBRT(curso.EnrollmentEndDate)
+
+	for i := range curso.LocationClasses {
+		for j := range curso.LocationClasses[i].Schedules {
+			sched := &curso.LocationClasses[i].Schedules[j]
+			normalizeDayStartBRT(&sched.ClassStartDate)
+			normalizeDayEndBRT(&sched.ClassEndDate)
+			normalizeDayStartBRT(sched.EnrollmentStartDate)
+			normalizeDayEndBRT(sched.EnrollmentEndDate)
+		}
+	}
+
+	if curso.RemoteClass != nil {
+		for j := range curso.RemoteClass.Schedules {
+			sched := &curso.RemoteClass.Schedules[j]
+			normalizeDayStartBRT(sched.ClassStartDate)
+			normalizeDayEndBRT(sched.ClassEndDate)
+			normalizeDayStartBRT(sched.EnrollmentStartDate)
+			normalizeDayEndBRT(sched.EnrollmentEndDate)
+		}
+	}
+}
+
 // normalizeCurso normalizes data for consistency
 func (s *CursoService) normalizeCurso(curso *models.Curso) {
 	curso.Status = curso.Status.Normalize()
@@ -362,6 +435,11 @@ func (s *CursoService) normalizeCurso(curso *models.Curso) {
 			}
 		}
 	}
+
+	// Re-anchor day-granular dates gravadas em meia-noite UTC ao dia pretendido em
+	// BRT antes de derivar o período do curso, para o instante e o dia exibido no
+	// client ficarem corretos sob a serialização -03:00.
+	normalizeCourseDates(curso)
 
 	// Enrollment period is managed per turma. Backfill any turma missing its
 	// window from the course-level dates (backward compatibility with payloads

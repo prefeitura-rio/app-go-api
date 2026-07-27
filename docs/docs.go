@@ -12246,10 +12246,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "enrollment_end_date": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2026-08-23T23:59:59-03:00"
                 },
                 "enrollment_start_date": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2026-08-01T00:00:00-03:00"
                 },
                 "expected_results": {
                     "type": "string"

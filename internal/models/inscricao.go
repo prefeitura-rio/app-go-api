@@ -129,10 +129,10 @@ type CourseSchedule struct {
 	ID                   uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	LocationID           uuid.UUID  `json:"location_id" gorm:"type:uuid;column:location_id;not null"`
 	Vacancies            int        `json:"vacancies" gorm:"not null;check:vacancies >= 1 AND vacancies <= 1000"`
-	EnrollmentStartDate  *time.Time `json:"enrollment_start_date,omitempty" gorm:"type:timestamp with time zone;column:enrollment_start_date"`
-	EnrollmentEndDate    *time.Time `json:"enrollment_end_date,omitempty" gorm:"type:timestamp with time zone;column:enrollment_end_date"`
-	ClassStartDate       time.Time  `json:"class_start_date" gorm:"type:timestamp with time zone;column:class_start_date;not null"`
-	ClassEndDate         time.Time  `json:"class_end_date" gorm:"type:timestamp with time zone;column:class_end_date;not null"`
+	EnrollmentStartDate  *time.Time `json:"enrollment_start_date,omitempty" gorm:"type:timestamp with time zone;column:enrollment_start_date" example:"2026-08-01T00:00:00-03:00"`
+	EnrollmentEndDate    *time.Time `json:"enrollment_end_date,omitempty" gorm:"type:timestamp with time zone;column:enrollment_end_date" example:"2026-08-23T23:59:59-03:00"`
+	ClassStartDate       time.Time  `json:"class_start_date" gorm:"type:timestamp with time zone;column:class_start_date;not null" example:"2026-09-01T00:00:00-03:00"`
+	ClassEndDate         time.Time  `json:"class_end_date" gorm:"type:timestamp with time zone;column:class_end_date;not null" example:"2026-12-15T23:59:59-03:00"`
 	ClassTime            string     `json:"class_time" gorm:"type:varchar(20000);column:class_time;not null"`
 	ClassDays            string     `json:"class_days" gorm:"type:varchar(20000);column:class_days;not null"`
 	DisplayOrder         int        `json:"display_order" gorm:"column:display_order;not null;default:0"`
@@ -155,10 +155,10 @@ type RemoteSchedule struct {
 	ID                   uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	RemoteClassID        uuid.UUID  `json:"remote_class_id" gorm:"type:uuid;column:remote_class_id;not null"`
 	Vacancies            int        `json:"vacancies" gorm:"not null;check:vacancies >= 1 AND vacancies <= 1000"`
-	EnrollmentStartDate  *time.Time `json:"enrollment_start_date,omitempty" gorm:"type:timestamp with time zone;column:enrollment_start_date"`
-	EnrollmentEndDate    *time.Time `json:"enrollment_end_date,omitempty" gorm:"type:timestamp with time zone;column:enrollment_end_date"`
-	ClassStartDate       *time.Time `json:"class_start_date,omitempty" gorm:"type:timestamp with time zone;column:class_start_date"`
-	ClassEndDate         *time.Time `json:"class_end_date,omitempty" gorm:"type:timestamp with time zone;column:class_end_date"`
+	EnrollmentStartDate  *time.Time `json:"enrollment_start_date,omitempty" gorm:"type:timestamp with time zone;column:enrollment_start_date" example:"2026-08-01T00:00:00-03:00"`
+	EnrollmentEndDate    *time.Time `json:"enrollment_end_date,omitempty" gorm:"type:timestamp with time zone;column:enrollment_end_date" example:"2026-08-23T23:59:59-03:00"`
+	ClassStartDate       *time.Time `json:"class_start_date,omitempty" gorm:"type:timestamp with time zone;column:class_start_date" example:"2026-09-01T00:00:00-03:00"`
+	ClassEndDate         *time.Time `json:"class_end_date,omitempty" gorm:"type:timestamp with time zone;column:class_end_date" example:"2026-12-15T23:59:59-03:00"`
 	ClassTime            *string    `json:"class_time,omitempty" gorm:"type:varchar(20000);column:class_time"`
 	ClassDays            *string    `json:"class_days,omitempty" gorm:"type:varchar(20000);column:class_days"`
 	DisplayOrder         int        `json:"display_order" gorm:"column:display_order;not null;default:0"`
