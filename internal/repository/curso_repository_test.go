@@ -1449,8 +1449,9 @@ func TestCursoRepository_Update_HelperIntegration(t *testing.T) {
 			WillReturnError(gorm.ErrRecordNotFound)
 		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "custom_fields"`)).
 			WillReturnResult(sqlmock.NewResult(0, 0))
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
-			WillReturnError(gorm.ErrRecordNotFound)
+		// RemoteClass nil => delete existing remote class if any
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "remote_classes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
 
 		// updateLocationClassesWithTx - create new
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
@@ -1502,8 +1503,9 @@ func TestCursoRepository_Update_HelperIntegration(t *testing.T) {
 			WillReturnError(gorm.ErrRecordNotFound)
 		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "custom_fields"`)).
 			WillReturnResult(sqlmock.NewResult(0, 0))
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
-			WillReturnError(gorm.ErrRecordNotFound)
+		// RemoteClass nil => delete existing remote class if any
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "remote_classes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
 
 		// updateLocationClassesWithTx - update existing
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
@@ -1560,9 +1562,9 @@ func TestCursoRepository_Update_HelperIntegration(t *testing.T) {
 		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "custom_fields"`)).
 			WillReturnResult(sqlmock.NewResult(0, 0))
 
-		// Pass remoteClass
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
-			WillReturnError(gorm.ErrRecordNotFound)
+		// RemoteClass nil => delete existing remote class if any
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "remote_classes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
 
 		// updateLocationClassesWithTx - schedule update fails
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
@@ -1615,9 +1617,9 @@ func TestCursoRepository_Update_HelperIntegration(t *testing.T) {
 		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "custom_fields"`)).
 			WillReturnResult(sqlmock.NewResult(0, 0))
 
-		// Pass remoteClass
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
-			WillReturnError(gorm.ErrRecordNotFound)
+		// RemoteClass nil => delete existing remote class if any
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "remote_classes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
 
 		// updateLocationClassesWithTx - batch create fails
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
@@ -1634,5 +1636,130 @@ func TestCursoRepository_Update_HelperIntegration(t *testing.T) {
 		err := repo.Update(ctx, curso)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao atualizar location classes")
+	})
+
+	t.Run("update remoteClass batch deletes obsolete schedules", func(t *testing.T) {
+		db, mock, cleanup := SetupMockDB(t)
+		defer cleanup()
+		repo := NewCursoRepository(db)
+		ctx := context.Background()
+
+		existingRemoteID := uuid.New()
+		keepScheduleID := uuid.New()
+		obsoleteScheduleID1 := uuid.New()
+		obsoleteScheduleID2 := uuid.New()
+		curso := &models.Curso{
+			ID: 1,
+			RemoteClass: &models.RemoteClass{
+				ID:      existingRemoteID,
+				CursoID: 1,
+				Schedules: []models.RemoteSchedule{
+					{ID: keepScheduleID, Vacancies: 20},
+				},
+			},
+		}
+
+		mock.ExpectBegin()
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnError(gorm.ErrRecordNotFound)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnError(gorm.ErrRecordNotFound)
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "custom_fields"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id", "curso_id"}).AddRow(existingRemoteID, 1))
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "remote_classes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "remote_schedules"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).
+				AddRow(keepScheduleID).
+				AddRow(obsoleteScheduleID1).
+				AddRow(obsoleteScheduleID2))
+		// Single batch DELETE for obsolete schedules (not N individual deletes)
+		mock.ExpectExec(`DELETE FROM "remote_schedules" WHERE id IN \((\$\d+,)*\$\d+\)`).
+			WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "remote_schedules"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "cursos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		mock.ExpectCommit()
+
+		err := repo.Update(ctx, curso)
+		assert.NoError(t, err)
+	})
+
+	t.Run("update locationClasses batch deletes obsolete locations and schedules", func(t *testing.T) {
+		db, mock, cleanup := SetupMockDB(t)
+		defer cleanup()
+		repo := NewCursoRepository(db)
+		ctx := context.Background()
+
+		keepLocationID := uuid.New()
+		obsoleteLocationID1 := uuid.New()
+		obsoleteLocationID2 := uuid.New()
+		keepScheduleID := uuid.New()
+		obsoleteScheduleID1 := uuid.New()
+		obsoleteScheduleID2 := uuid.New()
+		curso := &models.Curso{
+			ID: 1,
+			LocationClasses: []models.LocationClass{
+				{
+					ID:      keepLocationID,
+					CursoID: 1,
+					Address: "Rua Keep",
+					Schedules: []models.CourseSchedule{
+						{ID: keepScheduleID, Vacancies: 25},
+					},
+				},
+			},
+		}
+
+		mock.ExpectBegin()
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnError(gorm.ErrRecordNotFound)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "cursos"`)).
+			WillReturnError(gorm.ErrRecordNotFound)
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "custom_fields"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		// RemoteClass nil => delete existing remote class if any
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "remote_classes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "location_classes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).
+				AddRow(keepLocationID).
+				AddRow(obsoleteLocationID1).
+				AddRow(obsoleteLocationID2))
+		// Single batch DELETE for obsolete locations
+		mock.ExpectExec(`DELETE FROM "location_classes" WHERE id IN \((\$\d+,)*\$\d+\)`).
+			WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "location_classes"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "course_schedules"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).
+				AddRow(keepScheduleID).
+				AddRow(obsoleteScheduleID1).
+				AddRow(obsoleteScheduleID2))
+		// Single batch DELETE for obsolete schedules
+		mock.ExpectExec(`DELETE FROM "course_schedules" WHERE id IN \((\$\d+,)*\$\d+\)`).
+			WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "course_schedules"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "cursos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		mock.ExpectCommit()
+
+		err := repo.Update(ctx, curso)
+		assert.NoError(t, err)
 	})
 }
