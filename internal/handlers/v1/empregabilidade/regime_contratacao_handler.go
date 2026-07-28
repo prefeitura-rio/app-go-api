@@ -26,6 +26,7 @@ func NewRegimeContratacaoHandler(service *services.RegimeContratacaoService) *Re
 // @Param        request  body      empregabilidade.RegimeContratacao  true  "Dados do regime"
 // @Success      201      {object}  empregabilidade.RegimeContratacao
 // @Failure      400      {object}  map[string]string
+// @Failure      409      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/regimes-contratacao [post]
 func (h *RegimeContratacaoHandler) Create(c *gin.Context) {
@@ -37,7 +38,7 @@ func (h *RegimeContratacaoHandler) Create(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleLookupError(c, err)
 		return
 	}
 
@@ -67,7 +68,7 @@ func (h *RegimeContratacaoHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleLookupError(c, err)
 		return
 	}
 
@@ -100,7 +101,7 @@ func (h *RegimeContratacaoHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleLookupError(c, err)
 		return
 	}
 
@@ -140,7 +141,7 @@ func (h *RegimeContratacaoHandler) Update(c *gin.Context) {
 	entity.ID = id
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleLookupError(c, err)
 		return
 	}
 
@@ -164,7 +165,7 @@ func (h *RegimeContratacaoHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleLookupError(c, err)
 		return
 	}
 

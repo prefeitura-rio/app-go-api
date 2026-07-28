@@ -2,9 +2,11 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/lib/pq"
 )
 
@@ -236,5 +238,62 @@ func TestParseDatabaseError_UnknownCode(t *testing.T) {
 	}
 	if out.Message != "Erro interno do servidor" {
 		t.Errorf("unexpected Message: %s", out.Message)
+	}
+}
+
+func TestParseDatabaseError_PgxUniqueViolation(t *testing.T) {
+	err := &pgconn.PgError{Code: "23505", ConstraintName: "empresas_pkey"}
+	out := ParseDatabaseError(err)
+	if out == nil {
+		t.Fatal("expected non-nil")
+	}
+	if out.Type != UniqueViolation {
+		t.Errorf("expected UniqueViolation, got %d", out.Type)
+	}
+	if out.GetHTTPStatusCode() != 409 {
+		t.Errorf("expected HTTP 409, got %d", out.GetHTTPStatusCode())
+	}
+}
+
+func TestParseDatabaseError_PgxNotNullViolation(t *testing.T) {
+	err := &pgconn.PgError{Code: "23502", ColumnName: "descricao"}
+	out := ParseDatabaseError(err)
+	if out == nil {
+		t.Fatal("expected non-nil")
+	}
+	if out.Type != NotNullViolation {
+		t.Errorf("expected NotNullViolation, got %d", out.Type)
+	}
+	if out.GetHTTPStatusCode() != 400 {
+		t.Errorf("expected HTTP 400, got %d", out.GetHTTPStatusCode())
+	}
+}
+
+func TestParseDatabaseError_PgxWrappedUniqueViolation(t *testing.T) {
+	inner := &pgconn.PgError{Code: "23505", ConstraintName: "emp_regimes_contratacao_descricao_key"}
+	err := fmt.Errorf("erro ao criar regime: %w", inner)
+	out := ParseDatabaseError(err)
+	if out == nil {
+		t.Fatal("expected non-nil")
+	}
+	if out.Type != UniqueViolation {
+		t.Errorf("expected UniqueViolation, got %d", out.Type)
+	}
+	if out.GetHTTPStatusCode() != 409 {
+		t.Errorf("expected HTTP 409, got %d", out.GetHTTPStatusCode())
+	}
+}
+
+func TestParseDatabaseError_PgxForeignKeyViolation(t *testing.T) {
+	err := &pgconn.PgError{Code: "23503", ConstraintName: "emp_etapas_id_vaga_fkey"}
+	out := ParseDatabaseError(err)
+	if out == nil {
+		t.Fatal("expected non-nil")
+	}
+	if out.Type != ForeignKeyViolation {
+		t.Errorf("expected ForeignKeyViolation, got %d", out.Type)
+	}
+	if out.GetHTTPStatusCode() != 400 {
+		t.Errorf("expected HTTP 400, got %d", out.GetHTTPStatusCode())
 	}
 }
