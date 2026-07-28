@@ -55,6 +55,9 @@ type AppSettings struct {
 	// Independente de APP_ENV — use RBAC_ENABLED=false em produção enquanto
 	// o RBAC não estiver homologado lá.
 	RBACEnabled bool
+	// Timezone define o fuso do processo (time.Local). Controla como os
+	// timestamps são serializados na resposta da API (ex.: -03:00 em vez de Z).
+	Timezone string
 }
 
 // DatabaseSettings define configurações do banco de dados
@@ -364,6 +367,7 @@ func Load() (*AppConfig, error) {
 			APIPrefix:   getEnv(v, "API_PREFIX", "/api"),
 			APIToken:    getEnv(v, "API_TOKEN", ""),
 			RBACEnabled: getBool(v, "RBAC_ENABLED", true),
+			Timezone:    getEnv(v, "APP_TIMEZONE", "America/Sao_Paulo"),
 		},
 		Database: DatabaseSettings{
 			Host:            getEnv(v, "DB_HOST", "localhost"),

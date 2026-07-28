@@ -40,3 +40,5 @@ external_configs
 # Touch scripts (utility scripts, not for version control)
 scripts/touch_all_courses.sql
 scripts/touch_all_courses.sh
+# Dev scratch harness (hardcoded DSN, not for VCS / coverage)
+/cmd/viewtest/

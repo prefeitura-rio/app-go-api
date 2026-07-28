@@ -7,6 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	// Embute a base de fusos (zoneinfo) no binário, para que
+	// time.LoadLocation funcione mesmo em imagens sem o pacote tzdata (ex.: alpine).
+	_ "time/tzdata"
 
 	"github.com/redis/go-redis/v9"
 
@@ -50,6 +53,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Erro ao carregar configurações: %v", err)
 	}
+
+	// Fixa o fuso do processo (time.Local). O driver de banco (pgx) decodifica
+	// timestamptz usando time.Local; sem isso o processo fica em UTC e a API
+	// serializa as datas com "Z" em vez do offset de Brasília (-03:00).
+	setupTimezone(cfg.App.Timezone)
 
 	// Initialize OpenTelemetry tracing
 	if err := observability.InitTracer(cfg); err != nil {
@@ -134,6 +142,21 @@ func main() {
 }
 
 // openDB opens a GORM database connection using the application configuration.
+// setupTimezone fixa time.Local no fuso informado. Em caso de fuso inválido,
+// registra um aviso e mantém o padrão do processo, sem derrubar a aplicação.
+func setupTimezone(name string) {
+	if name == "" {
+		return
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		log.Printf("Fuso horário inválido %q, mantendo %s: %v", name, time.Local.String(), err)
+		return
+	}
+	time.Local = loc
+	log.Printf("Fuso horário do processo: %s", name)
+}
+
 func openDB(cfg *config.AppConfig) (*gorm.DB, error) {
 	var logMode logger.LogLevel
 	if cfg.App.IsDevelopment() {
