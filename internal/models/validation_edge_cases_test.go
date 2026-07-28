@@ -151,6 +151,18 @@ func TestOportunidadeMEI_ValidateForPublish_CNAEValidation(t *testing.T) {
 			cnaes:       []string{strings.Repeat("1", 100)},
 			expectError: false,
 		},
+		{
+			name:        "empty_cnae_at_index_0",
+			cnaes:       []string{""},
+			expectError: true,
+			errorMsg:    "CNAE na posição 0 está vazio",
+		},
+		{
+			name:        "empty_cnae_at_index_2",
+			cnaes:       []string{"8130300", "8121400", "   "},
+			expectError: true,
+			errorMsg:    "CNAE na posição 2 está vazio",
+		},
 	}
 
 	for _, tt := range tests {
@@ -175,6 +187,58 @@ func TestOportunidadeMEI_ValidateForPublish_CNAEValidation(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+// Regression: string(rune(i)) turned indexes >= 10 into Unicode code points
+// (e.g. 10 → \n, 65 → "A"), not decimal digits. strconv.Itoa must be used.
+func TestOportunidadeMEI_ValidateForPublish_EmptyCNAEAtIndexGte10_ShowsDecimalPosition(t *testing.T) {
+	tests := []struct {
+		name     string
+		index    int
+		errorMsg string
+	}{
+		{
+			name:     "empty_cnae_at_index_10",
+			index:    10,
+			errorMsg: "CNAE na posição 10 está vazio",
+		},
+		{
+			name:     "empty_cnae_at_index_11",
+			index:    11,
+			errorMsg: "CNAE na posição 11 está vazio",
+		},
+		{
+			name:     "empty_cnae_at_index_65",
+			index:    65,
+			errorMsg: "CNAE na posição 65 está vazio",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cnaes := make([]string, tt.index+1)
+			for i := range cnaes {
+				cnaes[i] = "8130300"
+			}
+			cnaes[tt.index] = "  \t  "
+
+			oportunidade := &OportunidadeMEI{
+				Titulo:           "Test",
+				DescricaoServico: "Test",
+				OrgaoID:          "TEST",
+				CNAEIDs:          cnaes,
+				Logradouro:       "Rua",
+				Numero:           "1",
+				Bairro:           "Bairro",
+				Cidade:           "Cidade",
+				Estado:           "RJ",
+				DataExpiracao:    timePointer(time.Now().Add(24 * time.Hour)),
+			}
+
+			err := oportunidade.ValidateForPublish()
+			assert.EqualError(t, err, tt.errorMsg)
 		})
 	}
 }
