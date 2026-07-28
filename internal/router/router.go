@@ -18,16 +18,18 @@ import (
 	_ "github.com/prefeitura-rio/app-go-api/docs"
 )
 
-// noOpHandler substitui os middlewares de autorização fora de dev/test/staging.
-//
-// NOTA: o secret de staging define APP_ENV=development (não "staging"), então
-// cfg.App.Environment == "development" também é verdadeiro em staging — isso é
-// intencional, pois é o que permite homologar RBAC em staging antes de um
-// release. Produção usa APP_ENV=prod e cai neste no-op. Ver AGENTS.md
-// ("Environment Variables Reference") para os valores reais confirmados via
-// kubectl logs.
+// noOpHandler substitui os middlewares de autorização quando RBAC_ENABLED=false.
 func noOpHandler(c *gin.Context) {
 	c.Next()
+}
+
+// rbacMiddleware retorna o middleware real quando RBAC está habilitado via
+// RBAC_ENABLED; caso contrário retorna noOpHandler. Independente de APP_ENV.
+func rbacMiddleware(enabled bool, real gin.HandlerFunc) gin.HandlerFunc {
+	if enabled {
+		return real
+	}
+	return noOpHandler
 }
 
 // SetupRouter initializes the Gin engine with all routes using Wire-managed dependencies.
@@ -98,8 +100,7 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 			return app.OrgaoSnapshotRepo.GetOrgaoIDsByCdUAs(ctx, cdUAs)
 		}
 
-		// "development" cobre local + staging (ver comentário de noOpHandler acima).
-		if cfg.App.Environment == "development" || cfg.App.Environment == "test" {
+		if cfg.App.RBACEnabled {
 			apiV1.Use(middlewares.ExtractSecretariaOrgaoIDs(resolver))
 		}
 	}

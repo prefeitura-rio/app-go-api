@@ -422,7 +422,7 @@ func TestLoad_WithEnvironmentVariables(t *testing.T) {
 func TestLoad_DefaultValues(t *testing.T) {
 	// Clear environment variables
 	envVars := []string{
-		"APP_ENV", "APP_DEBUG", "LOG_LEVEL", "API_PREFIX",
+		"APP_ENV", "APP_DEBUG", "LOG_LEVEL", "API_PREFIX", "RBAC_ENABLED",
 		"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME",
 		"SERVER_HOST", "SERVER_PORT",
 	}
@@ -454,6 +454,7 @@ func TestLoad_DefaultValues(t *testing.T) {
 	assert.True(t, config.App.Debug)
 	assert.Equal(t, "info", config.App.LogLevel)
 	assert.Equal(t, "/api", config.App.APIPrefix)
+	assert.True(t, config.App.RBACEnabled)
 
 	// Verify default Database settings
 	assert.Equal(t, "localhost", config.Database.Host)
@@ -887,6 +888,7 @@ func TestLoad_BooleanSettings(t *testing.T) {
 		"RUN_MIGRATIONS",
 		"TRACING_ENABLED",
 		"CERBOS_ENABLED",
+		"RBAC_ENABLED",
 		"DB_HOST", "DB_PORT",
 		"SERVER_HOST", "SERVER_PORT",
 	}
@@ -917,6 +919,7 @@ func TestLoad_BooleanSettings(t *testing.T) {
 	os.Setenv("RUN_MIGRATIONS", "true")
 	os.Setenv("TRACING_ENABLED", "true")
 	os.Setenv("CERBOS_ENABLED", "true")
+	os.Setenv("RBAC_ENABLED", "false")
 
 	config, err := Load()
 	require.NoError(t, err)
@@ -926,6 +929,55 @@ func TestLoad_BooleanSettings(t *testing.T) {
 	assert.True(t, config.Migrations.Run)
 	assert.True(t, config.Tracing.Enabled)
 	assert.True(t, config.Cerbos.Enabled)
+	assert.False(t, config.App.RBACEnabled)
+}
+
+func TestLoad_RBACEnabled_DefaultTrue(t *testing.T) {
+	original := os.Getenv("RBAC_ENABLED")
+	os.Unsetenv("RBAC_ENABLED")
+	defer func() {
+		if original == "" {
+			os.Unsetenv("RBAC_ENABLED")
+		} else {
+			os.Setenv("RBAC_ENABLED", original)
+		}
+		instance = nil
+		once = sync.Once{}
+		v = nil
+	}()
+
+	os.Setenv("DB_HOST", "localhost")
+	os.Setenv("DB_PORT", "5432")
+	os.Setenv("SERVER_HOST", "0.0.0.0")
+	os.Setenv("SERVER_PORT", "8080")
+
+	config, err := Load()
+	require.NoError(t, err)
+	assert.True(t, config.App.RBACEnabled, "RBAC_ENABLED should default to true")
+}
+
+func TestLoad_RBACEnabled_ExplicitTrue(t *testing.T) {
+	original := os.Getenv("RBAC_ENABLED")
+	defer func() {
+		if original == "" {
+			os.Unsetenv("RBAC_ENABLED")
+		} else {
+			os.Setenv("RBAC_ENABLED", original)
+		}
+		instance = nil
+		once = sync.Once{}
+		v = nil
+	}()
+
+	os.Setenv("DB_HOST", "localhost")
+	os.Setenv("DB_PORT", "5432")
+	os.Setenv("SERVER_HOST", "0.0.0.0")
+	os.Setenv("SERVER_PORT", "8080")
+	os.Setenv("RBAC_ENABLED", "true")
+
+	config, err := Load()
+	require.NoError(t, err)
+	assert.True(t, config.App.RBACEnabled)
 }
 
 func TestLoad_SliceSettings(t *testing.T) {

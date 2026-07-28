@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -137,7 +138,7 @@ func (o *OportunidadeMEI) ValidateForPublish() error {
 	// Validate that all CNAEs are non-empty
 	for i, cnae := range o.CNAEIDs {
 		if strings.TrimSpace(cnae) == "" {
-			return errors.New("CNAE na posição " + string(rune(i)) + " está vazio")
+			return errors.New("CNAE na posição " + strconv.Itoa(i) + " está vazio")
 		}
 	}
 

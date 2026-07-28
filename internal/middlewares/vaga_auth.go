@@ -156,8 +156,8 @@ type VagaLoaderFunc func(ctx context.Context, id uuid.UUID) (*VagaOwnershipInfo,
 // A regra de "quem pode editar vaga já publicada" NÃO fica aqui: ela depende do
 // status da vaga (que o gateway Heimdall não conhece) e por isso é aplicada no
 // handler (VagaHandler.Update), ativa em qualquer ambiente. Este middleware,
-// como os demais de autorização, roda só em development/test (no-op em prod —
-// ver routes_emp.go / noOpHandler).
+// como os demais de autorização de vaga/curso, só roda quando RBAC_ENABLED=true
+// (ver routes_emp.go / rbacMiddleware).
 func VagaOwnershipCheck(loader VagaLoaderFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if IsAdmin(c) || HasRole(c, "go:empregabilidade:admin") {
