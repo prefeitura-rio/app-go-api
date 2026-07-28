@@ -9,12 +9,11 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
 
-// newTestEmpConfig returns a minimal AppConfig with environment set to "test"
-// so that the real authorization middlewares (VagaAuthorization, VagaOrgaoInjector,
-// VagaListFilter) are wired into the routes, matching production intent while
-// remaining exercisable in unit tests.
+// newTestEmpConfig returns a minimal AppConfig with RBAC enabled so that the
+// real authorization middlewares (VagaAuthorization, VagaOrgaoInjector,
+// VagaListFilter, VagaOwnershipCheck) are wired into the routes.
 func newTestEmpConfig() *config.AppConfig {
-	return &config.AppConfig{App: config.AppSettings{Environment: "test"}}
+	return &config.AppConfig{App: config.AppSettings{RBACEnabled: true}}
 }
 
 // createMockAppContainer creates a minimal ApplicationContainer with mock handlers.

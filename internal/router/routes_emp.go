@@ -50,24 +50,11 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		}, nil
 	}
 
-	var vagaAuth gin.HandlerFunc
-	var vagaOrgaoInjector gin.HandlerFunc
-	var vagaListFilter gin.HandlerFunc
-	var vagaOwnership gin.HandlerFunc // ownership por órgão (mutações)
-
-	// "development" cobre local + staging (ver comentário de noOpHandler em router.go).
 	// vagaAuth também protege o grupo /candidaturas mais abaixo nesta função.
-	if cfg.App.Environment == "development" || cfg.App.Environment == "test" {
-		vagaAuth = middlewares.VagaAuthorization()
-		vagaOrgaoInjector = middlewares.VagaOrgaoInjector()
-		vagaListFilter = middlewares.VagaListFilter()
-		vagaOwnership = middlewares.VagaOwnershipCheck(vagaLoader)
-	} else {
-		vagaAuth = noOpHandler
-		vagaOrgaoInjector = noOpHandler
-		vagaListFilter = noOpHandler
-		vagaOwnership = noOpHandler
-	}
+	vagaAuth := rbacMiddleware(cfg.App.RBACEnabled, middlewares.VagaAuthorization())
+	vagaOrgaoInjector := rbacMiddleware(cfg.App.RBACEnabled, middlewares.VagaOrgaoInjector())
+	vagaListFilter := rbacMiddleware(cfg.App.RBACEnabled, middlewares.VagaListFilter())
+	vagaOwnership := rbacMiddleware(cfg.App.RBACEnabled, middlewares.VagaOwnershipCheck(vagaLoader))
 
 	// Vagas
 	empVagas := emp.Group("/vagas")
