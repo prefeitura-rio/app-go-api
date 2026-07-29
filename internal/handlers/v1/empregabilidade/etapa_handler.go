@@ -26,6 +26,7 @@ func NewEtapaHandler(service *services.EtapaService) *EtapaHandler {
 // @Param        request  body      empregabilidade.Etapa  true  "Dados da etapa"
 // @Success      201      {object}  empregabilidade.Etapa
 // @Failure      400      {object}  map[string]string
+// @Failure      409      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas/{id}/etapas [post]
 func (h *EtapaHandler) Create(c *gin.Context) {
@@ -45,7 +46,7 @@ func (h *EtapaHandler) Create(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleLookupError(c, err)
 		return
 	}
 
@@ -71,7 +72,7 @@ func (h *EtapaHandler) ListByVaga(c *gin.Context) {
 
 	entities, err := h.service.ListByVaga(c.Request.Context(), vagaID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleLookupError(c, err)
 		return
 	}
 
@@ -98,7 +99,7 @@ func (h *EtapaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleLookupError(c, err)
 		return
 	}
 
@@ -145,7 +146,7 @@ func (h *EtapaHandler) Update(c *gin.Context) {
 	entity.IDVaga = vagaID
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleLookupError(c, err)
 		return
 	}
 
@@ -170,7 +171,7 @@ func (h *EtapaHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), etapaID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleLookupError(c, err)
 		return
 	}
 

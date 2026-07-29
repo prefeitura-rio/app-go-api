@@ -97,6 +97,32 @@ func TestEmpresaHandler_Create_Error(t *testing.T) {
 	}
 }
 
+func TestEmpresaHandler_Create_UniqueViolation_Returns409(t *testing.T) {
+	repo := &mockEmpresaRepoEmpH{err: uniqueViolationErr("empresas_cnpj_key")}
+	r := setupEmpresaHandlerRouter(repo)
+	body := bytes.NewBufferString(`{"cnpj":"12345678000100","razao_social":"Empresa Teste"}`)
+	req := httptest.NewRequest(http.MethodPost, "/empresas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestEmpresaHandler_Create_NotNullViolation_Returns400(t *testing.T) {
+	repo := &mockEmpresaRepoEmpH{err: notNullViolationErr("razao_social")}
+	r := setupEmpresaHandlerRouter(repo)
+	body := bytes.NewBufferString(`{"cnpj":"12345678000100"}`)
+	req := httptest.NewRequest(http.MethodPost, "/empresas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestEmpresaHandler_List_Success(t *testing.T) {
 	repo := &mockEmpresaRepoEmpH{
 		listItems: []*empmodels.Empresa{{CNPJ: "12345678000100", RazaoSocial: "Empresa Teste"}},

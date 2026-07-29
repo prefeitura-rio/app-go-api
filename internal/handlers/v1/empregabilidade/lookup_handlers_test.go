@@ -82,8 +82,34 @@ func TestRegimeContratacaoHandler_Create_Error(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	if w.Code == http.StatusCreated {
-		t.Error("expected error status, got 201")
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", w.Code)
+	}
+}
+
+func TestRegimeContratacaoHandler_Create_UniqueViolation_Returns409(t *testing.T) {
+	repo := &mockRegimeContratacaoRepoH{err: uniqueViolationErr("regimes_contratacao_descricao_key")}
+	r := setupRegimeContratacaoRouter(repo)
+	body := bytes.NewBufferString(`{"descricao":"CLT"}`)
+	req := httptest.NewRequest(http.MethodPost, "/regimes", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRegimeContratacaoHandler_Create_NotNullViolation_Returns400(t *testing.T) {
+	repo := &mockRegimeContratacaoRepoH{err: notNullViolationErr("descricao")}
+	r := setupRegimeContratacaoRouter(repo)
+	body := bytes.NewBufferString(`{"descricao":"CLT"}`)
+	req := httptest.NewRequest(http.MethodPost, "/regimes", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

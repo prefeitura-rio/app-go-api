@@ -116,6 +116,32 @@ func TestEtapaHandler_Create_ServiceError(t *testing.T) {
 	}
 }
 
+func TestEtapaHandler_Create_UniqueViolation_Returns409(t *testing.T) {
+	repo := &mockEtapaRepoH{err: uniqueViolationErr("etapas_id_vaga_ordem_key")}
+	r := setupEtapaRouter(repo)
+	body := bodyOf(`{"nome":"Entrevista"}`)
+	req := httptest.NewRequest(http.MethodPost, "/vagas/"+validUUID+"/etapas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestEtapaHandler_Create_NotNullViolation_Returns400(t *testing.T) {
+	repo := &mockEtapaRepoH{err: notNullViolationErr("titulo")}
+	r := setupEtapaRouter(repo)
+	body := bodyOf(`{"nome":"Entrevista"}`)
+	req := httptest.NewRequest(http.MethodPost, "/vagas/"+validUUID+"/etapas", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestEtapaHandler_ListByVaga_Success(t *testing.T) {
 	repo := &mockEtapaRepoH{
 		listItems: []*empmodels.Etapa{{Titulo: "Triagem"}},

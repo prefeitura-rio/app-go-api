@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/lib/pq"
 )
 
@@ -25,15 +26,43 @@ const (
 	UnknownError
 )
 
+// pgErrorFields normaliza erros do lib/pq e do pgx (usado pelo GORM postgres driver).
+type pgErrorFields struct {
+	Code       string
+	Constraint string
+	Column     string
+}
+
+func extractPGErrorFields(err error) (pgErrorFields, bool) {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pgErrorFields{
+			Code:       string(pqErr.Code),
+			Constraint: pqErr.Constraint,
+			Column:     pqErr.Column,
+		}, true
+	}
+
+	var pgxErr *pgconn.PgError
+	if errors.As(err, &pgxErr) {
+		return pgErrorFields{
+			Code:       pgxErr.Code,
+			Constraint: pgxErr.ConstraintName,
+			Column:     pgxErr.ColumnName,
+		}, true
+	}
+
+	return pgErrorFields{}, false
+}
+
 // ParseDatabaseError analisa erros do PostgreSQL e retorna mensagens amigáveis
 func ParseDatabaseError(err error) *DatabaseError {
 	if err == nil {
 		return nil
 	}
 
-	// Verifica se é um erro do PostgreSQL
-	var pqErr *pq.Error
-	if !errors.As(err, &pqErr) {
+	fields, ok := extractPGErrorFields(err)
+	if !ok {
 		// In production, hide detailed error messages
 		return &DatabaseError{
 			Type:    UnknownError,
@@ -41,15 +70,15 @@ func ParseDatabaseError(err error) *DatabaseError {
 		}
 	}
 
-	switch pqErr.Code {
+	switch fields.Code {
 	case "23503": // foreign_key_violation
-		return parseForeignKeyError(pqErr)
+		return parseForeignKeyError(fields.Constraint)
 	case "23505": // unique_violation
-		return parseUniqueViolationError(pqErr)
+		return parseUniqueViolationError(fields.Constraint)
 	case "23502": // not_null_violation
-		return parseNotNullError(pqErr)
+		return parseNotNullError(fields.Column)
 	case "23514": // check_violation
-		return parseCheckViolationError(pqErr)
+		return parseCheckViolationError(fields.Constraint)
 	default:
 		return &DatabaseError{
 			Type:    UnknownError,
@@ -58,9 +87,7 @@ func ParseDatabaseError(err error) *DatabaseError {
 	}
 }
 
-func parseForeignKeyError(pqErr *pq.Error) *DatabaseError {
-	constraint := pqErr.Constraint
-
+func parseForeignKeyError(constraint string) *DatabaseError {
 	// Mapear constraints para mensagens amigáveis
 	switch {
 	case strings.Contains(constraint, "instituicao_id"):
@@ -101,9 +128,7 @@ func parseForeignKeyError(pqErr *pq.Error) *DatabaseError {
 	}
 }
 
-func parseUniqueViolationError(pqErr *pq.Error) *DatabaseError {
-	constraint := pqErr.Constraint
-
+func parseUniqueViolationError(constraint string) *DatabaseError {
 	switch {
 	case strings.Contains(constraint, "email"):
 		return &DatabaseError{
@@ -131,9 +156,7 @@ func parseUniqueViolationError(pqErr *pq.Error) *DatabaseError {
 	}
 }
 
-func parseNotNullError(pqErr *pq.Error) *DatabaseError {
-	column := pqErr.Column
-
+func parseNotNullError(column string) *DatabaseError {
 	// Mapear colunas para nomes amigáveis
 	fieldNames := map[string]string{
 		"titulo":       "título",
@@ -158,9 +181,7 @@ func parseNotNullError(pqErr *pq.Error) *DatabaseError {
 	}
 }
 
-func parseCheckViolationError(pqErr *pq.Error) *DatabaseError {
-	constraint := pqErr.Constraint
-
+func parseCheckViolationError(constraint string) *DatabaseError {
 	switch {
 	case strings.Contains(constraint, "modalidade"):
 		return &DatabaseError{
