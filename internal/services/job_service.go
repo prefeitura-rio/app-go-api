@@ -50,6 +50,12 @@ func (s *JobService) Update(ctx context.Context, job *models.Job) error {
 		return fmt.Errorf("job não encontrado")
 	}
 
+	// Status (and CompletedAt) are managed exclusively via UpdateStatus.
+	// Preserve DB values so a stale in-memory Job (e.g. still "pending" after
+	// UpdateStatus("processing")) cannot overwrite the current status via Save.
+	job.Status = existingJob.Status
+	job.CompletedAt = existingJob.CompletedAt
+
 	return s.repo.Update(ctx, job)
 }
 

@@ -65,6 +65,7 @@ func (p *JobProcessor) ProcessJob(jobID uuid.UUID) error {
 		log.Printf("Erro ao atualizar status do job %s para processing: %v", jobID, err)
 		return err
 	}
+	job.Status = models.JobStatusProcessing
 
 	var processingErr error
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -25,6 +26,7 @@ type mockJobRepo struct {
 	updateCalls         int
 	updateStatusCalls   int
 	updateProgressCalls int
+	lastUpdatedJob      *models.Job
 }
 
 func (m *mockJobRepo) Create(ctx context.Context, j *models.Job) error {
@@ -47,6 +49,7 @@ func (m *mockJobRepo) GetByID(ctx context.Context, id uuid.UUID) (*models.Job, e
 
 func (m *mockJobRepo) Update(ctx context.Context, j *models.Job) error {
 	m.updateCalls++
+	m.lastUpdatedJob = j
 	return m.updateErr
 }
 
@@ -218,18 +221,21 @@ func TestJobService_Update(t *testing.T) {
 		updateErr   error
 		wantErr     bool
 		errContains string
+		wantStatus  models.JobStatus
 	}{
 		{
-			name: "success",
+			name: "success - preserves status from DB (does not overwrite via stale in-memory value)",
 			job: &models.Job{
-				ID:     existingID,
-				Type:   models.JobTypeEnrollmentImport,
-				Status: models.JobStatusCompleted,
+				ID:           existingID,
+				Type:         models.JobTypeEnrollmentImport,
+				Status:       models.JobStatusPending, // stale value from GetByID before UpdateStatus
+				TotalRecords: 100,
 			},
 			existingJob: &models.Job{
 				ID:     existingID,
 				Status: models.JobStatusProcessing,
 			},
+			wantStatus: models.JobStatusProcessing,
 		},
 		{
 			name: "job not found",
@@ -284,7 +290,54 @@ func TestJobService_Update(t *testing.T) {
 			if !tt.wantErr && repo.updateCalls != 1 {
 				t.Errorf("Update() expected 1 update call, got %d", repo.updateCalls)
 			}
+			if tt.wantStatus != "" && repo.lastUpdatedJob != nil {
+				if repo.lastUpdatedJob.Status != tt.wantStatus {
+					t.Errorf("Update() persisted status = %q, want %q (must not overwrite with stale in-memory status)",
+						repo.lastUpdatedJob.Status, tt.wantStatus)
+				}
+			}
 		})
+	}
+}
+
+// TestJobService_Update_AfterUpdateStatus_KeepsProcessing reproduces the enrollment-import
+// race: UpdateStatus(processing) then Update() with a stale pending struct must leave status as processing.
+func TestJobService_Update_AfterUpdateStatus_KeepsProcessing(t *testing.T) {
+	existingID := uuid.New()
+	completedAt := time.Now().Add(-time.Hour)
+
+	staleInMemory := &models.Job{
+		ID:           existingID,
+		Type:         models.JobTypeEnrollmentImport,
+		Status:       models.JobStatusPending, // never updated after UpdateStatus
+		TotalRecords: 50,
+		Progress:     10,
+		CompletedAt:  &completedAt, // stale pointer must not be written either
+	}
+
+	repo := &mockJobRepo{
+		entity: &models.Job{
+			ID:          existingID,
+			Status:      models.JobStatusProcessing,
+			CompletedAt: nil,
+		},
+	}
+	svc := services.NewJobServiceWithInterface(repo)
+	ctx := context.Background()
+
+	err := svc.Update(ctx, staleInMemory)
+	if err != nil {
+		t.Fatalf("Update() unexpected error: %v", err)
+	}
+	if repo.lastUpdatedJob.Status != models.JobStatusProcessing {
+		t.Errorf("status after intermediate Update = %q, want %q",
+			repo.lastUpdatedJob.Status, models.JobStatusProcessing)
+	}
+	if repo.lastUpdatedJob.CompletedAt != nil {
+		t.Errorf("CompletedAt should be preserved from DB (nil), got %v", repo.lastUpdatedJob.CompletedAt)
+	}
+	if repo.lastUpdatedJob.TotalRecords != 50 {
+		t.Errorf("TotalRecords = %d, want 50 (progress fields must still update)", repo.lastUpdatedJob.TotalRecords)
 	}
 }
 

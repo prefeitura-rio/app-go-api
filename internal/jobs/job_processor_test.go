@@ -525,6 +525,49 @@ func TestEnrollmentRow_CustomFields(t *testing.T) {
 	assert.Equal(t, "Valor2", row.CustomFields["Campo2"])
 }
 
+// TestJobUpdate_AfterUpdateStatus_KeepsProcessing covers the enrollment-import race:
+// UpdateStatus(processing) then an intermediate Update() with a stale pending struct
+// must leave status as processing (not overwrite via Save of in-memory pending).
+func TestJobUpdate_AfterUpdateStatus_KeepsProcessing(t *testing.T) {
+	db := setupTestDB(t)
+	jobRepo := repository.NewJobRepository(db)
+	jobService := services.NewJobService(jobRepo)
+	ctx := context.Background()
+
+	job := &models.Job{
+		ID:     uuid.New(),
+		Type:   models.JobTypeEnrollmentImport,
+		Status: models.JobStatusPending,
+	}
+	err := jobService.Create(ctx, job)
+	assert.NoError(t, err)
+
+	// Simulate job_processor: load once, then UpdateStatus without refreshing the struct
+	staleJob, err := jobService.GetByID(ctx, job.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, models.JobStatusPending, staleJob.Status)
+
+	err = jobService.UpdateStatus(ctx, job.ID, models.JobStatusProcessing)
+	assert.NoError(t, err)
+
+	fromDB, err := jobService.GetByID(ctx, job.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, models.JobStatusProcessing, fromDB.Status)
+
+	// Intermediate progress update with stale in-memory status still "pending"
+	staleJob.TotalRecords = 100
+	staleJob.Progress = 25
+	err = jobService.Update(ctx, staleJob)
+	assert.NoError(t, err)
+
+	afterUpdate, err := jobService.GetByID(ctx, job.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, models.JobStatusProcessing, afterUpdate.Status,
+		"intermediate Update must not overwrite processing back to pending")
+	assert.Equal(t, 100, afterUpdate.TotalRecords)
+	assert.Equal(t, 25, afterUpdate.Progress)
+}
+
 func TestProcessJob_JobStateTransitions(t *testing.T) {
 	tests := []struct {
 		name           string
