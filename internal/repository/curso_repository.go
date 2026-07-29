@@ -384,7 +384,9 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 		if err == nil {
 			// Update existing remote class
 			curso.RemoteClass.ID = existingRemote.ID
-			tx.WithContext(ctx).Model(&existingRemote).Updates(curso.RemoteClass)
+			if err := tx.WithContext(ctx).Model(&existingRemote).Updates(curso.RemoteClass).Error; err != nil {
+				return fmt.Errorf("erro ao atualizar remote class: %w", err)
+			}
 
 			// Build map of schedule IDs to keep
 			scheduleIDsToKeep := make(map[string]bool)
@@ -396,15 +398,27 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 
 			// Delete only schedules that are not in the update list
 			var existingSchedules []models.RemoteSchedule
-			tx.WithContext(ctx).Where("remote_class_id = ?", curso.RemoteClass.ID).Find(&existingSchedules)
+			if err := tx.WithContext(ctx).Where("remote_class_id = ?", curso.RemoteClass.ID).Find(&existingSchedules).Error; err != nil {
+				return fmt.Errorf("erro ao buscar remote schedules existentes: %w", err)
+			}
+			var scheduleIDsToDelete []uuid.UUID
 			for _, existing := range existingSchedules {
 				if !scheduleIDsToKeep[existing.ID.String()] {
-					tx.WithContext(ctx).Delete(&existing)
+					scheduleIDsToDelete = append(scheduleIDsToDelete, existing.ID)
 				}
 			}
+			if len(scheduleIDsToDelete) > 0 {
+				if err := tx.WithContext(ctx).Where("id IN ?", scheduleIDsToDelete).Delete(&models.RemoteSchedule{}).Error; err != nil {
+					return fmt.Errorf("erro ao deletar remote schedules obsoletos: %w", err)
+				}
+			}
+		} else if err != gorm.ErrRecordNotFound {
+			return fmt.Errorf("erro ao buscar remote class existente: %w", err)
 		} else {
 			// Create new remote class
-			tx.WithContext(ctx).Omit("Schedules").Create(curso.RemoteClass)
+			if err := tx.WithContext(ctx).Omit("Schedules").Create(curso.RemoteClass).Error; err != nil {
+				return fmt.Errorf("erro ao criar remote class: %w", err)
+			}
 		}
 
 		// Update or create schedules for this remote class
@@ -437,7 +451,9 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 		}
 	} else {
 		// If no remote class provided, delete existing one if any (CASCADE will delete schedules)
-		tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.RemoteClass{})
+		if err := tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.RemoteClass{}).Error; err != nil {
+			return fmt.Errorf("erro ao deletar remote class: %w", err)
+		}
 	}
 
 	return nil
@@ -447,7 +463,9 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
 	// Get existing location classes
 	var existingLocations []models.LocationClass
-	tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingLocations)
+	if err := tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Find(&existingLocations).Error; err != nil {
+		return fmt.Errorf("erro ao buscar location classes existentes: %w", err)
+	}
 
 	// Build map of location IDs to keep
 	locationIDsToKeep := make(map[string]bool)
@@ -457,10 +475,16 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 		}
 	}
 
-	// Delete locations that are not in the update list (CASCADE will delete schedules)
+	// Delete locations that are not in the update list in a single batch (CASCADE will delete schedules)
+	var locationIDsToDelete []uuid.UUID
 	for _, existing := range existingLocations {
 		if !locationIDsToKeep[existing.ID.String()] {
-			tx.WithContext(ctx).Delete(&existing)
+			locationIDsToDelete = append(locationIDsToDelete, existing.ID)
+		}
+	}
+	if len(locationIDsToDelete) > 0 {
+		if err := tx.WithContext(ctx).Where("id IN ?", locationIDsToDelete).Delete(&models.LocationClass{}).Error; err != nil {
+			return fmt.Errorf("erro ao deletar location classes obsoletas: %w", err)
 		}
 	}
 
@@ -471,9 +495,11 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 
 		if locationID.String() != "00000000-0000-0000-0000-000000000000" {
 			// Update existing location
-			tx.WithContext(ctx).Model(&curso.LocationClasses[i]).
+			if err := tx.WithContext(ctx).Model(&curso.LocationClasses[i]).
 				Select("address", "neighborhood", "neighborhood_zone", "updated_at").
-				Updates(&curso.LocationClasses[i])
+				Updates(&curso.LocationClasses[i]).Error; err != nil {
+				return fmt.Errorf("erro ao atualizar location class: %w", err)
+			}
 
 			// Build map of schedule IDs to keep for this location
 			scheduleIDsToKeep := make(map[string]bool)
@@ -483,17 +509,27 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 				}
 			}
 
-			// Delete only schedules that are not in the update list
+			// Delete only schedules that are not in the update list (single batch DELETE)
 			var existingSchedules []models.CourseSchedule
-			tx.WithContext(ctx).Where("location_id = ?", locationID).Find(&existingSchedules)
+			if err := tx.WithContext(ctx).Where("location_id = ?", locationID).Find(&existingSchedules).Error; err != nil {
+				return fmt.Errorf("erro ao buscar course schedules existentes: %w", err)
+			}
+			var scheduleIDsToDelete []uuid.UUID
 			for _, existing := range existingSchedules {
 				if !scheduleIDsToKeep[existing.ID.String()] {
-					tx.WithContext(ctx).Delete(&existing)
+					scheduleIDsToDelete = append(scheduleIDsToDelete, existing.ID)
+				}
+			}
+			if len(scheduleIDsToDelete) > 0 {
+				if err := tx.WithContext(ctx).Where("id IN ?", scheduleIDsToDelete).Delete(&models.CourseSchedule{}).Error; err != nil {
+					return fmt.Errorf("erro ao deletar course schedules obsoletos: %w", err)
 				}
 			}
 		} else {
 			// Create new location
-			tx.WithContext(ctx).Omit("Schedules").Create(&curso.LocationClasses[i])
+			if err := tx.WithContext(ctx).Omit("Schedules").Create(&curso.LocationClasses[i]).Error; err != nil {
+				return fmt.Errorf("erro ao criar location class: %w", err)
+			}
 		}
 
 		// Update or create schedules for this location
