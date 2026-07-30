@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 	// Embute a base de fusos (zoneinfo) no binário, para que
@@ -63,7 +67,6 @@ func main() {
 	if err := observability.InitTracer(cfg); err != nil {
 		log.Fatalf("Erro ao inicializar tracer: %v", err)
 	}
-	defer observability.ShutdownTracer()
 
 	// Run database migrations if enabled.
 	// Wire owns the primary DB connection; we open a short-lived connection
@@ -92,6 +95,11 @@ func main() {
 			Password: cfg.Redis.Password,
 			DB:       cfg.Redis.DB,
 		})
+		defer func() {
+			if err := workerRedis.Close(); err != nil {
+				log.Printf("Erro ao fechar conexão Redis do worker: %v", err)
+			}
+		}()
 
 		// Open a dedicated DB connection for the worker
 		workerDB, err := openDB(cfg)
@@ -128,17 +136,83 @@ func main() {
 	}
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	log.Printf("Servidor iniciado em %s", addr)
 
-	go func() {
-		if err := r.Run(addr); err != nil {
-			log.Fatalf("Erro ao iniciar o servidor: %v", err)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("Erro ao abrir porta %s: %v", addr, err)
+	}
+	log.Printf("Servidor iniciado em %s", ln.Addr())
+
+	// Align shutdown drain window with the per-request timeout so in-flight
+	// handlers have a chance to finish before the process exits.
+	shutdownTimeout := time.Duration(cfg.Server.RequestTimeout) * time.Second
+	if shutdownTimeout <= 0 {
+		shutdownTimeout = 30 * time.Second
+	}
+
+	srv := &http.Server{Handler: r}
+	if err := gracefulServe(ctx, srv, ln, shutdownTimeout); err != nil {
+		log.Fatalf("Erro no servidor HTTP: %v", err)
+	}
+
+	// Flush any pending spans only after all in-flight HTTP requests have
+	// finished. Running this as a defer would race with the drain window.
+	observability.ShutdownTracer()
+}
+
+// gracefulServe serves on the pre-bound ln and blocks until ctx is cancelled,
+// then drains in-flight requests via Shutdown bounded by shutdownTimeout.
+// New connections are rejected as soon as Shutdown begins.
+// Returns only after all connection goroutines have fully exited.
+func gracefulServe(ctx context.Context, srv *http.Server, ln net.Listener, shutdownTimeout time.Duration) error {
+	var wg sync.WaitGroup
+	prev := srv.ConnState
+	srv.ConnState = func(conn net.Conn, state http.ConnState) {
+		switch state {
+		case http.StateNew:
+			wg.Add(1)
+		case http.StateClosed, http.StateHijacked:
+			wg.Done()
 		}
+		if prev != nil {
+			prev(conn, state)
+		}
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		err := srv.Serve(ln)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
+		}
+		errCh <- nil
 	}()
 
-	<-ctx.Done()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return fmt.Errorf("http server failed: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+	}
+
 	log.Println("Shutting down server...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("graceful shutdown failed: %w", err)
+	}
+
+	if err := <-errCh; err != nil {
+		return err
+	}
+
+	wg.Wait()
 	log.Println("Server shutdown complete")
+	return nil
 }
 
 // openDB opens a GORM database connection using the application configuration.

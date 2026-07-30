@@ -21,6 +21,8 @@ func TestSetupTimezone_ApiSerializesWithBrasiliaOffset(t *testing.T) {
 	stored := time.Date(2026, 6, 27, 2, 59, 0, 0, time.UTC)
 
 	t.Run("sem fuso configurado (UTC) a API devolve Z (bug)", func(t *testing.T) {
+		orig := time.Local
+		t.Cleanup(func() { time.Local = orig })
 		time.Local = time.UTC
 		b, _ := json.Marshal(pgxLikeDecode(stored))
 		if got := string(b); got != `"2026-06-27T02:59:00Z"` {
@@ -29,6 +31,8 @@ func TestSetupTimezone_ApiSerializesWithBrasiliaOffset(t *testing.T) {
 	})
 
 	t.Run("com America/Sao_Paulo a API devolve -03:00", func(t *testing.T) {
+		orig := time.Local
+		t.Cleanup(func() { time.Local = orig })
 		setupTimezone("America/Sao_Paulo")
 		b, _ := json.Marshal(pgxLikeDecode(stored))
 		want := `"2026-06-26T23:59:00-03:00"`
