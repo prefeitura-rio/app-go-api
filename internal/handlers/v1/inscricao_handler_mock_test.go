@@ -650,6 +650,45 @@ func TestInscricaoHandler_GetByID_CasaCivil_CanViewOthersEnrollment(t *testing.T
 	mockService.AssertExpectations(t)
 }
 
+func TestInscricaoHandler_GetByID_Editor_CanViewOthersEnrollment(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserCPFKey, "02929367024")
+		c.Set(middlewares.UserRoleKey, "USER")
+		c.Set(middlewares.UserRolesKey, []string{"go:cursos:editor"})
+		c.Next()
+	})
+	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
+
+	enrollmentID := uuid.New()
+	inscricao := &models.Inscricao{
+		ID:      enrollmentID,
+		CursoID: 2746,
+		CPF:     "11122233344", // different from caller CPF
+	}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(inscricao, nil)
+	mockCursoRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).
+		Return(make(map[uuid.UUID]int64), nil)
+	mockService.On("EnrichWithPersonalInfo", mock.Anything, inscricao).
+		Return()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/2746/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
+	mockService.AssertExpectations(t)
+}
+
 func TestInscricaoHandler_GetByID_Citizen_CannotViewOthersEnrollment(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockInscricaoService)
@@ -1033,6 +1072,68 @@ func TestInscricaoHandler_Delete_Admin_AnyEnrollment_Success(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_Delete_Editor_AnyEnrollment_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserCPFKey, "11111111111")
+		c.Set(middlewares.UserRoleKey, "USER")
+		c.Set(middlewares.UserRolesKey, []string{"go:cursos:editor"})
+		c.Next()
+	})
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+
+	enrollmentID := uuid.New()
+	existing := &models.Inscricao{ID: enrollmentID, CPF: "99999999999"} // CPF different from caller
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
+	mockService.On("Delete", mock.Anything, enrollmentID).Return(nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
+	mockService.AssertExpectations(t)
+}
+
+func TestInscricaoHandler_Delete_Editor_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserCPFKey, "11111111111")
+		c.Set(middlewares.UserRoleKey, "USER")
+		c.Set(middlewares.UserRolesKey, []string{"go:cursos:editor"})
+		c.Next()
+	})
+	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
+
+	enrollmentID := uuid.New()
+	existing := &models.Inscricao{ID: enrollmentID, CPF: "99999999999"}
+
+	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
+	mockService.On("Delete", mock.Anything, enrollmentID).Return(errors.New("db error"))
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	mockService.AssertExpectations(t)
 }
 

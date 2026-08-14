@@ -491,7 +491,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") && !middlewares.HasRole(c, "go:cursos:editor") {
 		if inscricao.CPF != middlewares.GetUserCPF(c) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode visualizar suas próprias inscrições"})
 			return
@@ -598,7 +598,7 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
+	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") && !middlewares.HasRole(c, "go:cursos:editor") {
 		if existing.CPF != middlewares.GetUserCPF(c) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
 			return
