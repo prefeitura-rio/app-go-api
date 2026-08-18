@@ -61,21 +61,22 @@ func NewEmailNotificationService(
 	}
 }
 
-// resolveEmail returns the most up-to-date email for an enrollment.
-// It prefers the snapshot email (live RMI data) and falls back to the stored inscricao.Email.
-// Both candidates are sanitized before use to avoid sending to malformed addresses.
+// resolveEmail returns the address used to contact the enrollee for course communications.
+// It prefers the contact stored on the enrollment (inscricao.Email) — for manual imports this
+// is the email informed by the órgão/secretaria, which is the intended dispatch channel and may
+// be more up to date than the RMI record — and falls back to the RMI snapshot email when the
+// enrollment has none. Both candidates are sanitized to avoid sending to malformed addresses.
 func (s *EmailNotificationService) resolveEmail(ctx context.Context, inscricao *models.Inscricao) string {
-	var email string
+	if email := models.SanitizeEmail(inscricao.Email); email != "" {
+		return email
+	}
 	if s.citizenSnapshotRepo != nil && inscricao.CPF != "" {
 		snapshot, err := s.citizenSnapshotRepo.GetByCPF(ctx, inscricao.CPF)
 		if err == nil && snapshot != nil && snapshot.Email != "" {
-			email = models.SanitizeEmail(snapshot.Email)
+			return models.SanitizeEmail(snapshot.Email)
 		}
 	}
-	if email == "" {
-		email = models.SanitizeEmail(inscricao.Email)
-	}
-	return email
+	return ""
 }
 
 // getOrgaoName fetches the organization name from orgao_snapshots or falls back to curso.Organization
