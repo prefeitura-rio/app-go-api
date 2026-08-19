@@ -1438,6 +1438,91 @@ func TestInscricaoService_CreateByAdmin(t *testing.T) {
 		}
 	})
 
+	t.Run("CreateByAdmin preserves secretaria-provided contact over RMI snapshot", func(t *testing.T) {
+		var created *models.Inscricao
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				created = inscricao
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+		// RMI returns divergent contact data; it must not overwrite the órgão-provided contact.
+		citizenFetcher := &MockCitizenDataFetcher{
+			SyncFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				return &models.CitizenSnapshot{
+					CPF:     cpf,
+					Email:   "rmi@rmi.com",
+					Celular: "21999999999",
+					Nome:    "Nome RMI",
+				}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, citizenFetcher, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{
+			CPF:     "12345678900",
+			CursoID: 1,
+			Name:    "Nome Secretaria",
+			Email:   "secretaria@example.com",
+			Phone:   "21988887777",
+		})
+		if err != nil {
+			t.Fatalf("CreateByAdmin failed: %v", err)
+		}
+		if created.Email != "secretaria@example.com" {
+			t.Errorf("Expected secretaria email preserved, got %s", created.Email)
+		}
+		if created.Phone != "21988887777" {
+			t.Errorf("Expected secretaria phone preserved, got %s", created.Phone)
+		}
+		// A name provided by the secretaria must not be replaced by the RMI name.
+		if created.Name != "Nome Secretaria" {
+			t.Errorf("Expected provided name preserved, got %s", created.Name)
+		}
+	})
+
+	t.Run("CreateByAdmin fills missing name from RMI snapshot", func(t *testing.T) {
+		var created *models.Inscricao
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				created = inscricao
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+		citizenFetcher := &MockCitizenDataFetcher{
+			SyncFunc: func(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+				return &models.CitizenSnapshot{CPF: cpf, Nome: "Nome RMI"}, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, citizenFetcher, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1, Name: ""})
+		if err != nil {
+			t.Fatalf("CreateByAdmin failed: %v", err)
+		}
+		if created.Name != "Nome RMI" {
+			t.Errorf("Expected name filled from RMI snapshot, got %s", created.Name)
+		}
+	})
+
 	t.Run("Create (public) fails for closed course", func(t *testing.T) {
 		inscricaoRepo := &MockInscricaoRepository{}
 		cursoRepo := &MockCursoRepository{
@@ -1558,7 +1643,10 @@ func TestInscricaoService_CreateByAdmin(t *testing.T) {
 		}
 	})
 
-	t.Run("CreateByAdmin enriches data from citizen fetcher", func(t *testing.T) {
+	t.Run("CreateByAdmin does not backfill contact from citizen fetcher", func(t *testing.T) {
+		// When the secretaria provided no contact, the enrollment keeps it empty (rendered as
+		// "Não informado" in the Admin). It is NOT backfilled from RMI here — course-email
+		// dispatch already falls back to the RMI snapshot when the enrollment has no email.
 		var created *models.Inscricao
 		inscricaoRepo := &MockInscricaoRepository{
 			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
@@ -1591,11 +1679,11 @@ func TestInscricaoService_CreateByAdmin(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateByAdmin failed: %v", err)
 		}
-		if created.Email != "fetched@example.com" {
-			t.Errorf("Expected email from RMI, got %s", created.Email)
+		if created.Email != "" {
+			t.Errorf("Expected empty email (no backfill from RMI), got %s", created.Email)
 		}
-		if created.Phone != "21999990000" {
-			t.Errorf("Expected phone from RMI, got %s", created.Phone)
+		if created.Phone != "" {
+			t.Errorf("Expected empty phone (no backfill from RMI), got %s", created.Phone)
 		}
 	})
 

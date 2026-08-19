@@ -207,18 +207,18 @@ func TestSendEnrollmentCreatedEmail_NoEmail(t *testing.T) {
 	}
 }
 
-func TestSendEnrollmentCreatedEmail_WithCitizenSnapshot(t *testing.T) {
+func TestSendEnrollmentCreatedEmail_PrefersEnrollmentContactOverSnapshot(t *testing.T) {
 	mockClient := &MockDataRelayClient{}
 	db := setupTestDB(t)
 	cursoRepo := repository.NewCursoRepository(db)
 	orgaoRepo := repository.NewOrgaoSnapshotRepository(db)
 	citizenRepo := repository.NewCitizenSnapshotRepository(db)
 
-	// Create citizen snapshot with updated email
+	// Divergent RMI snapshot. Course communications must NOT be sent here.
 	snapshot := &models.CitizenSnapshot{
 		CPF:   "12345678901",
 		Nome:  "João Silva",
-		Email: "updated@rmi.com",
+		Email: "rmi@rmi.com",
 	}
 	db.Create(snapshot)
 
@@ -234,7 +234,7 @@ func TestSendEnrollmentCreatedEmail_WithCitizenSnapshot(t *testing.T) {
 	inscricao := &models.Inscricao{
 		ID:    uuid.New(),
 		Name:  "João Silva",
-		Email: "old@test.com", // Old email
+		Email: "secretaria@test.com", // Contact informed by the órgão/secretaria
 		CPF:   "12345678901",
 	}
 
@@ -254,9 +254,9 @@ func TestSendEnrollmentCreatedEmail_WithCitizenSnapshot(t *testing.T) {
 	}
 
 	email := mockClient.sentEmails[0]
-	// Should use the snapshot email, not the inscricao email
-	if len(email.ToAddresses) != 1 || email.ToAddresses[0] != "updated@rmi.com" {
-		t.Errorf("Expected email to updated@rmi.com from snapshot, got %v", email.ToAddresses)
+	// Should use the enrollment-provided (secretaria) email, not the RMI snapshot.
+	if len(email.ToAddresses) != 1 || email.ToAddresses[0] != "secretaria@test.com" {
+		t.Errorf("Expected email to secretaria@test.com from enrollment, got %v", email.ToAddresses)
 	}
 }
 
@@ -782,13 +782,16 @@ func TestSendEmail_DataRelayError(t *testing.T) {
 	}
 }
 
-func TestResolveEmail_PreferSnapshot(t *testing.T) {
+// TestResolveEmail_PreferInscricao verifies that the contact provided on the enrollment
+// (for manual imports, the email informed by the órgão/secretaria) is the dispatch channel,
+// even when a divergent RMI snapshot exists.
+func TestResolveEmail_PreferInscricao(t *testing.T) {
 	db := setupTestDB(t)
 	cursoRepo := repository.NewCursoRepository(db)
 	orgaoRepo := repository.NewOrgaoSnapshotRepository(db)
 	citizenRepo := repository.NewCitizenSnapshotRepository(db)
 
-	// Create citizen snapshot
+	// Create a divergent citizen snapshot (RMI). It must NOT win over the enrollment contact.
 	snapshot := &models.CitizenSnapshot{
 		CPF:   "12345678901",
 		Email: "snapshot@rmi.com",
@@ -805,7 +808,43 @@ func TestResolveEmail_PreferSnapshot(t *testing.T) {
 	)
 
 	inscricao := &models.Inscricao{
-		Email: "old@inscricao.com",
+		Email: "secretaria@inscricao.com",
+		CPF:   "12345678901",
+	}
+
+	ctx := context.Background()
+	email := service.resolveEmail(ctx, inscricao)
+
+	if email != "secretaria@inscricao.com" {
+		t.Errorf("Expected enrollment-provided email, got: %s", email)
+	}
+}
+
+// TestResolveEmail_FallbackToSnapshot verifies that when the enrollment has no email,
+// the RMI snapshot email is used as a fallback.
+func TestResolveEmail_FallbackToSnapshot(t *testing.T) {
+	db := setupTestDB(t)
+	cursoRepo := repository.NewCursoRepository(db)
+	orgaoRepo := repository.NewOrgaoSnapshotRepository(db)
+	citizenRepo := repository.NewCitizenSnapshotRepository(db)
+
+	snapshot := &models.CitizenSnapshot{
+		CPF:   "12345678901",
+		Email: "snapshot@rmi.com",
+	}
+	db.Create(snapshot)
+
+	service := NewEmailNotificationService(
+		nil,
+		cursoRepo,
+		orgaoRepo,
+		citizenRepo,
+		true,
+		"oportunidades.rio",
+	)
+
+	inscricao := &models.Inscricao{
+		Email: "", // No enrollment contact → fall back to RMI snapshot
 		CPF:   "12345678901",
 	}
 
@@ -813,7 +852,7 @@ func TestResolveEmail_PreferSnapshot(t *testing.T) {
 	email := service.resolveEmail(ctx, inscricao)
 
 	if email != "snapshot@rmi.com" {
-		t.Errorf("Expected snapshot email, got: %s", email)
+		t.Errorf("Expected snapshot email fallback, got: %s", email)
 	}
 }
 

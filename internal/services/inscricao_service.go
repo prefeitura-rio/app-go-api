@@ -231,17 +231,19 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 		}
 	}
 
+	// The email/phone on the enrollment are the contact provided by the órgão/secretaria
+	// during manual import — that is the whole point of this flow, so they must be preserved.
+	// Sanitize the provided email (parity with CreateManual) before persisting.
+	inscricao.Email = models.SanitizeEmail(inscricao.Email)
+
+	// Sync citizen data from RMI on-demand so the official contact is available downstream
+	// (citizen_snapshots → personal_info for display/comparison). Do NOT overwrite the
+	// órgão-provided email/phone with the RMI snapshot; only fill in a missing name.
 	if s.citizenDataFetcher != nil && inscricao.CPF != "" {
 		citizenSnapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, inscricao.CPF)
 		if err != nil {
 			fmt.Printf("[InscricaoService] Failed to fetch citizen data for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
 		} else if citizenSnapshot != nil {
-			if citizenSnapshot.Email != "" {
-				inscricao.Email = models.SanitizeEmail(citizenSnapshot.Email)
-			}
-			if citizenSnapshot.Celular != "" {
-				inscricao.Phone = citizenSnapshot.Celular
-			}
 			if citizenSnapshot.Nome != "" && inscricao.Name == "" {
 				inscricao.Name = citizenSnapshot.Nome
 			}
