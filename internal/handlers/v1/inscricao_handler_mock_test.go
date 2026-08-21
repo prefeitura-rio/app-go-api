@@ -650,7 +650,7 @@ func TestInscricaoHandler_GetByID_CasaCivil_CanViewOthersEnrollment(t *testing.T
 	mockService.AssertExpectations(t)
 }
 
-func TestInscricaoHandler_GetByID_Editor_CanViewOthersEnrollment(t *testing.T) {
+func TestInscricaoHandler_GetByID_CourseID_Mismatch_BadRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockInscricaoService)
 	mockJobService := new(MockJobService)
@@ -660,9 +660,7 @@ func TestInscricaoHandler_GetByID_Editor_CanViewOthersEnrollment(t *testing.T) {
 
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
-		c.Set(middlewares.UserCPFKey, "02929367024")
-		c.Set(middlewares.UserRoleKey, "USER")
-		c.Set(middlewares.UserRolesKey, []string{"go:cursos:editor"})
+		c.Set(middlewares.UserRoleKey, "ADMIN")
 		c.Next()
 	})
 	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
@@ -670,57 +668,18 @@ func TestInscricaoHandler_GetByID_Editor_CanViewOthersEnrollment(t *testing.T) {
 	enrollmentID := uuid.New()
 	inscricao := &models.Inscricao{
 		ID:      enrollmentID,
-		CursoID: 2746,
-		CPF:     "11122233344", // different from caller CPF
-	}
-
-	mockService.On("GetByID", mock.Anything, enrollmentID).
-		Return(inscricao, nil)
-	mockCursoRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).
-		Return(make(map[uuid.UUID]int64), nil)
-	mockService.On("EnrichWithPersonalInfo", mock.Anything, inscricao).
-		Return()
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/2746/enrollments/"+enrollmentID.String(), nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
-	mockService.AssertExpectations(t)
-}
-
-func TestInscricaoHandler_GetByID_Citizen_CannotViewOthersEnrollment(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	mockService := new(MockInscricaoService)
-	mockJobService := new(MockJobService)
-	mockCursoRepo := new(MockCursoRepository)
-
-	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
-
-	r := gin.New()
-	r.Use(func(c *gin.Context) {
-		c.Set(middlewares.UserCPFKey, "99988877766")
-		c.Set(middlewares.UserRoleKey, "USER")
-		c.Next()
-	})
-	r.GET("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.GetByID)
-
-	enrollmentID := uuid.New()
-	inscricao := &models.Inscricao{
-		ID:      enrollmentID,
-		CursoID: 2746,
+		CursoID: 999, // different from URL courseId
 		CPF:     "11122233344",
 	}
 
-	mockService.On("GetByID", mock.Anything, enrollmentID).
-		Return(inscricao, nil)
+	mockService.On("GetByID", mock.Anything, enrollmentID).Return(inscricao, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/2746/enrollments/"+enrollmentID.String(), nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusForbidden, w.Code)
-	assert.Contains(t, w.Body.String(), "você só pode visualizar suas próprias inscrições")
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "inscrição não pertence ao curso especificado")
 	mockService.AssertExpectations(t)
 }
 
@@ -767,7 +726,8 @@ func TestInscricaoHandler_Delete_Success(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	existing := &models.Inscricao{
-		ID: enrollmentID,
+		ID:      enrollmentID,
+		CursoID: 1,
 	}
 
 	mockService.On("GetByID", mock.Anything, enrollmentID).
@@ -982,7 +942,7 @@ func TestInscricaoHandler_Update_Admin_AnyEnrollment_Success(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-func TestInscricaoHandler_Delete_NonAdmin_OwnEnrollment_Success(t *testing.T) {
+func TestInscricaoHandler_Delete_CourseID_Mismatch_BadRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockInscricaoService)
 	mockJobService := new(MockJobService)
@@ -992,44 +952,13 @@ func TestInscricaoHandler_Delete_NonAdmin_OwnEnrollment_Success(t *testing.T) {
 
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
-		c.Set("user_role", "USER")
-		c.Set("user_cpf", "12345678901")
+		c.Set(middlewares.UserRoleKey, "ADMIN")
 		c.Next()
 	})
 	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
 
 	enrollmentID := uuid.New()
-	existing := &models.Inscricao{ID: enrollmentID, CPF: "12345678901"}
-
-	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
-	mockService.On("Delete", mock.Anything, enrollmentID).Return(nil)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	mockService.AssertExpectations(t)
-}
-
-func TestInscricaoHandler_Delete_NonAdmin_OtherEnrollment_Forbidden(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	mockService := new(MockInscricaoService)
-	mockJobService := new(MockJobService)
-	mockCursoRepo := new(MockCursoRepository)
-
-	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
-
-	r := gin.New()
-	r.Use(func(c *gin.Context) {
-		c.Set("user_role", "USER")
-		c.Set("user_cpf", "11111111111")
-		c.Next()
-	})
-	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
-
-	enrollmentID := uuid.New()
-	existing := &models.Inscricao{ID: enrollmentID, CPF: "99999999999"}
+	existing := &models.Inscricao{ID: enrollmentID, CursoID: 999, CPF: "11122233344"}
 
 	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
 
@@ -1037,7 +966,8 @@ func TestInscricaoHandler_Delete_NonAdmin_OtherEnrollment_Forbidden(t *testing.T
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "inscrição não pertence ao curso especificado")
 	mockService.AssertExpectations(t)
 }
 
@@ -1060,7 +990,8 @@ func TestInscricaoHandler_Delete_Admin_AnyEnrollment_Success(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	inscricao := &models.Inscricao{
-		ID: enrollmentID,
+		ID:      enrollmentID,
+		CursoID: 1,
 	}
 
 	mockService.On("GetByID", mock.Anything, enrollmentID).
@@ -1075,7 +1006,7 @@ func TestInscricaoHandler_Delete_Admin_AnyEnrollment_Success(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-func TestInscricaoHandler_Delete_Editor_AnyEnrollment_Success(t *testing.T) {
+func TestInscricaoHandler_Delete_ServiceError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockInscricaoService)
 	mockJobService := new(MockJobService)
@@ -1085,46 +1016,13 @@ func TestInscricaoHandler_Delete_Editor_AnyEnrollment_Success(t *testing.T) {
 
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
-		c.Set(middlewares.UserCPFKey, "11111111111")
-		c.Set(middlewares.UserRoleKey, "USER")
-		c.Set(middlewares.UserRolesKey, []string{"go:cursos:editor"})
+		c.Set(middlewares.UserRoleKey, "ADMIN")
 		c.Next()
 	})
 	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
 
 	enrollmentID := uuid.New()
-	existing := &models.Inscricao{ID: enrollmentID, CPF: "99999999999"} // CPF different from caller
-
-	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
-	mockService.On("Delete", mock.Anything, enrollmentID).Return(nil)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
-	mockService.AssertExpectations(t)
-}
-
-func TestInscricaoHandler_Delete_Editor_ServiceError(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	mockService := new(MockInscricaoService)
-	mockJobService := new(MockJobService)
-	mockCursoRepo := new(MockCursoRepository)
-
-	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
-
-	r := gin.New()
-	r.Use(func(c *gin.Context) {
-		c.Set(middlewares.UserCPFKey, "11111111111")
-		c.Set(middlewares.UserRoleKey, "USER")
-		c.Set(middlewares.UserRolesKey, []string{"go:cursos:editor"})
-		c.Next()
-	})
-	r.DELETE("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Delete)
-
-	enrollmentID := uuid.New()
-	existing := &models.Inscricao{ID: enrollmentID, CPF: "99999999999"}
+	existing := &models.Inscricao{ID: enrollmentID, CursoID: 1, CPF: "99999999999"}
 
 	mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
 	mockService.On("Delete", mock.Anything, enrollmentID).Return(errors.New("db error"))

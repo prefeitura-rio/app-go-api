@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/stretchr/testify/assert"
 )
@@ -834,4 +835,173 @@ func TestCourseEnrollmentListAccess_SelfSearch_CourseNotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/2852/enrollments?search=00044242719", nil))
 	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+// ============ CourseEnrollmentSingleAccess Tests ============
+
+func enrollmentCPFLoader(cpf string, found bool, err error) func(context.Context, uuid.UUID) (string, bool, error) {
+	return func(context.Context, uuid.UUID) (string, bool, error) {
+		return cpf, found, err
+	}
+}
+
+func setupSingleAccessRouter(courseLoader func(context.Context, int) (string, bool, error), cpfLoader func(context.Context, uuid.UUID) (string, bool, error), roleMiddlewares ...gin.HandlerFunc) *gin.Engine {
+	r := setupCourseTestRouter(roleMiddlewares...)
+	r.GET("/courses/:courseId/enrollments/:enrollmentId",
+		middlewares.CourseEnrollmentSingleAccess(courseLoader, cpfLoader),
+		func(c *gin.Context) { c.Status(http.StatusOK) },
+	)
+	r.DELETE("/courses/:courseId/enrollments/:enrollmentId",
+		middlewares.CourseEnrollmentSingleAccess(courseLoader, cpfLoader),
+		func(c *gin.Context) { c.Status(http.StatusOK) },
+	)
+	return r
+}
+
+func TestCourseEnrollmentSingleAccess_CitizenSelfAccess_Passes(t *testing.T) {
+	enrollmentID := uuid.New()
+	r := setupSingleAccessRouter(
+		enrollmentListLoader("orgao-a", true, nil),
+		enrollmentCPFLoader("12345678901", true, nil),
+		func(c *gin.Context) {
+			c.Set(middlewares.UserCPFKey, "12345678901")
+			c.Next()
+		},
+	)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/1/enrollments/"+enrollmentID.String(), nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseEnrollmentSingleAccess_CitizenOtherEnrollment_Forbidden(t *testing.T) {
+	enrollmentID := uuid.New()
+	r := setupSingleAccessRouter(
+		enrollmentListLoader("orgao-a", true, nil),
+		enrollmentCPFLoader("99999999999", true, nil),
+		func(c *gin.Context) {
+			c.Set(middlewares.UserCPFKey, "12345678901")
+			c.Next()
+		},
+	)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/1/enrollments/"+enrollmentID.String(), nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Acesso negado")
+}
+
+func TestCourseEnrollmentSingleAccess_Admin_Passes(t *testing.T) {
+	enrollmentID := uuid.New()
+	r := setupSingleAccessRouter(
+		enrollmentListLoader("orgao-a", true, nil),
+		enrollmentCPFLoader("99999999999", true, nil),
+		func(c *gin.Context) {
+			c.Set(middlewares.UserRoleKey, "ADMIN")
+			c.Next()
+		},
+	)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/1/enrollments/"+enrollmentID.String(), nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseEnrollmentSingleAccess_CasaCivil_Passes(t *testing.T) {
+	enrollmentID := uuid.New()
+	r := setupSingleAccessRouter(
+		enrollmentListLoader("orgao-a", true, nil),
+		enrollmentCPFLoader("99999999999", true, nil),
+		injectCourseRoles("go:cursos:casa_civil", "", nil),
+	)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/1/enrollments/"+enrollmentID.String(), nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseEnrollmentSingleAccess_EditorInScope_Passes(t *testing.T) {
+	enrollmentID := uuid.New()
+	r := setupSingleAccessRouter(
+		enrollmentListLoader("orgao-a", true, nil),
+		enrollmentCPFLoader("99999999999", true, nil),
+		injectCourseRoles("go:cursos:editor", "orgao-a", nil),
+	)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/courses/1/enrollments/"+enrollmentID.String(), nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseEnrollmentSingleAccess_EditorOutOfScope_Forbidden(t *testing.T) {
+	enrollmentID := uuid.New()
+	r := setupSingleAccessRouter(
+		enrollmentListLoader("orgao-b", true, nil),
+		enrollmentCPFLoader("99999999999", true, nil),
+		injectCourseRoles("go:cursos:editor", "orgao-a", nil),
+	)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/courses/1/enrollments/"+enrollmentID.String(), nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Acesso negado: curso não pertence à sua secretaria")
+}
+
+func TestCourseEnrollmentSingleAccess_EditorNoScope_Forbidden(t *testing.T) {
+	enrollmentID := uuid.New()
+	r := setupSingleAccessRouter(
+		enrollmentListLoader("orgao-a", true, nil),
+		enrollmentCPFLoader("99999999999", true, nil),
+		injectCourseRoles("go:cursos:editor", "", nil),
+	)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/courses/1/enrollments/"+enrollmentID.String(), nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestCourseEnrollmentSingleAccess_EnrollmentNotFound_404(t *testing.T) {
+	enrollmentID := uuid.New()
+	r := setupSingleAccessRouter(
+		enrollmentListLoader("orgao-a", true, nil),
+		enrollmentCPFLoader("", false, nil),
+		func(c *gin.Context) {
+			c.Set(middlewares.UserRoleKey, "ADMIN")
+			c.Next()
+		},
+	)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/1/enrollments/"+enrollmentID.String(), nil))
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Contains(t, w.Body.String(), "inscrição não encontrada")
+}
+
+func TestCourseEnrollmentSingleAccess_CourseNotFound_404(t *testing.T) {
+	enrollmentID := uuid.New()
+	r := setupSingleAccessRouter(
+		enrollmentListLoader("", false, nil),
+		enrollmentCPFLoader("99999999999", true, nil),
+		func(c *gin.Context) {
+			c.Set(middlewares.UserRoleKey, "ADMIN")
+			c.Next()
+		},
+	)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/1/enrollments/"+enrollmentID.String(), nil))
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Contains(t, w.Body.String(), "Curso não encontrado")
+}
+
+func TestCourseEnrollmentSingleAccess_InvalidEnrollmentID_400(t *testing.T) {
+	r := setupSingleAccessRouter(
+		enrollmentListLoader("orgao-a", true, nil),
+		enrollmentCPFLoader("99999999999", true, nil),
+	)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/1/enrollments/not-a-uuid", nil))
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "ID da inscrição inválido")
 }
