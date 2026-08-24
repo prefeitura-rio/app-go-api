@@ -474,6 +474,12 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId} [get]
 func (h *InscricaoHandler) GetByID(c *gin.Context) {
+	courseID, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
+		return
+	}
+
 	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
@@ -491,11 +497,9 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		if inscricao.CPF != middlewares.GetUserCPF(c) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você só pode visualizar suas próprias inscrições"})
-			return
-		}
+	if inscricao.CursoID != courseID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "inscrição não pertence ao curso especificado"})
+		return
 	}
 
 	// Calculate remaining vacancies for enrolled_unit schedules
@@ -581,14 +585,19 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId} [delete]
 func (h *InscricaoHandler) Delete(c *gin.Context) {
+	courseID, err := strconv.Atoi(c.Param("courseId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
+		return
+	}
+
 	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
 		return
-
 	}
-	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 
+	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("erro ao verificar inscrição: %w", err).Error()})
 		return
@@ -598,11 +607,9 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		if existing.CPF != middlewares.GetUserCPF(c) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
-			return
-		}
+	if existing.CursoID != courseID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "inscrição não pertence ao curso especificado"})
+		return
 	}
 
 	if err := h.service.Delete(c.Request.Context(), enrollmentID); err != nil {

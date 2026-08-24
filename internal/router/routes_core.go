@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
@@ -42,6 +43,19 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	courseListFilter := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseListFilter())
 	enrollmentListAccess := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseEnrollmentListAccess(cursoLoader))
 
+	enrollmentCPFLoader := func(ctx context.Context, id uuid.UUID) (string, bool, error) {
+		insc, err := app.InscricaoService.GetByID(ctx, id)
+		if err != nil {
+			return "", false, err
+		}
+		if insc == nil {
+			return "", false, nil
+		}
+		return insc.CPF, true, nil
+	}
+	enrollmentSingleAccess := rbacMiddleware(cfg.App.RBACEnabled,
+		middlewares.CourseEnrollmentSingleAccess(cursoLoader, enrollmentCPFLoader))
+
 	courses := apiV1.Group("/courses")
 	{
 		courses.POST("", courseAuth, courseOrgaoInjector, app.CourseHandler.Create)
@@ -62,9 +76,9 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courses.PUT("/:courseId/enrollments/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateStatus)
 		courses.PUT("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.Update)
 		courses.PUT("/:courseId/enrollments/:enrollmentId/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateIndividualStatus)
-		courses.GET("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.GetByID)
+		courses.GET("/:courseId/enrollments/:enrollmentId", enrollmentSingleAccess, app.InscricaoHandler.GetByID)
 		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateCertificate)
-		courses.DELETE("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.Delete)
+		courses.DELETE("/:courseId/enrollments/:enrollmentId", enrollmentSingleAccess, app.InscricaoHandler.Delete)
 	}
 
 	apiV1.Group("/jobs").GET("/:jobId/status", app.JobHandler.GetStatus)
