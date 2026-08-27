@@ -13,6 +13,26 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
+// EnrollmentRuleError marks a rejection the citizen can act on — the course is
+// not open, the enrollment window is closed, the turma is not accepting people.
+// These are not server faults, so handlers answer 400 instead of 500 and the
+// portal can show the reason verbatim.
+type EnrollmentRuleError struct {
+	msg string
+}
+
+func (e *EnrollmentRuleError) Error() string { return e.msg }
+
+// NewEnrollmentRuleError builds a business-rule rejection carrying a message
+// meant to be shown to the citizen as-is.
+func NewEnrollmentRuleError(msg string) error {
+	return &EnrollmentRuleError{msg: msg}
+}
+
+func enrollmentRuleErrorf(format string, args ...any) error {
+	return &EnrollmentRuleError{msg: fmt.Sprintf(format, args...)}
+}
+
 // CitizenDataFetcher interface for fetching citizen data
 type CitizenDataFetcher interface {
 	SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
@@ -84,16 +104,16 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 
 	normalizedStatus := models.StatusCurso(status).Normalize()
 	if normalizedStatus != models.StatusCursoOpened && normalizedStatus != models.StatusCursoPublished {
-		return fmt.Errorf("curso não está aberto para inscrições")
+		return enrollmentRuleErrorf("curso não está aberto para inscrições")
 	}
 
 	// Check enrollment dates
 	now := time.Now()
 	if enrollmentStart != nil && now.Before(*enrollmentStart) {
-		return fmt.Errorf("período de inscrições ainda não iniciou")
+		return enrollmentRuleErrorf("período de inscrições ainda não iniciou")
 	}
 	if enrollmentEnd != nil && now.After(*enrollmentEnd) {
-		return fmt.Errorf("período de inscrições já encerrou")
+		return enrollmentRuleErrorf("período de inscrições já encerrou")
 	}
 
 	// Check if CPF is already enrolled
@@ -615,15 +635,15 @@ func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uu
 	// when enforceWindow is set (citizen flow), be within its own enrollment window.
 	checkTurma := func(accepting *bool, enrollmentStart, enrollmentEnd *time.Time) error {
 		if accepting != nil && !*accepting {
-			return fmt.Errorf("esta turma não está aceitando inscrições no momento")
+			return enrollmentRuleErrorf("esta turma não está aceitando inscrições no momento")
 		}
 		if enforceWindow {
 			now := time.Now()
 			if enrollmentStart != nil && now.Before(*enrollmentStart) {
-				return fmt.Errorf("as inscrições desta turma ainda não iniciaram")
+				return enrollmentRuleErrorf("as inscrições desta turma ainda não iniciaram")
 			}
 			if enrollmentEnd != nil && now.After(*enrollmentEnd) {
-				return fmt.Errorf("as inscrições desta turma já encerraram")
+				return enrollmentRuleErrorf("as inscrições desta turma já encerraram")
 			}
 		}
 		return nil
@@ -647,7 +667,7 @@ func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uu
 		}
 	}
 
-	return fmt.Errorf("schedule_id fornecido não pertence a este curso")
+	return enrollmentRuleErrorf("schedule_id fornecido não pertence a este curso")
 }
 
 // EnrichWithPersonalInfo populates PersonalInfo for a single enrollment
