@@ -42,3 +42,6 @@ scripts/touch_all_courses.sql
 scripts/touch_all_courses.sh
 # Dev scratch harness (hardcoded DSN, not for VCS / coverage)
 /cmd/viewtest/
+
+# VSCODE
+.vscode/

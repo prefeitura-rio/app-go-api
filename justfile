@@ -1,6 +1,9 @@
 # Justfile for app-go-api
 # Run 'just --list' to see all available commands
 
+# Load .env file
+set dotenv-load
+
 # Default recipe to display help information
 default:
     @just --list
@@ -164,16 +167,19 @@ swagger:
     @swag init -g cmd/server/main.go -o docs
     @echo "✅ Swagger documentation generated!"
 
+# Monta a URL de conexão do Goose apontando para o localhost da sua máquina
+DATABASE_URL := "postgres://$DB_USER:$DB_PASSWORD@localhost:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE"
+
 # Run database migrations up
 migrate-up:
     @echo "Running database migrations..."
-    @goose -dir internal/db/migrations postgres "$(DATABASE_URL)" up
+    @goose -dir internal/db/migrations postgres "{{DATABASE_URL}}" up
     @echo "✅ Migrations applied!"
 
 # Run database migrations down
 migrate-down:
     @echo "Rolling back database migrations..."
-    @goose -dir internal/db/migrations postgres "$(DATABASE_URL)" down
+    @goose -dir internal/db/migrations postgres "{{DATABASE_URL}}" down
 
 # Create new migration file
 migrate-create name:
