@@ -40,6 +40,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	ownershipCheck := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOwnershipCheck(cursoLoader))
 	courseAuth := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseAuthorization())
 	courseOrgaoInjector := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOrgaoInjector())
+	courseDraftAuth := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseDraftAuthorization())
 	courseListFilter := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseListFilter())
 	enrollmentListAccess := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseEnrollmentListAccess(cursoLoader))
 
@@ -59,7 +60,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	courses := apiV1.Group("/courses")
 	{
 		courses.POST("", courseAuth, courseOrgaoInjector, app.CourseHandler.Create)
-		courses.POST("/draft", courseAuth, courseOrgaoInjector, app.CourseHandler.CreateDraft)
+		courses.POST("/draft", courseAuth, courseDraftAuth, app.CourseHandler.CreateDraft)
 		courses.GET("", courseListFilter, app.CourseHandler.List)
 		courses.GET("/drafts", courseListFilter, app.CourseHandler.ListDrafts)
 		courses.GET("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.GetByID)

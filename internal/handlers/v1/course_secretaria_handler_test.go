@@ -50,7 +50,7 @@ func setupCourseRouterWithSecretaria(svc *MockCursoService, role string, secreta
 
 	h := v1.NewCourseHandler(svc, nil, nil)
 	r.POST("/api/v1/courses", middlewares.CourseOrgaoInjector(), h.Create)
-	r.POST("/api/v1/courses/draft", middlewares.CourseOrgaoInjector(), h.CreateDraft)
+	r.POST("/api/v1/courses/draft", middlewares.CourseDraftAuthorization(), h.CreateDraft)
 	r.GET("/api/v1/courses", middlewares.CourseListFilter(), h.List)
 	r.GET("/api/v1/courses/:courseId", h.GetByID)
 	r.PUT("/api/v1/courses/:courseId", ownershipCheck, h.Update)
@@ -192,9 +192,10 @@ func TestCourseHandler_Secretaria_Create_EmptyList_Forbidden(t *testing.T) {
 	svc.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
 
-func TestCourseHandler_Secretaria_CreateDraft_OrgaoForced(t *testing.T) {
+func TestCourseHandler_Secretaria_CreateDraft_NoEditorRole_Forbidden(t *testing.T) {
 	svc := &MockCursoService{}
 
+	// secretaria set but no go:cursos:editor role — CourseDraftAuthorization must block
 	router := setupCourseRouterWithSecretaria(svc, "", []string{"orgao-draft"})
 
 	body := []byte(`{"titulo": "Rascunho", "orgao_id": "orgao-draft"}`)
@@ -219,6 +220,57 @@ func TestCourseHandler_Secretaria_CreateDraft_EmptyList_Forbidden(t *testing.T) 
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestCourseHandler_Secretaria_CreateDraft_Editor_InScope_Created(t *testing.T) {
+	svc := &MockCursoService{}
+	svc.On("Create", mock.Anything, mock.MatchedBy(func(c *models.Curso) bool {
+		return c.OrgaoID == "orgao-draft" && c.Status == models.StatusCursoDraft
+	})).Return(42, nil)
+
+	router := setupCourseRouterWithSecretaria(svc, "", []string{"orgao-draft"}, "go:cursos:editor")
+
+	body := []byte(`{"titulo": "Rascunho", "orgao_id": "orgao-draft"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/draft", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	svc.AssertExpectations(t)
+}
+
+func TestCourseHandler_Secretaria_CreateDraft_Editor_OutOfScope_Forbidden(t *testing.T) {
+	svc := &MockCursoService{}
+
+	// editor has scope on orgao-minha but body contains orgao-outra
+	router := setupCourseRouterWithSecretaria(svc, "", []string{"orgao-minha"}, "go:cursos:editor")
+
+	body := []byte(`{"titulo": "Rascunho", "orgao_id": "orgao-outra"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/draft", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "não pertence à sua secretaria")
+	svc.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
+func TestCourseHandler_Secretaria_CreateDraft_Editor_NoScope_Forbidden(t *testing.T) {
+	svc := &MockCursoService{}
+
+	// editor role present but no secretaria and no go:orgao — blocked by middleware
+	router := setupCourseRouterWithSecretaria(svc, "", []string{}, "go:cursos:editor")
+
+	body := []byte(`{"titulo": "Rascunho"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/draft", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	svc.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
 
 func TestCourseHandler_Secretaria_Create_Admin_NotForced(t *testing.T) {
