@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -183,6 +184,14 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 	if createErr != nil {
 		if createErr.Error() == "CPF já inscrito neste curso" {
 			c.JSON(http.StatusConflict, gin.H{"error": createErr.Error()})
+			return
+		}
+		// Business rules (course not open, window closed, turma closed) are the
+		// citizen's problem to fix, not a server fault — answer 400 and keep the
+		// message verbatim so the portal can show it.
+		var ruleErr *services.EnrollmentRuleError
+		if errors.As(createErr, &ruleErr) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": createErr.Error()})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + createErr.Error()})
