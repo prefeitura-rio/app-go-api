@@ -252,3 +252,16 @@ type EscolaridadeServiceInterface interface {
 	Delete(ctx context.Context, id int) error
 	List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Escolaridade, int, error)
 }
+
+// HabilidadeRepositoryInterface defines the interface for habilidade service
+type HabilidadeRepositoryInterface interface {
+	Create(ctx context.Context, entity *modelsEmp.Habilidade) (uuid.UUID, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*modelsEmp.Habilidade, error)
+	Update(ctx context.Context, entity *modelsEmp.Habilidade) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter modelsEmp.HabilidadeFilter, limit, offset int) ([]*modelsEmp.Habilidade, int, error)
+	ListAreas(ctx context.Context, filter modelsEmp.AreaAtuacaoFilter, limit, offset int) ([]*modelsEmp.AreaAtuacao, int, error)
+	GetAreaByID(ctx context.Context, id uuid.UUID) (*modelsEmp.AreaAtuacao, error)
+	AddHabilidadeAoCurriculo(ctx context.Context, vinculo *modelsEmp.CurriculoHabilidade) error
+	ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*modelsEmp.CurriculoHabilidade, error)
+}

@@ -24,6 +24,7 @@ func TestNewCurriculoService(t *testing.T) {
 type mockCurriculoRepo struct {
 	formacoes    []*empregabilidade.CurriculoFormacao
 	idiomas      []*empregabilidade.CurriculoIdioma
+	habilidade   []*empregabilidade.CurriculoHabilidade
 	cursos       []*empregabilidade.CurriculoCursoComplementar
 	experiencias []*empregabilidade.CurriculoExperiencia
 	conquistas   []*empregabilidade.CurriculoConquista
@@ -190,6 +191,10 @@ func (m *mockCurriculoRepo) GetSituacaoInteressesByCPF(_ context.Context, _ stri
 
 func (m *mockCurriculoRepo) GetPerfilByCPF(_ context.Context, _ string) (*empregabilidade.CurriculoPerfil, error) {
 	return m.perfil, m.err
+}
+
+func (m *mockCurriculoRepo) ListHabilidadesByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoHabilidade, error) {
+	return m.habilidade, m.err
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -980,4 +985,11 @@ func (m *mockCurriculoRepoWithSequentialErrors) GetPerfilByCPF(_ context.Context
 		return nil, errors.New("perfil error")
 	}
 	return nil, nil
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) ListHabilidadesByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoHabilidade, error) {
+	if m.step == 7 { // ou o número do passo correspondente aos seus testes
+		return nil, errors.New("habilidades error")
+	}
+	return []*empregabilidade.CurriculoHabilidade{}, nil
 }

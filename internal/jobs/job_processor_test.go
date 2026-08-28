@@ -118,14 +118,14 @@ func TestCancelJob_JobRunning(t *testing.T) {
 }
 
 // createTestJob creates a job with a pre-generated UUID for SQLite compatibility
-func createTestJob(jobType models.JobType, metadata datatypes.JSON) *models.Job {
-	return &models.Job{
-		ID:       uuid.New(), // SQLite can't auto-generate UUIDs like PostgreSQL
-		Type:     jobType,
-		Status:   models.JobStatusPending,
-		Metadata: metadata,
-	}
-}
+//func createTestJob(jobType models.JobType, metadata datatypes.JSON) *models.Job {
+//	return &models.Job{
+//		ID:       uuid.New(), // SQLite can't auto-generate UUIDs like PostgreSQL
+//		Type:     jobType,
+//		Status:   models.JobStatusPending,
+//		Metadata: metadata,
+//	}
+//}
 
 // setupTestDB creates an in-memory SQLite database for testing
 func setupTestDB(t *testing.T) *gorm.DB {

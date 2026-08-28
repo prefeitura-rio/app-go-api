@@ -102,7 +102,7 @@ type ScheduleInfo struct {
 }
 
 // getScheduleInfo fetches schedule information from the enrollment's schedule_id
-func (s *EmailNotificationService) getScheduleInfo(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) *ScheduleInfo {
+func (s *EmailNotificationService) getScheduleInfo(ctx context.Context, inscricao *models.Inscricao, _ *models.Curso) *ScheduleInfo {
 	if inscricao.ScheduleID == nil || s.cursoRepo == nil {
 		return nil
 	}

@@ -2,6 +2,8 @@
 -- +goose StatementBegin
 
 -- 1. Criação das tabelas
+
+-- 1.1 Tabela Mestre de Habilidades (UUID como chave única)
 CREATE TABLE IF NOT EXISTS emp_habilidades (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome VARCHAR(500) UNIQUE NOT NULL,
@@ -9,6 +11,7 @@ CREATE TABLE IF NOT EXISTS emp_habilidades (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 1.2 Tabela Áreas de atuação (UUID como chave única)
 CREATE TABLE IF NOT EXISTS area_atuacao (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome VARCHAR(500) UNIQUE NOT NULL,
@@ -16,6 +19,7 @@ CREATE TABLE IF NOT EXISTS area_atuacao (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 1.3 Tabela Áreas de atuação x Habilidades (UUID como chave única) + chaves estrangeiras (id_habilidade, id_area_atuacao)
 CREATE TABLE IF NOT EXISTS area_atuacao_habilidade (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_habilidade UUID NOT NULL REFERENCES emp_habilidades(id) ON DELETE CASCADE, 

@@ -137,6 +137,17 @@ type TermosUsoRepositoryInterface interface {
 	AcceptTerms(ctx context.Context, cpf string) error
 }
 
+type HabilidadeRepositoryInterface interface {
+	CreateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) (uuid.UUID, error)
+	GetHabilidadeByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Habilidade, error)
+	UpdateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) error
+	DeleteHabilidade(ctx context.Context, id uuid.UUID) error
+	ListHabilidades(ctx context.Context, filter empregabilidade.HabilidadeFilter, limit, offset int) ([]*empregabilidade.Habilidade, int, error)
+	ListAreas(ctx context.Context, filter empregabilidade.AreaAtuacaoFilter, limit, offset int) ([]*empregabilidade.AreaAtuacao, int, error)
+	AddHabilidadeAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error
+	ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error)
+}
+
 // CurriculoRepositoryInterface defines the interface for Curriculo repository.
 type CurriculoRepositoryInterface interface {
 	CreateFormacao(ctx context.Context, entity *empregabilidade.CurriculoFormacao) (uuid.UUID, error)
@@ -179,6 +190,7 @@ type CurriculoRepositoryInterface interface {
 
 	UpsertSituacaoInteresses(ctx context.Context, entity *empregabilidade.CurriculoSituacaoInteresses) error
 	GetSituacaoInteressesByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoSituacaoInteresses, error)
-
 	GetPerfilByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoPerfil, error)
+
+	ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error)
 }

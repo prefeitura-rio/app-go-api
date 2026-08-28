@@ -610,7 +610,7 @@ func (s *InscricaoService) findScheduleVacancies(scheduleID uuid.UUID, curso *mo
 }
 
 // validateScheduleID validates that the schedule exists, belongs to the course, and is accepting enrollments
-func (s *InscricaoService) validateScheduleID(ctx context.Context, scheduleID uuid.UUID, curso *models.Curso, enforceWindow bool) error {
+func (s *InscricaoService) validateScheduleID(_ context.Context, scheduleID uuid.UUID, curso *models.Curso, enforceWindow bool) error {
 	// checkTurma validates a matched turma: it must be accepting enrollments and,
 	// when enforceWindow is set (citizen flow), be within its own enrollment window.
 	checkTurma := func(accepting *bool, enrollmentStart, enrollmentEnd *time.Time) error {

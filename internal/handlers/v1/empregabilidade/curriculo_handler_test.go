@@ -21,6 +21,7 @@ import (
 type mockCurriculoRepoH struct {
 	formacao    *empmodels.CurriculoFormacao
 	idioma      *empmodels.CurriculoIdioma
+	habilidade  *empmodels.CurriculoHabilidade
 	curso       *empmodels.CurriculoCursoComplementar
 	experiencia *empmodels.CurriculoExperiencia
 	conquista   *empmodels.CurriculoConquista
@@ -215,6 +216,15 @@ func (m *mockCurriculoRepoH) GetSituacaoInteressesByCPF(_ context.Context, _ str
 
 func (m *mockCurriculoRepoH) GetPerfilByCPF(_ context.Context, _ string) (*empmodels.CurriculoPerfil, error) {
 	return nil, m.err
+}
+
+// Habilidade
+
+func (m *mockCurriculoRepoH) ListHabilidadesByCPF(_ context.Context, _ string) ([]*empmodels.CurriculoHabilidade, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return []*empmodels.CurriculoHabilidade{}, nil
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
