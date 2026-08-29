@@ -175,7 +175,7 @@ func (h *EmpresaHandler) Delete(c *gin.Context) {
 // @Description  Consulta dados de uma empresa pelo CNPJ no RMI (Registro Mercantil Integrado)
 // @Tags         empregabilidade-empresas
 // @Produce      json
-// @Param        cnpj   path      string  true  "CNPJ da empresa (com ou sem formatação)"
+// @Param        cnpj   path      string  true  "CNPJ da empresa (apenas dígitos, 14 caracteres)"
 // @Success      200    {object}  models.LegalEntityConsultaResponse
 // @Failure      400    {object}  map[string]string
 // @Failure      404    {object}  map[string]string

@@ -5261,7 +5261,7 @@ paths:
       description: Consulta dados de uma empresa pelo CNPJ no RMI (Registro Mercantil
         Integrado)
       parameters:
-      - description: CNPJ da empresa (com ou sem formatação)
+      - description: CNPJ da empresa (apenas dígitos, 14 caracteres)
         in: path
         name: cnpj
         required: true
