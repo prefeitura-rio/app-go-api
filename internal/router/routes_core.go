@@ -74,11 +74,11 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courses.POST("/:courseId/enrollments/manual", courseAuth, ownershipCheck, app.InscricaoHandler.CreateManual)
 		courses.POST("/:courseId/enrollments/import", courseAuth, ownershipCheck, app.InscricaoHandler.Import)
 		courses.GET("/:courseId/enrollments", enrollmentListAccess, app.InscricaoHandler.List)
-		courses.PUT("/:courseId/enrollments/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateStatus)
+		courses.PUT("/:courseId/enrollments/status", enrollmentListAccess, app.InscricaoHandler.UpdateStatus)
 		courses.PUT("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.Update)
-		courses.PUT("/:courseId/enrollments/:enrollmentId/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateIndividualStatus)
+		courses.PUT("/:courseId/enrollments/:enrollmentId/status", enrollmentSingleAccess, app.InscricaoHandler.UpdateIndividualStatus)
 		courses.GET("/:courseId/enrollments/:enrollmentId", enrollmentSingleAccess, app.InscricaoHandler.GetByID)
-		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateCertificate)
+		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", enrollmentSingleAccess, app.InscricaoHandler.UpdateCertificate)
 		courses.DELETE("/:courseId/enrollments/:enrollmentId", enrollmentSingleAccess, app.InscricaoHandler.Delete)
 	}
 
