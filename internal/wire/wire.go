@@ -140,6 +140,7 @@ type ApplicationContainer struct {
 	EmpEtapaHandler               *empHandlers.EtapaHandler
 	EmpCandidaturaHandler         *empHandlers.CandidaturaHandler
 	EmpCurriculoHandler           *empHandlers.CurriculoHandler
+	EmpHabilidadeHandler          *empHandlers.HabilidadeHandler
 	EmpOnboardingHandler          *empHandlers.OnboardingHandler
 	EmpTermosUsoHandler           *empHandlers.TermosUsoHandler
 	EmpZonaHandler                *empHandlers.ZonaHandler
@@ -208,6 +209,7 @@ var EmpRepositorySet = wire.NewSet(
 	providers.ProvideEmpTermosUsoRepository,
 	providers.ProvideEmpZonaRepository,
 	providers.ProvideEmpCandidaturaBloqueioRepository,
+	providers.ProvideEmpHabilidadeRepository,
 )
 
 var CoreServiceSet = wire.NewSet(
@@ -249,6 +251,7 @@ var EmpServiceSet = wire.NewSet(
 	providers.ProvideEmpCNPJConsultaService,
 	providers.ProvideEmpZonaService,
 	providers.ProvideEmpCandidaturaBloqueioService,
+	providers.ProvideEmpHabilidadeService,
 )
 
 var CoreHandlerSet = wire.NewSet(
@@ -281,6 +284,7 @@ var EmpHandlerSet = wire.NewSet(
 	providers.ProvideEmpEtapaHandler,
 	providers.ProvideEmpCandidaturaHandler,
 	providers.ProvideEmpCurriculoHandler,
+	providers.ProvideEmpHabilidadeHandler,
 	providers.ProvideEmpOnboardingHandler,
 	providers.ProvideEmpTermosUsoHandler,
 	providers.ProvideEmpZonaHandler,

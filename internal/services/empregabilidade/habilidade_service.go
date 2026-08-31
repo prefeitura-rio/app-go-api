@@ -3,7 +3,6 @@ package empregabilidade
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
@@ -20,36 +19,56 @@ func NewHabilidadeServiceWithInterface(repo HabilidadeRepositoryInterface) *Habi
 	return &HabilidadeService{repo: repo}
 }
 
-// Create cria uma nova habilidade e retorna o ID gerado (UUID)
-func (s *HabilidadeService) CreateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) (uuid.UUID, error) {
+// CreateHabilidade cria uma nova habilidade e retorna o ID gerado (int64)
+func (s *HabilidadeService) CreateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) (int64, error) {
 	return s.repo.CreateHabilidade(ctx, entity)
 }
 
-// GetByID busca uma habilidade pelo seu UUID
-func (s *HabilidadeService) GetHabilidadeByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Habilidade, error) {
+// GetHabilidadeByID busca uma habilidade pelo seu ID (int64)
+func (s *HabilidadeService) GetHabilidadeByID(ctx context.Context, id int64) (*empregabilidade.Habilidade, error) {
 	return s.repo.GetHabilidadeByID(ctx, id)
 }
 
-// Update atualiza os dados de uma habilidade
+// UpdateHabilidade atualiza os dados de uma habilidade
 func (s *HabilidadeService) UpdateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) error {
 	return s.repo.UpdateHabilidade(ctx, entity)
 }
 
-// Delete remove uma habilidade pelo seu UUID
-func (s *HabilidadeService) DeleteHabilidade(ctx context.Context, id uuid.UUID) error {
+// DeleteHabilidade remove uma habilidade pelo seu ID (int64)
+func (s *HabilidadeService) DeleteHabilidade(ctx context.Context, id int64) error {
 	return s.repo.DeleteHabilidade(ctx, id)
 }
 
-// List retorna uma lista paginada de habilidades com suporte a filtros
-func (s *HabilidadeService) ListHabilidades(ctx context.Context, filter empregabilidade.HabilidadeFilter, page, pageSize int) ([]*empregabilidade.Habilidade, int, error) {
+// ListHabilidades retorna uma lista paginada de habilidades com suporte a filtros
+func (s *HabilidadeService) ListHabilidades(ctx context.Context, filter empregabilidade.HabilidadeFilter, page, pageSize int) ([]*empregabilidade.Habilidade, int64, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.ListHabilidades(ctx, filter, pageSize, offset)
 }
 
-// ListAreas retorna uma lista paginada das áreas de atuação vinculadas às habilidades
-func (s *HabilidadeService) ListAreas(ctx context.Context, filter empregabilidade.AreaAtuacaoFilter, page, pageSize int) ([]*empregabilidade.AreaAtuacao, int, error) {
+// CreateAreaAtuacao cria uma nova área de atuação e retorna o ID gerado (int64)
+func (s *HabilidadeService) CreateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) (int64, error) {
+	return s.repo.CreateAreaAtuacao(ctx, entity)
+}
+
+// GetAreaAtuacaoByID busca uma área de atuação pelo seu ID (int64)
+func (s *HabilidadeService) GetAreaAtuacaoByID(ctx context.Context, id int64) (*empregabilidade.AreaAtuacao, error) {
+	return s.repo.GetAreaAtuacaoByID(ctx, id)
+}
+
+// UpdateAreaAtuacao atualiza os dados de uma área de atuação
+func (s *HabilidadeService) UpdateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) error {
+	return s.repo.UpdateAreaAtuacao(ctx, entity)
+}
+
+// DeleteAreaAtuacao remove uma área de atuação pelo seu ID (int64)
+func (s *HabilidadeService) DeleteAreaAtuacao(ctx context.Context, id int64) error {
+	return s.repo.DeleteAreaAtuacao(ctx, id)
+}
+
+// ListAreasAtuacao retorna uma lista paginada das áreas de atuação vinculadas às habilidades
+func (s *HabilidadeService) ListAreasAtuacao(ctx context.Context, filter empregabilidade.AreaAtuacaoFilter, page, pageSize int) ([]*empregabilidade.AreaAtuacao, int64, error) {
 	offset := (page - 1) * pageSize
-	return s.repo.ListAreas(ctx, filter, pageSize, offset)
+	return s.repo.ListAreasAtuacao(ctx, filter, pageSize, offset)
 }
 
 // AddHabilidadeAoCurriculo vincula uma habilidade ao currículo do candidato

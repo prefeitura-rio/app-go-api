@@ -183,6 +183,11 @@ func (s *CurriculoService) ReplaceAllCursosComplementaresByCPF(ctx context.Conte
 	return s.repo.ReplaceAllCursosComplementaresByCPF(ctx, strings.TrimSpace(cpf), items)
 }
 
+// ReplaceAllHabilidadesByCPF substitui todas as habilidades do candidato por um novo conjunto
+func (s *CurriculoService) ReplaceAllHabilidadesByCPF(ctx context.Context, cpf string, habilidades []*empregabilidade.CurriculoHabilidade) error {
+	return s.repo.ReplaceAllHabilidadesByCPF(ctx, cpf, habilidades)
+}
+
 // --- Situação e Interesses ---
 
 func (s *CurriculoService) UpsertSituacaoInteresses(ctx context.Context, entity *empregabilidade.CurriculoSituacaoInteresses) error {

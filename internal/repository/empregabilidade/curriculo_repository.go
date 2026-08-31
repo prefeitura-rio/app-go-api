@@ -493,7 +493,7 @@ func (r *CurriculoRepository) ListHabilidadesByCPF(ctx context.Context, cpf stri
 }
 
 // CreateHabilidade vincula uma habilidade ao candidato sem permitir duplicidade
-func (r *CurriculoRepository) CreateHabilidade(ctx context.Context, entity *empregabilidade.CurriculoHabilidade) (uuid.UUID, error) {
+func (r *CurriculoRepository) CreateHabilidade(ctx context.Context, entity *empregabilidade.CurriculoHabilidade) (int64, error) {
 	result := r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "cpf"}, {Name: "id_habilidade"}},
@@ -502,7 +502,7 @@ func (r *CurriculoRepository) CreateHabilidade(ctx context.Context, entity *empr
 		Create(entity)
 
 	if result.Error != nil {
-		return uuid.Nil, fmt.Errorf("erro ao vincular habilidade ao currículo: %w", result.Error)
+		return 0, fmt.Errorf("erro ao vincular habilidade ao currículo: %w", result.Error)
 	}
 	return entity.ID, nil
 }
@@ -526,7 +526,7 @@ func (r *CurriculoRepository) ReplaceAllHabilidadesByCPF(ctx context.Context, cp
 		if len(items) > 0 {
 			for i := range items {
 				items[i].CPF = cpf
-				items[i].ID = uuid.Nil
+				items[i].ID = 0
 			}
 
 			if err := tx.Create(items).Error; err != nil {

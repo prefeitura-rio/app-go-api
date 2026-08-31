@@ -138,12 +138,17 @@ type TermosUsoRepositoryInterface interface {
 }
 
 type HabilidadeRepositoryInterface interface {
-	CreateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) (uuid.UUID, error)
-	GetHabilidadeByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Habilidade, error)
+	CreateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) (int64, error)
+	GetHabilidadeByID(ctx context.Context, id int64) (*empregabilidade.Habilidade, error)
 	UpdateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) error
-	DeleteHabilidade(ctx context.Context, id uuid.UUID) error
-	ListHabilidades(ctx context.Context, filter empregabilidade.HabilidadeFilter, limit, offset int) ([]*empregabilidade.Habilidade, int, error)
-	ListAreas(ctx context.Context, filter empregabilidade.AreaAtuacaoFilter, limit, offset int) ([]*empregabilidade.AreaAtuacao, int, error)
+	DeleteHabilidade(ctx context.Context, id int64) error
+	ListHabilidades(ctx context.Context, filter empregabilidade.HabilidadeFilter, limit, offset int) ([]*empregabilidade.Habilidade, int64, error)
+
+	CreateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) (int64, error)
+	GetAreaAtuacaoByID(ctx context.Context, id int64) (*empregabilidade.AreaAtuacao, error)
+	UpdateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) error
+	DeleteAreaAtuacao(ctx context.Context, id int64) error
+	ListAreasAtuacao(ctx context.Context, filter empregabilidade.AreaAtuacaoFilter, limit, offset int) ([]*empregabilidade.AreaAtuacao, int64, error)
 	AddHabilidadeAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error
 	ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error)
 }
@@ -193,4 +198,5 @@ type CurriculoRepositoryInterface interface {
 	GetPerfilByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoPerfil, error)
 
 	ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error)
+	ReplaceAllHabilidadesByCPF(ctx context.Context, cpf string, habilidades []*empregabilidade.CurriculoHabilidade) error
 }

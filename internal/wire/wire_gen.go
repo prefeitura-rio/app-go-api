@@ -147,6 +147,9 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 	etapaHandler := providers.ProvideEmpEtapaHandler(etapaService)
 	candidaturaHandler := providers.ProvideEmpCandidaturaHandler(candidaturaService)
 	curriculoHandler := providers.ProvideEmpCurriculoHandler(curriculoService)
+	habilidadeRepository := providers.ProvideEmpHabilidadeRepository(db)
+	habilidadeService := providers.ProvideEmpHabilidadeService(habilidadeRepository)
+	habilidadeHandler := providers.ProvideEmpHabilidadeHandler(habilidadeService, curriculoService)
 	onboardingHandler := providers.ProvideEmpOnboardingHandler(onboardingService)
 	termosUsoHandler := providers.ProvideEmpTermosUsoHandler(termosUsoService)
 	zonaHandler := providers.ProvideEmpZonaHandler(zonaService)
@@ -252,6 +255,7 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 		EmpEtapaHandler:               etapaHandler,
 		EmpCandidaturaHandler:         candidaturaHandler,
 		EmpCurriculoHandler:           curriculoHandler,
+		EmpHabilidadeHandler:          habilidadeHandler,
 		EmpOnboardingHandler:          onboardingHandler,
 		EmpTermosUsoHandler:           termosUsoHandler,
 		EmpZonaHandler:                zonaHandler,
@@ -380,6 +384,7 @@ type ApplicationContainer struct {
 	EmpEtapaHandler               *empregabilidade3.EtapaHandler
 	EmpCandidaturaHandler         *empregabilidade3.CandidaturaHandler
 	EmpCurriculoHandler           *empregabilidade3.CurriculoHandler
+	EmpHabilidadeHandler          *empregabilidade3.HabilidadeHandler
 	EmpOnboardingHandler          *empregabilidade3.OnboardingHandler
 	EmpTermosUsoHandler           *empregabilidade3.TermosUsoHandler
 	EmpZonaHandler                *empregabilidade3.ZonaHandler
@@ -401,15 +406,15 @@ var CacheSet = wire.NewSet(providers.ProvideLegalEntitiesCache, providers.Provid
 
 var CoreRepositorySet = wire.NewSet(providers.ProvideCategoriaRepository, providers.ProvideCursoRepository, providers.ProvideInscricaoRepository, providers.ProvideEmpregoRepository, providers.ProvideAcessibilidadeRepository, providers.ProvideEscolaridadeRepository, providers.ProvideEmpresaRepository, providers.ProvideInstituicaoRepository, providers.ProvideJobRepository, providers.ProvideOportunidadeMEIRepository, providers.ProvidePropostaMEIRepository, providers.ProvideOrgaoSnapshotRepository, providers.ProvideCitizenSnapshotRepository)
 
-var EmpRepositorySet = wire.NewSet(providers.ProvideEmpRegimeContratacaoRepository, providers.ProvideEmpModeloTrabalhoRepository, providers.ProvideEmpTipoPCDRepository, providers.ProvideEmpIdiomaRepository, providers.ProvideEmpNivelIdiomaRepository, providers.ProvideEmpEscolaridadeRepository, providers.ProvideEmpTipoConquistaRepository, providers.ProvideEmpSituacaoAtualRepository, providers.ProvideEmpDisponibilidadeRepository, providers.ProvideEmpEmpresaRepository, providers.ProvideEmpVagaRepository, providers.ProvideEmpEtapaRepository, providers.ProvideEmpCandidaturaRepository, providers.ProvideEmpCurriculoRepository, providers.ProvideEmpOnboardingRepository, providers.ProvideEmpTermosUsoRepository, providers.ProvideEmpZonaRepository, providers.ProvideEmpCandidaturaBloqueioRepository)
+var EmpRepositorySet = wire.NewSet(providers.ProvideEmpRegimeContratacaoRepository, providers.ProvideEmpModeloTrabalhoRepository, providers.ProvideEmpTipoPCDRepository, providers.ProvideEmpIdiomaRepository, providers.ProvideEmpNivelIdiomaRepository, providers.ProvideEmpEscolaridadeRepository, providers.ProvideEmpTipoConquistaRepository, providers.ProvideEmpSituacaoAtualRepository, providers.ProvideEmpDisponibilidadeRepository, providers.ProvideEmpEmpresaRepository, providers.ProvideEmpVagaRepository, providers.ProvideEmpEtapaRepository, providers.ProvideEmpCandidaturaRepository, providers.ProvideEmpCurriculoRepository, providers.ProvideEmpOnboardingRepository, providers.ProvideEmpTermosUsoRepository, providers.ProvideEmpZonaRepository, providers.ProvideEmpCandidaturaBloqueioRepository, providers.ProvideEmpHabilidadeRepository)
 
 var CoreServiceSet = wire.NewSet(providers.ProvideCategoriaService, providers.ProvideCursoService, providers.ProvideEmpregoService, providers.ProvideAcessibilidadeService, providers.ProvideEscolaridadeService, providers.ProvideEmpresaService, providers.ProvideInstituicaoService, providers.ProvideJobService, providers.ProvideOportunidadeMEIService, providers.ProvideCNAEValidationService, providers.ProvideContactInfoService, providers.ProvideEmailNotificationService, providers.ProvideEmailWorker, wire.Bind(new(services.EmailNotifier), new(*workers.EmailWorker)), providers.ProvideInscricaoService, providers.ProvidePropostaMEIService)
 
-var EmpServiceSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoService, providers.ProvideEmpModeloTrabalhoService, providers.ProvideEmpTipoPCDService, providers.ProvideEmpIdiomaService, providers.ProvideEmpNivelIdiomaService, providers.ProvideEmpEscolaridadeService, providers.ProvideEmpTipoConquistaService, providers.ProvideEmpSituacaoAtualService, providers.ProvideEmpDisponibilidadeService, providers.ProvideEmpEmpresaService, providers.ProvideEmpVagaService, providers.ProvideEmpEtapaService, providers.ProvideEmpCurriculoService, providers.ProvideEmpCandidaturaService, providers.ProvideEmpOnboardingService, providers.ProvideEmpTermosUsoService, providers.ProvideEmpCNPJConsultaService, providers.ProvideEmpZonaService, providers.ProvideEmpCandidaturaBloqueioService)
+var EmpServiceSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoService, providers.ProvideEmpModeloTrabalhoService, providers.ProvideEmpTipoPCDService, providers.ProvideEmpIdiomaService, providers.ProvideEmpNivelIdiomaService, providers.ProvideEmpEscolaridadeService, providers.ProvideEmpTipoConquistaService, providers.ProvideEmpSituacaoAtualService, providers.ProvideEmpDisponibilidadeService, providers.ProvideEmpEmpresaService, providers.ProvideEmpVagaService, providers.ProvideEmpEtapaService, providers.ProvideEmpCurriculoService, providers.ProvideEmpCandidaturaService, providers.ProvideEmpOnboardingService, providers.ProvideEmpTermosUsoService, providers.ProvideEmpCNPJConsultaService, providers.ProvideEmpZonaService, providers.ProvideEmpCandidaturaBloqueioService, providers.ProvideEmpHabilidadeService)
 
 var CoreHandlerSet = wire.NewSet(providers.ProvideEmpregoHandler, providers.ProvideAcessibilidadeHandler, providers.ProvideCategoriaHandlerWithCache, providers.ProvideEmpresaHandler, providers.ProvideEscolaridadeHandler, providers.ProvideInstituicaoHandler, providers.ProvideInscricaoHandler, providers.ProvideCourseHandler, providers.ProvideJobHandler, providers.ProvideOportunidadeMEIHandler, providers.ProvidePropostaMEIHandler, providers.ProvideTypesenseHandler)
 
-var EmpHandlerSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoHandler, providers.ProvideEmpModeloTrabalhoHandler, providers.ProvideEmpTipoPCDHandler, providers.ProvideEmpIdiomaHandler, providers.ProvideEmpNivelIdiomaHandler, providers.ProvideEmpEscolaridadeHandler, providers.ProvideEmpTipoConquistaHandler, providers.ProvideEmpSituacaoAtualHandler, providers.ProvideEmpDisponibilidadeHandler, providers.ProvideEmpEmpresaHandler, providers.ProvideEmpVagaHandler, providers.ProvideEmpEtapaHandler, providers.ProvideEmpCandidaturaHandler, providers.ProvideEmpCurriculoHandler, providers.ProvideEmpOnboardingHandler, providers.ProvideEmpTermosUsoHandler, providers.ProvideEmpZonaHandler, providers.ProvideEmpCandidaturaBloqueioHandler)
+var EmpHandlerSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoHandler, providers.ProvideEmpModeloTrabalhoHandler, providers.ProvideEmpTipoPCDHandler, providers.ProvideEmpIdiomaHandler, providers.ProvideEmpNivelIdiomaHandler, providers.ProvideEmpEscolaridadeHandler, providers.ProvideEmpTipoConquistaHandler, providers.ProvideEmpSituacaoAtualHandler, providers.ProvideEmpDisponibilidadeHandler, providers.ProvideEmpEmpresaHandler, providers.ProvideEmpVagaHandler, providers.ProvideEmpEtapaHandler, providers.ProvideEmpCandidaturaHandler, providers.ProvideEmpCurriculoHandler, providers.ProvideEmpHabilidadeHandler, providers.ProvideEmpOnboardingHandler, providers.ProvideEmpTermosUsoHandler, providers.ProvideEmpZonaHandler, providers.ProvideEmpCandidaturaBloqueioHandler)
 
 // Legacy set kept for backward compatibility with the Categorias POC
 var CategoriaSet = wire.NewSet(providers.ProvideCategoriaRepository, providers.ProvideCategoriaService, wire.Bind(new(services.CategoriaServiceInterface), new(*services.CategoriaService)), v1.NewCategoriaHandler)

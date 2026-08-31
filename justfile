@@ -164,7 +164,7 @@ docker-run:
 # Generate Swagger documentation
 swagger:
     @echo "Generating Swagger documentation..."
-    @swag init -g cmd/server/main.go -o docs
+    @swag init --dir ./cmd/server,./internal/models -g main.go -o docs --parseInternal --packagePrefix github.com/prefeitura-rio/app-go-api
     @echo "✅ Swagger documentation generated!"
 
 # Monta a URL de conexão do Goose apontando para o localhost da sua máquina

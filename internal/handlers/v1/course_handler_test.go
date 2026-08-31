@@ -2857,7 +2857,7 @@ func TestCourseHandler_CreateDraft_ValidationError(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-func setupTransitionHandler(t *testing.T) (*MockCursoService, *MockCursoRepositoryForCourseHandler, *v1.CourseHandler) {
+func setupTransitionHandler() (*MockCursoService, *MockCursoRepositoryForCourseHandler, *v1.CourseHandler) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockCursoService)
 	mockRepo := new(MockCursoRepositoryForCourseHandler)
@@ -2867,7 +2867,7 @@ func setupTransitionHandler(t *testing.T) (*MockCursoService, *MockCursoReposito
 
 func TestCourseHandler_SendToReview(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
+		mockService, _, h := setupTransitionHandler()
 		mockService.On("SendToReview", mock.Anything, 1).Return(nil)
 		r := gin.New()
 		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
@@ -2879,7 +2879,7 @@ func TestCourseHandler_SendToReview(t *testing.T) {
 	})
 
 	t.Run("invalid_id", func(t *testing.T) {
-		_, _, h := setupTransitionHandler(t)
+		_, _, h := setupTransitionHandler()
 		r := gin.New()
 		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
 		w := httptest.NewRecorder()
@@ -2888,7 +2888,7 @@ func TestCourseHandler_SendToReview(t *testing.T) {
 	})
 
 	t.Run("conflict_invalid_state", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
+		mockService, _, h := setupTransitionHandler()
 		mockService.On("SendToReview", mock.Anything, 1).Return(errors.New("curso não está em estado válido"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
@@ -2899,7 +2899,7 @@ func TestCourseHandler_SendToReview(t *testing.T) {
 	})
 
 	t.Run("not_found", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
+		mockService, _, h := setupTransitionHandler()
 		mockService.On("SendToReview", mock.Anything, 1).Return(errors.New("curso não encontrado"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
@@ -2910,7 +2910,7 @@ func TestCourseHandler_SendToReview(t *testing.T) {
 	})
 
 	t.Run("bad_request_incomplete_course", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
+		mockService, _, h := setupTransitionHandler()
 		mockService.On("SendToReview", mock.Anything, 1).Return(errors.New("curso incompleto para envio de revisão: modalidade inválida"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
@@ -2923,7 +2923,7 @@ func TestCourseHandler_SendToReview(t *testing.T) {
 
 func TestCourseHandler_Approve(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
+		mockService, _, h := setupTransitionHandler()
 		mockService.On("Approve", mock.Anything, 2).Return(nil)
 		r := gin.New()
 		r.PUT("/courses/:courseId/approve", h.Approve)
@@ -2934,7 +2934,7 @@ func TestCourseHandler_Approve(t *testing.T) {
 	})
 
 	t.Run("conflict", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
+		mockService, _, h := setupTransitionHandler()
 		mockService.On("Approve", mock.Anything, 2).Return(errors.New("curso não está em estado válido para aprovação"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/approve", h.Approve)
@@ -2947,7 +2947,7 @@ func TestCourseHandler_Approve(t *testing.T) {
 
 func TestCourseHandler_RequestChanges(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
+		mockService, _, h := setupTransitionHandler()
 		mockService.On("RequestChanges", mock.Anything, 4).Return(nil)
 		r := gin.New()
 		r.PUT("/courses/:courseId/request-changes", h.RequestChanges)
@@ -2958,7 +2958,7 @@ func TestCourseHandler_RequestChanges(t *testing.T) {
 	})
 
 	t.Run("conflict", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
+		mockService, _, h := setupTransitionHandler()
 		mockService.On("RequestChanges", mock.Anything, 4).Return(errors.New("curso não está em estado válido para solicitação de edição"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/request-changes", h.RequestChanges)
@@ -3255,7 +3255,7 @@ func TestCourseHandler_GetByID_CustomFieldFormatTypeInResponse(t *testing.T) {
 
 func TestCourseHandler_RequestDeletion(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
+		mockService, _, h := setupTransitionHandler()
 		mockService.On("RequestDeletion", mock.Anything, 5).Return(nil)
 		r := gin.New()
 		r.PUT("/courses/:courseId/request-deletion", h.RequestDeletion)
@@ -3266,7 +3266,7 @@ func TestCourseHandler_RequestDeletion(t *testing.T) {
 	})
 
 	t.Run("not_found", func(t *testing.T) {
-		mockService, _, h := setupTransitionHandler(t)
+		mockService, _, h := setupTransitionHandler()
 		mockService.On("RequestDeletion", mock.Anything, 5).Return(errors.New("curso não encontrado"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/request-deletion", h.RequestDeletion)

@@ -202,6 +202,10 @@ func (m *mockCurriculoRepoH) ReplaceAllCursosComplementaresByCPF(_ context.Conte
 	return m.err
 }
 
+func (m *mockCurriculoRepoH) ReplaceAllHabilidadesByCPF(_ context.Context, _ string, _ []*empmodels.CurriculoHabilidade) error {
+	return m.err
+}
+
 // Situação e Interesses
 
 func (m *mockCurriculoRepoH) UpsertSituacaoInteresses(_ context.Context, _ *empmodels.CurriculoSituacaoInteresses) error {

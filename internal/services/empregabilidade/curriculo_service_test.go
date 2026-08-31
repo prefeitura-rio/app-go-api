@@ -181,6 +181,10 @@ func (m *mockCurriculoRepo) ReplaceAllCursosComplementaresByCPF(_ context.Contex
 	return m.err
 }
 
+func (m *mockCurriculoRepo) ReplaceAllHabilidadesByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoHabilidade) error {
+	return m.err
+}
+
 func (m *mockCurriculoRepo) UpsertSituacaoInteresses(_ context.Context, _ *empregabilidade.CurriculoSituacaoInteresses) error {
 	return m.err
 }
@@ -966,6 +970,10 @@ func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllIdiomasByCPF(_ context
 }
 
 func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllCursosComplementaresByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoCursoComplementar) error {
+	return nil
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllHabilidadesByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoHabilidade) error {
 	return nil
 }
 

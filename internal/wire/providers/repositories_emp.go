@@ -100,3 +100,7 @@ func ProvideEmpZonaRepository(db *gorm.DB) *empRepository.ZonaRepository {
 func ProvideEmpCandidaturaBloqueioRepository(db *gorm.DB) *empRepository.CandidaturaBloqueioRepository {
 	return empRepository.NewCandidaturaBloqueioRepository(db)
 }
+
+func ProvideEmpHabilidadeRepository(db *gorm.DB) *empRepository.HabilidadeRepository {
+	return empRepository.NewHabilidadeRepository(db)
+}

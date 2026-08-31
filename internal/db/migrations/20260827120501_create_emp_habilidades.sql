@@ -1,37 +1,48 @@
 -- +goose Up
+
+-- 1. Extensões e Função (Criar antes de usar nas tabelas/índices)
+CREATE EXTENSION IF NOT EXISTS unaccent;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- 2. Função customizada (Usa StatementBegin porque tem ponto e vírgula dentro da função)
 -- +goose StatementBegin
+CREATE OR REPLACE FUNCTION immutable_unaccent(text)
+RETURNS text AS $$
+    SELECT public.unaccent($1);
+$$ LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT;
+-- +goose StatementEnd
 
--- 1. Criação das tabelas
-
--- 1.1 Tabela Mestre de Habilidades (UUID como chave única)
+-- 3. Criação das tabelas
+-- 3.1 Tabela Mestre de Habilidades (Entidade Principal)
 CREATE TABLE IF NOT EXISTS emp_habilidades (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     nome VARCHAR(500) UNIQUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 1.2 Tabela Áreas de atuação (UUID como chave única)
+-- 3.2 Tabela Áreas de Atuação (Entidade Principal)
 CREATE TABLE IF NOT EXISTS area_atuacao (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     nome VARCHAR(500) UNIQUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 1.3 Tabela Áreas de atuação x Habilidades (UUID como chave única) + chaves estrangeiras (id_habilidade, id_area_atuacao)
+-- 3.3 Tabela Pivô Áreas x Habilidades (Chave Primária BIGINT)
 CREATE TABLE IF NOT EXISTS area_atuacao_habilidade (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    id_habilidade UUID NOT NULL REFERENCES emp_habilidades(id) ON DELETE CASCADE, 
-    id_area_atuacao UUID NOT NULL REFERENCES area_atuacao(id) ON DELETE CASCADE,
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_habilidade BIGINT NOT NULL REFERENCES emp_habilidades(id) ON DELETE RESTRICT, 
+    id_area_atuacao BIGINT NOT NULL REFERENCES area_atuacao(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_habilidade_area UNIQUE (id_habilidade, id_area_atuacao)
 );
 
--- 2. Inserção massiva de dados
 
--- 2.1 HABILIDADES
+-- 4. Inserção massiva de dados
+
+-- 4.1 HABILIDADES
 INSERT INTO emp_habilidades (nome) VALUES
 ('Acabamento'),
 ('Acabamento artesanal'),
@@ -114,7 +125,7 @@ INSERT INTO emp_habilidades (nome) VALUES
 ('Atenção a detalhes')
 ON CONFLICT (nome) DO NOTHING;
 
--- 2.2 ÁREAS DE ATUAÇÃO
+-- 4.2 ÁREAS DE ATUAÇÃO
 INSERT INTO area_atuacao (nome) VALUES
 ('Confecção de Artefatos de Tecido e Couro'),
 ('Confecção de Calçados'),
@@ -250,7 +261,7 @@ INSERT INTO area_atuacao (nome) VALUES
 ('Visual Merchandising e Vitrinismo')
 ON CONFLICT (nome) DO NOTHING;
 
--- 2.3 RELACIONAMENTOS (area_atuacao_habilidade)
+-- 4.3 RELACIONAMENTOS (area_atuacao_habilidade)
 INSERT INTO area_atuacao_habilidade (id_habilidade, id_area_atuacao)
 SELECT h.id, a.id
 FROM (VALUES
@@ -446,16 +457,8 @@ JOIN emp_habilidades h ON h.nome = v.habilidade_nome
 JOIN area_atuacao a ON a.nome = v.area_nome
 ON CONFLICT (id_habilidade, id_area_atuacao) DO NOTHING;
 
--- 3. Extensões e Função
-CREATE EXTENSION IF NOT EXISTS unaccent;
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
-CREATE OR REPLACE FUNCTION immutable_unaccent(text)
-RETURNS text AS $$
-    SELECT public.unaccent($1);
-$$ LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT;
-
--- 4. Índices
+-- 5. Índices de Busca Textual (Trigram + Unaccent)
 CREATE INDEX IF NOT EXISTS idx_emp_habilidades_nome_unaccent_trgm 
 ON emp_habilidades 
 USING gin (lower(immutable_unaccent(nome)) gin_trgm_ops);
@@ -464,13 +467,14 @@ CREATE INDEX IF NOT EXISTS idx_area_atuacao_nome_unaccent_trgm
 ON area_atuacao 
 USING gin (lower(immutable_unaccent(nome)) gin_trgm_ops);
 
-CREATE INDEX IF NOT EXISTS idx_habilidade_area 
-ON area_atuacao_habilidade (id_area_atuacao);
+-- 6. Índices para Otimização de JOINs na Pivô
+-- A constraint UNIQUE (id_habilidade, id_area_atuacao) já cria um índice implícito para id_habilidade.
+-- O índice abaixo otimiza as buscas no sentido oposto: filtrar Habilidades a partir de uma Área.
+CREATE INDEX IF NOT EXISTS idx_area_atuacao_habilidade_area 
+ON area_atuacao_habilidade (id_area_atuacao, id_habilidade);
 
--- +goose StatementEnd
 
 -- +goose Down
--- +goose StatementBegin
 
 -- 1. Remoção das Tabelas (O DROP TABLE remove automaticamente seus índices e constraints)
 DROP TABLE IF EXISTS area_atuacao_habilidade;
@@ -479,5 +483,3 @@ DROP TABLE IF EXISTS emp_habilidades;
 
 -- 2. Remoção da Função
 DROP FUNCTION IF EXISTS immutable_unaccent(text);
-
--- +goose StatementEnd

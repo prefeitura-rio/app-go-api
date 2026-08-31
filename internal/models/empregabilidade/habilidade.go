@@ -2,13 +2,11 @@ package empregabilidade
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // Habilidade representa a tabela 'emp_habilidades'
 type Habilidade struct {
-	ID        uuid.UUID     `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	ID        int64         `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Nome      string        `json:"nome" gorm:"type:varchar(500);unique;not null"`
 	CreatedAt time.Time     `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time     `json:"updated_at" gorm:"autoUpdateTime"`
@@ -21,9 +19,9 @@ func (Habilidade) TableName() string {
 
 // CurriculoHabilidade representa o vínculo entre o candidato (CPF) e suas Habilidades
 type CurriculoHabilidade struct {
-	ID           uuid.UUID   `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	ID           int64       `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	CPF          string      `json:"cpf" gorm:"type:char(11);not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
-	IDHabilidade uuid.UUID   `json:"id_habilidade" gorm:"type:uuid;not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
+	IDHabilidade int64       `json:"id_habilidade" gorm:"type:uuid;not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
 	CreatedAt    time.Time   `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time   `json:"updated_at" gorm:"autoUpdateTime"`
 	Habilidade   *Habilidade `json:"habilidade,omitempty" gorm:"foreignKey:IDHabilidade;references:ID"`
@@ -35,7 +33,7 @@ func (CurriculoHabilidade) TableName() string {
 
 // AreaAtuacao representa a tabela 'area_atuacao'
 type AreaAtuacao struct {
-	ID          uuid.UUID    `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	ID          int64        `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Nome        string       `json:"nome" gorm:"type:varchar(500);unique;not null"`
 	CreatedAt   time.Time    `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt   time.Time    `json:"updated_at" gorm:"autoUpdateTime"`
@@ -48,16 +46,17 @@ func (AreaAtuacao) TableName() string {
 
 // HabilidadeFilter estrutura para aplicar filtros na consulta
 type HabilidadeFilter struct {
-	Search        string    // Busca por similaridade usando trigram/unaccent ou ILIKE
-	CPF           string    // Exact match
-	AreaAtuacaoID uuid.UUID // Permite filtrar habilidades de uma área específica
+	Search        string `json:"search"`
+	CPF           string `json:"cpf"`
+	AreaAtuacaoID int64  `json:"id_area_atuacao"`
 	Page          int
 	Limit         int
 }
 
 // AreaAtuacaoFilter estrutura para aplicar filtros na consulta
 type AreaAtuacaoFilter struct {
-	Search string // Filtro de texto por nome
-	Page   int
-	Limit  int
+	Search       string `json:"search"`
+	HabilidadeID int64  `json:"id_habilidade"`
+	Page         int
+	Limit        int
 }

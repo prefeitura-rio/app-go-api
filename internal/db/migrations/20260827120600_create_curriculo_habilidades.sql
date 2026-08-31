@@ -3,9 +3,9 @@
 
 -- Tabela de relacionamento entre currículo (CPF) e habilidades
 CREATE TABLE emp_curriculo_habilidades (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     cpf CHAR(11) NOT NULL,
-    id_habilidade UUID NOT NULL REFERENCES emp_habilidades(id) ON DELETE RESTRICT,
+    id_habilidade  BIGINT NOT NULL REFERENCES emp_habilidades(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     

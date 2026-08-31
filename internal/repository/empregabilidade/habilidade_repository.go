@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
@@ -19,16 +18,16 @@ func NewHabilidadeRepository(db *gorm.DB) *HabilidadeRepository {
 	return &HabilidadeRepository{db: db}
 }
 
-func (r *HabilidadeRepository) CreateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) (uuid.UUID, error) {
+func (r *HabilidadeRepository) CreateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) (int64, error) {
 	result := r.db.WithContext(ctx).Create(entity)
 	if result.Error != nil {
-		return uuid.Nil, fmt.Errorf("erro ao criar habilidade: %w", result.Error)
+		return 0, fmt.Errorf("erro ao criar habilidade: %w", result.Error)
 	}
 	return entity.ID, nil
 }
 
-// GetByID traz a habilidade carregando suas áreas de atuação vinculadas
-func (r *HabilidadeRepository) GetHabilidadeByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Habilidade, error) {
+// GetHabilidadeByID traz a habilidade carregando suas áreas de atuação vinculadas
+func (r *HabilidadeRepository) GetHabilidadeByID(ctx context.Context, id int64) (*empregabilidade.Habilidade, error) {
 	var entity empregabilidade.Habilidade
 
 	// Preload("Areas") faz o JOIN automático com a tabela area_atuacao via tabela de junção
@@ -56,7 +55,7 @@ func (r *HabilidadeRepository) UpdateHabilidade(ctx context.Context, entity *emp
 	return nil
 }
 
-func (r *HabilidadeRepository) DeleteHabilidade(ctx context.Context, id uuid.UUID) error {
+func (r *HabilidadeRepository) DeleteHabilidade(ctx context.Context, id int64) error {
 	result := r.db.WithContext(ctx).Delete(&empregabilidade.Habilidade{}, "id = ?", id)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao excluir habilidade: %w", result.Error)
@@ -64,20 +63,20 @@ func (r *HabilidadeRepository) DeleteHabilidade(ctx context.Context, id uuid.UUI
 	return nil
 }
 
-// List faz a paginação, busca por nome/área e carrega as Áreas de Atuação
-func (r *HabilidadeRepository) ListHabilidades(ctx context.Context, filter empregabilidade.HabilidadeFilter, limit, offset int) ([]*empregabilidade.Habilidade, int, error) {
+// ListHabilidades faz a paginação, busca por nome/área e carrega as Áreas de Atuação
+func (r *HabilidadeRepository) ListHabilidades(ctx context.Context, filter empregabilidade.HabilidadeFilter, limit, offset int) ([]*empregabilidade.Habilidade, int64, error) {
 	var entities []*empregabilidade.Habilidade
 	var total int64
 
 	applyFilters := func(db *gorm.DB) *gorm.DB {
 		if filter.Search != "" {
 			searchNome := fmt.Sprintf("%%%s%%", filter.Search)
-			// Busca no nome da habilidade usando unaccent + trigram
+			// Busca no nome da habilidade usando unaccent
 			db = db.Where("lower(immutable_unaccent(emp_habilidades.nome)) LIKE lower(immutable_unaccent(?))", searchNome)
 		}
 
-		// Caso queira filtrar especificamente por ID da área de atuação
-		if filter.AreaAtuacaoID != uuid.Nil {
+		// Filtragem por ID da área de atuação usando o novo tipo int64 (> 0)
+		if filter.AreaAtuacaoID > 0 {
 			db = db.Joins("JOIN area_atuacao_habilidade aah ON aah.id_habilidade = emp_habilidades.id").
 				Where("aah.id_area_atuacao = ?", filter.AreaAtuacaoID)
 		}
@@ -103,20 +102,75 @@ func (r *HabilidadeRepository) ListHabilidades(ctx context.Context, filter empre
 		return nil, 0, fmt.Errorf("erro ao listar habilidades: %w", result.Error)
 	}
 
-	return entities, int(total), nil
+	return entities, total, nil
+}
+
+// CreateAreaAtuacao cria uma Área de Atuação
+func (r *HabilidadeRepository) CreateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) (int64, error) {
+	result := r.db.WithContext(ctx).Create(entity)
+	if result.Error != nil {
+		return 0, fmt.Errorf("erro ao criar Área de Atuação: %w", result.Error)
+	}
+	return entity.ID, nil
+}
+
+// GetAreaAtuacaoByID traz a área de atuação carregando suas habilidades vinculadas
+func (r *HabilidadeRepository) GetAreaAtuacaoByID(ctx context.Context, id int64) (*empregabilidade.AreaAtuacao, error) {
+	var entity empregabilidade.AreaAtuacao
+
+	// Preload("Habilidades") faz o JOIN automático com a tabela emp_habilidades via tabela de junção
+	result := r.db.WithContext(ctx).
+		Preload("Habilidades").
+		First(&entity, "id = ?", id)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("erro ao buscar área de atuação por ID: %w", result.Error)
+	}
+	return &entity, nil
+}
+
+// UpdateAreaAtuacao atualiza a área de atuação
+func (r *HabilidadeRepository) UpdateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) error {
+	result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(map[string]interface{}{
+		"nome":       entity.Nome,
+		"updated_at": entity.UpdatedAt,
+	})
+	if result.Error != nil {
+		return fmt.Errorf("erro ao atualizar área de atuação: %w", result.Error)
+	}
+	return nil
+}
+
+// DeleteAreaAtuacao exclui uma área de atuação
+func (r *HabilidadeRepository) DeleteAreaAtuacao(ctx context.Context, id int64) error {
+	result := r.db.WithContext(ctx).Delete(&empregabilidade.AreaAtuacao{}, "id = ?", id)
+	if result.Error != nil {
+		return fmt.Errorf("erro ao excluir uma área de atuação: %w", result.Error)
+	}
+	return nil
 }
 
 // ListAreas faz a paginação e busca insensível a acentos para Áreas de Atuação
-func (r *HabilidadeRepository) ListAreas(ctx context.Context, filter empregabilidade.AreaAtuacaoFilter, limit, offset int) ([]*empregabilidade.AreaAtuacao, int, error) {
+func (r *HabilidadeRepository) ListAreasAtuacao(ctx context.Context, filter empregabilidade.AreaAtuacaoFilter, limit, offset int) ([]*empregabilidade.AreaAtuacao, int64, error) {
 	var entities []*empregabilidade.AreaAtuacao
 	var total int64
 
 	applyFilters := func(db *gorm.DB) *gorm.DB {
 		if filter.Search != "" {
 			searchNome := fmt.Sprintf("%%%s%%", filter.Search)
-			// Aproveita o índice trigram + unaccent criado na migration para area_atuacao
+			// Ajuste o nome da tabela base se no seu banco não for emp_areas_atuacao
 			db = db.Where("lower(immutable_unaccent(area_atuacao.nome)) LIKE lower(immutable_unaccent(?))", searchNome)
 		}
+
+		// Filtragem por ID da Habilidade
+		if filter.HabilidadeID > 0 {
+			db = db.Joins("JOIN area_atuacao_habilidade aah ON aah.id_area_atuacao = area_atuacao.id").
+				Where("aah.id_habilidade = ?", filter.HabilidadeID)
+		}
+
 		return db
 	}
 
@@ -125,8 +179,10 @@ func (r *HabilidadeRepository) ListAreas(ctx context.Context, filter empregabili
 		return nil, 0, fmt.Errorf("erro ao contar áreas de atuação: %w", err)
 	}
 
+	// Carrega as áreas de atuação com Preload na relação Habilidades
 	findDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.AreaAtuacao{}))
 	result := findDB.
+		Preload("Habilidades").
 		Order("area_atuacao.nome ASC").
 		Limit(limit).
 		Offset(offset).
@@ -136,7 +192,7 @@ func (r *HabilidadeRepository) ListAreas(ctx context.Context, filter empregabili
 		return nil, 0, fmt.Errorf("erro ao listar áreas de atuação: %w", result.Error)
 	}
 
-	return entities, int(total), nil
+	return entities, total, nil
 }
 
 // Métodos para Vínculo com Currículo e Áreas
