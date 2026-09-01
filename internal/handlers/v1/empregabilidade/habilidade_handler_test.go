@@ -12,8 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/prefeitura-rio/app-go-api/internal/handlers/response"
 	handler "github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
 

@@ -68,6 +68,7 @@ func (h *CurriculoHandler) GetCurriculoCompleto(c *gin.Context) {
 	if !requirePathCPFOwnership(c) {
 		return
 	}
+
 	cpf := c.Param("cpf")
 
 	curriculo, err := h.service.GetCurriculoCompleto(c.Request.Context(), cpf)

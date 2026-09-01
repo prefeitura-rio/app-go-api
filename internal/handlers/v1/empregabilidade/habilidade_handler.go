@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/prefeitura-rio/app-go-api/internal/handlers/response"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	service "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
