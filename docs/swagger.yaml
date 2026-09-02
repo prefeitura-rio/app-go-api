@@ -20,6 +20,12 @@ definitions:
     type: object
   empregabilidade.AreaAtuacao:
     properties:
+      areas:
+        description: Tag de relacionamento Many-To-Many informando as chaves da tabela
+          pivô
+        items:
+          $ref: '#/definitions/empregabilidade.AreaAtuacao'
+        type: array
       created_at:
         type: string
       habilidades:
@@ -487,6 +493,8 @@ definitions:
         type: string
       updated_at:
         type: string
+    type: object
+  empregabilidade.ReplaceAreasHabilidadeRequest:
     type: object
   empregabilidade.ReplaceHabilidadesRequest:
     properties:
@@ -3155,6 +3163,170 @@ paths:
       summary: Listar cursos rascunho
       tags:
       - courses
+  /api/v1/empregabilidade/areas-atuacao:
+    get:
+      description: Retorna uma lista paginada das áreas de atuação vinculadas às habilidades
+      parameters:
+      - description: Termo de busca
+        in: query
+        name: q
+        type: string
+      - default: 1
+        description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 'Tamanho da página (default: 20, max: 100)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ListAreasAtuacaoPaginatedResponse'
+        "500":
+          description: Erro ao buscar áreas de atuação
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Listar Áreas de Atuação
+      tags:
+      - empregabilidade-areas-atuacao
+    post:
+      consumes:
+      - application/json
+      description: Cadastra uma nova área de atuação no sistema
+      parameters:
+      - description: Dados da área de atuação
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.CreateAreaAtuacaoRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              format: int64
+              type: integer
+            type: object
+        "400":
+          description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao criar área de atuação
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Criar Área de Atuação
+      tags:
+      - empregabilidade-areas-atuacao
+  /api/v1/empregabilidade/areas-atuacao/{id}:
+    delete:
+      description: Remove uma área de atuação cadastrada pelo ID
+      parameters:
+      - description: ID da Área de Atuação
+        example: 10
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: ID inválido
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao excluir área de atuação
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Excluir Área de Atuação
+      tags:
+      - empregabilidade-areas-atuacao
+    get:
+      description: Retorna os detalhes de uma área de atuação cadastrada pelo ID
+      parameters:
+      - description: ID da Área de Atuação
+        example: 10
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.AreaAtuacao'
+        "400":
+          description: ID inválido
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Área de atuação não encontrada
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao buscar área de atuação
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Buscar Área de Atuação por ID
+      tags:
+      - empregabilidade-areas-atuacao
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de uma área de atuação existente
+      parameters:
+      - description: ID da Área de Atuação
+        example: 10
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados para atualização
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.UpdateAreaAtuacaoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao atualizar área de atuação
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Atualizar Área de Atuação
+      tags:
+      - empregabilidade-areas-atuacao
   /api/v1/empregabilidade/candidatura-bloqueios:
     get:
       description: Retorna lista paginada de bloqueios de candidatura, com filtros
@@ -5914,150 +6086,30 @@ paths:
       summary: Atualizar Habilidade
       tags:
       - empregabilidade-habilidades
-  /api/v1/empregabilidade/habilidades/areas-atuacao:
-    get:
-      description: Retorna uma lista paginada das áreas de atuação vinculadas às habilidades
-      parameters:
-      - description: Termo de busca
-        in: query
-        name: q
-        type: string
-      - default: 1
-        description: 'Número da página (default: 1)'
-        in: query
-        name: page
-        type: integer
-      - default: 20
-        description: 'Tamanho da página (default: 20, max: 100)'
-        in: query
-        name: pageSize
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/response.ListAreasAtuacaoPaginatedResponse'
-        "500":
-          description: Erro ao buscar áreas de atuação
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      summary: Listar Áreas de Atuação
-      tags:
-      - empregabilidade-habilidades
-    post:
-      consumes:
-      - application/json
-      description: Cadastra uma nova área de atuação no sistema
-      parameters:
-      - description: Dados da área de atuação
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/empregabilidade.CreateAreaAtuacaoRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            additionalProperties:
-              format: int64
-              type: integer
-            type: object
-        "400":
-          description: Dados inválidos
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao criar área de atuação
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Criar Área de Atuação
-      tags:
-      - empregabilidade-areas-atuacao
-  /api/v1/empregabilidade/habilidades/areas-atuacao/{id}:
-    delete:
-      description: Remove uma área de atuação cadastrada pelo ID
-      parameters:
-      - description: ID da Área de Atuação
-        example: 10
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/response.SuccessResponse'
-        "400":
-          description: ID inválido
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao excluir área de atuação
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Excluir Área de Atuação
-      tags:
-      - empregabilidade-areas-atuacao
-    get:
-      description: Retorna os detalhes de uma área de atuação cadastrada pelo ID
-      parameters:
-      - description: ID da Área de Atuação
-        example: 10
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/empregabilidade.AreaAtuacao'
-        "400":
-          description: ID inválido
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Área de atuação não encontrada
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao buscar área de atuação
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      summary: Buscar Área de Atuação por ID
-      tags:
-      - empregabilidade-areas-atuacao
+  /api/v1/empregabilidade/habilidades/{id}/areas-atuacao:
     put:
       consumes:
       - application/json
-      description: Atualiza os dados de uma área de atuação existente
+      description: |-
+        Substitui em lote o conjunto de áreas de atuação associadas a uma habilidade global
+
+        **Atenção para o campo `area_ids`:**
+        - Funciona como **substituição total (Replace)** para as áreas de atuação vinculadas a cada habilidade.
+        - Enviar `[1, 2, 3]` substitui todas as áreas existentes dessa habilidade pelas IDs fornecidas.
+        - Enviar array vazio `[]` ou omitir remove todos os vínculos de área de atuação da habilidade.
       parameters:
-      - description: ID da Área de Atuação
+      - description: ID da Habilidade
         example: 10
         in: path
         name: id
         required: true
         type: integer
-      - description: Dados para atualização
+      - description: Lista de IDs das áreas de atuação
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/empregabilidade.UpdateAreaAtuacaoRequest'
+          $ref: '#/definitions/empregabilidade.ReplaceAreasHabilidadeRequest'
       produces:
       - application/json
       responses:
@@ -6066,18 +6118,90 @@ paths:
           schema:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
-          description: Dados inválidos
+          description: Dados ou ID inválidos
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "500":
-          description: Erro ao atualizar área de atuação
+          description: Erro ao substituir áreas de atuação
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Atualizar Área de Atuação
+      summary: Substituir Áreas de Atuação da Habilidade
       tags:
-      - empregabilidade-areas-atuacao
+      - empregabilidade-habilidades
+  /api/v1/empregabilidade/habilidades/{id}/areas-atuacao/{areaId}:
+    delete:
+      description: Remove a relação N:M entre uma habilidade e uma área de atuação
+        sem excluir as entidades
+      parameters:
+      - description: ID da Habilidade
+        example: 10
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID da Área de Atuação
+        example: 2
+        in: path
+        name: areaId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: IDs inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao desvincular área de atuação
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Desvincular Área de Atuação da Habilidade
+      tags:
+      - empregabilidade-habilidades
+    post:
+      description: Associa uma área de atuação existente a uma habilidade global especificada
+      parameters:
+      - description: ID da Habilidade
+        example: 10
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID da Área de Atuação
+        example: 2
+        in: path
+        name: areaId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: IDs inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao vincular área de atuação
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Vincular Área de Atuação à Habilidade
+      tags:
+      - empregabilidade-habilidades
   /api/v1/empregabilidade/idiomas:
     get:
       description: Retorna uma lista paginada de idiomas

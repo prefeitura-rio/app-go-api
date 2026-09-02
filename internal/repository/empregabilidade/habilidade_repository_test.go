@@ -458,3 +458,100 @@ func TestHabilidadeRepository_ListHabilidadesPorCPF_Success(t *testing.T) {
 	assert.Equal(t, cpf, result[0].CPF)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+// --- TESTES DE VÍNCULO E DESVÍNCULO de Áreas de Atuação (MANY-TO-MANY) ---
+
+func TestHabilidadeRepository_AttachAreaAtuacao_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	var habilidadeID int64 = 1
+	var areaID int64 = 5
+
+	// Transação completa: Begin -> UPDATE pai -> INSERT pivô -> Commit
+	mock.ExpectBegin()
+
+	// 1. O GORM atualiza o updated_at da habilidade pai
+	mock.ExpectExec(`UPDATE "emp_habilidades"`).
+		WithArgs(sqlmock.AnyArg(), habilidadeID).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	// 2. Insere a associação na tabela pivô
+	mock.ExpectQuery(`INSERT INTO "area_atuacao_habilidade"`).
+		WithArgs(habilidadeID, areaID).
+		WillReturnRows(sqlmock.NewRows([]string{"id_habilidade", "id_area_atuacao"}).
+			AddRow(habilidadeID, areaID))
+
+	mock.ExpectCommit()
+
+	err := repo.AttachAreaAtuacao(ctx, habilidadeID, areaID)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_DetachAreaAtuacao_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	var habilidadeID int64 = 1
+	var areaID int64 = 5
+
+	// O GORM deleta a relação específica na tabela pivô sem apagar as entidades principais
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "area_atuacao_habilidade"`).
+		WithArgs(habilidadeID, areaID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	err := repo.DetachAreaAtuacao(ctx, habilidadeID, areaID)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_ReplaceAreasAtuacao_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	var habilidadeID int64 = 1
+	areaIDs := []int64{10, 20}
+
+	// 1. O GORM busca as áreas existentes antes de abrir transação
+	mock.ExpectQuery(`SELECT \* FROM "area_atuacao" WHERE id IN \(\$1,\$2\)`).
+		WithArgs(areaIDs[0], areaIDs[1]).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "descricao"}).
+			AddRow(areaIDs[0], "Área 10").
+			AddRow(areaIDs[1], "Área 20"))
+
+	// 2. Transação 1: UPDATE do pai + INSERT dos novos vínculos na pivô
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_habilidades"`).
+		WithArgs(sqlmock.AnyArg(), habilidadeID).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	mock.ExpectQuery(`INSERT INTO "area_atuacao_habilidade"`).
+		WithArgs(habilidadeID, areaIDs[0], habilidadeID, areaIDs[1]).
+		WillReturnRows(sqlmock.NewRows([]string{"id_habilidade", "id_area_atuacao"}).
+			AddRow(habilidadeID, areaIDs[0]).
+			AddRow(habilidadeID, areaIDs[1]))
+	mock.ExpectCommit()
+
+	// 3. Transação 2: Limpeza dos vínculos antigos (DELETE)
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "area_atuacao_habilidade"`).
+		WithArgs(habilidadeID, areaIDs[0], areaIDs[1]).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
+
+	err := repo.ReplaceAreasAtuacao(ctx, habilidadeID, areaIDs)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}

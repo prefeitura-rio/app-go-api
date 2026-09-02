@@ -157,6 +157,12 @@ docker-run:
       -e REDIS_URL=${REDIS_URL:-redis://host.docker.internal:6379} \
       app-go-api:latest
 
+# Run Docker Compose container locally
+docker-compose-up:
+    @echo "Running Docker Compose container..."
+    @docker-compose up -d
+    @echo "✅ Docker Compose container running!"
+
 # ==============================================================================
 # Database
 # ==============================================================================

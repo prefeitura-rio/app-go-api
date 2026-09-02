@@ -38,6 +38,10 @@ type UpdateAreaAtuacaoRequest struct {
 	Nome string `json:"nome" binding:"required" example:"Tecnologia da Informação e Comunicação"`
 }
 
+type ReplaceAreasHabilidadeRequest struct {
+	AreaIDs []int64 `json:"area_ids" binding:"required" example:"[1, 2, 3]"`
+}
+
 // Estrutura do Handler
 
 type HabilidadeHandler struct {
@@ -224,6 +228,115 @@ func (h *HabilidadeHandler) ListHabilidades(c *gin.Context) {
 }
 
 // ==========================================
+// RELACIONAMENTOS: HABILIDADE <-> ÁREA DE ATUAÇÃO
+// ==========================================
+
+// AttachAreaAtuacao vincula uma área de atuação a uma habilidade global.
+// @Summary      Vincular Área de Atuação à Habilidade
+// @Description  Associa uma área de atuação existente a uma habilidade global especificada
+// @Tags         empregabilidade-habilidades
+// @Produce      json
+// @Param        id      path      int  true  "ID da Habilidade" example(10)
+// @Param        areaId  path      int  true  "ID da Área de Atuação" example(2)
+// @Success      200     {object}  response.SuccessResponse
+// @Failure      400     {object}  response.ErrorResponse "IDs inválidos"
+// @Failure      500     {object}  response.ErrorResponse "Erro ao vincular área de atuação"
+// @Security     BearerAuth
+// @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao/{areaId} [post]
+func (h *HabilidadeHandler) AttachAreaAtuacao(c *gin.Context) {
+	habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
+		return
+	}
+
+	areaID, err := strconv.ParseInt(c.Param("areaId"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "ID de área de atuação inválido")
+		return
+	}
+
+	if err := h.habilidadeService.AttachAreaAtuacao(c.Request.Context(), habilidadeID, areaID); err != nil {
+		response.Error(c, http.StatusInternalServerError, "Erro ao vincular área de atuação")
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Área de atuação vinculada com sucesso")
+}
+
+// DetachAreaAtuacao remove a associação entre uma área de atuação e uma habilidade global.
+// @Summary      Desvincular Área de Atuação da Habilidade
+// @Description  Remove a relação N:M entre uma habilidade e uma área de atuação sem excluir as entidades
+// @Tags         empregabilidade-habilidades
+// @Produce      json
+// @Param        id      path      int  true  "ID da Habilidade" example(10)
+// @Param        areaId  path      int  true  "ID da Área de Atuação" example(2)
+// @Success      200     {object}  response.SuccessResponse
+// @Failure      400     {object}  response.ErrorResponse "IDs inválidos"
+// @Failure      500     {object}  response.ErrorResponse "Erro ao desvincular área de atuação"
+// @Security     BearerAuth
+// @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao/{areaId} [delete]
+func (h *HabilidadeHandler) DetachAreaAtuacao(c *gin.Context) {
+	habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
+		return
+	}
+
+	areaID, err := strconv.ParseInt(c.Param("areaId"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "ID de área de atuação inválido")
+		return
+	}
+
+	if err := h.habilidadeService.DetachAreaAtuacao(c.Request.Context(), habilidadeID, areaID); err != nil {
+		response.Error(c, http.StatusInternalServerError, "Erro ao desvincular área de atuação")
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Área de atuação desvinculada com sucesso")
+}
+
+// ReplaceAreasAtuacao substitui todas as áreas de atuação vinculadas a uma habilidade.
+// @Summary      Substituir Áreas de Atuação da Habilidade
+// @Description  Substitui em lote o conjunto de áreas de atuação associadas a uma habilidade global
+// @Description
+// @Description  **Atenção para o campo `area_ids`:**
+// @Description  - Funciona como **substituição total (Replace)** para as áreas de atuação vinculadas a cada habilidade.
+// @Description  - Enviar `[1, 2, 3]` substitui todas as áreas existentes dessa habilidade pelas IDs fornecidas.
+// @Description  - Enviar array vazio `[]` ou omitir remove todos os vínculos de área de atuação da habilidade.
+// @Tags         empregabilidade-habilidades
+// @Accept       json
+// @Produce      json
+// @Param        id       path      int                            true  "ID da Habilidade" example(10)
+// @Param        request  body      ReplaceAreasHabilidadeRequest  true  "Lista de IDs das áreas de atuação"
+// @Success      200      {object}  response.SuccessResponse
+// @Failure      400      {object}  response.ErrorResponse "Dados ou ID inválidos"
+// @Failure      500      {object}  response.ErrorResponse "Erro ao substituir áreas de atuação"
+// @Security     BearerAuth
+// @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao [put]
+func (h *HabilidadeHandler) ReplaceAreasAtuacao(c *gin.Context) {
+	habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
+		return
+	}
+
+	var req ReplaceAreasHabilidadeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		return
+	}
+
+	if err := h.habilidadeService.ReplaceAreasAtuacao(c.Request.Context(), habilidadeID, req.AreaIDs); err != nil {
+		response.Error(c, http.StatusInternalServerError, "Erro ao substituir áreas de atuação")
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Áreas de atuação da habilidade atualizadas com sucesso")
+}
+
+// ==========================================
 // CRUD DE ÁREAS DE ATUAÇÃO
 // ==========================================
 
@@ -238,7 +351,7 @@ func (h *HabilidadeHandler) ListHabilidades(c *gin.Context) {
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao criar área de atuação"
 // @Security     BearerAuth
-// @Router       /api/v1/empregabilidade/habilidades/areas-atuacao [post]
+// @Router       /api/v1/empregabilidade/areas-atuacao [post]
 func (h *HabilidadeHandler) CreateAreaAtuacao(c *gin.Context) {
 	var req CreateAreaAtuacaoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -269,7 +382,7 @@ func (h *HabilidadeHandler) CreateAreaAtuacao(c *gin.Context) {
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      404  {object}  response.ErrorResponse "Área de atuação não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao buscar área de atuação"
-// @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id} [get]
+// @Router       /api/v1/empregabilidade/areas-atuacao/{id} [get]
 func (h *HabilidadeHandler) GetAreaAtuacaoByID(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
@@ -303,7 +416,7 @@ func (h *HabilidadeHandler) GetAreaAtuacaoByID(c *gin.Context) {
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar área de atuação"
 // @Security     BearerAuth
-// @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id} [put]
+// @Router       /api/v1/empregabilidade/areas-atuacao/{id} [put]
 func (h *HabilidadeHandler) UpdateAreaAtuacao(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
@@ -341,7 +454,7 @@ func (h *HabilidadeHandler) UpdateAreaAtuacao(c *gin.Context) {
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir área de atuação"
 // @Security     BearerAuth
-// @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id} [delete]
+// @Router       /api/v1/empregabilidade/areas-atuacao/{id} [delete]
 func (h *HabilidadeHandler) DeleteAreaAtuacao(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
@@ -361,14 +474,14 @@ func (h *HabilidadeHandler) DeleteAreaAtuacao(c *gin.Context) {
 // ListAreasAtuacao lista as áreas de atuação associadas às habilidades com paginação.
 // @Summary      Listar Áreas de Atuação
 // @Description  Retorna uma lista paginada das áreas de atuação vinculadas às habilidades
-// @Tags         empregabilidade-habilidades
+// @Tags         empregabilidade-areas-atuacao
 // @Produce      json
 // @Param        q         query     string  false  "Termo de busca"
 // @Param        page      query     int     false  "Número da página (default: 1)" default(1)
 // @Param        pageSize  query     int     false  "Tamanho da página (default: 20, max: 100)" default(20)
 // @Success      200       {object}  response.ListAreasAtuacaoPaginatedResponse
 // @Failure      500       {object}  response.ErrorResponse "Erro ao buscar áreas de atuação"
-// @Router       /api/v1/empregabilidade/habilidades/areas-atuacao [get]
+// @Router       /api/v1/empregabilidade/areas-atuacao [get]
 func (h *HabilidadeHandler) ListAreasAtuacao(c *gin.Context) {
 	termo := c.Query("q")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))

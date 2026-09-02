@@ -135,16 +135,24 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	// -----------------------------------------------------------------
 	empHabilidades := empGroup.Group("/habilidades")
 	{
+		// CRUD Habilidades
 		empHabilidades.GET("", app.EmpHabilidadeHandler.ListHabilidades)
 		empHabilidades.POST("", app.EmpHabilidadeHandler.CreateHabilidade)
 		empHabilidades.GET("/:id", app.EmpHabilidadeHandler.GetHabilidadeByID)
 		empHabilidades.PUT("/:id", app.EmpHabilidadeHandler.UpdateHabilidade)
 		empHabilidades.DELETE("/:id", app.EmpHabilidadeHandler.DeleteHabilidade)
+
+		// CRUD Áreas de Atuação
 		empHabilidades.POST("/areas-atuacao", app.EmpHabilidadeHandler.CreateAreaAtuacao)
 		empHabilidades.GET("/areas-atuacao/:id", app.EmpHabilidadeHandler.GetAreaAtuacaoByID)
 		empHabilidades.PUT("/areas-atuacao/:id", app.EmpHabilidadeHandler.UpdateAreaAtuacao)
 		empHabilidades.DELETE("/areas-atuacao/:id", app.EmpHabilidadeHandler.DeleteAreaAtuacao)
 		empHabilidades.GET("/areas-atuacao", app.EmpHabilidadeHandler.ListAreasAtuacao)
+
+		// Relacionamentos: Habilidade <-> Área de Atuação
+		empHabilidades.POST("/:id/areas-atuacao/:areaId", app.EmpHabilidadeHandler.AttachAreaAtuacao)
+		empHabilidades.DELETE("/:id/areas-atuacao/:areaId", app.EmpHabilidadeHandler.DetachAreaAtuacao)
+		empHabilidades.PUT("/:id/areas-atuacao", app.EmpHabilidadeHandler.ReplaceAreasAtuacao)
 	}
 
 	// -----------------------------------------------------------------

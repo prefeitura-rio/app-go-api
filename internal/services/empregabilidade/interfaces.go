@@ -151,6 +151,11 @@ type HabilidadeRepositoryInterface interface {
 	ListAreasAtuacao(ctx context.Context, filter empregabilidade.AreaAtuacaoFilter, limit, offset int) ([]*empregabilidade.AreaAtuacao, int64, error)
 	AddHabilidadeAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error
 	ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error)
+
+	// Métodos de Relacionamento (Many-to-Many)
+	AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
+	DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
+	ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error
 }
 
 // CurriculoRepositoryInterface defines the interface for Curriculo repository.

@@ -44,6 +44,7 @@ func (r *HabilidadeRepository) GetHabilidadeByID(ctx context.Context, id int64) 
 	return &entity, nil
 }
 
+// UpdateHabilidade atualiza uma habilidade
 func (r *HabilidadeRepository) UpdateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) error {
 	result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(map[string]interface{}{
 		"nome":       entity.Nome,
@@ -55,11 +56,75 @@ func (r *HabilidadeRepository) UpdateHabilidade(ctx context.Context, entity *emp
 	return nil
 }
 
+// DeleteHabilidade exclui uma habilidade
 func (r *HabilidadeRepository) DeleteHabilidade(ctx context.Context, id int64) error {
 	result := r.db.WithContext(ctx).Delete(&empregabilidade.Habilidade{}, "id = ?", id)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao excluir habilidade: %w", result.Error)
 	}
+	return nil
+}
+
+// AttachAreaAtuacao vincula uma Área de Atuação a uma Habilidade
+func (r *HabilidadeRepository) AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
+	habilidade := &empregabilidade.Habilidade{ID: habilidadeID}
+	area := empregabilidade.AreaAtuacao{ID: areaID}
+
+	// db.Model.Association gerencia a inclusão na tabela pivô (area_atuacao_habilidade)
+	err := r.db.WithContext(ctx).
+		Omit("Areas.*").
+		Model(habilidade).
+		Association("Areas").
+		Append(&area)
+
+	if err != nil {
+		return fmt.Errorf("erro ao vincular área de atuação %d à habilidade %d: %w", areaID, habilidadeID, err)
+	}
+
+	return nil
+}
+
+// DetachAreaAtuacao remove o vínculo entre uma Área de Atuação e uma Habilidade
+func (r *HabilidadeRepository) DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
+	habilidade := &empregabilidade.Habilidade{ID: habilidadeID}
+	area := empregabilidade.AreaAtuacao{ID: areaID}
+
+	// Remove o registro específico da tabela pivô sem deletar as entidades principais
+	err := r.db.WithContext(ctx).
+		Model(habilidade).
+		Association("Areas").
+		Delete(&area)
+
+	if err != nil {
+		return fmt.Errorf("erro ao desvincular área de atuação %d da habilidade %d: %w", areaID, habilidadeID, err)
+	}
+
+	return nil
+}
+
+// ReplaceAreasAtuacao substitui todas as áreas de atuação de uma habilidade por uma nova lista de IDs (útil para atualizações em lote)
+func (r *HabilidadeRepository) ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error {
+	habilidade := &empregabilidade.Habilidade{ID: habilidadeID}
+
+	var areas []empregabilidade.AreaAtuacao
+	if len(areaIDs) > 0 {
+		if err := r.db.WithContext(ctx).Where("id IN ?", areaIDs).Find(&areas).Error; err != nil {
+			return fmt.Errorf("erro ao buscar áreas de atuação para substituição: %w", err)
+		}
+	}
+
+	// Omit("Areas.*") instrui o GORM a NÃO tentar inserir/atualizar a tabela area_atuacao,
+	// manipulando estritamente os registros da tabela pivô
+	err := r.db.WithContext(ctx).
+		Omit("Areas.*").
+		Model(habilidade).
+		Association("Areas").
+		Replace(&areas)
+
+	if err != nil {
+		return fmt.Errorf("erro ao substituir áreas de atuação da habilidade %d: %w", habilidadeID, err)
+	}
+
 	return nil
 }
 

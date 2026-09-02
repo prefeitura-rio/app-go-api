@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
@@ -79,4 +80,28 @@ func (s *HabilidadeService) AddHabilidadeAoCurriculo(ctx context.Context, vincul
 // ListHabilidadesPorCPF busca todas as habilidades associadas ao CPF do candidato
 func (s *HabilidadeService) ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
 	return s.repo.ListHabilidadesPorCPF(ctx, cpf)
+}
+
+// AttachAreaAtuacao vincula uma área de atuação a uma habilidade
+func (s *HabilidadeService) AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
+	if habilidadeID <= 0 || areaID <= 0 {
+		return fmt.Errorf("IDs inválidos: habilidadeID=%d, areaID=%d", habilidadeID, areaID)
+	}
+	return s.repo.AttachAreaAtuacao(ctx, habilidadeID, areaID)
+}
+
+// DetachAreaAtuacao desvincula uma área de atuação de uma habilidade
+func (s *HabilidadeService) DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
+	if habilidadeID <= 0 || areaID <= 0 {
+		return fmt.Errorf("IDs inválidos: habilidadeID=%d, areaID=%d", habilidadeID, areaID)
+	}
+	return s.repo.DetachAreaAtuacao(ctx, habilidadeID, areaID)
+}
+
+// ReplaceAreasAtuacao substitui a lista inteira de áreas de atuação de uma habilidade
+func (s *HabilidadeService) ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error {
+	if habilidadeID <= 0 {
+		return fmt.Errorf("ID de habilidade inválido: %d", habilidadeID)
+	}
+	return s.repo.ReplaceAreasAtuacao(ctx, habilidadeID, areaIDs)
 }

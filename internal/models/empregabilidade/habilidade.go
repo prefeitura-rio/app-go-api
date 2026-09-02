@@ -38,6 +38,8 @@ type AreaAtuacao struct {
 	CreatedAt   time.Time    `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt   time.Time    `json:"updated_at" gorm:"autoUpdateTime"`
 	Habilidades []Habilidade `json:"habilidades,omitempty" gorm:"many2many:area_atuacao_habilidade;foreignKey:ID;joinForeignKey:id_area_atuacao;references:ID;joinReferences:id_habilidade"`
+	// Tag de relacionamento Many-To-Many informando as chaves da tabela pivô
+	Areas []AreaAtuacao `gorm:"many2many:area_atuacao_habilidade;foreignKey:ID;joinForeignKey:id_habilidade;references:ID;joinReferences:id_area_atuacao" json:"areas,omitempty"`
 }
 
 func (AreaAtuacao) TableName() string {

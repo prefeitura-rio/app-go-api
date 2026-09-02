@@ -92,6 +92,21 @@ func (m *MockHabilidadeRepository) ListHabilidadesPorCPF(ctx context.Context, cp
 	return args.Get(0).([]*empregabilidade.CurriculoHabilidade), args.Error(1)
 }
 
+func (m *MockHabilidadeRepository) AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
+	args := m.Called(ctx, habilidadeID, areaID)
+	return args.Error(0)
+}
+
+func (m *MockHabilidadeRepository) DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
+	args := m.Called(ctx, habilidadeID, areaID)
+	return args.Error(0)
+}
+
+func (m *MockHabilidadeRepository) ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error {
+	args := m.Called(ctx, habilidadeID, areaIDs)
+	return args.Error(0)
+}
+
 // --- TESTES UNITÁRIOS PARA HABILIDADES ---
 
 func TestHabilidadeService_CreateHabilidade(t *testing.T) {
@@ -495,6 +510,54 @@ func TestHabilidadeService_ListHabilidadesPorCPF(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.Equal(t, expectedErr, err)
+		mockRepo.AssertExpectations(t)
+	})
+}
+
+func TestHabilidadeService_AttachAreaAtuacao(t *testing.T) {
+	mockRepo := new(MockHabilidadeRepository)
+	service := NewHabilidadeServiceWithInterface(mockRepo)
+	ctx := context.Background()
+
+	t.Run("sucesso", func(t *testing.T) {
+		mockRepo.On("AttachAreaAtuacao", ctx, int64(1), int64(2)).Return(nil).Once()
+
+		err := service.AttachAreaAtuacao(ctx, 1, 2)
+		assert.NoError(t, err)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("id invalido", func(t *testing.T) {
+		err := service.AttachAreaAtuacao(ctx, 0, 2)
+		assert.Error(t, err)
+	})
+}
+
+func TestHabilidadeService_DetachAreaAtuacao(t *testing.T) {
+	mockRepo := new(MockHabilidadeRepository)
+	service := NewHabilidadeServiceWithInterface(mockRepo)
+	ctx := context.Background()
+
+	t.Run("sucesso", func(t *testing.T) {
+		mockRepo.On("DetachAreaAtuacao", ctx, int64(1), int64(2)).Return(nil).Once()
+
+		err := service.DetachAreaAtuacao(ctx, 1, 2)
+		assert.NoError(t, err)
+		mockRepo.AssertExpectations(t)
+	})
+}
+
+func TestHabilidadeService_ReplaceAreasAtuacao(t *testing.T) {
+	mockRepo := new(MockHabilidadeRepository)
+	service := NewHabilidadeServiceWithInterface(mockRepo)
+	ctx := context.Background()
+
+	t.Run("sucesso", func(t *testing.T) {
+		areas := []int64{10, 20}
+		mockRepo.On("ReplaceAreasAtuacao", ctx, int64(1), areas).Return(nil).Once()
+
+		err := service.ReplaceAreasAtuacao(ctx, 1, areas)
+		assert.NoError(t, err)
 		mockRepo.AssertExpectations(t)
 	})
 }
