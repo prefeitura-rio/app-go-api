@@ -188,6 +188,13 @@ func (w *CitizenSyncWorker) citizenInfoToSnapshot(cpf string, info *models.Citiz
 	return snapshot
 }
 
+// StaleThreshold exposes the age after which a snapshot is considered stale, so
+// callers holding a snapshot can decide whether a refresh is needed without
+// paying for an extra lookup inside SyncCitizenOnDemand.
+func (w *CitizenSyncWorker) StaleThreshold() time.Duration {
+	return w.staleThreshold
+}
+
 // SyncCitizenOnDemand syncs a single citizen on-demand (called during enrollment creation)
 func (w *CitizenSyncWorker) SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
 	// Check if we already have a fresh snapshot

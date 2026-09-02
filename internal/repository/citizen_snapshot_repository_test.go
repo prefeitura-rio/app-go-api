@@ -300,7 +300,7 @@ func TestCitizenSnapshotRepository_GetCPFsWithEnrollments(t *testing.T) {
 			AddRow("11111111111").
 			AddRow("22222222222")
 
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT DISTINCT i.cpf FROM inscricoes i LEFT JOIN citizen_snapshots cs ON i.cpf = cs.cpf WHERE cs.cpf IS NULL OR cs.last_synced_at < $1 LIMIT $2`)).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT DISTINCT e.cpf FROM ( SELECT i.cpf AS cpf FROM inscricoes i UNION SELECT c.cpf AS cpf FROM emp_candidaturas c WHERE c.deleted_at IS NULL ) e LEFT JOIN citizen_snapshots cs ON e.cpf = cs.cpf WHERE cs.cpf IS NULL OR cs.last_synced_at < $1 LIMIT $2`)).
 			WithArgs(sqlmock.AnyArg(), limit).
 			WillReturnRows(rows)
 
@@ -315,7 +315,7 @@ func TestCitizenSnapshotRepository_GetCPFsWithEnrollments(t *testing.T) {
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT DISTINCT i.cpf FROM inscricoes i LEFT JOIN citizen_snapshots cs ON i.cpf = cs.cpf WHERE cs.cpf IS NULL OR cs.last_synced_at < $1 LIMIT $2`)).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT DISTINCT e.cpf FROM ( SELECT i.cpf AS cpf FROM inscricoes i UNION SELECT c.cpf AS cpf FROM emp_candidaturas c WHERE c.deleted_at IS NULL ) e LEFT JOIN citizen_snapshots cs ON e.cpf = cs.cpf WHERE cs.cpf IS NULL OR cs.last_synced_at < $1 LIMIT $2`)).
 			WillReturnError(sql.ErrConnDone)
 
 		cpfs, err := repo.GetCPFsWithEnrollments(ctx, 24*time.Hour, 5)
