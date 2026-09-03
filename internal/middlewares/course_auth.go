@@ -107,6 +107,25 @@ func CourseOrgaoInjector() gin.HandlerFunc {
 	}
 }
 
+// CourseDraftAuthorization permite criar rascunho para admin, go:cursos:casa_civil
+// e go:cursos:editor com escopo de secretaria/orgao.
+// Editores são permitidos porque duplicação de curso é semanticamente diferente
+// de criação avulsa (bloqueada por CourseOrgaoInjector em POST /courses).
+func CourseDraftAuthorization() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
+			c.Next()
+			return
+		}
+		if isCursosEditor(c) && hasCourseOrgaoScope(c) {
+			c.Next()
+			return
+		}
+		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar rascunho"})
+		c.Abort()
+	}
+}
+
 type courseLoaderFunc func(ctx context.Context, id int) (orgaoID string, found bool, err error)
 
 type enrollmentCPFLoaderFunc func(ctx context.Context, enrollmentID uuid.UUID) (cpf string, found bool, err error)

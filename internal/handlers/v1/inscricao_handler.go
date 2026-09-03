@@ -427,11 +427,6 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 		return
 	}
 
-	if !middlewares.IsAdmin(c) && !middlewares.HasRole(c, "go:cursos:casa_civil") {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado"})
-		return
-	}
-
 	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})

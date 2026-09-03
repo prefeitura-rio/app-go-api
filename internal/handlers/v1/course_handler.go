@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -311,10 +312,24 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 	// Set status to draft
 	curso.Status = models.StatusCursoDraft
 
-	// A criação de curso é restrita a admin / go:cursos:casa_civil pelo
-	// CourseOrgaoInjector (dev/test) e, em produção, pelo gateway Heimdall — e
-	// esses papéis podem criar em qualquer órgão. Não há, portanto, filtro de
-	// órgão adicional a aplicar aqui.
+	// Editors are allowed by CourseDraftAuthorization but must only create drafts
+	// in orgs within their secretaria scope — enforced here because the body's
+	// orgao_id is untrusted input.
+	if middlewares.HasRole(c, "go:cursos:editor") {
+		secretariaIDs := middlewares.GetUserSecretariaOrgaoIDs(c)
+		orgaoID := middlewares.GetUserOrgaoID(c)
+
+		inScope := slices.Contains(secretariaIDs, curso.OrgaoID) ||
+			(orgaoID != "" && orgaoID == curso.OrgaoID)
+
+		if !inScope {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "Acesso negado: orgão do curso não pertence à sua secretaria",
+			})
+			return
+		}
+	}
+
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
 		// Check if it's a validation error (not a database error)

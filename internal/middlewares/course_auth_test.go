@@ -468,6 +468,95 @@ func TestCourseOrgaoInjector_NoRole_Forbidden(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Sem permissão para criar: órgão não identificado")
 }
 
+// ============ CourseDraftAuthorization Tests ============
+
+func TestCourseDraftAuthorization_Admin_Passes(t *testing.T) {
+	r := setupCourseTestRouter(
+		func(c *gin.Context) {
+			c.Set(middlewares.UserRoleKey, "ADMIN")
+			c.Next()
+		},
+		middlewares.CourseDraftAuthorization(),
+	)
+	r.POST("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/test", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseDraftAuthorization_CasaCivil_Passes(t *testing.T) {
+	r := setupCourseTestRouter(
+		injectCourseRoles("go:cursos:casa_civil", "", nil),
+		middlewares.CourseDraftAuthorization(),
+	)
+	r.POST("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/test", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseDraftAuthorization_Editor_WithSecretaria_Passes(t *testing.T) {
+	r := setupCourseTestRouter(
+		injectCourseRoles("go:cursos:editor", "", []string{"orgao-1", "orgao-2"}),
+		middlewares.CourseDraftAuthorization(),
+	)
+	r.POST("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/test", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseDraftAuthorization_Editor_WithOrgao_Passes(t *testing.T) {
+	r := setupCourseTestRouter(
+		injectCourseRoles("go:cursos:editor", "orgao-42", nil),
+		middlewares.CourseDraftAuthorization(),
+	)
+	r.POST("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/test", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCourseDraftAuthorization_Editor_NoScope_Forbidden(t *testing.T) {
+	r := setupCourseTestRouter(
+		injectCourseRoles("go:cursos:editor", "", nil),
+		middlewares.CourseDraftAuthorization(),
+	)
+	r.POST("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/test", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Sem permissão para criar rascunho")
+}
+
+func TestCourseDraftAuthorization_NoRole_Forbidden(t *testing.T) {
+	r := setupCourseTestRouter(middlewares.CourseDraftAuthorization())
+	r.POST("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/test", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Sem permissão para criar rascunho")
+}
+
+func TestCourseDraftAuthorization_SecretariaOnly_Forbidden(t *testing.T) {
+	r := setupCourseTestRouter(
+		injectCourseRoles("", "", []string{"orgao-1", "orgao-2"}),
+		middlewares.CourseDraftAuthorization(),
+	)
+	r.POST("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/test", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "Sem permissão para criar rascunho")
+}
+
 // ============ CourseOwnershipCheck Tests ============
 
 func TestCourseOwnershipCheck_Admin_Passes(t *testing.T) {
