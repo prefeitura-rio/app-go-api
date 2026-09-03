@@ -572,6 +572,41 @@ func TestInscricaoHandler_UpdateIndividualStatus_Success(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
+// Test UpdateIndividualStatus with editor role (no handler-level gate should block)
+func TestInscricaoHandler_UpdateIndividualStatus_Editor_Passes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRolesKey, []string{"go:cursos:editor"})
+		c.Next()
+	})
+	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/status", handler.UpdateIndividualStatus)
+
+	enrollmentID := uuid.New()
+
+	mockService.On("UpdateStatus", mock.Anything, enrollmentID, models.StatusInscricaoApproved, "", "").
+		Return(nil)
+
+	reqBody := map[string]interface{}{
+		"status": "approved",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1/enrollments/"+enrollmentID.String()+"/status", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
 // Test GetByID with success
 func TestInscricaoHandler_GetByID_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
