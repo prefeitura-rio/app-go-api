@@ -937,8 +937,8 @@ func (h *CourseHandler) GetByID(c *gin.Context) {
 }
 
 // getByID busca um curso por ID. Quando publicOnly é true (rota /api/public),
-// cursos em rascunho não são expostos — retornam 404 —, mantendo o mesmo
-// contrato da listagem pública, que já esconde rascunhos (status NOT draft).
+// cursos em esteira de curadoria (draft, in_review, needs_changes, approved,
+// pending_deletion) retornam 404, mantendo o mesmo contrato da listagem pública.
 func (h *CourseHandler) getByID(c *gin.Context, publicOnly bool) {
 	id, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
@@ -957,9 +957,17 @@ func (h *CourseHandler) getByID(c *gin.Context, publicOnly bool) {
 		return
 	}
 
-	if publicOnly && curso.Status.Normalize() == models.StatusCursoDraft {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
-		return
+	if publicOnly {
+		normalized := curso.Status.Normalize()
+		nonPublic := normalized == models.StatusCursoDraft ||
+			normalized == models.StatusCursoInReview ||
+			normalized == models.StatusCursoNeedsChanges ||
+			normalized == models.StatusCursoApproved ||
+			normalized == models.StatusCursoPendingDeletion
+		if nonPublic {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
+			return
+		}
 	}
 
 	// Calculate remaining vacancies for all schedules
