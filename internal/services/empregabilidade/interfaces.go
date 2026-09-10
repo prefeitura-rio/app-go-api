@@ -182,3 +182,14 @@ type CurriculoRepositoryInterface interface {
 
 	GetPerfilByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoPerfil, error)
 }
+
+// BancoCurriculoRepositoryInterface defines the data access of the banco de currículos.
+type BancoCurriculoRepositoryInterface interface {
+	ListBancoCurriculos(ctx context.Context, filter empregabilidade.BancoCurriculoFilter, page, pageSize int) ([]*empregabilidade.BancoCurriculoItem, int64, error)
+	GetCurriculoByCPF(ctx context.Context, cpf string) (*empregabilidade.Curriculo, error)
+}
+
+// CurriculoCompletoGetterInterface is satisfied by CurriculoService.
+type CurriculoCompletoGetterInterface interface {
+	GetCurriculoCompleto(ctx context.Context, cpf string) (*empregabilidade.CurriculoCompleto, error)
+}

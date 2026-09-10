@@ -10,6 +10,67 @@ definitions:
     - AcessibilidadeParaPCD
     - AcessibilidadePreferencialPCD
     - AcessibilidadeExclusivoPCD
+  empregabilidade.BancoCurriculoDetalhe:
+    properties:
+      bairro:
+        type: string
+      celular:
+        type: string
+      cpf:
+        type: string
+      curriculo:
+        $ref: '#/definitions/empregabilidade.CurriculoCompleto'
+      data_inclusao:
+        type: string
+      escolaridade:
+        type: string
+      genero:
+        description: |-
+          Genero é a identidade de gênero autodeclarada. O sexo da base cadastral
+          não é usado como fallback.
+        type: string
+      idade:
+        type: integer
+      nome:
+        type: string
+      nome_social:
+        type: string
+      profissao:
+        type: string
+    type: object
+  empregabilidade.BancoCurriculoItem:
+    properties:
+      cpf:
+        type: string
+      data_inclusao:
+        type: string
+      escolaridade:
+        type: string
+      nome:
+        type: string
+      nome_social:
+        type: string
+      profissao:
+        type: string
+    type: object
+  empregabilidade.BancoCurriculoListMeta:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  empregabilidade.BancoCurriculoListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/empregabilidade.BancoCurriculoItem'
+        type: array
+      meta:
+        $ref: '#/definitions/empregabilidade.BancoCurriculoListMeta'
+    type: object
   empregabilidade.BulkUpdateEtapaRequest:
     properties:
       cpfs:
@@ -3009,6 +3070,90 @@ paths:
       summary: Listar cursos rascunho
       tags:
       - courses
+  /api/v1/empregabilidade/banco-curriculos:
+    get:
+      description: Lista todos os currículos da base, do mais recente para o mais
+        antigo. Exige admin ou role go:curriculos:admin / go:curriculos:editor.
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10, máximo: 100)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Busca parcial por nome ou nome social
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.BancoCurriculoListResponse'
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar banco de currículos
+      tags:
+      - empregabilidade-banco-curriculos
+  /api/v1/empregabilidade/banco-curriculos/{cpf}:
+    get:
+      description: 'Retorna a ficha de um currículo: dados pessoais do cadastro do
+        cidadão e o currículo completo. Exige admin ou role go:curriculos:admin /
+        go:curriculos:editor.'
+      parameters:
+      - description: CPF do cidadão, com ou sem máscara
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.BancoCurriculoDetalhe'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Detalhar currículo do banco
+      tags:
+      - empregabilidade-banco-curriculos
   /api/v1/empregabilidade/candidatura-bloqueios:
     get:
       description: Retorna lista paginada de bloqueios de candidatura, com filtros
@@ -5152,6 +5297,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -6069,6 +6220,12 @@ paths:
             $ref: '#/definitions/empregabilidade.RegimeContratacao'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
           schema:
             additionalProperties:
               type: string
@@ -7108,6 +7265,12 @@ paths:
             $ref: '#/definitions/empregabilidade.Etapa'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
           schema:
             additionalProperties:
               type: string

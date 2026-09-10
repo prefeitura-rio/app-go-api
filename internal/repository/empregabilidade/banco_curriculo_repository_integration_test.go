@@ -1,0 +1,211 @@
+package empregabilidade_test
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+
+	"github.com/prefeitura-rio/app-go-api/internal/config"
+	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	emprepo "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
+)
+
+// Os testes de integração do banco de currículos executam o SQL de verdade — os
+// testes com sqlmock só comparam o texto. Exigem um banco com as migrations
+// aplicadas (just migrate-up) e rodam numa transação desfeita ao fim, então não
+// deixam dados para trás.
+func bancoCurriculosIntegrationTx(t *testing.T) *gorm.DB {
+	t.Helper()
+	if os.Getenv("RUN_REPOSITORY_INTEGRATION") == "" && os.Getenv("DATABASE_URL") == "" {
+		t.Skip("Skipping integration test: set RUN_REPOSITORY_INTEGRATION=1 or DATABASE_URL to run")
+	}
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		cfg, err := config.Load()
+		if err != nil {
+			t.Skipf("Skipping integration test: config load failed: %v", err)
+		}
+		if cfg.Database.Host == "" {
+			t.Skip("Skipping integration test: DB_HOST not set")
+		}
+		dsn = cfg.Database.DSN()
+	}
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Skipf("Skipping integration test: cannot connect to database: %v", err)
+	}
+
+	tx := db.Begin()
+	require.NoError(t, tx.Error)
+	t.Cleanup(func() { tx.Rollback() })
+	return tx
+}
+
+func mesesIntegracao(v int) *int { return &v }
+
+func TestBancoCurriculosIntegration_EscritaListagemEBusca(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	ctx := context.Background()
+	repo := emprepo.NewCurriculoRepository(tx)
+
+	const (
+		cpfEmpregoAtual = "99999999901"
+		cpfSemAtual     = "99999999902"
+		cpfSemCadastro  = "99999999903"
+	)
+	empregosAtual := func() []*empregabilidade.CurriculoExperiencia {
+		return []*empregabilidade.CurriculoExperiencia{
+			{Cargo: "Auxiliar administrativa", Empresa: "Empresa A", TempoExperienciaMeses: mesesIntegracao(60)},
+			{Cargo: "Redatora Sênior", Empresa: "BR Transportadora", EhTrabalhoAtual: true, TempoExperienciaMeses: mesesIntegracao(36)},
+		}
+	}
+
+	_, totalAntes, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{}, 1, 1)
+	require.NoError(t, err)
+
+	// Grava pelos mesmos caminhos que o formulário do cidadão usa.
+	require.NoError(t, repo.ReplaceAllExperienciasByCPF(ctx, cpfEmpregoAtual, empregosAtual()))
+	require.NoError(t, repo.ReplaceAllExperienciasByCPF(ctx, cpfSemAtual, []*empregabilidade.CurriculoExperiencia{
+		{Cargo: "Estagiária", Empresa: "Empresa B"},
+		{Cargo: "Contadora", Empresa: "Empresa C", TempoExperienciaMeses: mesesIntegracao(60)},
+		{Cargo: "Auxiliar", Empresa: "Empresa D", TempoExperienciaMeses: mesesIntegracao(12)},
+	}))
+	require.NoError(t, repo.UpsertSituacaoInteresses(ctx, &empregabilidade.CurriculoSituacaoInteresses{CPF: cpfSemCadastro}))
+
+	require.NoError(t, tx.Create(&models.CitizenSnapshot{
+		CPF: cpfEmpregoAtual, Nome: "Beatriz Integração", Escolaridade: "Médio completo", LastSyncedAt: time.Now(),
+	}).Error)
+	require.NoError(t, tx.Create(&models.CitizenSnapshot{
+		CPF: cpfSemAtual, Nome: "Ána Cláudia Integração", NomeSocial: "Aninha Integração", LastSyncedAt: time.Now(),
+	}).Error)
+
+	t.Run("toda escrita registra o currículo e editar não move a data de inclusão", func(t *testing.T) {
+		antes, err := repo.GetCurriculoByCPF(ctx, cpfEmpregoAtual)
+		require.NoError(t, err)
+		require.NotNil(t, antes)
+
+		// O formulário apaga e recria a seção a cada salvamento.
+		require.NoError(t, repo.ReplaceAllExperienciasByCPF(ctx, cpfEmpregoAtual, empregosAtual()))
+
+		depois, err := repo.GetCurriculoByCPF(ctx, cpfEmpregoAtual)
+		require.NoError(t, err)
+		assert.True(t, antes.CreatedAt.Equal(depois.CreatedAt), "antes %v, depois %v", antes.CreatedAt, depois.CreatedAt)
+
+		soSituacao, err := repo.GetCurriculoByCPF(ctx, cpfSemCadastro)
+		require.NoError(t, err)
+		assert.NotNil(t, soSituacao, "situação e interesses também registra o currículo")
+	})
+
+	t.Run("lista todos, inclusive quem não tem cadastro sincronizado", func(t *testing.T) {
+		_, total, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{}, 1, 1)
+		require.NoError(t, err)
+		assert.Equal(t, totalAntes+3, total)
+	})
+
+	t.Run("busca ignora acento e a profissão vem do emprego atual", func(t *testing.T) {
+		items, total, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: "beatriz integracao"}, 1, 10)
+		require.NoError(t, err)
+		require.Equal(t, int64(1), total)
+		require.Len(t, items, 1)
+		assert.Equal(t, cpfEmpregoAtual, items[0].CPF)
+		require.NotNil(t, items[0].Profissao)
+		assert.Equal(t, "Redatora Sênior", *items[0].Profissao)
+		require.NotNil(t, items[0].Escolaridade)
+		assert.Equal(t, "Médio completo", *items[0].Escolaridade)
+	})
+
+	t.Run("busca pelo nome social; sem emprego atual vale a maior experiência; vazio vira nulo", func(t *testing.T) {
+		items, _, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: "aninha integracao"}, 1, 10)
+		require.NoError(t, err)
+		require.Len(t, items, 1)
+		assert.Equal(t, cpfSemAtual, items[0].CPF)
+		require.NotNil(t, items[0].Nome)
+		assert.Equal(t, "Ána Cláudia Integração", *items[0].Nome)
+		require.NotNil(t, items[0].Profissao)
+		assert.Equal(t, "Contadora", *items[0].Profissao)
+		assert.Nil(t, items[0].Escolaridade)
+	})
+
+	t.Run("ordena da inclusão mais recente para a mais antiga", func(t *testing.T) {
+		items, _, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: "integracao"}, 1, 10)
+		require.NoError(t, err)
+		require.Len(t, items, 2)
+		assert.Equal(t, cpfSemAtual, items[0].CPF)
+		assert.Equal(t, cpfEmpregoAtual, items[1].CPF)
+	})
+}
+
+func TestBancoCurriculosIntegration_BackfillDaMigration(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	saoPaulo, err := time.LoadLocation("America/Sao_Paulo")
+	require.NoError(t, err)
+	exec := func(sql string, args ...interface{}) {
+		t.Helper()
+		require.NoError(t, tx.Exec(sql, args...).Error)
+	}
+
+	const (
+		cpfEditouDepois  = "99999999904" // candidatou-se em março, editou o currículo em maio
+		cpfSoCurriculo   = "99999999905" // nunca se candidatou
+		cpfSoCandidatura = "99999999906" // candidatura sem currículo: não entra no banco
+	)
+
+	exec(`INSERT INTO emp_curriculo_experiencias (cpf, cargo, empresa, created_at) VALUES (?, 'Redatora', 'Empresa A', '2026-05-10 09:00')`, cpfEditouDepois)
+	exec(`INSERT INTO emp_curriculo_experiencias (cpf, cargo, empresa, created_at) VALUES (?, 'Contadora', 'Empresa B', '2026-06-15 10:00')`, cpfSoCurriculo)
+	exec(`INSERT INTO emp_curriculo_perfil (cpf, resumo_profissional, created_at) VALUES (?, '', '2026-06-20 10:00')`, cpfSoCurriculo)
+
+	var regime, modelo, vaga string
+	exec(`INSERT INTO emp_empresas (cnpj) VALUES ('99999999000191')`)
+	require.NoError(t, tx.Raw(`SELECT id FROM emp_regimes_contratacao LIMIT 1`).Scan(&regime).Error)
+	require.NoError(t, tx.Raw(`SELECT id FROM emp_modelos_trabalho LIMIT 1`).Scan(&modelo).Error)
+	require.NoError(t, tx.Raw(`INSERT INTO emp_vagas (titulo, descricao, id_contratante, id_regime_contratacao, id_modelo_trabalho)
+		VALUES ('Vaga de teste', 'Descrição', '99999999000191', ?, ?) RETURNING id`, regime, modelo).Scan(&vaga).Error)
+	exec(`INSERT INTO emp_candidaturas (cpf, id_vaga, created_at) VALUES (?, ?, '2026-03-01 08:00')`, cpfEditouDepois, vaga)
+	exec(`INSERT INTO emp_candidaturas (cpf, id_vaga, created_at) VALUES (?, ?, '2026-02-01 08:00')`, cpfSoCandidatura, vaga)
+
+	// Refaz o backfill do zero, como na primeira execução da migration.
+	exec(`DELETE FROM emp_curriculos`)
+	exec(backfillDaMigration(t))
+
+	var linhas []struct {
+		CPF       string
+		CreatedAt time.Time
+	}
+	require.NoError(t, tx.Raw(`SELECT cpf, created_at FROM emp_curriculos WHERE cpf IN ?`,
+		[]string{cpfEditouDepois, cpfSoCurriculo, cpfSoCandidatura}).Scan(&linhas).Error)
+	datas := map[string]time.Time{}
+	for _, l := range linhas {
+		datas[l.CPF] = l.CreatedAt
+	}
+
+	require.Contains(t, datas, cpfEditouDepois)
+	assert.True(t, datas[cpfEditouDepois].Equal(time.Date(2026, 3, 1, 8, 0, 0, 0, saoPaulo)),
+		"a candidatura é anterior à última edição: %v", datas[cpfEditouDepois])
+	require.Contains(t, datas, cpfSoCurriculo)
+	assert.True(t, datas[cpfSoCurriculo].Equal(time.Date(2026, 6, 15, 10, 0, 0, 0, saoPaulo)),
+		"vale a seção mais antiga: %v", datas[cpfSoCurriculo])
+	assert.NotContains(t, datas, cpfSoCandidatura)
+}
+
+// backfillDaMigration extrai o INSERT de backfill da migration, para testar o
+// SQL exato que vai rodar em produção.
+func backfillDaMigration(t *testing.T) string {
+	t.Helper()
+	conteudo, err := os.ReadFile(filepath.Join("..", "..", "db", "migrations", "20260910120000_create_emp_curriculos.sql"))
+	require.NoError(t, err)
+
+	up := strings.Split(string(conteudo), "-- +goose Down")[0]
+	blocos := strings.Split(up, "-- +goose StatementBegin")
+	backfill := strings.Split(blocos[len(blocos)-1], "-- +goose StatementEnd")[0]
+	require.Contains(t, backfill, "INSERT INTO emp_curriculos")
+	return backfill
+}

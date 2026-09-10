@@ -201,6 +201,31 @@ func TestSwaggerDocumentation(t *testing.T) {
 	}
 }
 
+// TestBancoCurriculosRequiresAuthorization checks that the banco de currículos
+// stays closed without credentials on a running environment. Its authorization
+// does not depend on RBAC_ENABLED, so this holds in every environment.
+func TestBancoCurriculosRequiresAuthorization(t *testing.T) {
+	baseURL := getBaseURL(t)
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	for _, endpoint := range []string{
+		"/api/v1/empregabilidade/banco-curriculos",
+		"/api/v1/empregabilidade/banco-curriculos/11111111111",
+	} {
+		t.Run(endpoint, func(t *testing.T) {
+			resp, err := client.Get(baseURL + endpoint)
+			if err != nil {
+				t.Fatalf("Request failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden {
+				t.Errorf("Expected 401 or 403 without credentials, got %d", resp.StatusCode)
+			}
+		})
+	}
+}
+
 // getBaseURL retrieves the base URL from environment variable
 func getBaseURL(t *testing.T) string {
 	baseURL := os.Getenv("TEST_BASE_URL")
