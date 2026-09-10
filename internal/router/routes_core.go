@@ -109,7 +109,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	apiV1.Group("/propostas-mei").GET("/por-empresa", app.PropostaMEIHandler.ListByMEIEmpresa)
 
 	apiPublic.GET("/courses", app.CourseHandler.ListPublic)
-	apiPublic.GET("/courses/:courseId", app.CourseHandler.GetByID)
+	apiPublic.GET("/courses/:courseId", app.CourseHandler.GetByIDPublic)
 	apiPublic.GET("/oportunidades-mei", app.OportunidadeMEIHandler.List)
 	apiPublic.GET("/oportunidades-mei/:id", app.OportunidadeMEIHandler.GetByID)
 }
