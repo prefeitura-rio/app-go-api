@@ -75,7 +75,7 @@ test-coverage:
     @go test -v -race -coverprofile=coverage/coverage.out -covermode=atomic ./...
     @go tool cover -html=coverage/coverage.out -o coverage/coverage.html
     @echo "✅ Coverage report generated: coverage/coverage.html"
-    @./scripts/extract-coverage.sh
+    @./scripts/extract-coverage.sh coverage/coverage.out
 
 # Run tests for a specific package
 test-pkg pkg:
@@ -153,10 +153,19 @@ docker-build tag="latest":
 docker-run:
     @echo "Running Docker container..."
     @docker run --rm -p 8080:8080 \
-      -e DATABASE_URL=${DATABASE_URL:-postgres://postgres:postgres@host.docker.internal:5432/app?sslmode=disable} \
-      -e REDIS_URL=${REDIS_URL:-redis://host.docker.internal:6379} \
-      app-go-api:latest
-
+        -e DB_HOST=db \
+        -e DB_PORT=5432 \
+        -e DB_USER=postgres \
+        -e DB_NAME=app_go_api \
+        -e DB_SSL_MODE=disable \
+        -e REDIS_HOST=redis \
+        -e REDIS_PORT=6379 \
+        -e REDIS_PASSWORD=12345678 \
+        --network app-go-api_backend \
+        --name app-go-api \
+        --env-file ./.env \
+        app-go-api:latest
+        
 # Run Docker Compose container locally
 docker-compose-up:
     @echo "Running Docker Compose container..."
