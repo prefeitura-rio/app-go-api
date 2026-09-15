@@ -315,25 +315,9 @@ jobs:
 
       - name: Fail workflow if any check failed
         run: |
-          # Only exit on actual failures, not skipped jobs
-          # Build is skipped when tests fail (by design)
-          FAILED=0
-          
-          if [ "${{ needs.lint.result }}" = "failure" ]; then
-            FAILED=1
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.security-scan.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ]; then
+            exit 1
           fi
-          
-          if [ "${{ needs.security-scan.result }}" = "failure" ]; then
-            FAILED=1
-          fi
-          
-          if [ "${{ needs.test.result }}" = "failure" ]; then
-            FAILED=1
-          fi
-          
-          # Only fail if build actually failed (not if skipped)
-          if [ "${{ needs.build.result }}" = "failure" ]; then
-            FAILED=1
-          fi
-          
-          exit $FAILED
