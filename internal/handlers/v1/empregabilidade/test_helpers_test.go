@@ -3,7 +3,6 @@ package empregabilidade_test
 import (
 	"bytes"
 	"fmt"
-	"strings"
 
 	"github.com/lib/pq"
 )
@@ -18,9 +17,9 @@ func bodyOf(s string) *bytes.Buffer {
 }
 
 // bodyReader returns a reader that reports garbage JSON
-func garbageBody() *strings.Reader {
-	return strings.NewReader("not valid json")
-}
+//func garbageBody() *strings.Reader {
+//	return strings.NewReader("not valid json")
+//}
 
 func uniqueViolationErr(constraint string) error {
 	return &pq.Error{Code: pq.ErrorCode("23505"), Constraint: constraint}

@@ -22,7 +22,7 @@ export DB_NAME="${DB_NAME:-app_go_api}"
 export DB_SSL_MODE="${DB_SSL_MODE:-disable}"
 export DB_TIMEZONE="${DB_TIMEZONE:-UTC}"
 export SERVER_HOST="${SERVER_HOST:-0.0.0.0}"
-export SERVER_PORT="${SERVER_PORT:-8081}"
+export SERVER_PORT="${SERVER_PORT:-8080}"
 export APP_ENV="${APP_ENV:-development}"
 
 # Imprimir valores para debug

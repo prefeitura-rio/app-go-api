@@ -315,9 +315,29 @@ jobs:
 
       - name: Fail workflow if any check failed
         run: |
-          if [ "${{ needs.lint.result }}" != "success" ] || \
-             [ "${{ needs.security-scan.result }}" != "success" ] || \
-             [ "${{ needs.test.result }}" != "success" ] || \
-             [ "${{ needs.build.result }}" != "success" ]; then
-            exit 1
+          # Only exit on actual failures, not skipped jobs
+          # Build is skipped when tests fail (by design)
+          FAILED=0
+          
+          if [ "${{ needs.lint.result }}" = "failure" ]; then
+            echo "❌ Linting failed"
+            FAILED=1
           fi
+          
+          if [ "${{ needs.security-scan.result }}" = "failure" ]; then
+            echo "❌ Security scan failed"
+            FAILED=1
+          fi
+          
+          if [ "${{ needs.test.result }}" = "failure" ]; then
+            echo "❌ Tests failed"
+            FAILED=1
+          fi
+          
+          # Only fail if build actually failed (not if skipped)
+          if [ "${{ needs.build.result }}" = "failure" ]; then
+            echo "❌ Docker build failed"
+            FAILED=1
+          fi
+          
+          exit $FAILED

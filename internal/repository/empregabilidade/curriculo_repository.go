@@ -3,6 +3,7 @@ package empregabilidade
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -254,6 +255,18 @@ func (r *CurriculoRepository) ListConquistasByCPF(ctx context.Context, cpf strin
 	return entities, nil
 }
 
+func (r *CurriculoRepository) GetPerfilByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoPerfil, error) {
+	var entity empregabilidade.CurriculoPerfil
+	result := r.db.WithContext(ctx).First(&entity, "cpf = ?", cpf)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("erro ao buscar perfil: %w", result.Error)
+	}
+	return &entity, nil
+}
+
 // ReplaceAll methods (bulk section save)
 
 func (r *CurriculoRepository) ReplaceAllFormacoesByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoFormacao) error {
@@ -355,16 +368,61 @@ func (r *CurriculoRepository) ReplaceAllExperienciaProfissionalAccordionByCPF(ct
 	})
 }
 
-func (r *CurriculoRepository) GetPerfilByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoPerfil, error) {
-	var entity empregabilidade.CurriculoPerfil
-	result := r.db.WithContext(ctx).First(&entity, "cpf = ?", cpf)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("erro ao buscar perfil: %w", result.Error)
+func replaceCurriculoItemsSync[T any](
+	tx *gorm.DB,
+	cpf string,
+	ids []int64,
+	newEntityFunc func(cpf string, id int64) *T,
+	entityName string,
+) error {
+	var empty T
+	if err := tx.Where("cpf = ?", cpf).Delete(&empty).Error; err != nil {
+		return fmt.Errorf("erro ao remover %s do currículo: %w", entityName, err)
 	}
-	return &entity, nil
+
+	if len(ids) == 0 {
+		return nil
+	}
+
+	entities := make([]*T, len(ids))
+	for i, id := range ids {
+		entities[i] = newEntityFunc(cpf, id)
+	}
+
+	if err := tx.Create(&entities).Error; err != nil {
+		return fmt.Errorf("erro ao salvar novos(as) %s: %w", entityName, err)
+	}
+
+	return nil
+}
+
+func (r *CurriculoRepository) ReplaceAllItensCurriculoByCPF(ctx context.Context, cpf string, itens *empregabilidade.CurriculoItensReplaceAll) error {
+	if itens == nil {
+		return fmt.Errorf("Nenhuma modificação foi solicitada pelo usuário")
+	}
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. Processar Habilidades
+		err := replaceCurriculoItemsSync(tx, cpf, itens.HabilidadesIDs, func(cpf string, id int64) *empregabilidade.CurriculoHabilidade {
+			return &empregabilidade.CurriculoHabilidade{CPF: cpf, IDHabilidade: id}
+		}, "habilidades")
+
+		if err != nil {
+			return err
+		}
+
+		// 2. Processar Comportamentos/Atitudes
+		err = replaceCurriculoItemsSync(tx, cpf, itens.ComportamentoAtitudesIDs, func(cpf string, id int64) *empregabilidade.CurriculoComportamentoAtitudes {
+			return &empregabilidade.CurriculoComportamentoAtitudes{CPF: cpf, IDComportamentoAtitudes: id}
+		}, "comportamentos/atitudes")
+		if err != nil {
+			return err
+		}
+
+		// *** Processar os próximos aqui *** //
+
+		return nil
+	})
 }
 
 func (r *CurriculoRepository) ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error {
@@ -441,4 +499,138 @@ func (r *CurriculoRepository) GetSituacaoInteressesByCPF(ctx context.Context, cp
 		return nil, fmt.Errorf("erro ao buscar situação e interesses: %w", result.Error)
 	}
 	return &entity, nil
+}
+
+// Habilidades
+
+// ListHabilidadesMestre busca habilidades com suporte a paginação e busca insensível a acentos/caixa
+func (r *CurriculoRepository) ListHabilidadesMestre(ctx context.Context, query string, page, pageSize int) ([]*empregabilidade.Habilidade, int64, error) {
+	var habilidades []*empregabilidade.Habilidade
+	var total int64
+
+	db := r.db.WithContext(ctx).Model(&empregabilidade.Habilidade{})
+
+	// Busca parcial sem acentos e sem distinção de maiúsculas/minúsculas
+	if strings.TrimSpace(query) != "" {
+		searchTerm := "%" + strings.ToLower(query) + "%"
+		db = db.Where("lower(immutable_unaccent(nome)) LIKE lower(immutable_unaccent(?))", searchTerm)
+	}
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar habilidades: %w", err)
+	}
+
+	offset := (page - 1) * pageSize
+	err := db.Order("nome ASC").
+		Limit(pageSize).
+		Offset(offset).
+		Find(&habilidades).Error
+
+	if err != nil {
+		return nil, 0, fmt.Errorf("erro ao buscar habilidades: %w", err)
+	}
+
+	return habilidades, total, nil
+}
+
+// ListHabilidadesByCPF retorna todas as habilidades vinculadas ao CPF do candidato
+func (r *CurriculoRepository) ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
+	var entities []*empregabilidade.CurriculoHabilidade
+	result := r.db.WithContext(ctx).
+		Preload("Habilidade").
+		Preload("Habilidade.Areas").
+		Where("cpf = ?", cpf).
+		Order("created_at DESC").
+		Find(&entities)
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("erro ao listar habilidades do currículo: %w", result.Error)
+	}
+	return entities, nil
+}
+
+// AddHabilidadeAoCurriculo vincula uma habilidade ao candidato sem permitir duplicidade
+func (r *CurriculoRepository) AddHabilidadeAoCurriculo(ctx context.Context, entity *empregabilidade.CurriculoHabilidade) error {
+	result := r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "cpf"}, {Name: "id_habilidade"}},
+			DoNothing: true,
+		}).
+		Create(entity)
+
+	if result.Error != nil {
+		return fmt.Errorf("erro ao vincular habilidade ao currículo: %w", result.Error)
+	}
+	return nil
+}
+
+// DetachHabilidadeDoCurriculo remove apenas o vínculo com o currículo (preserva a tabela mestre)
+func (r *CurriculoRepository) DetachHabilidadeDoCurriculo(ctx context.Context, id int64) error {
+	result := r.db.WithContext(ctx).Delete(&empregabilidade.CurriculoHabilidade{}, "id = ?", id)
+	if result.Error != nil {
+		return fmt.Errorf("erro ao remover habilidade do currículo: %w", result.Error)
+	}
+	return nil
+}
+
+// ReplaceAllHabilidadesByCPF substitui todas as habilidades do candidato em uma transação atômica
+func (r *CurriculoRepository) ReplaceAllHabilidadesByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoHabilidade) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoHabilidade{}).Error; err != nil {
+			return fmt.Errorf("erro ao remover habilidades antigas: %w", err)
+		}
+
+		if len(items) > 0 {
+			for i := range items {
+				items[i].CPF = cpf
+				items[i].ID = 0
+			}
+
+			if err := tx.Create(items).Error; err != nil {
+				return fmt.Errorf("erro ao inserir novas habilidades: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
+// Comportamento e atitudes
+
+// ListComportamentoAtitudesByCPF retorna todas as habilidades vinculadas ao CPF do candidato
+func (r *CurriculoRepository) ListComportamentoAtitudesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
+	var entities []*empregabilidade.CurriculoComportamentoAtitudes
+	result := r.db.WithContext(ctx).
+		Where("cpf = ?", cpf).
+		Order("created_at DESC").
+		Find(&entities)
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("erro ao listar comportamentos e atitudes do currículo: %w", result.Error)
+	}
+	return entities, nil
+}
+
+// AddComportamentoAtitudesAoCurriculo vincula um comportamento/atitide ao candidato sem permitir duplicidade
+func (r *CurriculoRepository) AddComportamentoAtitudesAoCurriculo(ctx context.Context, entity *empregabilidade.CurriculoComportamentoAtitudes) error {
+	result := r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "cpf"}, {Name: "id_comportamento_atitudes"}},
+			DoNothing: true,
+		}).
+		Create(entity)
+
+	if result.Error != nil {
+		return fmt.Errorf("erro ao vincular um comportamento/atitude ao currículo: %w", result.Error)
+	}
+	return nil
+}
+
+// DetachComportamentoAtitudesDoCurriculo remove apenas o vínculo com o currículo (preserva a tabela mestre)
+func (r *CurriculoRepository) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error {
+	result := r.db.WithContext(ctx).Delete(&empregabilidade.CurriculoComportamentoAtitudes{}, "id = ?", id)
+	if result.Error != nil {
+		return fmt.Errorf("erro ao remover comportamento/atitude do currículo: %w", result.Error)
+	}
+	return nil
 }

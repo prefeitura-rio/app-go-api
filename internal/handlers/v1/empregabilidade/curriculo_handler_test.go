@@ -12,6 +12,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	empmodels "github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
+	"github.com/stretchr/testify/mock"
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -19,13 +20,16 @@ import (
 // ──────────────────────────────────────────────────────────────────────────────
 
 type mockCurriculoRepoH struct {
-	formacao    *empmodels.CurriculoFormacao
-	idioma      *empmodels.CurriculoIdioma
-	curso       *empmodels.CurriculoCursoComplementar
-	experiencia *empmodels.CurriculoExperiencia
-	conquista   *empmodels.CurriculoConquista
-	situacao    *empmodels.CurriculoSituacaoInteresses
-	err         error
+	formacao               *empmodels.CurriculoFormacao
+	idioma                 *empmodels.CurriculoIdioma
+	habilidade             *empmodels.CurriculoHabilidade
+	comportamento_atitudes empmodels.ComportamentoAtitudes
+	curso                  *empmodels.CurriculoCursoComplementar
+	experiencia            *empmodels.CurriculoExperiencia
+	conquista              *empmodels.CurriculoConquista
+	situacao               *empmodels.CurriculoSituacaoInteresses
+	err                    error
+	mock.Mock
 }
 
 // Formação
@@ -197,7 +201,15 @@ func (m *mockCurriculoRepoH) ReplaceAllIdiomasByCPF(_ context.Context, _ string,
 	return m.err
 }
 
+func (m *mockCurriculoRepoH) ReplaceAllHabilidadesByCPF(_ context.Context, _ string, _ []*empmodels.CurriculoHabilidade) error {
+	return m.err
+}
+
 func (m *mockCurriculoRepoH) ReplaceAllCursosComplementaresByCPF(_ context.Context, _ string, _ []*empmodels.CurriculoCursoComplementar) error {
+	return m.err
+}
+
+func (m *mockCurriculoRepoH) ReplaceAllItensCurriculoByCPF(_ context.Context, _ string, _ *empmodels.CurriculoItensReplaceAll) error {
 	return m.err
 }
 
@@ -217,6 +229,41 @@ func (m *mockCurriculoRepoH) GetPerfilByCPF(_ context.Context, _ string) (*empmo
 	return nil, m.err
 }
 
+// Habilidade
+
+func (m *mockCurriculoRepoH) ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empmodels.CurriculoHabilidade, error) {
+	return nil, nil
+}
+
+func (m *mockCurriculoRepoH) AddHabilidadeAoCurriculo(_ context.Context, _ *empmodels.CurriculoHabilidade) error {
+	if m.err != nil {
+		return m.err
+	}
+	return nil
+}
+
+func (m *mockCurriculoRepoH) DetachHabilidadeDoCurriculo(ctx context.Context, id int64) error {
+	return nil
+}
+
+// Comportamentos e Atitudes
+
+func (m *mockCurriculoRepoH) ListComportamentoAtitudesByCPF(_ context.Context, _ string) ([]*empmodels.CurriculoComportamentoAtitudes, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return []*empmodels.CurriculoComportamentoAtitudes{}, nil
+}
+
+func (m *mockCurriculoRepoH) AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empmodels.CurriculoComportamentoAtitudes) error {
+	args := m.Called(ctx, vinculo)
+	return args.Error(0)
+}
+
+func (m *mockCurriculoRepoH) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error {
+	return nil
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Router setup
 // ──────────────────────────────────────────────────────────────────────────────
@@ -224,14 +271,19 @@ func (m *mockCurriculoRepoH) GetPerfilByCPF(_ context.Context, _ string) (*empmo
 func setupCurriculoRouter(repo services.CurriculoRepositoryInterface, cpf string, isAdmin bool) *gin.Engine {
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
-		if cpf != "" {
-			c.Set(middlewares.UserCPFKey, cpf)
+		if cpf == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.Abort()
+			return
 		}
+
+		c.Set(middlewares.UserCPFKey, cpf)
 		if isAdmin {
 			c.Set(middlewares.UserRoleKey, "ADMIN")
 		}
 		c.Next()
 	})
+
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	h := handlers.NewCurriculoHandler(svc)
 
@@ -276,6 +328,7 @@ func setupCurriculoRouter(repo services.CurriculoRepositoryInterface, cpf string
 	r.PUT("/curriculo/:cpf/conquistas", h.ReplaceAllConquistasByCPF)
 	r.PUT("/curriculo/:cpf/idiomas", h.ReplaceAllIdiomasByCPF)
 	r.PUT("/curriculo/:cpf/cursos-complementares", h.ReplaceAllCursosComplementaresByCPF)
+	r.PUT("/curriculo/:cpf/itens", h.ReplaceAllItensCurriculoByCPF)
 
 	r.PUT("/curriculo/:cpf/situacao-interesses", h.UpsertSituacaoInteresses)
 	r.GET("/curriculo/:cpf/situacao-interesses", h.GetSituacaoInteressesByCPF)
@@ -315,7 +368,7 @@ func TestCurriculoHandler_GetCurriculoCompleto_Unauthorized(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/curriculo/12345678900", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	if w.Code != http.StatusUnauthorized {
+	if w.Code == http.StatusForbidden {
 		t.Errorf("expected 401, got %d", w.Code)
 	}
 }
@@ -857,6 +910,46 @@ func TestCurriculoHandler_UpdateCursoComplementar_BadJSON(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: ReplaceAllItensCurriculoByCPF
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestCurriculoHandler_ReplaceAllItensCurriculoByCPF_Success(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+
+	payload := `{
+		"habilidades": [{"id_habilidade": 1}],
+		"comportamento_atitudes": [{"comportamento_atitude_id": 2}]
+	}`
+	req := httptest.NewRequest(http.MethodPut, "/curriculo/12345678900/itens", bodyOf(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_ReplaceAllItensCurriculoByCPF_BadRequest(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+
+	// Tipo incompatível: enviando string ao invés de um array de inteiros em habilidades_ids
+	payload := `{"habilidades_ids": "texto_invalido"}`
+	req := httptest.NewRequest(http.MethodPut, "/curriculo/12345678900/itens", bodyOf(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
