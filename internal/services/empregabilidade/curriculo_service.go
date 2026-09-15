@@ -6,14 +6,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
-	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
 
 type CurriculoService struct {
 	repo CurriculoRepositoryInterface
 }
 
-func NewCurriculoService(repo *repository.CurriculoRepository) *CurriculoService {
+func NewCurriculoService(repo CurriculoRepositoryInterface) *CurriculoService {
 	return &CurriculoService{repo: repo}
 }
 
@@ -143,6 +142,38 @@ func (s *CurriculoService) ListHabilidadesByCPF(ctx context.Context, cpf string)
 	return s.repo.ListHabilidadesByCPF(ctx, strings.TrimSpace(cpf))
 }
 
+// AddHabilidadeAoCurriculo vincula uma habilidade ao currículo do candidato
+func (s *CurriculoService) AddHabilidadeAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error {
+	return s.repo.AddHabilidadeAoCurriculo(ctx, vinculo)
+}
+
+// DetachHabilidadeAoCurriculo desvincula uma habilidade do currículo do candidato
+func (s *CurriculoService) DetachHabilidadeDoCurriculo(ctx context.Context, id int64) error {
+	return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, id)
+}
+
+// ListHabilidadesPorCPF busca todas as habilidades associadas ao CPF do candidato
+func (s *CurriculoService) ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
+	return s.repo.ListHabilidadesByCPF(ctx, cpf)
+}
+
+// --- Comportamentos e Atitudes ---
+
+// AddComportamentoAtitudesAoCurriculo vincula um comportamento/atitude ao currículo (CPF)
+func (s *CurriculoService) AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error {
+	return s.repo.AddComportamentoAtitudesAoCurriculo(ctx, vinculo)
+}
+
+// DetachComportamentoAtitudesDoCurriculo remove o vínculo de um comportamento/atitude do currículo (CPF)
+func (s *CurriculoService) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error {
+	return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, id)
+}
+
+// ListComportamentoAtitudesPorCPF busca todos os comportamentos/atitudes associados a um CPF
+func (s *CurriculoService) ListComportamentoAtitudesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
+	return s.repo.ListComportamentoAtitudesByCPF(ctx, cpf)
+}
+
 // --- Métodos de Substituição em Lote (Bulk Save) ---
 
 func (s *CurriculoService) ReplaceAllFormacoesByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoFormacao) error {
@@ -179,13 +210,17 @@ func (s *CurriculoService) ReplaceAllIdiomasByCPF(ctx context.Context, cpf strin
 	return s.repo.ReplaceAllIdiomasByCPF(ctx, strings.TrimSpace(cpf), items)
 }
 
+// ReplaceAllHabilidadesByCPF substitui todas as habilidades do candidato por um novo conjunto
+func (s *CurriculoService) ReplaceAllHabilidadesByCPF(ctx context.Context, cpf string, habilidades []*empregabilidade.CurriculoHabilidade) error {
+	return s.repo.ReplaceAllHabilidadesByCPF(ctx, cpf, habilidades)
+}
+
 func (s *CurriculoService) ReplaceAllCursosComplementaresByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoCursoComplementar) error {
 	return s.repo.ReplaceAllCursosComplementaresByCPF(ctx, strings.TrimSpace(cpf), items)
 }
 
-// ReplaceAllHabilidadesByCPF substitui todas as habilidades do candidato por um novo conjunto
-func (s *CurriculoService) ReplaceAllHabilidadesByCPF(ctx context.Context, cpf string, habilidades []*empregabilidade.CurriculoHabilidade) error {
-	return s.repo.ReplaceAllHabilidadesByCPF(ctx, cpf, habilidades)
+func (s *CurriculoService) ReplaceAllItensCurriculoByCPF(ctx context.Context, cpf string, itensCurriculo *empregabilidade.CurriculoItensReplaceAll) error {
+	return s.repo.ReplaceAllItensCurriculoByCPF(ctx, strings.TrimSpace(cpf), itensCurriculo)
 }
 
 // --- Situação e Interesses ---
@@ -214,6 +249,11 @@ func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string)
 	}
 
 	habilidades, err := s.repo.ListHabilidadesByCPF(ctx, cpf)
+	if err != nil {
+		return nil, err
+	}
+
+	comportamentos_atitudes, err := s.repo.ListComportamentoAtitudesByCPF(ctx, cpf)
 	if err != nil {
 		return nil, err
 	}
@@ -249,13 +289,14 @@ func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string)
 	}
 
 	return &empregabilidade.CurriculoCompleto{
-		Formacoes:            formacoes,
-		Idiomas:              idiomas,
-		Habilidades:          habilidades,
-		CursosComplementares: cursos,
-		Experiencias:         experiencias,
-		Conquistas:           conquistas,
-		SituacaoInteresses:   situacao,
-		ResumoProfissional:   resumoProfissional,
+		Formacoes:             formacoes,
+		Idiomas:               idiomas,
+		Habilidades:           habilidades,
+		ComportamentoAtitudes: comportamentos_atitudes,
+		CursosComplementares:  cursos,
+		Experiencias:          experiencias,
+		Conquistas:            conquistas,
+		SituacaoInteresses:    situacao,
+		ResumoProfissional:    resumoProfissional,
 	}, nil
 }

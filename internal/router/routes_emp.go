@@ -155,15 +155,31 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empHabilidades.PUT("/:id/areas-atuacao", app.EmpHabilidadeHandler.ReplaceAreasAtuacao)
 	}
 
+	empComportamentosAtitudes := empGroup.Group("/comportamentos-atitudes")
+	{
+		// CRUD Comportamentos e Atitudes
+		empComportamentosAtitudes.GET("", app.EmpComportamentoAtitudesHandler.ListComportamentoAtitudes)
+		empComportamentosAtitudes.POST("", app.EmpComportamentoAtitudesHandler.CreateComportamentoAtitudes)
+		empComportamentosAtitudes.GET("/:id", app.EmpComportamentoAtitudesHandler.GetComportamentoAtitudesByID)
+		empComportamentosAtitudes.PUT("/:id", app.EmpComportamentoAtitudesHandler.UpdateComportamentoAtitudes)
+		empComportamentosAtitudes.DELETE("/:id", app.EmpComportamentoAtitudesHandler.DeleteComportamentoAtitudes)
+
+	}
+
 	// -----------------------------------------------------------------
 	// 2. Gestão do Currículo do Candidato (Autenticado via JWT)
 	// -----------------------------------------------------------------
 	empCurriculo := empGroup.Group("/curriculo")
 	{
 		// Endpoints específicos para Habilidades no Currículo
-		empCurriculo.GET("/habilidades", app.EmpHabilidadeHandler.ListHabilidadesDoCurriculo)
-		empCurriculo.POST("/habilidades", app.EmpHabilidadeHandler.AddHabilidadeAoCurriculo)
-		empCurriculo.DELETE("/habilidades/:id", app.EmpHabilidadeHandler.DeleteHabilidadeDoCurriculo)
+		empCurriculo.GET("/habilidades", app.EmpCurriculoHandler.ListHabilidadesDoCurriculo)
+		empCurriculo.POST("/habilidades", app.EmpCurriculoHandler.AddHabilidadeAoCurriculo)
+		empCurriculo.DELETE("/habilidades/:id", app.EmpCurriculoHandler.DeleteHabilidadeDoCurriculo)
+
+		// Endpoints específicos para Comportamento e atitudes no Currículo
+		empCurriculo.GET("/comportamentos-atitudes", app.EmpCurriculoHandler.ListComportamentoAtitudesDoCurriculo)
+		empCurriculo.POST("/comportamentos-atitudes", app.EmpCurriculoHandler.AddComportamentoAtitudesAoCurriculo)
+		empCurriculo.DELETE("/comportamentos-atitudes/:id", app.EmpCurriculoHandler.DeleteComportamentoAtitudesDoCurriculo)
 
 		// Endpoint de Substituição Completa (Accordion UI)
 		empCurriculo.PUT("/accordion/habilidades", app.EmpHabilidadeHandler.ReplaceAllHabilidades)
@@ -184,6 +200,7 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 func registerEmpCurriculoRoutes(emp *gin.RouterGroup, app *wire.ApplicationContainer) {
 	c := emp.Group("/curriculo")
 	c.GET("/:cpf", app.EmpCurriculoHandler.GetCurriculoCompleto)
+	c.PUT("", app.EmpCurriculoHandler.ReplaceAllItensCurriculoByCPF)
 
 	registerCurriculoSection(c, "formacoes", app.EmpCurriculoHandler.CreateFormacao,
 		app.EmpCurriculoHandler.GetFormacaoByID, app.EmpCurriculoHandler.UpdateFormacao,

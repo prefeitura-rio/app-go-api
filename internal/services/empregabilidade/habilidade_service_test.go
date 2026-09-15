@@ -84,6 +84,12 @@ func (m *MockHabilidadeRepository) AddHabilidadeAoCurriculo(ctx context.Context,
 	return args.Error(0)
 }
 
+// DetachHabilidadeDoCurriculo remove o vínculo de uma habilidade do currículo no mock
+func (m *MockHabilidadeRepository) DetachHabilidadeDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error {
+	args := m.Called(ctx, vinculo)
+	return args.Error(0)
+}
+
 func (m *MockHabilidadeRepository) ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
 	args := m.Called(ctx, cpf)
 	if args.Get(0) == nil {
@@ -415,7 +421,7 @@ func TestHabilidadeService_DeleteAreaAtuacao(t *testing.T) {
 	})
 }
 
-func TestHabilidadeService_ListAreas(t *testing.T) {
+func TestHabilidadeService_ListAreasAtuacao(t *testing.T) {
 	ctx := context.Background()
 	filter := empregabilidade.AreaAtuacaoFilter{Search: "Tecnologia"}
 	expectedAreas := []*empregabilidade.AreaAtuacao{
@@ -438,78 +444,6 @@ func TestHabilidadeService_ListAreas(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		assert.Len(t, result, 1)
-		mockRepo.AssertExpectations(t)
-	})
-}
-
-func TestHabilidadeService_AddHabilidadeAoCurriculo(t *testing.T) {
-	ctx := context.Background()
-	vinculo := &empregabilidade.CurriculoHabilidade{
-		ID:           1,
-		CPF:          "12345678901",
-		IDHabilidade: 10,
-	}
-
-	t.Run("Success", func(t *testing.T) {
-		mockRepo := new(MockHabilidadeRepository)
-		svc := NewHabilidadeServiceWithInterface(mockRepo)
-
-		mockRepo.On("AddHabilidadeAoCurriculo", ctx, vinculo).Return(nil)
-
-		err := svc.AddHabilidadeAoCurriculo(ctx, vinculo)
-
-		assert.NoError(t, err)
-		mockRepo.AssertExpectations(t)
-	})
-
-	t.Run("Error", func(t *testing.T) {
-		mockRepo := new(MockHabilidadeRepository)
-		svc := NewHabilidadeServiceWithInterface(mockRepo)
-		expectedErr := errors.New("erro ao vincular habilidade ao currículo")
-
-		mockRepo.On("AddHabilidadeAoCurriculo", ctx, vinculo).Return(expectedErr)
-
-		err := svc.AddHabilidadeAoCurriculo(ctx, vinculo)
-
-		assert.Error(t, err)
-		assert.Equal(t, expectedErr, err)
-		mockRepo.AssertExpectations(t)
-	})
-}
-
-func TestHabilidadeService_ListHabilidadesPorCPF(t *testing.T) {
-	ctx := context.Background()
-	cpf := "12345678901"
-	expectedList := []*empregabilidade.CurriculoHabilidade{
-		{ID: 1, CPF: cpf, IDHabilidade: 10},
-	}
-
-	t.Run("Success", func(t *testing.T) {
-		mockRepo := new(MockHabilidadeRepository)
-		svc := NewHabilidadeServiceWithInterface(mockRepo)
-
-		mockRepo.On("ListHabilidadesPorCPF", ctx, cpf).Return(expectedList, nil)
-
-		result, err := svc.ListHabilidadesPorCPF(ctx, cpf)
-
-		assert.NoError(t, err)
-		assert.Len(t, result, 1)
-		assert.Equal(t, cpf, result[0].CPF)
-		mockRepo.AssertExpectations(t)
-	})
-
-	t.Run("Error", func(t *testing.T) {
-		mockRepo := new(MockHabilidadeRepository)
-		svc := NewHabilidadeServiceWithInterface(mockRepo)
-		expectedErr := errors.New("erro ao buscar habilidades do CPF")
-
-		mockRepo.On("ListHabilidadesPorCPF", ctx, cpf).Return(nil, expectedErr)
-
-		result, err := svc.ListHabilidadesPorCPF(ctx, cpf)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Equal(t, expectedErr, err)
 		mockRepo.AssertExpectations(t)
 	})
 }

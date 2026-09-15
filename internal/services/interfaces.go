@@ -253,15 +253,38 @@ type EscolaridadeServiceInterface interface {
 	List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*models.Escolaridade, int, error)
 }
 
-// HabilidadeRepositoryInterface defines the interface for habilidade service
+// HabilidadeRepositoryInterface define as operações de repositório para Habilidades e Áreas de Atuação
 type HabilidadeRepositoryInterface interface {
-	Create(ctx context.Context, entity *modelsEmp.Habilidade) (uuid.UUID, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*modelsEmp.Habilidade, error)
-	Update(ctx context.Context, entity *modelsEmp.Habilidade) error
-	Delete(ctx context.Context, id uuid.UUID) error
-	List(ctx context.Context, filter modelsEmp.HabilidadeFilter, limit, offset int) ([]*modelsEmp.Habilidade, int, error)
-	ListAreas(ctx context.Context, filter modelsEmp.AreaAtuacaoFilter, limit, offset int) ([]*modelsEmp.AreaAtuacao, int, error)
-	GetAreaByID(ctx context.Context, id uuid.UUID) (*modelsEmp.AreaAtuacao, error)
+	// Operações de Habilidade
+	CreateHabilidade(ctx context.Context, entity *modelsEmp.Habilidade) (int64, error)
+	GetHabilidadeByID(ctx context.Context, id int64) (*modelsEmp.Habilidade, error)
+	UpdateHabilidade(ctx context.Context, entity *modelsEmp.Habilidade) error
+	DeleteHabilidade(ctx context.Context, id int64) error
+	ListHabilidades(ctx context.Context, filter modelsEmp.HabilidadeFilter, limit, offset int) ([]*modelsEmp.Habilidade, int64, error)
+
+	// Operações de Área de Atuação
+	CreateAreaAtuacao(ctx context.Context, entity *modelsEmp.AreaAtuacao) (int64, error)
+	GetAreaAtuacaoByID(ctx context.Context, id int64) (*modelsEmp.AreaAtuacao, error)
+	UpdateAreaAtuacao(ctx context.Context, entity *modelsEmp.AreaAtuacao) error
+	DeleteAreaAtuacao(ctx context.Context, id int64) error
+	ListAreasAtuacao(ctx context.Context, filter modelsEmp.AreaAtuacaoFilter, limit, offset int) ([]*modelsEmp.AreaAtuacao, int64, error)
+
+	// Relacionamento N:N entre Habilidade e Área de Atuação
+	AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
+	DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
+	ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error
+
+	// Operações do Currículo (Tabela Pivô emp_curriculo_habilidades)
 	AddHabilidadeAoCurriculo(ctx context.Context, vinculo *modelsEmp.CurriculoHabilidade) error
+	DetachHabilidadeDoCurriculo(ctx context.Context, vinculoID int64, cpf string) error
 	ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*modelsEmp.CurriculoHabilidade, error)
+}
+
+// ComportamentoAtitudesRepositoryInterface defines the interface for Comportamento e Atitudes Service
+type ComportamentoAtitudesRepositoryInterface interface {
+	CreateComportamentoAtitudes(ctx context.Context, entity *modelsEmp.ComportamentoAtitudes) (int64, error)
+	GetComportamentoAtitudesByID(ctx context.Context, id int64) (*modelsEmp.ComportamentoAtitudes, error)
+	UpdateComportamentoAtitudes(ctx context.Context, entity *modelsEmp.ComportamentoAtitudes) error
+	DeleteComportamentoAtitudes(ctx context.Context, id int64) error
+	ListComportamentoAtitudes(ctx context.Context, filter modelsEmp.ComportamentoAtitudesFilter, limit, offset int) ([]*modelsEmp.ComportamentoAtitudes, int64, error)
 }

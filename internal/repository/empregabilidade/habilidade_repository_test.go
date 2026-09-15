@@ -231,7 +231,7 @@ func TestHabilidadeRepository_CreateAreaAtuacao_Success(t *testing.T) {
 	}
 
 	mock.ExpectBegin()
-	mock.ExpectQuery(`INSERT INTO "area_atuacao"`).
+	mock.ExpectQuery(`INSERT INTO "emp_areas_atuacao"`).
 		WithArgs(entity.Nome, sqlmock.AnyArg(), sqlmock.AnyArg(), entity.ID).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(areaID))
 	mock.ExpectCommit()
@@ -252,7 +252,7 @@ func TestHabilidadeRepository_CreateAreaAtuacao_DatabaseError(t *testing.T) {
 	entity := &empregabilidade.AreaAtuacao{Nome: "Tecnologia da Informação"}
 
 	mock.ExpectBegin()
-	mock.ExpectQuery(`INSERT INTO "area_atuacao"`).
+	mock.ExpectQuery(`INSERT INTO "emp_areas_atuacao"`).
 		WillReturnError(assert.AnError)
 	mock.ExpectRollback()
 
@@ -271,7 +271,7 @@ func TestHabilidadeRepository_GetAreaAtuacaoByID_Success(t *testing.T) {
 	var areaID int64 = 10
 
 	// Query principal da Área de Atuação
-	mock.ExpectQuery(`SELECT \* FROM "area_atuacao"`).
+	mock.ExpectQuery(`SELECT \* FROM "emp_areas_atuacao"`).
 		WithArgs(areaID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "nome"}).AddRow(areaID, "Construção Civil"))
 
@@ -295,7 +295,7 @@ func TestHabilidadeRepository_GetAreaAtuacaoByID_NotFound(t *testing.T) {
 	ctx := context.Background()
 	var areaID int64 = 999
 
-	mock.ExpectQuery(`SELECT \* FROM "area_atuacao"`).
+	mock.ExpectQuery(`SELECT \* FROM "emp_areas_atuacao"`).
 		WithArgs(areaID, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 
@@ -319,7 +319,7 @@ func TestHabilidadeRepository_UpdateAreaAtuacao_Success(t *testing.T) {
 	}
 
 	mock.ExpectBegin()
-	mock.ExpectExec(`UPDATE "area_atuacao"`).
+	mock.ExpectExec(`UPDATE "emp_areas_atuacao"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
@@ -337,7 +337,7 @@ func TestHabilidadeRepository_DeleteAreaAtuacao_Success(t *testing.T) {
 	var areaID int64 = 20
 
 	mock.ExpectBegin()
-	mock.ExpectExec(`DELETE FROM "area_atuacao"`).
+	mock.ExpectExec(`DELETE FROM "emp_areas_atuacao"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
@@ -381,11 +381,11 @@ func TestHabilidadeRepository_ListAreasAtuacao_Success(t *testing.T) {
 	filter := empregabilidade.AreaAtuacaoFilter{Search: "Confecção"}
 
 	// 1. Contagem total
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "area_atuacao"`).
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_areas_atuacao"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
 	// 2. Busca das áreas de atuação
-	mock.ExpectQuery(`SELECT .* FROM "area_atuacao"`).
+	mock.ExpectQuery(`SELECT .* FROM "emp_areas_atuacao"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "nome"}).
 			AddRow(1, "Confecção de Calçados").
 			AddRow(2, "Confecção de Roupas"))
@@ -471,7 +471,6 @@ func TestHabilidadeRepository_AttachAreaAtuacao_Success(t *testing.T) {
 	var habilidadeID int64 = 1
 	var areaID int64 = 5
 
-	// Transação completa: Begin -> UPDATE pai -> INSERT pivô -> Commit
 	mock.ExpectBegin()
 
 	// 1. O GORM atualiza o updated_at da habilidade pai
@@ -479,11 +478,10 @@ func TestHabilidadeRepository_AttachAreaAtuacao_Success(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), habilidadeID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	// 2. Insere a associação na tabela pivô
-	mock.ExpectQuery(`INSERT INTO "area_atuacao_habilidade"`).
+	// 2. Insere a associação na tabela pivô usando ExpectExec em vez de ExpectQuery
+	mock.ExpectExec(`INSERT INTO "area_atuacao_habilidade"`).
 		WithArgs(habilidadeID, areaID).
-		WillReturnRows(sqlmock.NewRows([]string{"id_habilidade", "id_area_atuacao"}).
-			AddRow(habilidadeID, areaID))
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	mock.ExpectCommit()
 
@@ -524,10 +522,10 @@ func TestHabilidadeRepository_ReplaceAreasAtuacao_Success(t *testing.T) {
 	var habilidadeID int64 = 1
 	areaIDs := []int64{10, 20}
 
-	// 1. O GORM busca as áreas existentes antes de abrir transação
-	mock.ExpectQuery(`SELECT \* FROM "area_atuacao" WHERE id IN \(\$1,\$2\)`).
+	// 1. O GORM busca as áreas existentes antes de abrir a transação
+	mock.ExpectQuery(`SELECT \* FROM "emp_areas_atuacao" WHERE id IN \(\$1,\$2\)`).
 		WithArgs(areaIDs[0], areaIDs[1]).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "descricao"}).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "nome"}).
 			AddRow(areaIDs[0], "Área 10").
 			AddRow(areaIDs[1], "Área 20"))
 
@@ -537,14 +535,14 @@ func TestHabilidadeRepository_ReplaceAreasAtuacao_Success(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), habilidadeID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	mock.ExpectQuery(`INSERT INTO "area_atuacao_habilidade"`).
+	// ALTERADO: Substituído ExpectQuery por ExpectExec
+	mock.ExpectExec(`INSERT INTO "area_atuacao_habilidade"`).
 		WithArgs(habilidadeID, areaIDs[0], habilidadeID, areaIDs[1]).
-		WillReturnRows(sqlmock.NewRows([]string{"id_habilidade", "id_area_atuacao"}).
-			AddRow(habilidadeID, areaIDs[0]).
-			AddRow(habilidadeID, areaIDs[1]))
+		WillReturnResult(sqlmock.NewResult(2, 2))
+
 	mock.ExpectCommit()
 
-	// 3. Transação 2: Limpeza dos vínculos antigos (DELETE)
+	// 3. Transação 2: Limpeza dos vínculos antigos que não pertencem mais ao slice
 	mock.ExpectBegin()
 	mock.ExpectExec(`DELETE FROM "area_atuacao_habilidade"`).
 		WithArgs(habilidadeID, areaIDs[0], areaIDs[1]).

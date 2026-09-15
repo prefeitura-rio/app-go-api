@@ -2852,6 +2852,319 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/empregabilidade/comportamentos-atitudes": {
+            "get": {
+                "description": "Busca a lista de comportamentos e atitudes cadastrados com suporte a paginação e busca textual",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-comportamentos-atitudes"
+                ],
+                "summary": "Listar Comportamentos e Atitudes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Termo de busca",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Tamanho da página (default: 20, max: 100)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.ListComportamentoAtitudesPaginatedResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao buscar comportamentos/atitudes",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cadastra um novo comportamento e atitude global no sistema",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-comportamentos-atitudes"
+                ],
+                "summary": "Criar Comportamento e Atitude",
+                "parameters": [
+                    {
+                        "description": "Dados do comportamento/atitude",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.CreateComportamentoAtitudesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "integer",
+                                "format": "int64"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao criar comportamento/atitude",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/comportamentos-atitudes/{id}": {
+            "get": {
+                "description": "Retorna os detalhes de um comportamento/atitude global cadastrado pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-comportamentos-atitudes"
+                ],
+                "summary": "Buscar Comportamento e Atitude por ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "ID do Comportamento/Atitude",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.ComportamentoAtitudes"
+                        }
+                    },
+                    "400": {
+                        "description": "ID inválido",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Comportamento/atitude não encontrado",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao buscar comportamento/atitude",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Atualiza os dados de um comportamento/atitude existente no sistema",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-comportamentos-atitudes"
+                ],
+                "summary": "Atualizar Comportamento e Atitude",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "ID do Comportamento/Atitude",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.UpdateComportamentoAtitudesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao atualizar comportamento/atitude",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove um comportamento/atitude global cadastrado pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-comportamentos-atitudes"
+                ],
+                "summary": "Excluir Comportamento e Atitude Global",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "ID do Comportamento/Atitude",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID inválido",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao excluir comportamento/atitude",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/curriculo": {
+            "put": {
+                "description": "Remove as habilidades e comportamentos/atitudes antigos e insere os IDs informados em uma transação",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-curriculo"
+                ],
+                "summary": "Substituir itens do curriculo por CPF",
+                "parameters": [
+                    {
+                        "description": "Lista de IDs de habilidades e comportamentos/atitudes",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.CurriculoItensReplaceAll"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/empregabilidade/curriculo/accordion/habilidades": {
             "put": {
                 "security": [
@@ -2902,6 +3215,160 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Erro ao atualizar accordion de habilidades",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/curriculo/comportamentos-atitudes": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna os comportamentos e atitudes vinculados ao currículo do usuário autenticado via JWT",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-curriculo"
+                ],
+                "summary": "Listar comportamentos/atitudes do currículo",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/empregabilidade.CurriculoComportamentoAtitudes"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Usuário não autenticado",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao buscar comportamentos/atitudes do currículo",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Vincula um comportamento/atitude específico ao currículo do usuário autenticado via JWT",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-curriculo"
+                ],
+                "summary": "Adicionar comportamento/atitude ao currículo",
+                "parameters": [
+                    {
+                        "description": "ID do comportamento/atitude a ser vinculado",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.AddComportamentoAtitudesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.CurriculoComportamentoAtitudes"
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Usuário não autenticado",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao adicionar comportamento/atitude ao currículo",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/curriculo/comportamentos-atitudes/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove o vínculo de um comportamento/atitude do currículo do usuário autenticado",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-curriculo"
+                ],
+                "summary": "Remover comportamento/atitude do currículo",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "ID do vínculo (emp_curriculo_comportamento_atitudes)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID inválido",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Usuário não autenticado",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Vínculo não encontrado ou não pertence ao usuário",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao remover comportamento/atitude do currículo",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -4043,7 +4510,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Remove o vínculo de uma habilidade do currículo garantindo ownership pelo CPF do usuário",
+                "description": "Remove o vínculo de uma habilidade do currículo do usuário autenticado",
                 "produces": [
                     "application/json"
                 ],
@@ -4055,7 +4522,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "example": 10,
-                        "description": "ID do vínculo da habilidade",
+                        "description": "ID do vínculo (emp_curriculo_habilidades)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -4080,8 +4547,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
-                    "403": {
-                        "description": "Acesso negado: o recurso não pertence ao usuário",
+                    "404": {
+                        "description": "Vínculo não encontrado ou não pertence ao usuário",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -11950,6 +12417,18 @@ const docTemplate = `{
                 "AcessibilidadeExclusivoPCD"
             ]
         },
+        "empregabilidade.AddComportamentoAtitudesRequest": {
+            "type": "object",
+            "required": [
+                "id_comportamento_atitudes"
+            ],
+            "properties": {
+                "id_comportamento_atitudes": {
+                    "type": "integer",
+                    "example": 10
+                }
+            }
+        },
         "empregabilidade.AddHabilidadeRequest": {
             "type": "object",
             "required": [
@@ -11965,13 +12444,6 @@ const docTemplate = `{
         "empregabilidade.AreaAtuacao": {
             "type": "object",
             "properties": {
-                "areas": {
-                    "description": "Tag de relacionamento Many-To-Many informando as chaves da tabela pivô",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/empregabilidade.AreaAtuacao"
-                    }
-                },
                 "created_at": {
                     "type": "string"
                 },
@@ -12116,6 +12588,23 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.ComportamentoAtitudes": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "empregabilidade.CreateAreaAtuacaoRequest": {
             "type": "object",
             "required": [
@@ -12125,6 +12614,18 @@ const docTemplate = `{
                 "nome": {
                     "type": "string",
                     "example": "Tecnologia da Informação"
+                }
+            }
+        },
+        "empregabilidade.CreateComportamentoAtitudesRequest": {
+            "type": "object",
+            "required": [
+                "nome"
+            ],
+            "properties": {
+                "nome": {
+                    "type": "string",
+                    "example": "Trabalho em Equipe"
                 }
             }
         },
@@ -12143,6 +12644,12 @@ const docTemplate = `{
         "empregabilidade.CurriculoCompleto": {
             "type": "object",
             "properties": {
+                "comportamento_atitudes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CurriculoComportamentoAtitudes"
+                    }
+                },
                 "conquistas": {
                     "type": "array",
                     "items": {
@@ -12184,6 +12691,29 @@ const docTemplate = `{
                 },
                 "situacao_interesses": {
                     "$ref": "#/definitions/empregabilidade.CurriculoSituacaoInteresses"
+                }
+            }
+        },
+        "empregabilidade.CurriculoComportamentoAtitudes": {
+            "type": "object",
+            "properties": {
+                "comportamento_atitudes": {
+                    "$ref": "#/definitions/empregabilidade.ComportamentoAtitudes"
+                },
+                "cpf": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "id_comportamento_atitudes": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -12376,6 +12906,23 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "empregabilidade.CurriculoItensReplaceAll": {
+            "type": "object",
+            "properties": {
+                "comportamento_atitudes_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "habilidades_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 }
             }
         },
@@ -12877,6 +13424,18 @@ const docTemplate = `{
                 "nome": {
                     "type": "string",
                     "example": "Tecnologia da Informação e Comunicação"
+                }
+            }
+        },
+        "empregabilidade.UpdateComportamentoAtitudesRequest": {
+            "type": "object",
+            "required": [
+                "nome"
+            ],
+            "properties": {
+                "nome": {
+                    "type": "string",
+                    "example": "Trabalho em Equipe e Colaboração"
                 }
             }
         },
@@ -14539,6 +15098,32 @@ const docTemplate = `{
                         "type": "array",
                         "items": {
                             "$ref": "#/definitions/empregabilidade.AreaAtuacao"
+                        }
+                    }
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "pageSize": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 42
+                }
+            }
+        },
+        "response.ListComportamentoAtitudesPaginatedResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/empregabilidade.ComportamentoAtitudes"
                         }
                     }
                 },

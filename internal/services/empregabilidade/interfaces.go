@@ -149,8 +149,6 @@ type HabilidadeRepositoryInterface interface {
 	UpdateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) error
 	DeleteAreaAtuacao(ctx context.Context, id int64) error
 	ListAreasAtuacao(ctx context.Context, filter empregabilidade.AreaAtuacaoFilter, limit, offset int) ([]*empregabilidade.AreaAtuacao, int64, error)
-	AddHabilidadeAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error
-	ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error)
 
 	// Métodos de Relacionamento (Many-to-Many)
 	AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
@@ -197,11 +195,27 @@ type CurriculoRepositoryInterface interface {
 	ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error
 	ReplaceAllIdiomasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoIdioma) error
 	ReplaceAllCursosComplementaresByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoCursoComplementar) error
+	ReplaceAllItensCurriculoByCPF(ctx context.Context, cpf string, itens *empregabilidade.CurriculoItensReplaceAll) error
 
 	UpsertSituacaoInteresses(ctx context.Context, entity *empregabilidade.CurriculoSituacaoInteresses) error
 	GetSituacaoInteressesByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoSituacaoInteresses, error)
 	GetPerfilByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoPerfil, error)
 
-	ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error)
+	AddHabilidadeAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error
+	DetachHabilidadeDoCurriculo(ctx context.Context, id int64) error
 	ReplaceAllHabilidadesByCPF(ctx context.Context, cpf string, habilidades []*empregabilidade.CurriculoHabilidade) error
+	ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error)
+
+	AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error
+	DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error
+	ListComportamentoAtitudesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error)
+}
+
+// ComportamentoAtitudesRepository defines the contract for repository operations.
+type ComportamentoAtitudesRepositoryInterface interface {
+	CreateComportamentoAtitudes(ctx context.Context, entity *empregabilidade.ComportamentoAtitudes) (int64, error)
+	GetComportamentoAtitudesByID(ctx context.Context, id int64) (*empregabilidade.ComportamentoAtitudes, error)
+	UpdateComportamentoAtitudes(ctx context.Context, entity *empregabilidade.ComportamentoAtitudes) error
+	DeleteComportamentoAtitudes(ctx context.Context, id int64) error
+	ListComportamentoAtitudes(ctx context.Context, filter empregabilidade.ComportamentoAtitudesFilter, limit, offset int) ([]*empregabilidade.ComportamentoAtitudes, int64, error)
 }

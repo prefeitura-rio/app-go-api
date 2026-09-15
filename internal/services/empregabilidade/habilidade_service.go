@@ -72,16 +72,6 @@ func (s *HabilidadeService) ListAreasAtuacao(ctx context.Context, filter emprega
 	return s.repo.ListAreasAtuacao(ctx, filter, pageSize, offset)
 }
 
-// AddHabilidadeAoCurriculo vincula uma habilidade ao currículo do candidato
-func (s *HabilidadeService) AddHabilidadeAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error {
-	return s.repo.AddHabilidadeAoCurriculo(ctx, vinculo)
-}
-
-// ListHabilidadesPorCPF busca todas as habilidades associadas ao CPF do candidato
-func (s *HabilidadeService) ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
-	return s.repo.ListHabilidadesPorCPF(ctx, cpf)
-}
-
 // AttachAreaAtuacao vincula uma área de atuação a uma habilidade
 func (s *HabilidadeService) AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
 	if habilidadeID <= 0 || areaID <= 0 {

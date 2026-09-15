@@ -99,3 +99,8 @@ func ProvideEmpCandidaturaBloqueioHandler(service *empServices.CandidaturaBloque
 func ProvideEmpHabilidadeHandler(hService *empServices.HabilidadeService, cService *empServices.CurriculoService) *empHandlers.HabilidadeHandler {
 	return empHandlers.NewHabilidadeHandler(hService, cService)
 }
+
+// ProvideEmpComportamentoAtitudesHandler creates empregabilidade ComportamentoAtitudesHandler
+func ProvideEmpComportamentoAtitudesHandler(hService *empServices.ComportamentoAtitudesService) *empHandlers.ComportamentoAtitudesHandler {
+	return empHandlers.NewComportamentoAtitudesHandler(hService)
+}

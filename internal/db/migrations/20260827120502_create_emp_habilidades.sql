@@ -1,44 +1,65 @@
 -- +goose Up
+-- +goose StatementBegin
 
--- 1. Extensões e Função (Criar antes de usar nas tabelas/índices)
+-- 1. Extensões e Função Imutável para Busca Textual
 CREATE EXTENSION IF NOT EXISTS unaccent;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- 2. Função customizada (Usa StatementBegin porque tem ponto e vírgula dentro da função)
--- +goose StatementBegin
 CREATE OR REPLACE FUNCTION immutable_unaccent(text)
 RETURNS text AS $$
     SELECT public.unaccent($1);
 $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT;
--- +goose StatementEnd
+
+-- 2. Função genérica para atualizar updated_at (caso ainda não exista no banco)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- 3. Criação das tabelas
--- 3.1 Tabela Mestre de Habilidades (Entidade Principal)
+-- 3.1 Tabela Mestre de Habilidades
 CREATE TABLE IF NOT EXISTS emp_habilidades (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    nome VARCHAR(500) UNIQUE NOT NULL,
+    nome VARCHAR(250) UNIQUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3.2 Tabela Áreas de Atuação (Entidade Principal)
-CREATE TABLE IF NOT EXISTS area_atuacao (
+CREATE TRIGGER update_emp_habilidades_updated_at
+    BEFORE UPDATE ON emp_habilidades
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- 3.2 Tabela Mestre de Áreas de Atuação
+CREATE TABLE IF NOT EXISTS emp_areas_atuacao (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    nome VARCHAR(500) UNIQUE NOT NULL,
+    nome VARCHAR(250) UNIQUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3.3 Tabela Pivô Áreas x Habilidades (Chave Primária BIGINT)
+CREATE TRIGGER update_emp_areas_atuacao_updated_at
+    BEFORE UPDATE ON emp_areas_atuacao
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- 3.3 Tabela Pivô Áreas x Habilidades
 CREATE TABLE IF NOT EXISTS area_atuacao_habilidade (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_habilidade BIGINT NOT NULL REFERENCES emp_habilidades(id) ON DELETE RESTRICT, 
-    id_area_atuacao BIGINT NOT NULL REFERENCES area_atuacao(id) ON DELETE RESTRICT,
+    id_area_atuacao BIGINT NOT NULL REFERENCES emp_areas_atuacao(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_habilidade_area UNIQUE (id_habilidade, id_area_atuacao)
 );
 
+CREATE TRIGGER update_area_atuacao_habilidade_updated_at
+    BEFORE UPDATE ON area_atuacao_habilidade
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- 4. Inserção massiva de dados
 
@@ -126,7 +147,7 @@ INSERT INTO emp_habilidades (nome) VALUES
 ON CONFLICT (nome) DO NOTHING;
 
 -- 4.2 ÁREAS DE ATUAÇÃO
-INSERT INTO area_atuacao (nome) VALUES
+INSERT INTO emp_areas_atuacao (nome) VALUES
 ('Confecção de Artefatos de Tecido e Couro'),
 ('Confecção de Calçados'),
 ('Confecção de Roupas'),
@@ -454,32 +475,38 @@ FROM (VALUES
     ('Atenção a detalhes', 'Visual Merchandising e Vitrinismo')
 ) AS v(habilidade_nome, area_nome)
 JOIN emp_habilidades h ON h.nome = v.habilidade_nome
-JOIN area_atuacao a ON a.nome = v.area_nome
+JOIN emp_areas_atuacao a ON a.nome = v.area_nome
 ON CONFLICT (id_habilidade, id_area_atuacao) DO NOTHING;
-
 
 -- 5. Índices de Busca Textual (Trigram + Unaccent)
 CREATE INDEX IF NOT EXISTS idx_emp_habilidades_nome_unaccent_trgm 
 ON emp_habilidades 
 USING gin (lower(immutable_unaccent(nome)) gin_trgm_ops);
 
-CREATE INDEX IF NOT EXISTS idx_area_atuacao_nome_unaccent_trgm 
-ON area_atuacao 
+CREATE INDEX IF NOT EXISTS idx_emp_areas_atuacao_nome_unaccent_trgm 
+ON emp_areas_atuacao 
 USING gin (lower(immutable_unaccent(nome)) gin_trgm_ops);
 
 -- 6. Índices para Otimização de JOINs na Pivô
--- A constraint UNIQUE (id_habilidade, id_area_atuacao) já cria um índice implícito para id_habilidade.
--- O índice abaixo otimiza as buscas no sentido oposto: filtrar Habilidades a partir de uma Área.
 CREATE INDEX IF NOT EXISTS idx_area_atuacao_habilidade_area 
 ON area_atuacao_habilidade (id_area_atuacao, id_habilidade);
 
+-- +goose StatementEnd
 
 -- +goose Down
+-- +goose StatementBegin
 
--- 1. Remoção das Tabelas (O DROP TABLE remove automaticamente seus índices e constraints)
+-- 1. Remoção das Triggers
+DROP TRIGGER IF EXISTS update_area_atuacao_habilidade_updated_at ON area_atuacao_habilidade;
+DROP TRIGGER IF EXISTS update_emp_areas_atuacao_updated_at ON emp_areas_atuacao;
+DROP TRIGGER IF EXISTS update_emp_habilidades_updated_at ON emp_habilidades;
+
+-- 2. Remoção das Tabelas
 DROP TABLE IF EXISTS area_atuacao_habilidade;
-DROP TABLE IF EXISTS area_atuacao;
+DROP TABLE IF EXISTS emp_areas_atuacao;
 DROP TABLE IF EXISTS emp_habilidades;
 
--- 2. Remoção da Função
+-- 3. Remoção da Função de Unaccent
 DROP FUNCTION IF EXISTS immutable_unaccent(text);
+
+-- +goose StatementEnd

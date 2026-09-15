@@ -26,6 +26,8 @@ type ListHabilidadesPaginatedResponse = Paginated[[]empregabilidade.Habilidade]
 
 type ListAreasAtuacaoPaginatedResponse = Paginated[[]empregabilidade.AreaAtuacao]
 
+type ListComportamentoAtitudesPaginatedResponse = Paginated[[]empregabilidade.ComportamentoAtitudes]
+
 // Helpers HTTP
 
 // Error envia uma resposta JSON padronizada para erros.

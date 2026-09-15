@@ -124,3 +124,7 @@ func ProvideEmpCNPJConsultaService(rmiClient *clients.RMIClient, tokenManager *a
 func ProvideEmpHabilidadeService(repo *empRepository.HabilidadeRepository) *empServices.HabilidadeService {
 	return empServices.NewHabilidadeService(repo)
 }
+
+func ProvideEmpComportamentoAtitudesService(repo *empRepository.ComportamentoAtitudesRepository) *empServices.ComportamentoAtitudesService {
+	return empServices.NewComportamentoAtitudesService(repo)
+}

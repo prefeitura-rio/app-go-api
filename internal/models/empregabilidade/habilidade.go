@@ -6,8 +6,8 @@ import (
 
 // Habilidade representa a tabela 'emp_habilidades'
 type Habilidade struct {
-	ID        int64         `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	Nome      string        `json:"nome" gorm:"type:varchar(500);unique;not null"`
+	ID        int64         `json:"id" gorm:"primaryKey;autoIncrement"`
+	Nome      string        `json:"nome" gorm:"type:varchar(250);unique;not null"`
 	CreatedAt time.Time     `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time     `json:"updated_at" gorm:"autoUpdateTime"`
 	Areas     []AreaAtuacao `json:"areas,omitempty" gorm:"many2many:area_atuacao_habilidade;foreignKey:ID;joinForeignKey:id_habilidade;references:ID;joinReferences:id_area_atuacao"`
@@ -19,9 +19,9 @@ func (Habilidade) TableName() string {
 
 // CurriculoHabilidade representa o vínculo entre o candidato (CPF) e suas Habilidades
 type CurriculoHabilidade struct {
-	ID           int64       `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	ID           int64       `json:"id" gorm:"primaryKey;autoIncrement"`
 	CPF          string      `json:"cpf" gorm:"type:char(11);not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
-	IDHabilidade int64       `json:"id_habilidade" gorm:"type:uuid;not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
+	IDHabilidade int64       `json:"id_habilidade" gorm:"not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
 	CreatedAt    time.Time   `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time   `json:"updated_at" gorm:"autoUpdateTime"`
 	Habilidade   *Habilidade `json:"habilidade,omitempty" gorm:"foreignKey:IDHabilidade;references:ID"`
@@ -31,19 +31,17 @@ func (CurriculoHabilidade) TableName() string {
 	return "emp_curriculo_habilidades"
 }
 
-// AreaAtuacao representa a tabela 'area_atuacao'
+// AreaAtuacao representa a tabela 'emp_areas_atuacao'
 type AreaAtuacao struct {
-	ID          int64        `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	Nome        string       `json:"nome" gorm:"type:varchar(500);unique;not null"`
+	ID          int64        `json:"id" gorm:"primaryKey;autoIncrement"`
+	Nome        string       `json:"nome" gorm:"type:varchar(250);unique;not null"`
 	CreatedAt   time.Time    `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt   time.Time    `json:"updated_at" gorm:"autoUpdateTime"`
 	Habilidades []Habilidade `json:"habilidades,omitempty" gorm:"many2many:area_atuacao_habilidade;foreignKey:ID;joinForeignKey:id_area_atuacao;references:ID;joinReferences:id_habilidade"`
-	// Tag de relacionamento Many-To-Many informando as chaves da tabela pivô
-	Areas []AreaAtuacao `gorm:"many2many:area_atuacao_habilidade;foreignKey:ID;joinForeignKey:id_habilidade;references:ID;joinReferences:id_area_atuacao" json:"areas,omitempty"`
 }
 
 func (AreaAtuacao) TableName() string {
-	return "area_atuacao"
+	return "emp_areas_atuacao"
 }
 
 // HabilidadeFilter estrutura para aplicar filtros na consulta

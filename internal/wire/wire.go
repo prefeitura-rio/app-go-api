@@ -126,25 +126,26 @@ type ApplicationContainer struct {
 	TypesenseHandler       *v1.TypesenseHandler
 
 	// Empregabilidade Handlers
-	EmpRegimeContratacaoHandler   *empHandlers.RegimeContratacaoHandler
-	EmpModeloTrabalhoHandler      *empHandlers.ModeloTrabalhoHandler
-	EmpTipoPCDHandler             *empHandlers.TipoPCDHandler
-	EmpIdiomaHandler              *empHandlers.IdiomaHandler
-	EmpNivelIdiomaHandler         *empHandlers.NivelIdiomaHandler
-	EmpEscolaridadeHandler        *empHandlers.EscolaridadeHandler
-	EmpTipoConquistaHandler       *empHandlers.TipoConquistaHandler
-	EmpSituacaoAtualHandler       *empHandlers.SituacaoAtualHandler
-	EmpDisponibilidadeHandler     *empHandlers.DisponibilidadeHandler
-	EmpEmpresaHandler             *empHandlers.EmpresaHandler
-	EmpVagaHandler                *empHandlers.VagaHandler
-	EmpEtapaHandler               *empHandlers.EtapaHandler
-	EmpCandidaturaHandler         *empHandlers.CandidaturaHandler
-	EmpCurriculoHandler           *empHandlers.CurriculoHandler
-	EmpHabilidadeHandler          *empHandlers.HabilidadeHandler
-	EmpOnboardingHandler          *empHandlers.OnboardingHandler
-	EmpTermosUsoHandler           *empHandlers.TermosUsoHandler
-	EmpZonaHandler                *empHandlers.ZonaHandler
-	EmpCandidaturaBloqueioHandler *empHandlers.CandidaturaBloqueioHandler
+	EmpRegimeContratacaoHandler     *empHandlers.RegimeContratacaoHandler
+	EmpModeloTrabalhoHandler        *empHandlers.ModeloTrabalhoHandler
+	EmpTipoPCDHandler               *empHandlers.TipoPCDHandler
+	EmpIdiomaHandler                *empHandlers.IdiomaHandler
+	EmpNivelIdiomaHandler           *empHandlers.NivelIdiomaHandler
+	EmpEscolaridadeHandler          *empHandlers.EscolaridadeHandler
+	EmpTipoConquistaHandler         *empHandlers.TipoConquistaHandler
+	EmpSituacaoAtualHandler         *empHandlers.SituacaoAtualHandler
+	EmpDisponibilidadeHandler       *empHandlers.DisponibilidadeHandler
+	EmpEmpresaHandler               *empHandlers.EmpresaHandler
+	EmpVagaHandler                  *empHandlers.VagaHandler
+	EmpEtapaHandler                 *empHandlers.EtapaHandler
+	EmpCandidaturaHandler           *empHandlers.CandidaturaHandler
+	EmpCurriculoHandler             *empHandlers.CurriculoHandler
+	EmpHabilidadeHandler            *empHandlers.HabilidadeHandler
+	EmpComportamentoAtitudesHandler *empHandlers.ComportamentoAtitudesHandler
+	EmpOnboardingHandler            *empHandlers.OnboardingHandler
+	EmpTermosUsoHandler             *empHandlers.TermosUsoHandler
+	EmpZonaHandler                  *empHandlers.ZonaHandler
+	EmpCandidaturaBloqueioHandler   *empHandlers.CandidaturaBloqueioHandler
 }
 
 // CategoriaContainer holds wired components for Categorias proof-of-concept
@@ -210,6 +211,7 @@ var EmpRepositorySet = wire.NewSet(
 	providers.ProvideEmpZonaRepository,
 	providers.ProvideEmpCandidaturaBloqueioRepository,
 	providers.ProvideEmpHabilidadeRepository,
+	providers.ProvideEmpComportamentoAtitudesRepository,
 )
 
 var CoreServiceSet = wire.NewSet(
@@ -252,6 +254,7 @@ var EmpServiceSet = wire.NewSet(
 	providers.ProvideEmpZonaService,
 	providers.ProvideEmpCandidaturaBloqueioService,
 	providers.ProvideEmpHabilidadeService,
+	providers.ProvideEmpComportamentoAtitudesService,
 )
 
 var CoreHandlerSet = wire.NewSet(
@@ -285,6 +288,7 @@ var EmpHandlerSet = wire.NewSet(
 	providers.ProvideEmpCandidaturaHandler,
 	providers.ProvideEmpCurriculoHandler,
 	providers.ProvideEmpHabilidadeHandler,
+	providers.ProvideEmpComportamentoAtitudesHandler,
 	providers.ProvideEmpOnboardingHandler,
 	providers.ProvideEmpTermosUsoHandler,
 	providers.ProvideEmpZonaHandler,

@@ -1614,6 +1614,52 @@ func TestCurriculoRepository_ReplaceAllCursosComplementaresByCPF(t *testing.T) {
 	})
 }
 
+// --- TESTES DE SUBSTITUIÇÃO MASSIVA DE ITENS DO CURRÍCULO (TRANSAÇÃO) ---
+
+func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	cpf := "12345678901"
+	habilidadesIDs := []int64{10, 20}
+	comportamentoIDs := []int64{100}
+
+	itensCurriculo := &empregabilidade.CurriculoItensReplaceAll{
+		HabilidadesIDs:           habilidadesIDs,
+		ComportamentoAtitudesIDs: comportamentoIDs,
+	}
+
+	// 1. Início da Transação
+	mock.ExpectBegin()
+
+	// 2. Remoção e Inserção das Habilidades
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_habilidades"`).
+		WithArgs(cpf).
+		WillReturnResult(sqlmock.NewResult(0, 2))
+
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
+
+	// 3. Remoção e Inserção dos Comportamentos/Atitudes
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_comportamento_atitudes"`).
+		WithArgs(cpf).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_comportamento_atitudes"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
+
+	// 4. Commit da Transação
+	mock.ExpectCommit()
+
+	err := repo.ReplaceAllItensCurriculoByCPF(ctx, cpf, itensCurriculo)
+	assert.NoError(t, err)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // Situação e Interesses Tests
 
 func TestCurriculoRepository_UpsertSituacaoInteresses(t *testing.T) {

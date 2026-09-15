@@ -227,7 +227,7 @@ func (r *HabilidadeRepository) ListAreasAtuacao(ctx context.Context, filter empr
 		if filter.Search != "" {
 			searchNome := fmt.Sprintf("%%%s%%", filter.Search)
 			// Ajuste o nome da tabela base se no seu banco não for emp_areas_atuacao
-			db = db.Where("lower(immutable_unaccent(area_atuacao.nome)) LIKE lower(immutable_unaccent(?))", searchNome)
+			db = db.Where("lower(immutable_unaccent(emp_areas_atuacao.nome)) LIKE lower(immutable_unaccent(?))", searchNome)
 		}
 
 		// Filtragem por ID da Habilidade
@@ -248,7 +248,7 @@ func (r *HabilidadeRepository) ListAreasAtuacao(ctx context.Context, filter empr
 	findDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.AreaAtuacao{}))
 	result := findDB.
 		Preload("Habilidades").
-		Order("area_atuacao.nome ASC").
+		Order("emp_areas_atuacao.nome ASC").
 		Limit(limit).
 		Offset(offset).
 		Find(&entities)
@@ -267,6 +267,23 @@ func (r *HabilidadeRepository) AddHabilidadeAoCurriculo(ctx context.Context, vin
 	if result.Error != nil {
 		return fmt.Errorf("erro ao vincular habilidade ao currículo: %w", result.Error)
 	}
+	return nil
+}
+
+// DetachHabilidadeDoCurriculo remove o vínculo de uma habilidade do currículo
+func (r *HabilidadeRepository) DetachHabilidadeDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND cpf = ?", vinculo.ID, vinculo.CPF).
+		Delete(&empregabilidade.CurriculoHabilidade{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
 	return nil
 }
 
