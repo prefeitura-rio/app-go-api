@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -45,6 +46,7 @@ type CitizenSnapshotRepoForCandidaturaInterface interface {
 
 type CitizenDataFetcherForCandidaturaInterface interface {
 	SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+	StaleThreshold() time.Duration
 }
 
 var validStatusTransitions = map[empregabilidade.StatusCandidatura][]empregabilidade.StatusCandidatura{
@@ -156,6 +158,17 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 	curriculo, err := s.curriculoService.GetCurriculoCompleto(ctx, entity.CPF)
 	if err == nil {
 		entity.CurriculoSnapshot = curriculo
+	}
+
+	// Sync citizen data from RMI on-demand so the official contact (telefone,
+	// endereco) is available downstream via personal_info — parity with
+	// InscricaoService. The citizen has just confirmed these fields in the app,
+	// so this is the freshest they will ever be. Non-fatal: a failure here must
+	// not block the application itself.
+	if s.citizenDataFetcher != nil && entity.CPF != "" {
+		if _, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, entity.CPF); err != nil {
+			log.Printf("[CandidaturaService] falha ao sincronizar dados do cidadão para CPF %s: %v", entity.CPF, err)
+		}
 	}
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
@@ -495,6 +508,19 @@ func (s *CandidaturaService) EnrichRespostasWithTituloMultiple(candidaturas []*e
 	}
 }
 
+// needsRefresh informa se um snapshot deve ser re-sincronizado do RMI: ou ele
+// ainda não existe, ou está mais velho que o stale threshold do worker de sync.
+// Retorna false quando não há fetcher configurado, pois não há como atualizar.
+func (s *CandidaturaService) needsRefresh(snapshot *models.CitizenSnapshot) bool {
+	if s.citizenDataFetcher == nil {
+		return false
+	}
+	if snapshot == nil {
+		return true
+	}
+	return time.Since(snapshot.LastSyncedAt) >= s.citizenDataFetcher.StaleThreshold()
+}
+
 // EnrichWithPersonalInfo popula PersonalInfo de uma candidatura a partir do citizen_snapshot.
 func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empregabilidade.Candidatura) {
 	if s.citizenSnapshotRepo == nil || c == nil || c.CPF == "" {
@@ -507,11 +533,15 @@ func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empr
 		return
 	}
 
-	if snapshot == nil && s.citizenDataFetcher != nil {
-		snapshot, err = s.citizenDataFetcher.SyncCitizenOnDemand(ctx, c.CPF)
+	// Refresh when the snapshot is missing OR stale. Serving a stale snapshot
+	// unconditionally is what made contact data (telefone, endereco) updated by
+	// the citizen after the first sync never reach the Portal Interno.
+	if s.needsRefresh(snapshot) {
+		refreshed, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, c.CPF)
 		if err != nil {
 			fmt.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v\n", c.CPF, err)
-			return
+		} else if refreshed != nil {
+			snapshot = refreshed
 		}
 	}
 
@@ -549,18 +579,21 @@ func (s *CandidaturaService) EnrichMultipleWithPersonalInfo(ctx context.Context,
 		return
 	}
 
-	// Sync CPFs missing from cache on-demand if fetcher is available
+	// Sync CPFs whose snapshot is missing or stale, if a fetcher is available.
+	// Fresh snapshots are left untouched, so this costs no extra round-trip in
+	// the common case.
 	if s.citizenDataFetcher != nil {
 		for _, cpf := range cpfs {
-			if _, ok := snapshotMap[cpf]; !ok {
-				snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
-				if err != nil {
-					fmt.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v\n", cpf, err)
-					continue
-				}
-				if snapshot != nil {
-					snapshotMap[cpf] = snapshot
-				}
+			if !s.needsRefresh(snapshotMap[cpf]) {
+				continue
+			}
+			snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
+			if err != nil {
+				fmt.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v\n", cpf, err)
+				continue
+			}
+			if snapshot != nil {
+				snapshotMap[cpf] = snapshot
 			}
 		}
 	}

@@ -1530,6 +1530,8 @@ func TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_Preserv
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT "id" FROM "emp_informacoes_complementares"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(infoID))
 	mock.ExpectExec(`DELETE FROM "emp_informacoes_complementares".*id NOT IN`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`UPDATE "emp_informacoes_complementares" SET`).
@@ -1581,6 +1583,8 @@ func TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_UpdateS
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT "id" FROM "emp_informacoes_complementares"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(infoID))
 	mock.ExpectExec(`DELETE FROM "emp_informacoes_complementares".*id NOT IN`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`UPDATE "emp_informacoes_complementares" SET`).
@@ -1635,6 +1639,9 @@ func TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_MixExis
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	// Pluck retorna apenas o existingInfoID (o item com ID==uuid.Nil não entra na query)
+	mock.ExpectQuery(`SELECT "id" FROM "emp_informacoes_complementares"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(existingInfoID))
 	mock.ExpectExec(`DELETE FROM "emp_informacoes_complementares".*id NOT IN`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`UPDATE "emp_informacoes_complementares" SET`).
@@ -1691,6 +1698,59 @@ func TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_AllNew_
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_EphemeralUUIDInsertsNew
+// reproduz o bug introduzido no PR #140: o frontend sempre gera UUIDs locais com
+// uuidv4() que nunca existem no banco. O código bugado os tratava como UPDATE
+// (0 rows affected, erro silencioso). O fix correto é detectar que o UUID não
+// existe no banco e tratar como INSERT.
+func TestVagaRepository_UpdateWithAssociations_InformacoesComplementares_EphemeralUUIDInsertsNew(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+	ephemeralID := uuid.New() // UUID gerado pelo frontend, não existe no banco
+	generatedID := uuid.New() // UUID que o banco vai gerar no INSERT
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  vagaID,
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		InformacoesComplementares: []empregabilidade.InformacaoComplementar{
+			{ID: ephemeralID, Titulo: "teste", TipoCampo: empregabilidade.TipoCampoRespostaCurta},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	// Pluck verifica quais UUIDs existem de fato — retorna vazio (UUID efêmero)
+	mock.ExpectQuery(`SELECT "id" FROM "emp_informacoes_complementares"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	// DELETE sem "id NOT IN" pois nenhum UUID foi confirmado como real no banco
+	mock.ExpectExec(`DELETE FROM "emp_informacoes_complementares"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	// Como o UUID não existe no banco, deve fazer INSERT (não UPDATE)
+	mock.ExpectQuery(`INSERT INTO "emp_informacoes_complementares"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(generatedID))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+
+	assert.NotEqual(t, uuid.Nil, vaga.InformacoesComplementares[0].ID,
+		"item deve ter UUID após save")
+	assert.NotEqual(t, ephemeralID, vaga.InformacoesComplementares[0].ID,
+		"UUID efêmero do frontend deve ser substituído pelo UUID gerado pelo banco")
+}
+
 // TestVagaRepository_UpdateWithAssociations_UpdateInformacaoComplementarError garante
 // que falha ao atualizar um item existente propaga erro com contexto e faz rollback.
 func TestVagaRepository_UpdateWithAssociations_UpdateInformacaoComplementarError(t *testing.T) {
@@ -1700,6 +1760,7 @@ func TestVagaRepository_UpdateWithAssociations_UpdateInformacaoComplementarError
 	repo := NewVagaRepository(db)
 	ctx := context.Background()
 
+	infoID := uuid.New()
 	vaga := &empregabilidade.Vaga{
 		ID:                  uuid.New(),
 		Titulo:              "Desenvolvedor Go",
@@ -1709,13 +1770,15 @@ func TestVagaRepository_UpdateWithAssociations_UpdateInformacaoComplementarError
 		IDModeloTrabalho:    uuid.New(),
 		Status:              empregabilidade.StatusVagaEmEdicao,
 		InformacoesComplementares: []empregabilidade.InformacaoComplementar{
-			{ID: uuid.New(), Titulo: "Pergunta", TipoCampo: empregabilidade.TipoCampoRespostaCurta},
+			{ID: infoID, Titulo: "Pergunta", TipoCampo: empregabilidade.TipoCampoRespostaCurta},
 		},
 	}
 
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT "id" FROM "emp_informacoes_complementares"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(infoID))
 	mock.ExpectExec(`DELETE FROM "emp_informacoes_complementares"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`UPDATE "emp_informacoes_complementares" SET`).

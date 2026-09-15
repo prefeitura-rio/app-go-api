@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 const (
@@ -106,7 +107,28 @@ func CourseOrgaoInjector() gin.HandlerFunc {
 	}
 }
 
+// CourseDraftAuthorization permite criar rascunho para admin, go:cursos:casa_civil
+// e go:cursos:editor com escopo de secretaria/orgao.
+// Editores são permitidos porque duplicação de curso é semanticamente diferente
+// de criação avulsa (bloqueada por CourseOrgaoInjector em POST /courses).
+func CourseDraftAuthorization() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
+			c.Next()
+			return
+		}
+		if isCursosEditor(c) && hasCourseOrgaoScope(c) {
+			c.Next()
+			return
+		}
+		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para criar rascunho"})
+		c.Abort()
+	}
+}
+
 type courseLoaderFunc func(ctx context.Context, id int) (orgaoID string, found bool, err error)
+
+type enrollmentCPFLoaderFunc func(ctx context.Context, enrollmentID uuid.UUID) (cpf string, found bool, err error)
 
 func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -161,6 +183,54 @@ func GetLoadedCursoOrgaoID(c *gin.Context) string {
 		}
 	}
 	return ""
+}
+
+// CourseEnrollmentSingleAccess authorizes GET/DELETE /courses/:courseId/enrollments/:enrollmentId.
+//
+// Allows:
+//   - citizen self-access: CPF do token bate com CPF da inscrição
+//   - admin / go:cursos:casa_civil: acesso irrestrito (ownership check valida que curso existe)
+//   - go:cursos:editor com escopo de órgão: apenas se o curso pertencer ao seu órgão
+func CourseEnrollmentSingleAccess(courseLoader courseLoaderFunc, enrollmentCPFLoader enrollmentCPFLoaderFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
+			c.Abort()
+			return
+		}
+
+		enrollmentCPF, found, err := enrollmentCPFLoader(c.Request.Context(), enrollmentID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao verificar inscrição"})
+			c.Abort()
+			return
+		}
+		if !found {
+			c.JSON(http.StatusNotFound, gin.H{"error": "inscrição não encontrada"})
+			c.Abort()
+			return
+		}
+
+		userCPF := GetUserCPF(c)
+		if userCPF != "" && enrollmentCPF == userCPF {
+			c.Next()
+			return
+		}
+
+		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
+			CourseOwnershipCheck(courseLoader)(c)
+			return
+		}
+
+		if HasRole(c, "go:cursos:editor") {
+			CourseOwnershipCheck(courseLoader)(c)
+			return
+		}
+
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado"})
+		c.Abort()
+	}
 }
 
 const enrollmentListSelfAccessKey = "enrollment_list_self_access"

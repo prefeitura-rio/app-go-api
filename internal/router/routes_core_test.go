@@ -396,6 +396,34 @@ func TestRegisterCoreRoutes_PublicCoursesUsesListPublic(t *testing.T) {
 		"public courses listing must be wired to ListPublic, got %q", handler)
 }
 
+// TestRegisterCoreRoutes_PublicCourseDetailUsesGetByIDPublic guards the wiring of the
+// public course detail endpoint. It must resolve to CourseHandler.GetByIDPublic (which
+// applies the publicOnly status filter), not GetByID — a regression that would silently
+// expose curation-pipeline courses via /api/public/courses/:courseId.
+func TestRegisterCoreRoutes_PublicCourseDetailUsesGetByIDPublic(t *testing.T) {
+	router := gin.New()
+	apiV1 := router.Group("/api/v1")
+	apiPublic := router.Group("/api/public")
+
+	app := createMockApplicationContainer()
+	cfg := newTestCoreConfig()
+	registerCoreRoutes(apiV1, apiPublic, app, cfg)
+
+	var handler string
+	found := false
+	for _, route := range router.Routes() {
+		if route.Method == "GET" && route.Path == "/api/public/courses/:courseId" {
+			handler = route.Handler
+			found = true
+			break
+		}
+	}
+
+	require.True(t, found, "GET /api/public/courses/:courseId must be registered")
+	assert.Contains(t, handler, "CourseHandler).GetByIDPublic",
+		"public course detail must be wired to GetByIDPublic, got %q", handler)
+}
+
 // TestRegisterCoreRoutes_RouteMethodCounts tests HTTP method distribution
 func TestRegisterCoreRoutes_RouteMethodCounts(t *testing.T) {
 	router := gin.New()

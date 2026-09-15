@@ -758,6 +758,75 @@ func TestCourseHandler_GetByIDPublic_Draft_NotFound(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
+// Public endpoint must return 404 for every non-public status so that
+// draft/review/approval pipeline courses are never exposed by URL.
+func TestCourseHandler_GetByIDPublic_NonPublicStatuses_ReturnNotFound(t *testing.T) {
+	statuses := []models.StatusCurso{
+		models.StatusCursoInReview,
+		models.StatusCursoNeedsChanges,
+		models.StatusCursoApproved,
+		models.StatusCursoPendingDeletion,
+		// draft already covered by TestCourseHandler_GetByIDPublic_Draft_NotFound
+	}
+	for _, status := range statuses {
+		t.Run(string(status), func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			mockService := new(MockCursoService)
+			mockInscricaoService := new(MockInscricaoServiceForCourse)
+			mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+			handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+			r := gin.New()
+			r.GET("/api/public/courses/:courseId", handler.GetByIDPublic)
+
+			curso := &models.Curso{ID: 1, Titulo: "Curso Curadoria", Status: status}
+			mockService.On("GetByID", mock.Anything, 1).Return(curso, nil)
+
+			req := httptest.NewRequest(http.MethodGet, "/api/public/courses/1", nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusNotFound, w.Code)
+			assert.Contains(t, w.Body.String(), "Curso não encontrado")
+			mockService.AssertExpectations(t)
+		})
+	}
+}
+
+// Public endpoint must return 200 for all publicly-visible statuses.
+// closed and canceled are intentionally kept public (present in URL_STATUSES on the frontend).
+func TestCourseHandler_GetByIDPublic_PublicStatuses_ReturnOK(t *testing.T) {
+	statuses := []models.StatusCurso{
+		models.StatusCursoPublished,
+		models.StatusCursoOpened, // normalizes to published
+		models.StatusCursoClosed,
+		models.StatusCursoCanceled,
+	}
+	for _, status := range statuses {
+		t.Run(string(status), func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			mockService := new(MockCursoService)
+			mockInscricaoService := new(MockInscricaoServiceForCourse)
+			mockRepo := new(MockCursoRepositoryForCourseHandler)
+
+			handler := v1.NewCourseHandler(mockService, mockInscricaoService, mockRepo)
+			r := gin.New()
+			r.GET("/api/public/courses/:courseId", handler.GetByIDPublic)
+
+			curso := &models.Curso{ID: 1, Titulo: "Curso Público", Status: status}
+			mockService.On("GetByID", mock.Anything, 1).Return(curso, nil)
+			mockRepo.On("CountEnrollmentsByScheduleIDs", mock.Anything, mock.Anything).Return(make(map[uuid.UUID]int64), nil)
+
+			req := httptest.NewRequest(http.MethodGet, "/api/public/courses/1", nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			mockService.AssertExpectations(t)
+		})
+	}
+}
+
 // A rota autenticada (GetByID) continua expondo rascunhos para quem já passou
 // pela autorização de rota.
 func TestCourseHandler_GetByID_Draft_Visible(t *testing.T) {

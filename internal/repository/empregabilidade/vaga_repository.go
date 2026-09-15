@@ -179,16 +179,39 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 }
 
 // syncInformacoesComplementares reconcilia as informações complementares de uma vaga
-// pelo UUID em vez de deletar e recriar tudo: itens com ID preenchido são atualizados
-// in-place (preservando o UUID referenciado pelas respostas de candidaturas já
-// submetidas); itens ausentes do payload são removidos; itens com ID == uuid.Nil são
-// inseridos como novos, recebendo um UUID gerado pelo banco.
+// pelo UUID em vez de deletar e recriar tudo: itens cujo UUID existe de fato no banco
+// são atualizados in-place (preservando a referência das respostas de candidaturas já
+// submetidas); itens ausentes do payload são removidos; itens com UUID == uuid.Nil ou
+// com UUID efêmero gerado pelo frontend (não encontrado no banco) são inseridos como
+// novos, recebendo um UUID gerado pelo banco.
 func syncInformacoesComplementares(tx *gorm.DB, vagaID uuid.UUID, informacoes []empregabilidade.InformacaoComplementar) error {
-	existentesIDs := make([]uuid.UUID, 0, len(informacoes))
+	// Coletar todos os IDs não-nulos do payload para verificar quais existem no banco.
+	payloadIDs := make([]uuid.UUID, 0, len(informacoes))
 	for i := range informacoes {
 		if informacoes[i].ID != uuid.Nil {
-			existentesIDs = append(existentesIDs, informacoes[i].ID)
+			payloadIDs = append(payloadIDs, informacoes[i].ID)
 		}
+	}
+
+	// Uma única query busca os UUIDs que de fato existem no banco (batch, não N×COUNT).
+	// O frontend sempre gera UUIDs locais com uuidv4() — eles não existirão aqui.
+	existentesNoBanco := make(map[uuid.UUID]bool)
+	if len(payloadIDs) > 0 {
+		var idsConfirmados []uuid.UUID
+		if err := tx.Model(&empregabilidade.InformacaoComplementar{}).
+			Where("id_vaga = ? AND id IN ?", vagaID, payloadIDs).
+			Pluck("id", &idsConfirmados).Error; err != nil {
+			return fmt.Errorf("erro ao verificar informações complementares: %w", err)
+		}
+		for _, id := range idsConfirmados {
+			existentesNoBanco[id] = true
+		}
+	}
+
+	// Montar lista de IDs confirmados para o DELETE excluir apenas os ausentes do payload.
+	existentesIDs := make([]uuid.UUID, 0, len(existentesNoBanco))
+	for id := range existentesNoBanco {
+		existentesIDs = append(existentesIDs, id)
 	}
 
 	deleteQuery := tx.Where("id_vaga = ?", vagaID)
@@ -204,11 +227,16 @@ func syncInformacoesComplementares(tx *gorm.DB, vagaID uuid.UUID, informacoes []
 		informacoes[i].IDVaga = vagaID
 		informacoes[i].Vaga = nil
 
-		if informacoes[i].ID == uuid.Nil {
-			novos = append(novos, informacoes[i])
+		if informacoes[i].ID == uuid.Nil || !existentesNoBanco[informacoes[i].ID] {
+			// UUID nil ou UUID efêmero do frontend (não existe no banco) → INSERT.
+			itemNovo := informacoes[i]
+			itemNovo.ID = uuid.Nil
+			novos = append(novos, itemNovo)
 			continue
 		}
 
+		// UUID confirmado no banco → UPDATE in-place, preservando referências de candidaturas.
+		//
 		// Update baseado em struct (não em map) é obrigatório aqui: apenas o update
 		// baseado em struct aplica o serializer:json do GORM ao campo Opcoes. Um
 		// map[string]interface{} ignora o serializer e expande o []string em uma
@@ -230,7 +258,7 @@ func syncInformacoesComplementares(tx *gorm.DB, vagaID uuid.UUID, informacoes []
 
 		novoIdx := 0
 		for i := range informacoes {
-			if informacoes[i].ID == uuid.Nil {
+			if informacoes[i].ID == uuid.Nil || !existentesNoBanco[informacoes[i].ID] {
 				informacoes[i].ID = novos[novoIdx].ID
 				novoIdx++
 			}

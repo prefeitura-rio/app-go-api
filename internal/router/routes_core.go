@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
@@ -39,13 +40,27 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	ownershipCheck := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOwnershipCheck(cursoLoader))
 	courseAuth := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseAuthorization())
 	courseOrgaoInjector := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOrgaoInjector())
+	courseDraftAuth := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseDraftAuthorization())
 	courseListFilter := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseListFilter())
 	enrollmentListAccess := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseEnrollmentListAccess(cursoLoader))
+
+	enrollmentCPFLoader := func(ctx context.Context, id uuid.UUID) (string, bool, error) {
+		insc, err := app.InscricaoService.GetByID(ctx, id)
+		if err != nil {
+			return "", false, err
+		}
+		if insc == nil {
+			return "", false, nil
+		}
+		return insc.CPF, true, nil
+	}
+	enrollmentSingleAccess := rbacMiddleware(cfg.App.RBACEnabled,
+		middlewares.CourseEnrollmentSingleAccess(cursoLoader, enrollmentCPFLoader))
 
 	courses := apiV1.Group("/courses")
 	{
 		courses.POST("", courseAuth, courseOrgaoInjector, app.CourseHandler.Create)
-		courses.POST("/draft", courseAuth, courseOrgaoInjector, app.CourseHandler.CreateDraft)
+		courses.POST("/draft", courseAuth, courseDraftAuth, app.CourseHandler.CreateDraft)
 		courses.GET("", courseListFilter, app.CourseHandler.List)
 		courses.GET("/drafts", courseListFilter, app.CourseHandler.ListDrafts)
 		courses.GET("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.GetByID)
@@ -59,12 +74,12 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courses.POST("/:courseId/enrollments/manual", courseAuth, ownershipCheck, app.InscricaoHandler.CreateManual)
 		courses.POST("/:courseId/enrollments/import", courseAuth, ownershipCheck, app.InscricaoHandler.Import)
 		courses.GET("/:courseId/enrollments", enrollmentListAccess, app.InscricaoHandler.List)
-		courses.PUT("/:courseId/enrollments/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateStatus)
+		courses.PUT("/:courseId/enrollments/status", enrollmentListAccess, app.InscricaoHandler.UpdateStatus)
 		courses.PUT("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.Update)
-		courses.PUT("/:courseId/enrollments/:enrollmentId/status", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateIndividualStatus)
-		courses.GET("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.GetByID)
-		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", courseAuth, ownershipCheck, app.InscricaoHandler.UpdateCertificate)
-		courses.DELETE("/:courseId/enrollments/:enrollmentId", app.InscricaoHandler.Delete)
+		courses.PUT("/:courseId/enrollments/:enrollmentId/status", enrollmentSingleAccess, app.InscricaoHandler.UpdateIndividualStatus)
+		courses.GET("/:courseId/enrollments/:enrollmentId", enrollmentSingleAccess, app.InscricaoHandler.GetByID)
+		courses.PUT("/:courseId/enrollments/:enrollmentId/certificate", enrollmentSingleAccess, app.InscricaoHandler.UpdateCertificate)
+		courses.DELETE("/:courseId/enrollments/:enrollmentId", enrollmentSingleAccess, app.InscricaoHandler.Delete)
 	}
 
 	apiV1.Group("/jobs").GET("/:jobId/status", app.JobHandler.GetStatus)
@@ -94,7 +109,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	apiV1.Group("/propostas-mei").GET("/por-empresa", app.PropostaMEIHandler.ListByMEIEmpresa)
 
 	apiPublic.GET("/courses", app.CourseHandler.ListPublic)
-	apiPublic.GET("/courses/:courseId", app.CourseHandler.GetByID)
+	apiPublic.GET("/courses/:courseId", app.CourseHandler.GetByIDPublic)
 	apiPublic.GET("/oportunidades-mei", app.OportunidadeMEIHandler.List)
 	apiPublic.GET("/oportunidades-mei/:id", app.OportunidadeMEIHandler.GetByID)
 }
