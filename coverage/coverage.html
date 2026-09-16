@@ -40627,50 +40627,50 @@ func (s *ContactInfoService) GetCNPJOwnerContactInfo(ctx context.Context, cnpj s
         <span class="cov10" title="439">cachedData, err := s.redisClient.Get(ctx, cacheKey).Result()
         if err == nil </span>{
                 // Cache hit
-                <span class="cov4" title="14">var ownerInfo models.CNPJOwnerInfo
+                <span class="cov4" title="8">var ownerInfo models.CNPJOwnerInfo
                 if err := json.Unmarshal([]byte(cachedData), &amp;ownerInfo); err == nil </span>{
-                        <span class="cov4" title="13">log.Printf("[CONTACT_INFO_CACHE_HIT] CNPJ: %s", cnpj)
+                        <span class="cov3" title="7">log.Printf("[CONTACT_INFO_CACHE_HIT] CNPJ: %s", cnpj)
                         return &amp;ownerInfo, nil
 </span>                }
                 // Cache data is corrupted, continue to fetch from API
                 <span class="cov1" title="1">log.Printf("[CONTACT_INFO_CACHE_CORRUPTED] CNPJ: %s, error: %v", cnpj, err)</span>
-        } else <span class="cov9" title="425">if err != redis.Nil </span>{
+        } else <span class="cov9" title="431">if err != redis.Nil </span>{
                 // Redis error (not a cache miss), log but continue
                 <span class="cov1" title="1">log.Printf("[CONTACT_INFO_CACHE_ERROR] CNPJ: %s, error: %v", cnpj, err)
 </span>        }
 
         // Cache miss or error - fetch from RMI API
-        <span class="cov9" title="426">log.Printf("[CONTACT_INFO_CACHE_MISS] CNPJ: %s", cnpj)
+        <span class="cov9" title="432">log.Printf("[CONTACT_INFO_CACHE_MISS] CNPJ: %s", cnpj)
 </span>
         // Get service account token
-        <span class="cov9" title="426">token, err := s.tokenManager.GetToken(ctx)
+        <span class="cov9" title="432">token, err := s.tokenManager.GetToken(ctx)
         if err != nil </span>{
                 <span class="cov2" title="3">return nil, fmt.Errorf("failed to get service account token: %w", err)
 </span>        }
 
         // Fetch from RMI API
-        <span class="cov9" title="423">ownerInfo, err := s.rmiClient.GetCNPJOwnerInfo(ctx, token, cnpj)
+        <span class="cov9" title="429">ownerInfo, err := s.rmiClient.GetCNPJOwnerInfo(ctx, token, cnpj)
         if err != nil </span>{
                 <span class="cov5" title="21">return nil, fmt.Errorf("failed to fetch CNPJ owner info from RMI: %w", err)
 </span>        }
 
         // Cache the result
-        <span class="cov9" title="402">dataToCache, err := json.Marshal(ownerInfo)
+        <span class="cov9" title="408">dataToCache, err := json.Marshal(ownerInfo)
         if err != nil </span>{
                 <span class="cov0" title="0">log.Printf("[CONTACT_INFO_CACHE_MARSHAL_ERROR] CNPJ: %s, error: %v", cnpj, err)
 </span>                // Don't fail, just return the data without caching
                 <span class="cov0" title="0">return ownerInfo, nil
 </span>        }
 
-        <span class="cov9" title="402">err = s.redisClient.Set(ctx, cacheKey, dataToCache, s.cacheTTL).Err()
+        <span class="cov9" title="408">err = s.redisClient.Set(ctx, cacheKey, dataToCache, s.cacheTTL).Err()
         if err != nil </span>{
                 <span class="cov1" title="1">log.Printf("[CONTACT_INFO_CACHE_SET_ERROR] CNPJ: %s, error: %v", cnpj, err)
 </span>                // Don't fail, just return the data without caching
         } else {
-                <span class="cov9" title="401">log.Printf("[CONTACT_INFO_CACHED] CNPJ: %s, TTL: %v", cnpj, s.cacheTTL)
+                <span class="cov9" title="407">log.Printf("[CONTACT_INFO_CACHED] CNPJ: %s, TTL: %v", cnpj, s.cacheTTL)
 </span>        }
 
-        <span class="cov9" title="402">return ownerInfo, nil</span>
+        <span class="cov9" title="408">return ownerInfo, nil</span>
 }
 
 // GetMultipleCNPJOwnerContactInfo fetches contact info for multiple CNPJs in parallel
