@@ -521,6 +521,13 @@ func (s *CandidaturaService) needsRefresh(snapshot *models.CitizenSnapshot) bool
 	return time.Since(snapshot.LastSyncedAt) >= s.citizenDataFetcher.StaleThreshold()
 }
 
+func maskCPF(cpf string) string {
+	if len(cpf) != 11 {
+		return "***"
+	}
+	return cpf[:3] + "******" + cpf[9:]
+}
+
 // EnrichWithPersonalInfo popula PersonalInfo de uma candidatura a partir do citizen_snapshot.
 func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empregabilidade.Candidatura) {
 	if s.citizenSnapshotRepo == nil || c == nil || c.CPF == "" {
@@ -529,7 +536,7 @@ func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empr
 
 	snapshot, err := s.citizenSnapshotRepo.GetByCPF(ctx, c.CPF)
 	if err != nil {
-		fmt.Printf("[CandidaturaService] Failed to get citizen snapshot for CPF %s: %v\n", c.CPF, err)
+		log.Printf("[CandidaturaService] Failed to get citizen snapshot for CPF %s: %v", maskCPF(c.CPF), err)
 		return
 	}
 
@@ -539,7 +546,7 @@ func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empr
 	if s.needsRefresh(snapshot) {
 		refreshed, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, c.CPF)
 		if err != nil {
-			fmt.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v\n", c.CPF, err)
+			log.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v", maskCPF(c.CPF), err)
 		} else if refreshed != nil {
 			snapshot = refreshed
 		}
@@ -575,7 +582,7 @@ func (s *CandidaturaService) EnrichMultipleWithPersonalInfo(ctx context.Context,
 
 	snapshotMap, err := s.citizenSnapshotRepo.GetByCPFs(ctx, cpfs)
 	if err != nil {
-		fmt.Printf("[CandidaturaService] Failed to get citizen snapshots: %v\n", err)
+		log.Printf("[CandidaturaService] Failed to get citizen snapshots: %v", err)
 		return
 	}
 
@@ -589,7 +596,7 @@ func (s *CandidaturaService) EnrichMultipleWithPersonalInfo(ctx context.Context,
 			}
 			snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
 			if err != nil {
-				fmt.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v\n", cpf, err)
+				log.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v", maskCPF(cpf), err)
 				continue
 			}
 			if snapshot != nil {
