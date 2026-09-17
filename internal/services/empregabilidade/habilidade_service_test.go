@@ -90,7 +90,7 @@ func (m *MockHabilidadeRepository) DetachHabilidadeDoCurriculo(ctx context.Conte
 	return args.Error(0)
 }
 
-func (m *MockHabilidadeRepository) ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
+func (m *MockHabilidadeRepository) ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
 	args := m.Called(ctx, cpf)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

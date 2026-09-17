@@ -77,6 +77,18 @@ test-coverage:
     @echo "✅ Coverage report generated: coverage/coverage.html"
     @./scripts/extract-coverage.sh coverage/coverage.out
 
+# Exemplo de uso: just cover-func AddHabilidadeAoCurriculo
+cover-func FUNC:
+    #!/usr/bin/env bash
+    if ! OUTPUT=$(go test -count=1 -coverprofile=coverage.out \
+        ./internal/handlers/v1/empregabilidade/... \
+        ./internal/repository/empregabilidade/... \
+        ./internal/services/empregabilidade/... 2>&1); then
+        echo "$OUTPUT"
+        exit 1
+    fi
+    go tool cover -func=coverage.out | grep -E "{{FUNC}}"
+
 # Run tests for a specific package
 test-pkg pkg:
     @echo "Running tests for {{pkg}}..."

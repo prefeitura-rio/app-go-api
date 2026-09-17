@@ -1300,7 +1300,7 @@ func (h *CurriculoHandler) ListHabilidadesDoCurriculo(c *gin.Context) {
 		return
 	}
 
-	habilidades, err := h.service.ListHabilidadesPorCPF(c.Request.Context(), cpf)
+	habilidades, err := h.service.ListHabilidadesByCPF(c.Request.Context(), cpf)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "Erro ao buscar habilidades do currículo")
 		return

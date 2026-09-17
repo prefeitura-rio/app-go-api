@@ -2,198 +2,285 @@ package empregabilidade_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
 	handler "github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade"
-	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
-	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	empmodels "github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
-// ==========================================
-// TESTES DO CRUD GLOBAL DE COMPORTAMENTOS E ATITUDES
-// ==========================================
-
-func TestCreateComportamentoAtitudes_BadRequest(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-
-	r.POST("/comportamentos-atitudes", func(c *gin.Context) {
-		var req handler.CreateComportamentoAtitudesRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			response.Error(c, http.StatusBadRequest, fmt.Sprintf("Dados inválidos: %s", err.Error()))
-			return
-		}
-	})
-
-	invalidJSON := []byte(`{"nome": ""}`)
-	req, _ := http.NewRequest(http.MethodPost, "/comportamentos-atitudes", bytes.NewBuffer(invalidJSON))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "Dados inválidos")
+// mockComportamentoAtitudesRepo implementa ComportamentoAtitudesRepositoryInterface
+type mockComportamentoAtitudesRepo struct {
+	err           error
+	comportamento *empmodels.ComportamentoAtitudes
+	list          []*empmodels.ComportamentoAtitudes
+	total         int64
+	lastCreatedID int64
 }
 
-func TestGetComportamentoAtitudesByID_InvalidID(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-
-	r.GET("/comportamentos-atitudes/:id", func(c *gin.Context) {
-		idParam := c.Param("id")
-		_, err := strconv.ParseInt(idParam, 10, 64)
-		if err != nil {
-			response.Error(c, http.StatusBadRequest, "ID inválido")
-			return
-		}
-	})
-
-	req, _ := http.NewRequest(http.MethodGet, "/comportamentos-atitudes/id-invalido-123", nil)
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "ID inválido")
-}
-
-func TestUpdateComportamentoAtitudes_BadRequest_InvalidID(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-
-	r.PUT("/comportamentos-atitudes/:id", func(c *gin.Context) {
-		idParam := c.Param("id")
-		if _, err := strconv.ParseInt(idParam, 10, 64); err != nil {
-			response.Error(c, http.StatusBadRequest, "ID inválido")
-			return
-		}
-	})
-
-	req, _ := http.NewRequest(http.MethodPut, "/comportamentos-atitudes/abc-123", nil)
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestDeleteComportamentoAtitudes_InvalidID(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-
-	r.DELETE("/comportamentos-atitudes/:id", func(c *gin.Context) {
-		idParam := c.Param("id")
-		if _, err := strconv.ParseInt(idParam, 10, 64); err != nil {
-			response.Error(c, http.StatusBadRequest, "ID inválido")
-			return
-		}
-	})
-
-	req, _ := http.NewRequest(http.MethodDelete, "/comportamentos-atitudes/abc-123", nil)
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "ID inválido")
-}
-
-// ==========================================
-// TESTES DE VÍNCULO COM O CURRÍCULO
-// ==========================================
-
-func TestAddComportamentoAtitudesAoCurriculo_Unauthorized(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-
-	r.POST("/curriculo/comportamentos-atitudes", func(c *gin.Context) {
-		cpf := c.GetString("user_cpf")
-		if cpf == "" {
-			response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
-			return
-		}
-	})
-
-	reqBody := handler.AddComportamentoAtitudesRequest{
-		IDComportamentoAtitudes: 1,
+func (m *mockComportamentoAtitudesRepo) CreateComportamentoAtitudes(_ context.Context, item *empmodels.ComportamentoAtitudes) (int64, error) {
+	if m.err != nil {
+		return 0, m.err
 	}
-	jsonBytes, _ := json.Marshal(reqBody)
-
-	req, _ := http.NewRequest(http.MethodPost, "/curriculo/comportamentos-atitudes", bytes.NewBuffer(jsonBytes))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-	assert.Contains(t, w.Body.String(), "Usuário não autenticado")
+	return m.lastCreatedID, nil
 }
 
-func TestListComportamentoAtitudesDoCurriculo_Unauthorized(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-
-	r.GET("/curriculo/comportamentos-atitudes", func(c *gin.Context) {
-		cpf := c.GetString("user_cpf")
-		if cpf == "" {
-			response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
-			return
-		}
-	})
-
-	req, _ := http.NewRequest(http.MethodGet, "/curriculo/comportamentos-atitudes", nil)
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-	assert.Contains(t, w.Body.String(), "Usuário não autenticado")
+func (m *mockComportamentoAtitudesRepo) GetComportamentoAtitudesByID(_ context.Context, id int64) (*empmodels.ComportamentoAtitudes, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.comportamento, nil
 }
 
-func TestDeleteComportamentoAtitudesDoCurriculo_Forbidden(t *testing.T) {
+func (m *mockComportamentoAtitudesRepo) UpdateComportamentoAtitudes(_ context.Context, item *empmodels.ComportamentoAtitudes) error {
+	return m.err
+}
+
+func (m *mockComportamentoAtitudesRepo) DeleteComportamentoAtitudes(_ context.Context, id int64) error {
+	return m.err
+}
+
+func (m *mockComportamentoAtitudesRepo) ListComportamentoAtitudes(_ context.Context, filter empmodels.ComportamentoAtitudesFilter, page, pageSize int) ([]*empmodels.ComportamentoAtitudes, int64, error) {
+	if m.err != nil {
+		return nil, 0, m.err
+	}
+	return m.list, m.total, nil
+}
+
+func setupComportametoAtitudesHandlerRouter(repo services.ComportamentoAtitudesRepositoryInterface) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	svc := services.NewComportamentoAtitudesServiceWithInterface(repo)
+	h := handler.NewComportamentoAtitudesHandler(svc)
 
-	var validID int64 = 99
-	userCPF := "12345678900"
+	r.GET("/comportamentos-atitudes", h.ListComportamentoAtitudes)
+	r.POST("/comportamentos-atitudes", h.CreateComportamentoAtitudes)
+	r.GET("/comportamentos-atitudes/:id", h.GetComportamentoAtitudesByID)
+	r.PUT("/comportamentos-atitudes/:id", h.UpdateComportamentoAtitudes)
+	r.DELETE("/comportamentos-atitudes/:id", h.DeleteComportamentoAtitudes)
 
-	r.DELETE("/curriculo/comportamentos-atitudes/:id", func(c *gin.Context) {
-		c.Set("user_cpf", userCPF)
+	return r
+}
 
-		comportamentosDoUsuario := []*empregabilidade.CurriculoComportamentoAtitudes{
-			{ID: 1, CPF: userCPF},
+func TestListComportamentoAtitudes(t *testing.T) {
+	t.Run("sucesso - lista comportamentos", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{
+			list:  []*empmodels.ComportamentoAtitudes{{ID: 1, Nome: "Pontualidade"}},
+			total: 1,
 		}
+		router := setupComportametoAtitudesHandlerRouter(repo)
 
-		vinculoID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+		req, _ := http.NewRequest(http.MethodGet, "/comportamentos-atitudes?q=Pontual&page=1&pageSize=10", nil)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
 
-		var pertenceAoUsuario bool
-		for _, item := range comportamentosDoUsuario {
-			if item.ID == vinculoID {
-				pertenceAoUsuario = true
-				break
-			}
-		}
-
-		if !pertenceAoUsuario {
-			response.Error(c, http.StatusForbidden, "Acesso negado: o recurso não pertence ao usuário")
-			return
-		}
+		assert.Equal(t, http.StatusOK, resp.Code)
+		assert.Contains(t, resp.Body.String(), "Pontualidade")
 	})
 
-	req, _ := http.NewRequest(http.MethodDelete, "/curriculo/comportamentos-atitudes/"+strconv.FormatInt(validID, 10), nil)
-	w := httptest.NewRecorder()
+	t.Run("erro - erro interno ao listar", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{err: errors.New("database error")}
+		router := setupComportametoAtitudesHandlerRouter(repo)
 
-	r.ServeHTTP(w, req)
+		req, _ := http.NewRequest(http.MethodGet, "/comportamentos-atitudes", nil)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
 
-	assert.Equal(t, http.StatusForbidden, w.Code)
-	assert.Contains(t, w.Body.String(), "Acesso negado")
+		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+	})
+}
+
+func TestCreateComportamentoAtitudes(t *testing.T) {
+	t.Run("sucesso - cria comportamento", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{lastCreatedID: 10}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		body := map[string]string{"nome": "Trabalho em Equipe"}
+		jsonBody, _ := json.Marshal(body)
+
+		req, _ := http.NewRequest(http.MethodPost, "/comportamentos-atitudes", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusCreated, resp.Code)
+		assert.Contains(t, resp.Body.String(), `"id":10`)
+	})
+
+	t.Run("erro - payload invalido", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(http.MethodPost, "/comportamentos-atitudes", bytes.NewBufferString(`{}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+	})
+
+	t.Run("erro - erro interno no service", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{err: errors.New("db error")}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		body := map[string]string{"nome": "Liderança"}
+		jsonBody, _ := json.Marshal(body)
+
+		req, _ := http.NewRequest(http.MethodPost, "/comportamentos-atitudes", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+	})
+}
+
+func TestGetComportamentoAtitudesByID(t *testing.T) {
+	t.Run("sucesso - busca por ID", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{
+			comportamento: &empmodels.ComportamentoAtitudes{ID: 10, Nome: "Proatividade"},
+		}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(http.MethodGet, "/comportamentos-atitudes/10", nil)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusOK, resp.Code)
+		assert.Contains(t, resp.Body.String(), "Proatividade")
+	})
+
+	t.Run("erro - ID invalido", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(http.MethodGet, "/comportamentos-atitudes/abc", nil)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+	})
+
+	t.Run("erro - nao encontrado", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{comportamento: nil}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(http.MethodGet, "/comportamentos-atitudes/99", nil)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusNotFound, resp.Code)
+	})
+}
+
+func TestUpdateComportamentoAtitudes(t *testing.T) {
+	t.Run("sucesso - atualiza comportamento", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		body := map[string]string{"nome": "Comunicação Assertiva"}
+		jsonBody, _ := json.Marshal(body)
+
+		req, _ := http.NewRequest(http.MethodPut, "/comportamentos-atitudes/10", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusOK, resp.Code)
+	})
+
+	t.Run("erro - ID invalido na atualizacao", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(http.MethodPut, "/comportamentos-atitudes/invalid", bytes.NewBufferString(`{"nome":"Teste"}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+	})
+}
+
+func TestDeleteComportamentoAtitudes(t *testing.T) {
+	t.Run("sucesso - deleta comportamento", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(http.MethodDelete, "/comportamentos-atitudes/10", nil)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusOK, resp.Code)
+	})
+
+	t.Run("erro - ID invalido na remocao", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(http.MethodDelete, "/comportamentos-atitudes/abc", nil)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+	})
+}
+
+func TestComportamentoAtitudes_CenariosDeErro(t *testing.T) {
+	t.Run("erro 500 - get por id com falha no banco", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{err: errors.New("db error")}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(http.MethodGet, "/comportamentos-atitudes/10", nil)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+	})
+
+	t.Run("erro 500 - update com falha no banco", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{err: errors.New("db error")}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		body := map[string]string{"nome": "Comunicação Assertiva"}
+		jsonBody, _ := json.Marshal(body)
+
+		req, _ := http.NewRequest(http.MethodPut, "/comportamentos-atitudes/10", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+	})
+
+	t.Run("erro 400 - update com body invalido", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(http.MethodPut, "/comportamentos-atitudes/10", bytes.NewBufferString(`{}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+	})
+
+	t.Run("erro 500 - delete com falha no banco", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{err: errors.New("db error")}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(http.MethodDelete, "/comportamentos-atitudes/10", nil)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+	})
 }

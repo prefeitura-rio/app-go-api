@@ -152,11 +152,6 @@ func (s *CurriculoService) DetachHabilidadeDoCurriculo(ctx context.Context, id i
 	return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, id)
 }
 
-// ListHabilidadesPorCPF busca todas as habilidades associadas ao CPF do candidato
-func (s *CurriculoService) ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
-	return s.repo.ListHabilidadesByCPF(ctx, cpf)
-}
-
 // --- Comportamentos e Atitudes ---
 
 // AddComportamentoAtitudesAoCurriculo vincula um comportamento/atitude ao currículo (CPF)

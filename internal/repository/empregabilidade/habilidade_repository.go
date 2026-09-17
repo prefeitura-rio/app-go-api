@@ -287,7 +287,7 @@ func (r *HabilidadeRepository) DetachHabilidadeDoCurriculo(ctx context.Context, 
 	return nil
 }
 
-func (r *HabilidadeRepository) ListHabilidadesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
+func (r *HabilidadeRepository) ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
 	var vinculos []*empregabilidade.CurriculoHabilidade
 	result := r.db.WithContext(ctx).
 		Preload("Habilidade.Areas"). // Traz a Habilidade E as Áreas de Atuação dela

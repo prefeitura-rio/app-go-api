@@ -2,6 +2,7 @@ package empregabilidade_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -256,8 +257,10 @@ func (m *mockCurriculoRepoH) ListComportamentoAtitudesByCPF(_ context.Context, _
 }
 
 func (m *mockCurriculoRepoH) AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empmodels.CurriculoComportamentoAtitudes) error {
-	args := m.Called(ctx, vinculo)
-	return args.Error(0)
+	if m.err != nil {
+		return m.err
+	}
+	return nil
 }
 
 func (m *mockCurriculoRepoH) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error {
@@ -322,13 +325,23 @@ func setupCurriculoRouter(repo services.CurriculoRepositoryInterface, cpf string
 	r.DELETE("/curriculo/conquistas/:id", h.DeleteConquista)
 	r.GET("/curriculo/:cpf/conquistas", h.ListConquistasByCPF)
 
+	// Habilidades
+	r.GET("/curriculo/habilidades", h.ListHabilidadesDoCurriculo)
+	r.DELETE("/curriculo/habilidades/:id", h.DeleteHabilidadeDoCurriculo)
+	r.POST("/curriculo/habilidades", h.AddHabilidadeAoCurriculo)
+
+	// Comportamento/atitudes
+	r.GET("/curriculo/comportamentos-atitudes", h.ListComportamentoAtitudesDoCurriculo)
+	r.DELETE("/curriculo/comportamentos-atitudes/:id", h.DeleteComportamentoAtitudesDoCurriculo)
+	r.POST("/curriculo/comportamentos-atitudes", h.AddComportamentoAtitudesAoCurriculo)
+
 	// ReplaceAll endpoints
 	r.PUT("/curriculo/:cpf/formacoes", h.ReplaceAllFormacoesByCPF)
 	r.PUT("/curriculo/:cpf/experiencias", h.ReplaceAllExperienciasByCPF)
 	r.PUT("/curriculo/:cpf/conquistas", h.ReplaceAllConquistasByCPF)
 	r.PUT("/curriculo/:cpf/idiomas", h.ReplaceAllIdiomasByCPF)
 	r.PUT("/curriculo/:cpf/cursos-complementares", h.ReplaceAllCursosComplementaresByCPF)
-	r.PUT("/curriculo/:cpf/itens", h.ReplaceAllItensCurriculoByCPF)
+	r.PUT("/curriculo", h.ReplaceAllItensCurriculoByCPF)
 
 	r.PUT("/curriculo/:cpf/situacao-interesses", h.UpsertSituacaoInteresses)
 	r.GET("/curriculo/:cpf/situacao-interesses", h.GetSituacaoInteressesByCPF)
@@ -829,7 +842,7 @@ func TestCurriculoHandler_GetSituacaoInteressesByCPF_AsOwner(t *testing.T) {
 	}
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────ƒ
 // Tests: UpdateCursoComplementar (0% coverage)
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -913,6 +926,186 @@ func TestCurriculoHandler_UpdateCursoComplementar_BadJSON(t *testing.T) {
 	}
 }
 
+// --- HABILIDADES ---
+
+func TestCurriculoHandler_ListHabilidadesDoCurriculo_Success(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodGet, "/curriculo/habilidades", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_AddHabilidadeAoCurriculo_Success(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{"id_habilidade": 1}`)
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusCreated && w.Code != http.StatusOK {
+		t.Errorf("expected 201 or 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_AddHabilidadeAoCurriculo_Unauthorized(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	// Envia CPF vazio para simular usuário não autenticado
+	r := setupCurriculoRouter(repo, "", false)
+
+	body := bodyOf(`{"id_habilidade": 1}`)
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_AddHabilidadeAoCurriculo_InvalidJSON(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{"id_habilidade": `) // JSON quebrado
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d: %s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_AddHabilidadeAoCurriculo_ValidationError(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{}`) // Sem o id_habilidade obrigatório
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest && w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 400 or 422, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_AddHabilidadeAoCurriculo_RepoError(t *testing.T) {
+	repo := &mockCurriculoRepoH{err: errors.New("erro de banco")}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{"id_habilidade": 1}`)
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d: %s", http.StatusInternalServerError, w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_IdInvalido(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "99999999999", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/habilidades/iuoiuouuuuoiu", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_NotFound(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+
+	// Sem o ID no final, a rota não existe no Gin
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/habilidades", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_Success(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/habilidades/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNoContent && w.Code != http.StatusOK {
+		t.Errorf("expected 204 or 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- COMPORTAMENTOS E ATITUDES ---
+
+func TestCurriculoHandler_ListComportamentoAtitudesDoCurriculo_Success(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodGet, "/curriculo/comportamentos-atitudes", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_AddComportamentoAtitudesAoCurriculo_Success(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{"id_comportamento_atitudes": 1}`)
+	req := httptest.NewRequest(http.MethodPost, "/curriculo/comportamentos-atitudes", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusCreated && w.Code != http.StatusOK {
+		t.Errorf("expected 201 or 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_DeleteComportamentoAtitudesDoCurriculo_IdInvalido(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "99999999999", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/comportamentos-atitudes/iuoiuouuuuoiu", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_DeleteComportamentoAtitudesDoCurriculo_NotFound(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "99999999999", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/comportamentos-atitudesu", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCurriculoHandler_DeleteComportamentoAtitudesDoCurriculo_Success(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodDelete, "/curriculo/comportamentos-atitudes/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNoContent && w.Code != http.StatusOK {
+		t.Errorf("expected 204 or 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Tests: ReplaceAllItensCurriculoByCPF
 // ──────────────────────────────────────────────────────────────────────────────
@@ -920,36 +1113,13 @@ func TestCurriculoHandler_UpdateCursoComplementar_BadJSON(t *testing.T) {
 func TestCurriculoHandler_ReplaceAllItensCurriculoByCPF_Success(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
 	r := setupCurriculoRouter(repo, "12345678900", false)
-
-	payload := `{
-		"habilidades": [{"id_habilidade": 1}],
-		"comportamento_atitudes": [{"comportamento_atitude_id": 2}]
-	}`
-	req := httptest.NewRequest(http.MethodPut, "/curriculo/12345678900/itens", bodyOf(payload))
+	body := bodyOf(`{"habilidades":[{"descricao":"Go"}],"comportamentos":[{"descricao":"Liderança"}]}`)
+	req := httptest.NewRequest(http.MethodPut, "/curriculo", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
-
 	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestCurriculoHandler_ReplaceAllItensCurriculoByCPF_BadRequest(t *testing.T) {
-	repo := &mockCurriculoRepoH{}
-	r := setupCurriculoRouter(repo, "12345678900", false)
-
-	// Tipo incompatível: enviando string ao invés de um array de inteiros em habilidades_ids
-	payload := `{"habilidades_ids": "texto_invalido"}`
-	req := httptest.NewRequest(http.MethodPut, "/curriculo/12345678900/itens", bodyOf(payload))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

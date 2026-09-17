@@ -5,15 +5,10 @@ import (
 	"fmt"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
-	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
 
 type HabilidadeService struct {
 	repo HabilidadeRepositoryInterface
-}
-
-func NewHabilidadeService(repo *repository.HabilidadeRepository) *HabilidadeService {
-	return &HabilidadeService{repo: repo}
 }
 
 func NewHabilidadeServiceWithInterface(repo HabilidadeRepositoryInterface) *HabilidadeService {

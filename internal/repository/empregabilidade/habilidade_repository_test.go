@@ -428,7 +428,7 @@ func TestHabilidadeRepository_AddHabilidadeAoCurriculo_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
-func TestHabilidadeRepository_ListHabilidadesPorCPF_Success(t *testing.T) {
+func TestHabilidadeRepository_ListHabilidadesByCPF_Success(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
@@ -452,7 +452,7 @@ func TestHabilidadeRepository_ListHabilidadesPorCPF_Success(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "area_atuacao_habilidade"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id_habilidade", "id_area_atuacao"}))
 
-	result, err := repo.ListHabilidadesPorCPF(ctx, cpf)
+	result, err := repo.ListHabilidadesByCPF(ctx, cpf)
 	assert.NoError(t, err)
 	assert.Len(t, result, 1)
 	assert.Equal(t, cpf, result[0].CPF)
@@ -551,5 +551,75 @@ func TestHabilidadeRepository_ReplaceAreasAtuacao_Success(t *testing.T) {
 
 	err := repo.ReplaceAreasAtuacao(ctx, habilidadeID, areaIDs)
 	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// --- COBERTURA DE DetachHabilidadeDoCurriculo ---
+
+func TestHabilidadeRepository_DetachHabilidadeDoCurriculo_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	vinculo := &empregabilidade.CurriculoHabilidade{
+		ID:  15,
+		CPF: "12345678901",
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_habilidades"`).
+		WithArgs(vinculo.ID, vinculo.CPF).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	err := repo.DetachHabilidadeDoCurriculo(ctx, vinculo)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_DetachHabilidadeDoCurriculo_NotFound(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	vinculo := &empregabilidade.CurriculoHabilidade{
+		ID:  999,
+		CPF: "12345678901",
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_habilidades"`).
+		WithArgs(vinculo.ID, vinculo.CPF).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
+
+	err := repo.DetachHabilidadeDoCurriculo(ctx, vinculo)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// --- COBERTURA DE ERRO EM ListHabilidadesByCPF ---
+
+func TestHabilidadeRepository_ListHabilidadesByCPF_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+	cpf := "12345678901"
+
+	// Tabela corrigida para "emp_curriculo_habilidades" (plural)
+	mock.ExpectQuery(`SELECT \* FROM "emp_curriculo_habilidades"`).
+		WithArgs(cpf).
+		WillReturnError(assert.AnError)
+
+	result, err := repo.ListHabilidadesByCPF(ctx, cpf)
+	assert.Error(t, err)
+	assert.Nil(t, result)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
