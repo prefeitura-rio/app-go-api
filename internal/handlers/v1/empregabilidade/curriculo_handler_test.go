@@ -2,6 +2,7 @@ package empregabilidade_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
@@ -272,8 +274,8 @@ func (m *mockCurriculoRepoH) AddComportamentoAtitudesAoCurriculo(ctx context.Con
 	return nil
 }
 
-func (m *mockCurriculoRepoH) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error {
-	return nil
+func (m *mockCurriculoRepoH) DetachComportamentoAtitudesDoCurriculo(_ context.Context, _ int64) error {
+	return m.err
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1234,9 +1236,36 @@ func TestCurriculoHandler_ListComportamentoAtitudesDoCurriculo_Success(t *testin
 	req := httptest.NewRequest(http.MethodGet, "/curriculo/comportamentos-atitudes", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.JSONEq(t, `[]`, w.Body.String())
+}
+
+func TestCurriculoHandler_ListComportamentoAtitudesDoCurriculo_Unauthorized(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	h := handlers.NewCurriculoHandler(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/curriculo/comportamentos-atitudes", nil)
+
+	h.ListComportamentoAtitudesDoCurriculo(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "Usuário não autenticado")
+}
+
+func TestCurriculoHandler_ListComportamentoAtitudesDoCurriculo_ServiceError(t *testing.T) {
+	repo := &mockCurriculoRepoH{err: errors.New("erro ao buscar comportamentos")}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	req := httptest.NewRequest(http.MethodGet, "/curriculo/comportamentos-atitudes", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "Erro ao buscar comportamentos/atitudes do currículo")
 }
 
 func TestCurriculoHandler_AddComportamentoAtitudesAoCurriculo_Success(t *testing.T) {
@@ -1247,42 +1276,142 @@ func TestCurriculoHandler_AddComportamentoAtitudesAoCurriculo_Success(t *testing
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	if w.Code != http.StatusCreated && w.Code != http.StatusOK {
-		t.Errorf("expected 201 or 200, got %d: %s", w.Code, w.Body.String())
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Equal(t, "12345678900", response["cpf"])
+	assert.Equal(t, float64(1), response["id_comportamento_atitudes"])
+}
+
+func TestCurriculoHandler_AddComportamentoAtitudesAoCurriculo_ErrorPaths(t *testing.T) {
+	tests := []struct {
+		name           string
+		cpf            string
+		body           string
+		repoErr        error
+		wantStatus     int
+		wantBodySubstr string
+	}{
+		{
+			name:           "sem CPF no contexto",
+			cpf:            "",
+			body:           `{"id_comportamento_atitudes":1}`,
+			wantStatus:     http.StatusUnauthorized,
+			wantBodySubstr: "Usuário não autenticado",
+		},
+		{
+			name:           "JSON inválido",
+			cpf:            "12345678900",
+			body:           `{"id_comportamento_atitudes":"invalido"}`,
+			wantStatus:     http.StatusBadRequest,
+			wantBodySubstr: "Dados inválidos:",
+		},
+		{
+			name:           "erro do serviço",
+			cpf:            "12345678900",
+			body:           `{"id_comportamento_atitudes":1}`,
+			repoErr:        errors.New("erro ao persistir vínculo"),
+			wantStatus:     http.StatusInternalServerError,
+			wantBodySubstr: "Erro ao adicionar comportamento/atitude ao currículo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockCurriculoRepoH{err: tt.repoErr}
+			svc := services.NewCurriculoServiceWithInterface(repo)
+			h := handlers.NewCurriculoHandler(svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/curriculo/comportamentos-atitudes", bodyOf(tt.body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			if tt.cpf != "" {
+				c.Set(middlewares.UserCPFKey, tt.cpf)
+			}
+
+			h.AddComportamentoAtitudesAoCurriculo(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Contains(t, w.Body.String(), tt.wantBodySubstr)
+		})
 	}
 }
 
-func TestCurriculoHandler_DeleteComportamentoAtitudesDoCurriculo_IdInvalido(t *testing.T) {
-	repo := &mockCurriculoRepoH{}
-	r := setupCurriculoRouter(repo, "99999999999", false)
-	req := httptest.NewRequest(http.MethodDelete, "/curriculo/comportamentos-atitudes/iuoiuouuuuoiu", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+func TestCurriculoHandler_DeleteComportamentoAtitudesDoCurriculo(t *testing.T) {
+	tests := []struct {
+		name       string
+		cpf        string
+		id         string
+		repoErr    error
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "ID inválido",
+			cpf:        "12345678900",
+			id:         "invalido",
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "ID inválido",
+		},
+		{
+			name:       "vínculo não encontrado",
+			cpf:        "12345678900",
+			id:         "99",
+			repoErr:    gorm.ErrRecordNotFound,
+			wantStatus: http.StatusNotFound,
+			wantBody:   "Vínculo não encontrado ou não pertence ao usuário",
+		},
+		{
+			name:       "erro interno",
+			cpf:        "12345678900",
+			id:         "10",
+			repoErr:    errors.New("erro de banco"),
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   "Erro ao remover comportamento/atitude do currículo",
+		},
+		{
+			name:       "sucesso",
+			cpf:        "12345678900",
+			id:         "1",
+			wantStatus: http.StatusOK,
+			wantBody:   "Comportamento/atitude desvinculado com sucesso",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockCurriculoRepoH{err: tt.repoErr}
+			r := setupCurriculoRouter(repo, tt.cpf, false)
+			req := httptest.NewRequest(http.MethodDelete, "/curriculo/comportamentos-atitudes/"+tt.id, nil)
+			w := httptest.NewRecorder()
+
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Contains(t, w.Body.String(), tt.wantBody)
+		})
 	}
 }
 
-func TestCurriculoHandler_DeleteComportamentoAtitudesDoCurriculo_NotFound(t *testing.T) {
+func TestCurriculoHandler_DeleteComportamentoAtitudesDoCurriculo_Unauthorized(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
-	r := setupCurriculoRouter(repo, "99999999999", false)
-	req := httptest.NewRequest(http.MethodDelete, "/curriculo/comportamentos-atitudesu", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
-	}
-}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	h := handlers.NewCurriculoHandler(svc)
 
-func TestCurriculoHandler_DeleteComportamentoAtitudesDoCurriculo_Success(t *testing.T) {
-	repo := &mockCurriculoRepoH{}
-	r := setupCurriculoRouter(repo, "12345678900", false)
-	req := httptest.NewRequest(http.MethodDelete, "/curriculo/comportamentos-atitudes/1", nil)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusNoContent && w.Code != http.StatusOK {
-		t.Errorf("expected 204 or 200, got %d: %s", w.Code, w.Body.String())
-	}
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodDelete, "/curriculo/comportamentos-atitudes/1", nil)
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+
+	h.DeleteComportamentoAtitudesDoCurriculo(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "Usuário não autenticado")
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

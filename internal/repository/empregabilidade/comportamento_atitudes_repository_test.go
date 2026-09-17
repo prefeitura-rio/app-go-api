@@ -135,6 +135,26 @@ func TestComportamentoAtitudesRepository_GetByID_Success(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestComportamentoAtitudesRepository_GetByID_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewComportamentoAtitudesRepository(db)
+	ctx := context.Background()
+	var comportamentoID int64 = 10
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_comportamento_atitudes"`).
+		WithArgs(comportamentoID, 1).
+		WillReturnError(assert.AnError)
+
+	result, err := repo.GetComportamentoAtitudesByID(ctx, comportamentoID)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(t, err.Error(), "erro ao buscar comportamento e atitude por ID")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestComportamentoAtitudesRepository_GetByID_NotFound(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
@@ -176,6 +196,31 @@ func TestComportamentoAtitudesRepository_Update_Success(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestComportamentoAtitudesRepository_Update_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewComportamentoAtitudesRepository(db)
+	ctx := context.Background()
+
+	entity := &empregabilidade.ComportamentoAtitudes{
+		ID:        15,
+		Nome:      "Empatia Atualizada",
+		UpdatedAt: time.Now(),
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_comportamento_atitudes"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.UpdateComportamentoAtitudes(ctx, entity)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(t, err.Error(), "erro ao atualizar comportamento e atitude")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestComportamentoAtitudesRepository_Delete_Success(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
@@ -191,6 +236,26 @@ func TestComportamentoAtitudesRepository_Delete_Success(t *testing.T) {
 
 	err := repo.DeleteComportamentoAtitudes(ctx, comportamentoID)
 	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestComportamentoAtitudesRepository_Delete_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewComportamentoAtitudesRepository(db)
+	ctx := context.Background()
+	var comportamentoID int64 = 20
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "emp_comportamento_atitudes"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.DeleteComportamentoAtitudes(ctx, comportamentoID)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(t, err.Error(), "erro ao excluir comportamento e atitude")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -213,6 +278,74 @@ func TestComportamentoAtitudesRepository_List_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), total)
 	assert.Len(t, result, 1)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestComportamentoAtitudesRepository_List_WithoutSearch_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewComportamentoAtitudesRepository(db)
+	ctx := context.Background()
+	filter := empregabilidade.ComportamentoAtitudesFilter{}
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_comportamento_atitudes"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+
+	mock.ExpectQuery(`SELECT .* FROM "emp_comportamento_atitudes"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "nome"}).
+			AddRow(1, "Empatia").
+			AddRow(2, "Proatividade"))
+
+	result, total, err := repo.ListComportamentoAtitudes(ctx, filter, 10, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), total)
+	assert.Len(t, result, 2)
+	assert.Equal(t, "Empatia", result[0].Nome)
+	assert.Equal(t, "Proatividade", result[1].Nome)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestComportamentoAtitudesRepository_List_CountDatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewComportamentoAtitudesRepository(db)
+	ctx := context.Background()
+	filter := empregabilidade.ComportamentoAtitudesFilter{Search: "Proativid"}
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_comportamento_atitudes"`).
+		WillReturnError(assert.AnError)
+
+	result, total, err := repo.ListComportamentoAtitudes(ctx, filter, 10, 0)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Zero(t, total)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(t, err.Error(), "erro ao contar comportamentos e atitudes")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestComportamentoAtitudesRepository_List_FindDatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewComportamentoAtitudesRepository(db)
+	ctx := context.Background()
+	filter := empregabilidade.ComportamentoAtitudesFilter{Search: "Proativid"}
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_comportamento_atitudes"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	mock.ExpectQuery(`SELECT .* FROM "emp_comportamento_atitudes"`).
+		WillReturnError(assert.AnError)
+
+	result, total, err := repo.ListComportamentoAtitudes(ctx, filter, 10, 0)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Zero(t, total)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(t, err.Error(), "erro ao listar comportamentos e atitudes")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -290,6 +423,31 @@ func TestComportamentoAtitudesRepository_DetachDoCurriculo_NotFound(t *testing.T
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestComportamentoAtitudesRepository_DetachDoCurriculo_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewComportamentoAtitudesRepository(db)
+	ctx := context.Background()
+
+	vinculo := &empregabilidade.CurriculoComportamentoAtitudes{
+		ID:  10,
+		CPF: "12345678901",
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_comportamento_atitudes"`).
+		WithArgs(vinculo.ID, vinculo.CPF).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.DetachComportamentoAtitudesDoCurriculo(ctx, vinculo)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(t, err.Error(), "erro ao desvincular comportamento do currículo")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestComportamentoAtitudesRepository_ListPorCPF_Success(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
@@ -326,5 +484,52 @@ func TestComportamentoAtitudesRepository_ListPorCPF_Success(t *testing.T) {
 		assert.Equal(t, "Organização", result[0].ComportamentoAtitudes.Nome)
 	}
 
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestComportamentoAtitudesRepository_ListPorCPF_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewComportamentoAtitudesRepository(db)
+	ctx := context.Background()
+	cpf := "12345678901"
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_curriculo_comportamento_atitudes"`).
+		WithArgs(cpf).
+		WillReturnError(assert.AnError)
+
+	result, err := repo.ListComportamentoAtitudesPorCPF(ctx, cpf)
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(t, err.Error(), "erro ao buscar comportamentos do currículo por CPF")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestComportamentoAtitudesRepository_AddAoCurriculo_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewComportamentoAtitudesRepository(db)
+	ctx := context.Background()
+
+	vinculo := &empregabilidade.CurriculoComportamentoAtitudes{
+		ID:                      100,
+		CPF:                     "12345678901",
+		IDComportamentoAtitudes: 2,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_comportamento_atitudes"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.AddComportamentoAtitudesAoCurriculo(ctx, vinculo)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(t, err.Error(), "erro ao vincular comportamento ao currículo")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

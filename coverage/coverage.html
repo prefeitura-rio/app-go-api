@@ -97,7 +97,7 @@
 				
 				<option value="file20">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/comportamento_atitudes_handler.go (97.2%)</option>
 				
-				<option value="file21">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/curriculo_handler.go (89.9%)</option>
+				<option value="file21">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/curriculo_handler.go (92.6%)</option>
 				
 				<option value="file22">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/empresa_handler.go (89.5%)</option>
 				
@@ -243,7 +243,7 @@
 				
 				<option value="file93">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/candidatura_repository.go (54.8%)</option>
 				
-				<option value="file94">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/comportamento_atitudes_repository.go (88.1%)</option>
+				<option value="file94">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/comportamento_atitudes_repository.go (100.0%)</option>
 				
 				<option value="file95">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/curriculo_repository.go (75.2%)</option>
 				
@@ -327,7 +327,7 @@
 				
 				<option value="file135">github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade/cnpj_consulta_service.go (10.0%)</option>
 				
-				<option value="file136">github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade/comportamento_atitudes_service.go (75.0%)</option>
+				<option value="file136">github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade/comportamento_atitudes_service.go (91.7%)</option>
 				
 				<option value="file137">github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade/curriculo_service.go (92.1%)</option>
 				
@@ -21447,7 +21447,7 @@ type CurriculoHandler struct {
 }
 
 func NewCurriculoHandler(service *services.CurriculoService) *CurriculoHandler {
-        <span class="cov10" title="184">return &amp;CurriculoHandler{service: service}
+        <span class="cov10" title="191">return &amp;CurriculoHandler{service: service}
 </span>}
 
 // requireOwnership checks that the authenticated user owns the entity (identified by entityCPF).
@@ -22791,25 +22791,25 @@ func (h *CurriculoHandler) DeleteHabilidadeDoCurriculo(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/curriculo/comportamentos-atitudes [post]
 func (h *CurriculoHandler) AddComportamentoAtitudesAoCurriculo(c *gin.Context) {
-        <span class="cov1" title="1">cpf := middlewares.GetUserCPF(c)
+        <span class="cov3" title="4">cpf := middlewares.GetUserCPF(c)
         if cpf == "" </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
+                <span class="cov1" title="1">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
                 return
 </span>        }
 
-        <span class="cov1" title="1">var req AddComportamentoAtitudesRequest
+        <span class="cov2" title="3">var req AddComportamentoAtitudesRequest
         if err := c.ShouldBindJSON(&amp;req); err != nil </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+                <span class="cov1" title="1">response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
                 return
 </span>        }
 
-        <span class="cov1" title="1">vinculo := &amp;empregabilidade.CurriculoComportamentoAtitudes{
+        <span class="cov2" title="2">vinculo := &amp;empregabilidade.CurriculoComportamentoAtitudes{
                 CPF:                     cpf,
                 IDComportamentoAtitudes: req.IDComportamentoAtitudes,
 </span>        }
 
-        <span class="cov1" title="1">if err := h.service.AddComportamentoAtitudesAoCurriculo(c.Request.Context(), vinculo); err != nil </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusInternalServerError, "Erro ao adicionar comportamento/atitude ao currículo")
+        <span class="cov2" title="2">if err := h.service.AddComportamentoAtitudesAoCurriculo(c.Request.Context(), vinculo); err != nil </span>{
+                <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao adicionar comportamento/atitude ao currículo")
                 return
 </span>        }
 
@@ -22827,15 +22827,15 @@ func (h *CurriculoHandler) AddComportamentoAtitudesAoCurriculo(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/curriculo/comportamentos-atitudes [get]
 func (h *CurriculoHandler) ListComportamentoAtitudesDoCurriculo(c *gin.Context) {
-        <span class="cov1" title="1">cpf := middlewares.GetUserCPF(c)
+        <span class="cov2" title="3">cpf := middlewares.GetUserCPF(c)
         if cpf == "" </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
+                <span class="cov1" title="1">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
                 return
 </span>        }
 
-        <span class="cov1" title="1">comportamentos, err := h.service.ListComportamentoAtitudesPorCPF(c.Request.Context(), cpf)
+        <span class="cov2" title="2">comportamentos, err := h.service.ListComportamentoAtitudesPorCPF(c.Request.Context(), cpf)
         if err != nil </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusInternalServerError, "Erro ao buscar comportamentos/atitudes do currículo")
+                <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao buscar comportamentos/atitudes do currículo")
                 return
 </span>        }
 
@@ -22856,26 +22856,26 @@ func (h *CurriculoHandler) ListComportamentoAtitudesDoCurriculo(c *gin.Context) 
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/curriculo/comportamentos-atitudes/{id} [delete]
 func (h *CurriculoHandler) DeleteComportamentoAtitudesDoCurriculo(c *gin.Context) {
-        <span class="cov2" title="2">cpf := middlewares.GetUserCPF(c)
+        <span class="cov3" title="5">cpf := middlewares.GetUserCPF(c)
         if cpf == "" </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
+                <span class="cov1" title="1">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
                 return
 </span>        }
 
-        <span class="cov2" title="2">idParam := c.Param("id")
+        <span class="cov3" title="4">idParam := c.Param("id")
         vinculoID, err := strconv.ParseInt(idParam, 10, 64)
         if err != nil </span>{
                 <span class="cov1" title="1">response.Error(c, http.StatusBadRequest, "ID inválido")
                 return
 </span>        }
 
-        <span class="cov1" title="1">err = h.service.DetachComportamentoAtitudesDoCurriculo(c.Request.Context(), vinculoID)
+        <span class="cov2" title="3">err = h.service.DetachComportamentoAtitudesDoCurriculo(c.Request.Context(), vinculoID)
         if err != nil </span>{
-                <span class="cov0" title="0">if errors.Is(err, gorm.ErrRecordNotFound) </span>{
-                        <span class="cov0" title="0">response.Error(c, http.StatusNotFound, "Vínculo não encontrado ou não pertence ao usuário")
+                <span class="cov2" title="2">if errors.Is(err, gorm.ErrRecordNotFound) </span>{
+                        <span class="cov1" title="1">response.Error(c, http.StatusNotFound, "Vínculo não encontrado ou não pertence ao usuário")
                         return
 </span>                }
-                <span class="cov0" title="0">response.Error(c, http.StatusInternalServerError, "Erro ao remover comportamento/atitude do currículo")
+                <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao remover comportamento/atitude do currículo")
                 return</span>
         }
 
@@ -35552,7 +35552,7 @@ type ComportamentoAtitudesRepository struct {
 }
 
 func NewComportamentoAtitudesRepository(db *gorm.DB) *ComportamentoAtitudesRepository {
-        <span class="cov10" title="11">return &amp;ComportamentoAtitudesRepository{db: db}
+        <span class="cov10" title="20">return &amp;ComportamentoAtitudesRepository{db: db}
 </span>}
 
 // CreateComportamentoAtitudes insere um novo comportamento no catálogo mestre
@@ -35566,92 +35566,92 @@ func (r *ComportamentoAtitudesRepository) CreateComportamentoAtitudes(ctx contex
 
 // GetComportamentoAtitudesByID busca um comportamento mestre por ID
 func (r *ComportamentoAtitudesRepository) GetComportamentoAtitudesByID(ctx context.Context, id int64) (*empregabilidade.ComportamentoAtitudes, error) {
-        <span class="cov3" title="2">var entity empregabilidade.ComportamentoAtitudes
+        <span class="cov4" title="3">var entity empregabilidade.ComportamentoAtitudes
 </span>
-        <span class="cov3" title="2">result := r.db.WithContext(ctx).
+        <span class="cov4" title="3">result := r.db.WithContext(ctx).
                 First(&amp;entity, "id = ?", id)
 </span>
-        <span class="cov3" title="2">if result.Error != nil </span>{
-                <span class="cov1" title="1">if errors.Is(result.Error, gorm.ErrRecordNotFound) </span>{
+        <span class="cov4" title="3">if result.Error != nil </span>{
+                <span class="cov3" title="2">if errors.Is(result.Error, gorm.ErrRecordNotFound) </span>{
                         <span class="cov1" title="1">return nil, nil
 </span>                }
-                <span class="cov0" title="0">return nil, fmt.Errorf("erro ao buscar comportamento e atitude por ID: %w", result.Error)</span>
+                <span class="cov1" title="1">return nil, fmt.Errorf("erro ao buscar comportamento e atitude por ID: %w", result.Error)</span>
         }
         <span class="cov1" title="1">return &amp;entity, nil</span>
 }
 
 // UpdateComportamentoAtitudes atualiza um comportamento no catálogo mestre
 func (r *ComportamentoAtitudesRepository) UpdateComportamentoAtitudes(ctx context.Context, entity *empregabilidade.ComportamentoAtitudes) error {
-        <span class="cov1" title="1">result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(map[string]interface{}{
+        <span class="cov3" title="2">result := r.db.WithContext(ctx).Model(entity).Where("id = ?", entity.ID).Updates(map[string]interface{}{
                 "nome":       entity.Nome,
                 "updated_at": entity.UpdatedAt,
         })
         if result.Error != nil </span>{
-                <span class="cov0" title="0">return fmt.Errorf("erro ao atualizar comportamento e atitude: %w", result.Error)
+                <span class="cov1" title="1">return fmt.Errorf("erro ao atualizar comportamento e atitude: %w", result.Error)
 </span>        }
         <span class="cov1" title="1">return nil</span>
 }
 
 // DeleteComportamentoAtitudes exclui um comportamento do catálogo mestre
 func (r *ComportamentoAtitudesRepository) DeleteComportamentoAtitudes(ctx context.Context, id int64) error {
-        <span class="cov1" title="1">result := r.db.WithContext(ctx).Delete(&amp;empregabilidade.ComportamentoAtitudes{}, "id = ?", id)
+        <span class="cov3" title="2">result := r.db.WithContext(ctx).Delete(&amp;empregabilidade.ComportamentoAtitudes{}, "id = ?", id)
         if result.Error != nil </span>{
-                <span class="cov0" title="0">return fmt.Errorf("erro ao excluir comportamento e atitude: %w", result.Error)
+                <span class="cov1" title="1">return fmt.Errorf("erro ao excluir comportamento e atitude: %w", result.Error)
 </span>        }
         <span class="cov1" title="1">return nil</span>
 }
 
 // ListComportamentoAtitudes faz a paginação e busca por nome com unaccent
 func (r *ComportamentoAtitudesRepository) ListComportamentoAtitudes(ctx context.Context, filter empregabilidade.ComportamentoAtitudesFilter, limit, offset int) ([]*empregabilidade.ComportamentoAtitudes, int64, error) {
-        <span class="cov1" title="1">var entities []*empregabilidade.ComportamentoAtitudes
+        <span class="cov5" title="4">var entities []*empregabilidade.ComportamentoAtitudes
         var total int64
 </span>
-        <span class="cov1" title="1">applyFilters := func(db *gorm.DB) *gorm.DB </span>{
-                <span class="cov3" title="2">if filter.Search != "" </span>{
-                        <span class="cov3" title="2">searchNome := fmt.Sprintf("%%%s%%", filter.Search)
+        <span class="cov5" title="4">applyFilters := func(db *gorm.DB) *gorm.DB </span>{
+                <span class="cov6" title="7">if filter.Search != "" </span>{
+                        <span class="cov5" title="5">searchNome := fmt.Sprintf("%%%s%%", filter.Search)
                         db = db.Where("lower(immutable_unaccent(emp_comportamento_atitudes.nome)) LIKE lower(immutable_unaccent(?))", searchNome)
 </span>                }
-                <span class="cov3" title="2">return db</span>
+                <span class="cov6" title="7">return db</span>
         }
 
-        <span class="cov1" title="1">countDB := applyFilters(r.db.WithContext(ctx).Model(&amp;empregabilidade.ComportamentoAtitudes{}))
+        <span class="cov5" title="4">countDB := applyFilters(r.db.WithContext(ctx).Model(&amp;empregabilidade.ComportamentoAtitudes{}))
         if err := countDB.Count(&amp;total).Error; err != nil </span>{
-                <span class="cov0" title="0">return nil, 0, fmt.Errorf("erro ao contar comportamentos e atitudes: %w", err)
+                <span class="cov1" title="1">return nil, 0, fmt.Errorf("erro ao contar comportamentos e atitudes: %w", err)
 </span>        }
 
-        <span class="cov1" title="1">findDB := applyFilters(r.db.WithContext(ctx).Model(&amp;empregabilidade.ComportamentoAtitudes{}))
+        <span class="cov4" title="3">findDB := applyFilters(r.db.WithContext(ctx).Model(&amp;empregabilidade.ComportamentoAtitudes{}))
         result := findDB.
                 Order("emp_comportamento_atitudes.nome ASC").
                 Limit(limit).
                 Offset(offset).
                 Find(&amp;entities)
 </span>
-        <span class="cov1" title="1">if result.Error != nil </span>{
-                <span class="cov0" title="0">return nil, 0, fmt.Errorf("erro ao listar comportamentos e atitudes: %w", result.Error)
+        <span class="cov4" title="3">if result.Error != nil </span>{
+                <span class="cov1" title="1">return nil, 0, fmt.Errorf("erro ao listar comportamentos e atitudes: %w", result.Error)
 </span>        }
 
-        <span class="cov1" title="1">return entities, total, nil</span>
+        <span class="cov3" title="2">return entities, total, nil</span>
 }
 
 // --- MÉTODOS DE VÍNCULO COM O CURRÍCULO (emp_curriculo_comportamento_atitudes) ---
 
 // AddComportamentoAtitudesAoCurriculo vincula um comportamento ao currículo
 func (r *ComportamentoAtitudesRepository) AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error {
-        <span class="cov1" title="1">result := r.db.WithContext(ctx).Create(vinculo)
+        <span class="cov3" title="2">result := r.db.WithContext(ctx).Create(vinculo)
         if result.Error != nil </span>{
-                <span class="cov0" title="0">return fmt.Errorf("erro ao vincular comportamento ao currículo: %w", result.Error)
+                <span class="cov1" title="1">return fmt.Errorf("erro ao vincular comportamento ao currículo: %w", result.Error)
 </span>        }
         <span class="cov1" title="1">return nil</span>
 }
 
 // DetachComportamentoAtitudesDoCurriculo remove o vínculo garantindo ownership pelo CPF
 func (r *ComportamentoAtitudesRepository) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error {
-        <span class="cov3" title="2">result := r.db.WithContext(ctx).
+        <span class="cov4" title="3">result := r.db.WithContext(ctx).
                 Where("id = ? AND cpf = ?", vinculo.ID, vinculo.CPF).
                 Delete(&amp;empregabilidade.CurriculoComportamentoAtitudes{})
 </span>
-        <span class="cov3" title="2">if result.Error != nil </span>{
-                <span class="cov0" title="0">return fmt.Errorf("erro ao desvincular comportamento do currículo: %w", result.Error)
+        <span class="cov4" title="3">if result.Error != nil </span>{
+                <span class="cov1" title="1">return fmt.Errorf("erro ao desvincular comportamento do currículo: %w", result.Error)
 </span>        }
 
         <span class="cov3" title="2">if result.RowsAffected == 0 </span>{
@@ -35663,14 +35663,14 @@ func (r *ComportamentoAtitudesRepository) DetachComportamentoAtitudesDoCurriculo
 
 // ListComportamentoAtitudesPorCPF lista todos os comportamentos vinculados ao currículo do usuário carregando os dados mestre
 func (r *ComportamentoAtitudesRepository) ListComportamentoAtitudesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
-        <span class="cov1" title="1">var vinculos []*empregabilidade.CurriculoComportamentoAtitudes
+        <span class="cov3" title="2">var vinculos []*empregabilidade.CurriculoComportamentoAtitudes
         result := r.db.WithContext(ctx).
                 Preload("ComportamentoAtitudes").
                 Where("cpf = ?", cpf).
                 Find(&amp;vinculos)
 </span>
-        <span class="cov1" title="1">if result.Error != nil </span>{
-                <span class="cov0" title="0">return nil, fmt.Errorf("erro ao buscar comportamentos do currículo por CPF: %w", result.Error)
+        <span class="cov3" title="2">if result.Error != nil </span>{
+                <span class="cov1" title="1">return nil, fmt.Errorf("erro ao buscar comportamentos do currículo por CPF: %w", result.Error)
 </span>        }
         <span class="cov1" title="1">return vinculos, nil</span>
 }
@@ -42813,7 +42813,7 @@ type ComportamentoAtitudesService struct {
 }
 
 func NewComportamentoAtitudesService(repo ComportamentoAtitudesRepositoryInterface) *ComportamentoAtitudesService {
-        <span class="cov10" title="11">return &amp;ComportamentoAtitudesService{repo: repo}
+        <span class="cov10" title="14">return &amp;ComportamentoAtitudesService{repo: repo}
 </span>}
 
 func NewComportamentoAtitudesServiceWithInterface(repo ComportamentoAtitudesRepositoryInterface) *ComportamentoAtitudesService {
@@ -42842,14 +42842,14 @@ func (s *ComportamentoAtitudesService) DeleteComportamentoAtitudes(ctx context.C
 
 // ListComportamentoAtitudes lista comportamentos/atitudes com paginação e filtro
 func (s *ComportamentoAtitudesService) ListComportamentoAtitudes(ctx context.Context, filter empregabilidade.ComportamentoAtitudesFilter, page, pageSize int) ([]*empregabilidade.ComportamentoAtitudes, int64, error) {
-        <span class="cov3" title="2">if page &lt; 1 </span>{
-                <span class="cov0" title="0">page = 1
+        <span class="cov6" title="5">if page &lt; 1 </span>{
+                <span class="cov3" title="2">page = 1
 </span>        }
-        <span class="cov3" title="2">if pageSize &lt; 1 </span>{
-                <span class="cov0" title="0">pageSize = 10
+        <span class="cov6" title="5">if pageSize &lt; 1 </span>{
+                <span class="cov3" title="2">pageSize = 10
 </span>        }
 
-        <span class="cov3" title="2">offset := (page - 1) * pageSize
+        <span class="cov6" title="5">offset := (page - 1) * pageSize
         return s.repo.ListComportamentoAtitudes(ctx, filter, pageSize, offset)</span>
 }
 </pre>

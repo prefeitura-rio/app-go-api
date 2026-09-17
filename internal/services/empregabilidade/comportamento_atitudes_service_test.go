@@ -201,24 +201,59 @@ func TestComportamentoAtitudesService_ListComportamentoAtitudes(t *testing.T) {
 		{ID: 1, Nome: "Liderança"},
 	}
 
-	t.Run("Success with Page Calculation", func(t *testing.T) {
-		mockRepo := new(MockComportamentoAtitudesRepository)
-		svc := service.NewComportamentoAtitudesService(mockRepo)
+	tests := []struct {
+		name           string
+		page           int
+		pageSize       int
+		expectedLimit  int
+		expectedOffset int
+	}{
+		{
+			name:           "Success with Page Calculation",
+			page:           2,
+			pageSize:       10,
+			expectedLimit:  10,
+			expectedOffset: 10,
+		},
+		{
+			name:           "Defaults Page when Less Than One",
+			page:           0,
+			pageSize:       5,
+			expectedLimit:  5,
+			expectedOffset: 0,
+		},
+		{
+			name:           "Defaults Page Size when Less Than One",
+			page:           2,
+			pageSize:       0,
+			expectedLimit:  10,
+			expectedOffset: 10,
+		},
+		{
+			name:           "Defaults Page and Page Size when Both Less Than One",
+			page:           -1,
+			pageSize:       -1,
+			expectedLimit:  10,
+			expectedOffset: 0,
+		},
+	}
 
-		page := 2
-		pageSize := 10
-		expectedOffset := 10
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := new(MockComportamentoAtitudesRepository)
+			svc := service.NewComportamentoAtitudesService(mockRepo)
 
-		mockRepo.On("ListComportamentoAtitudes", ctx, filter, pageSize, expectedOffset).
-			Return(expectedList, int64(1), nil)
+			mockRepo.On("ListComportamentoAtitudes", ctx, filter, tt.expectedLimit, tt.expectedOffset).
+				Return(expectedList, int64(1), nil)
 
-		result, total, err := svc.ListComportamentoAtitudes(ctx, filter, page, pageSize)
+			result, total, err := svc.ListComportamentoAtitudes(ctx, filter, tt.page, tt.pageSize)
 
-		assert.NoError(t, err)
-		assert.Equal(t, int64(1), total)
-		assert.Len(t, result, 1)
-		mockRepo.AssertExpectations(t)
-	})
+			assert.NoError(t, err)
+			assert.Equal(t, int64(1), total)
+			assert.Equal(t, expectedList, result)
+			mockRepo.AssertExpectations(t)
+		})
+	}
 
 	t.Run("Error", func(t *testing.T) {
 		mockRepo := new(MockComportamentoAtitudesRepository)
