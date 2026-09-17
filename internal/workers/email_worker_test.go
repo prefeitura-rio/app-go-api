@@ -196,6 +196,49 @@ func TestEmailWorker_SendCandidaturaReprovadaEmail_Enqueues(t *testing.T) {
 	assert.Equal(t, taskCandidaturaReprovada, task.Type)
 }
 
+func TestEmailWorker_SendEnrollmentConcludedEmail_Enqueues(t *testing.T) {
+	worker, _, cleanup := setupEmailWorkerTest(t)
+	defer cleanup()
+
+	err := worker.SendEnrollmentConcludedEmail(context.Background(),
+		&models.Inscricao{Email: "a@b.com"}, &models.Curso{ID: 1})
+	require.NoError(t, err)
+
+	task := peekTask(t, worker.redis, emailQueueKey)
+	require.NotNil(t, task)
+	assert.Equal(t, taskEnrollmentConcluded, task.Type)
+}
+
+func TestEmailWorker_SendEnrollmentClassReminderEmail_Enqueues(t *testing.T) {
+	worker, _, cleanup := setupEmailWorkerTest(t)
+	defer cleanup()
+
+	err := worker.SendEnrollmentClassReminderEmail(context.Background(),
+		&models.Inscricao{Email: "a@b.com"}, &models.Curso{ID: 1})
+	require.NoError(t, err)
+
+	task := peekTask(t, worker.redis, emailQueueKey)
+	require.NotNil(t, task)
+	assert.Equal(t, taskEnrollmentClassReminder, task.Type)
+}
+
+func TestEmailWorker_SendCandidaturaProximaEtapaEmail_Enqueues(t *testing.T) {
+	worker, _, cleanup := setupEmailWorkerTest(t)
+	defer cleanup()
+
+	err := worker.SendCandidaturaProximaEtapaEmail(context.Background(),
+		&empregabilidade.Candidatura{CPF: "12345678901"}, "Entrevista")
+	require.NoError(t, err)
+
+	task := peekTask(t, worker.redis, emailQueueKey)
+	require.NotNil(t, task)
+	assert.Equal(t, taskCandidaturaProximaEtapa, task.Type)
+
+	var payload candidaturaPayload
+	require.NoError(t, json.Unmarshal(task.Payload, &payload))
+	assert.Equal(t, "Entrevista", payload.EtapaNome)
+}
+
 func TestEmailWorker_Send_MultipleItemsQueueUp(t *testing.T) {
 	worker, _, cleanup := setupEmailWorkerTest(t)
 	defer cleanup()
@@ -222,6 +265,8 @@ func TestEmailWorker_dispatch_EnrollmentTasks(t *testing.T) {
 		taskEnrollmentCreated,
 		taskEnrollmentApproved,
 		taskEnrollmentRejected,
+		taskEnrollmentConcluded,
+		taskEnrollmentClassReminder,
 		taskScheduleChanged,
 	}
 
@@ -243,6 +288,7 @@ func TestEmailWorker_dispatch_CandidaturaTasks(t *testing.T) {
 		taskCandidaturaEnviada,
 		taskCandidaturaAprovada,
 		taskCandidaturaReprovada,
+		taskCandidaturaProximaEtapa,
 	}
 
 	for _, typ := range types {

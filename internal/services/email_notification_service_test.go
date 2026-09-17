@@ -632,7 +632,7 @@ func TestSendEnrollmentRejectedEmail_Success(t *testing.T) {
 		t.Error("Expected body to contain course title")
 	}
 
-	if !strings.Contains(email.Body, "não foi aprovada") {
+	if !strings.Contains(email.Body, "não foi selecionada") {
 		t.Error("Expected body to contain rejection message")
 	}
 }
@@ -2002,6 +2002,54 @@ func TestSendCandidaturaEnviadaEmail_Success(t *testing.T) {
 	}
 }
 
+func TestSendCandidaturaEnviadaEmail_NilVaga_NoPanic(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	service := NewEmailNotificationService(mockClient, nil, nil, nil, true, "pref.rio")
+
+	email := "test@example.com"
+	candidatura := &empregabilidade.Candidatura{
+		ID:    uuid.New(),
+		Email: &email,
+		CPF:   "12345678901",
+		Vaga:  nil,
+	}
+
+	err := service.SendCandidaturaEnviadaEmail(context.Background(), candidatura)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if len(mockClient.sentEmails) != 0 {
+		t.Errorf("Expected no emails without Vaga, got %d", len(mockClient.sentEmails))
+	}
+}
+
+func TestSendCandidaturaEnviadaEmail_NilOrgaoParceiroAndContratante(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	service := NewEmailNotificationService(mockClient, nil, nil, nil, true, "pref.rio")
+
+	nome := "Candidato"
+	email := "test@example.com"
+	candidatura := &empregabilidade.Candidatura{
+		ID:    uuid.New(),
+		Nome:  &nome,
+		Email: &email,
+		CPF:   "12345678901",
+		Vaga: &empregabilidade.Vaga{
+			Titulo:        "Vaga Sem Relacionamentos",
+			Contratante:   nil,
+			OrgaoParceiro: nil,
+		},
+	}
+
+	err := service.SendCandidaturaEnviadaEmail(context.Background(), candidatura)
+	if err != nil {
+		t.Fatalf("Expected no error with nil OrgaoParceiro/Contratante, got: %v", err)
+	}
+	if len(mockClient.sentEmails) != 1 {
+		t.Fatalf("Expected 1 email, got %d", len(mockClient.sentEmails))
+	}
+}
+
 func TestSendCandidaturaEnviadaEmail_NoEmail(t *testing.T) {
 	mockClient := &MockDataRelayClient{}
 	service := NewEmailNotificationService(
@@ -2581,5 +2629,107 @@ func TestSendCandidaturaReprovadaEmail_Disabled(t *testing.T) {
 
 	if len(mockClient.sentEmails) != 0 {
 		t.Errorf("Expected no emails when disabled, got %d", len(mockClient.sentEmails))
+	}
+}
+
+func TestSendEnrollmentConcludedEmail_Success(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	service := NewEmailNotificationService(mockClient, nil, nil, nil, true, "pref.rio")
+
+	inscricao := &models.Inscricao{
+		ID:    uuid.New(),
+		Name:  "Aluno Concluído",
+		Email: "concluido@test.com",
+	}
+	curso := &models.Curso{ID: 10, Titulo: "Curso Finalizado"}
+
+	err := service.SendEnrollmentConcludedEmail(context.Background(), inscricao, curso)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if len(mockClient.sentEmails) != 1 {
+		t.Fatalf("Expected 1 email, got %d", len(mockClient.sentEmails))
+	}
+	if !strings.Contains(mockClient.sentEmails[0].Subject, "Certificado disponível") {
+		t.Errorf("Unexpected subject: %s", mockClient.sentEmails[0].Subject)
+	}
+}
+
+func TestSendEnrollmentClassReminderEmail_Success(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	service := NewEmailNotificationService(mockClient, nil, nil, nil, true, "pref.rio")
+
+	inscricao := &models.Inscricao{
+		ID:    uuid.New(),
+		Name:  "Aluno Lembrete",
+		Email: "lembrete@test.com",
+	}
+	curso := &models.Curso{ID: 11, Titulo: "Curso Amanhã", Organization: "SMTE"}
+
+	err := service.SendEnrollmentClassReminderEmail(context.Background(), inscricao, curso)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if len(mockClient.sentEmails) != 1 {
+		t.Fatalf("Expected 1 email, got %d", len(mockClient.sentEmails))
+	}
+	if !strings.Contains(mockClient.sentEmails[0].Subject, "Falta pouco") {
+		t.Errorf("Unexpected subject: %s", mockClient.sentEmails[0].Subject)
+	}
+	if !strings.Contains(mockClient.sentEmails[0].Body, "começa amanhã") {
+		t.Error("Expected D-1 body copy")
+	}
+}
+
+func TestSendCandidaturaProximaEtapaEmail_Success(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	service := NewEmailNotificationService(mockClient, nil, nil, nil, true, "pref.rio")
+
+	nome := "Candidato Avançado"
+	email := "avancado@test.com"
+	candidatura := &empregabilidade.Candidatura{
+		ID:    uuid.New(),
+		Nome:  &nome,
+		Email: &email,
+		CPF:   "12345678901",
+		Vaga:  &empregabilidade.Vaga{Titulo: "Dev Fullstack"},
+	}
+
+	err := service.SendCandidaturaProximaEtapaEmail(context.Background(), candidatura, "Dinâmica de Grupo")
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if len(mockClient.sentEmails) != 1 {
+		t.Fatalf("Expected 1 email, got %d", len(mockClient.sentEmails))
+	}
+	emailReq := mockClient.sentEmails[0]
+	if !strings.Contains(emailReq.Subject, "avançou no processo") {
+		t.Errorf("Unexpected subject: %s", emailReq.Subject)
+	}
+	if !strings.Contains(emailReq.Body, "Dinâmica de Grupo") {
+		t.Error("Expected etapa name in body")
+	}
+	if !strings.Contains(emailReq.Body, "minhas-candidaturas") {
+		t.Error("Expected minhas-candidaturas link")
+	}
+}
+
+func TestSendCandidaturaProximaEtapaEmail_NoVaga(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	service := NewEmailNotificationService(mockClient, nil, nil, nil, true, "pref.rio")
+
+	email := "avancado@test.com"
+	candidatura := &empregabilidade.Candidatura{
+		ID:    uuid.New(),
+		Email: &email,
+		Vaga:  nil,
+	}
+
+	err := service.SendCandidaturaProximaEtapaEmail(context.Background(), candidatura, "Etapa")
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if len(mockClient.sentEmails) != 0 {
+		t.Errorf("Expected no emails without vaga, got %d", len(mockClient.sentEmails))
 	}
 }

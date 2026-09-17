@@ -76,6 +76,23 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 	}()
 	log.Println("[Router] Email worker started")
 
+	if cfg.ClassReminder.Enabled {
+		classReminderWorker := workers.NewClassReminderWorker(
+			app.InscricaoRepo,
+			app.EmailWorker,
+			app.RedisClient,
+			&cfg.ClassReminder,
+		)
+		go func() {
+			if err := classReminderWorker.Start(ctx); err != nil && err != context.Canceled {
+				log.Printf("[Router] Class reminder worker stopped: %v", err)
+			}
+		}()
+		log.Println("[Router] Class reminder worker started")
+	} else {
+		log.Println("[Router] Class reminder worker disabled (CLASS_REMINDER_ENABLED=false)")
+	}
+
 	jobs.InitializeJobProcessor(app.DB, app.JobRepo, app.InscricaoRepo, app.CursoRepo)
 
 	apiV1 := r.Group("/api/v1")

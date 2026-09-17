@@ -160,7 +160,7 @@ func TestGetEnrollmentRejectedEmailTemplate(t *testing.T) {
 		Titulo: "Curso de Gestão",
 	}
 
-	template := GetEnrollmentRejectedEmailTemplate(inscricao, curso, "oportunidades.rio")
+	template := GetEnrollmentRejectedEmailTemplate(inscricao, curso, "Secretaria de Trabalho", "oportunidades.rio")
 
 	// Verificar nome do usuário
 	if !strings.Contains(template.Body, "Carlos Oliveira") {
@@ -173,8 +173,8 @@ func TestGetEnrollmentRejectedEmailTemplate(t *testing.T) {
 	}
 
 	// Verificar mensagem de não aprovação
-	if !strings.Contains(template.Body, "sua inscrição não foi aprovada") {
-		t.Error("Mensagem de não aprovação não encontrada no template")
+	if !strings.Contains(template.Body, "sua inscrição não foi selecionada") {
+		t.Error("Mensagem de não seleção não encontrada no template")
 	}
 
 	// Verificar subject
@@ -436,6 +436,13 @@ func TestGetCandidaturaEnviadaEmailTemplate(t *testing.T) {
 	if !strings.Contains(template.Body, "Org Teste") {
 		t.Error("Organ name not found on template")
 	}
+
+	if !strings.Contains(template.Body, "https://oportunidades.rio/servicos/trabalho/minhas-candidaturas") {
+		t.Error("Link Minhas candidaturas not found on template")
+	}
+	if !strings.Contains(template.Body, ">Minhas candidaturas<") {
+		t.Error("Link label Minhas candidaturas not found on template")
+	}
 }
 
 func TestGetCandidaturaEnviadaEmailTemplate_EmptyStrings(t *testing.T) {
@@ -558,5 +565,100 @@ func TestGetCandidaturaReprovadaEmailTemplate_EmptyStrings(t *testing.T) {
 
 	if template.Body == "" {
 		t.Error("Template body should not be empty with empty strings")
+	}
+}
+
+func TestGetEnrollmentConcludedEmailTemplate(t *testing.T) {
+	inscricao := &models.Inscricao{Name: "Ana Concluiu", Email: "ana@teste.com"}
+	curso := &models.Curso{Titulo: "Curso de Certificação"}
+
+	template := GetEnrollmentConcludedEmailTemplate(inscricao, curso, "pref.rio")
+
+	if template.Subject != "Parabéns! 🎉 Certificado disponível - Curso de Certificação" {
+		t.Errorf("Subject incorreto: %s", template.Subject)
+	}
+	if !strings.Contains(template.Body, "Ana Concluiu") {
+		t.Error("Nome do aluno não encontrado")
+	}
+	if !strings.Contains(template.Body, "Certificados") {
+		t.Error("Menção a Certificados não encontrada")
+	}
+	if !strings.Contains(template.Body, "https://pref.rio/servicos/cursos") {
+		t.Error("Link da plataforma não encontrado")
+	}
+	if !template.IsHTML {
+		t.Error("Template deve ser HTML")
+	}
+}
+
+func TestGetEnrollmentClassReminderEmailTemplate(t *testing.T) {
+	inscricao := &models.Inscricao{Name: "Pedro Lembrete", Email: "pedro@teste.com"}
+	curso := &models.Curso{Titulo: "Curso de Manhã", Modalidade: models.ModalidadePresencial}
+	scheduleInfo := &ScheduleInfo{
+		ClassTime:      "09:00",
+		ClassStartDate: "18/09/2026",
+		Address:        "Av. Rio Branco, 1",
+	}
+
+	template := GetEnrollmentClassReminderEmailTemplate(inscricao, curso, "SMTE", scheduleInfo, "pref.rio")
+
+	expectedSubject := "Atenção, Pedro Lembrete! Falta pouco para a atividade Curso de Manhã"
+	if template.Subject != expectedSubject {
+		t.Errorf("Subject incorreto. Esperado: %s, Recebido: %s", expectedSubject, template.Subject)
+	}
+	if !strings.Contains(template.Body, "começa amanhã") {
+		t.Error("Mensagem de D-1 não encontrada")
+	}
+	if !strings.Contains(template.Body, "Av. Rio Branco, 1") {
+		t.Error("Endereço não encontrado")
+	}
+	if !strings.Contains(template.Body, "SMTE") {
+		t.Error("Nome do órgão não encontrado")
+	}
+	if !strings.Contains(template.Body, "⏰ Horário de início") {
+		t.Error("Horário com emoji ⏰ não encontrado")
+	}
+}
+
+func TestGetCandidaturaProximaEtapaEmailTemplate(t *testing.T) {
+	nome := "Maria Avançou"
+	email := "maria@teste.com"
+	candidatura := &empregabilidade.Candidatura{Nome: &nome, Email: &email}
+	vaga := &empregabilidade.Vaga{Titulo: "Analista de Dados"}
+
+	template := GetCandidaturaProximaEtapaEmailTemplate(candidatura, vaga, "Entrevista Técnica", "pref.rio")
+
+	expectedSubject := "Boas notícias! Você avançou no processo para vaga de Analista de Dados 🚀"
+	if template.Subject != expectedSubject {
+		t.Errorf("Subject incorreto. Esperado: %s, Recebido: %s", expectedSubject, template.Subject)
+	}
+	if !strings.Contains(template.Body, "Maria Avançou") {
+		t.Error("Nome do candidato não encontrado")
+	}
+	if !strings.Contains(template.Body, "Entrevista Técnica") {
+		t.Error("Nome da próxima etapa não encontrado")
+	}
+	if !strings.Contains(template.Body, "https://pref.rio/servicos/trabalho/minhas-candidaturas") {
+		t.Error("Link de minhas candidaturas não encontrado")
+	}
+	if !strings.Contains(template.Body, "O que acontece agora?") {
+		t.Error("Seção de próximos passos não encontrada")
+	}
+}
+
+func TestGetEnrollmentPendingEmailTemplate_UpdatedCopy(t *testing.T) {
+	inscricao := &models.Inscricao{Name: "João", Email: "joao@teste.com"}
+	curso := &models.Curso{Titulo: "Curso Novo"}
+
+	template := GetEnrollmentPendingEmailTemplate(inscricao, curso, "SEBRAE", "pref.rio")
+
+	if strings.Contains(template.Body, "Tudo bem?") {
+		t.Error("Texto antigo 'Tudo bem?' não deveria estar presente")
+	}
+	if !strings.Contains(template.Body, "https://pref.rio/servicos/cursos/meus-cursos") {
+		t.Error("Link de Meus Cursos não encontrado")
+	}
+	if !strings.Contains(template.Body, "Sua inscrição será avaliada") {
+		t.Error("Novo texto de avaliação não encontrado")
 	}
 }

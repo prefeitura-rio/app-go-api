@@ -427,6 +427,8 @@ func (s *InscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UU
 					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), inscricao, curso)
 				case models.StatusInscricaoRejected:
 					emailErr = s.emailNotificationService.SendEnrollmentRejectedEmail(context.Background(), inscricao, curso)
+				case models.StatusInscricaoConcluded:
+					emailErr = s.emailNotificationService.SendEnrollmentConcludedEmail(context.Background(), inscricao, curso)
 				}
 				if emailErr != nil {
 					log.Printf("[InscricaoService] falha ao enviar email de mudança de status: %v", emailErr)
@@ -451,7 +453,7 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 	}
 	var enrollmentsForEmail []emailData
 
-	if s.emailNotificationService != nil && (status == models.StatusInscricaoApproved || status == models.StatusInscricaoRejected) {
+	if s.emailNotificationService != nil && (status == models.StatusInscricaoApproved || status == models.StatusInscricaoRejected || status == models.StatusInscricaoConcluded) {
 		for _, id := range inscricaoIDs {
 			inscricao, err := s.repo.GetByID(ctx, id)
 			if err == nil && inscricao != nil {
@@ -498,6 +500,8 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), &inscricaoCopy, curso)
 				case models.StatusInscricaoRejected:
 					emailErr = s.emailNotificationService.SendEnrollmentRejectedEmail(context.Background(), &inscricaoCopy, curso)
+				case models.StatusInscricaoConcluded:
+					emailErr = s.emailNotificationService.SendEnrollmentConcludedEmail(context.Background(), &inscricaoCopy, curso)
 				}
 				if emailErr != nil {
 					log.Printf("[InscricaoService] falha ao enviar email de mudança de status em lote (inscrição %s): %v", data.inscricao.ID, emailErr)

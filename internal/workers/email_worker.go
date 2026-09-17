@@ -28,13 +28,16 @@ const (
 type emailTaskType string
 
 const (
-	taskEnrollmentCreated    emailTaskType = "enrollment.created"
-	taskEnrollmentApproved   emailTaskType = "enrollment.approved"
-	taskEnrollmentRejected   emailTaskType = "enrollment.rejected"
-	taskScheduleChanged      emailTaskType = "schedule.changed"
-	taskCandidaturaEnviada   emailTaskType = "candidatura.enviada"
-	taskCandidaturaAprovada  emailTaskType = "candidatura.aprovada"
-	taskCandidaturaReprovada emailTaskType = "candidatura.reprovada"
+	taskEnrollmentCreated       emailTaskType = "enrollment.created"
+	taskEnrollmentApproved      emailTaskType = "enrollment.approved"
+	taskEnrollmentRejected      emailTaskType = "enrollment.rejected"
+	taskEnrollmentConcluded     emailTaskType = "enrollment.concluded"
+	taskEnrollmentClassReminder emailTaskType = "enrollment.class_reminder"
+	taskScheduleChanged         emailTaskType = "schedule.changed"
+	taskCandidaturaEnviada      emailTaskType = "candidatura.enviada"
+	taskCandidaturaAprovada     emailTaskType = "candidatura.aprovada"
+	taskCandidaturaReprovada    emailTaskType = "candidatura.reprovada"
+	taskCandidaturaProximaEtapa emailTaskType = "candidatura.proxima_etapa"
 )
 
 type emailTask struct {
@@ -52,6 +55,7 @@ type enrollmentPayload struct {
 
 type candidaturaPayload struct {
 	Candidatura empregabilidade.Candidatura `json:"candidatura"`
+	EtapaNome   string                      `json:"etapa_nome,omitempty"`
 }
 
 // EmailWorker processes email notifications asynchronously via a Redis List queue.
@@ -273,6 +277,24 @@ func (w *EmailWorker) dispatch(ctx context.Context, task *emailTask) error {
 
 		return w.emailService.SendEnrollmentRejectedEmail(ctx, &p.Inscricao, &p.Curso)
 
+	case taskEnrollmentConcluded:
+		var p enrollmentPayload
+
+		if err := json.Unmarshal(task.Payload, &p); err != nil {
+			return err
+		}
+
+		return w.emailService.SendEnrollmentConcludedEmail(ctx, &p.Inscricao, &p.Curso)
+
+	case taskEnrollmentClassReminder:
+		var p enrollmentPayload
+
+		if err := json.Unmarshal(task.Payload, &p); err != nil {
+			return err
+		}
+
+		return w.emailService.SendEnrollmentClassReminderEmail(ctx, &p.Inscricao, &p.Curso)
+
 	case taskScheduleChanged:
 		var p enrollmentPayload
 
@@ -308,6 +330,15 @@ func (w *EmailWorker) dispatch(ctx context.Context, task *emailTask) error {
 		}
 
 		return w.emailService.SendCandidaturaReprovadaEmail(ctx, &p.Candidatura)
+
+	case taskCandidaturaProximaEtapa:
+		var p candidaturaPayload
+
+		if err := json.Unmarshal(task.Payload, &p); err != nil {
+			return err
+		}
+
+		return w.emailService.SendCandidaturaProximaEtapaEmail(ctx, &p.Candidatura, p.EtapaNome)
 
 	default:
 		return fmt.Errorf("unknown task type: %s", task.Type)
@@ -362,6 +393,14 @@ func (w *EmailWorker) SendEnrollmentRejectedEmail(ctx context.Context, inscricao
 	return w.enqueue(ctx, taskEnrollmentRejected, enrollmentPayload{Inscricao: *inscricao, Curso: *curso})
 }
 
+func (w *EmailWorker) SendEnrollmentConcludedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
+	return w.enqueue(ctx, taskEnrollmentConcluded, enrollmentPayload{Inscricao: *inscricao, Curso: *curso})
+}
+
+func (w *EmailWorker) SendEnrollmentClassReminderEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
+	return w.enqueue(ctx, taskEnrollmentClassReminder, enrollmentPayload{Inscricao: *inscricao, Curso: *curso})
+}
+
 func (w *EmailWorker) SendScheduleChangedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
 	return w.enqueue(ctx, taskScheduleChanged, enrollmentPayload{Inscricao: *inscricao, Curso: *curso})
 }
@@ -376,4 +415,8 @@ func (w *EmailWorker) SendCandidaturaAprovadaEmail(ctx context.Context, candidat
 
 func (w *EmailWorker) SendCandidaturaReprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error {
 	return w.enqueue(ctx, taskCandidaturaReprovada, candidaturaPayload{Candidatura: *candidatura})
+}
+
+func (w *EmailWorker) SendCandidaturaProximaEtapaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura, etapaNome string) error {
+	return w.enqueue(ctx, taskCandidaturaProximaEtapa, candidaturaPayload{Candidatura: *candidatura, EtapaNome: etapaNome})
 }

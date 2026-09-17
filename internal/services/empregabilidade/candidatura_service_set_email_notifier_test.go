@@ -16,9 +16,10 @@ import (
 // mockEmpEmailNotifier records which Send* methods were called.
 // A buffered channel signals async goroutine calls to the test.
 type mockEmpEmailNotifier struct {
-	mu       sync.Mutex
-	called   map[string]int
-	notifyCh chan string
+	mu              sync.Mutex
+	called          map[string]int
+	notifyCh        chan string
+	lastCandidatura *empregabilidade.Candidatura
 }
 
 func newMockEmpEmailNotifier() *mockEmpEmailNotifier {
@@ -70,11 +71,22 @@ func (m *mockEmpEmailNotifier) SendEnrollmentRejectedEmail(_ context.Context, _ 
 	m.record("enrollment.rejected")
 	return nil
 }
+func (m *mockEmpEmailNotifier) SendEnrollmentConcludedEmail(_ context.Context, _ *models.Inscricao, _ *models.Curso) error {
+	m.record("enrollment.concluded")
+	return nil
+}
+func (m *mockEmpEmailNotifier) SendEnrollmentClassReminderEmail(_ context.Context, _ *models.Inscricao, _ *models.Curso) error {
+	m.record("enrollment.class_reminder")
+	return nil
+}
 func (m *mockEmpEmailNotifier) SendScheduleChangedEmail(_ context.Context, _ *models.Inscricao, _ *models.Curso) error {
 	m.record("schedule.changed")
 	return nil
 }
-func (m *mockEmpEmailNotifier) SendCandidaturaEnviadaEmail(_ context.Context, _ *empregabilidade.Candidatura) error {
+func (m *mockEmpEmailNotifier) SendCandidaturaEnviadaEmail(_ context.Context, c *empregabilidade.Candidatura) error {
+	m.mu.Lock()
+	m.lastCandidatura = c
+	m.mu.Unlock()
 	m.record("candidatura.enviada")
 	return nil
 }
@@ -84,6 +96,10 @@ func (m *mockEmpEmailNotifier) SendCandidaturaAprovadaEmail(_ context.Context, _
 }
 func (m *mockEmpEmailNotifier) SendCandidaturaReprovadaEmail(_ context.Context, _ *empregabilidade.Candidatura) error {
 	m.record("candidatura.reprovada")
+	return nil
+}
+func (m *mockEmpEmailNotifier) SendCandidaturaProximaEtapaEmail(_ context.Context, _ *empregabilidade.Candidatura, _ string) error {
+	m.record("candidatura.proxima_etapa")
 	return nil
 }
 
@@ -144,6 +160,15 @@ func TestCandidaturaService_SetEmailNotifier(t *testing.T) {
 		if !mock.waitForCall("candidatura.enviada", 200*time.Millisecond) {
 			t.Error("expected SendCandidaturaEnviadaEmail to be called after SetEmailNotifier")
 		}
+		mock.mu.Lock()
+		got := mock.lastCandidatura
+		mock.mu.Unlock()
+		if got == nil || got.Vaga == nil {
+			t.Fatal("expected candidatura.Vaga to be attached before sending confirmation email")
+		}
+		if got.Vaga.ID != vagaID {
+			t.Errorf("expected Vaga.ID %s, got %s", vagaID, got.Vaga.ID)
+		}
 	})
 
 	t.Run("UpdateStatus approved — after SetEmailNotifier triggers SendCandidaturaAprovadaEmail", func(t *testing.T) {
@@ -192,6 +217,76 @@ func TestCandidaturaService_SetEmailNotifier(t *testing.T) {
 		}
 		if !mock.waitForCall("candidatura.reprovada", 200*time.Millisecond) {
 			t.Error("expected SendCandidaturaReprovadaEmail to be called after SetEmailNotifier")
+		}
+	})
+
+	t.Run("UpdateEtapa — after SetEmailNotifier triggers SendCandidaturaProximaEtapaEmail", func(t *testing.T) {
+		vagaID := uuid.New()
+		etapaID := uuid.New()
+		vagaRepo := NewMockVagaRepo()
+		vagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Titulo: "Dev Backend",
+			Status: empregabilidade.StatusVagaPublicadoAtivo,
+			Etapas: []empregabilidade.Etapa{
+				{ID: etapaID, Titulo: "Entrevista", IDVaga: vagaID, Ordem: 2},
+			},
+		}
+		repo := NewMockCandidaturaRepo()
+		svc := newSvcWithDisabledEmail(repo, vagaRepo)
+
+		nome := "Candidato Etapa"
+		email := "etapa@test.com"
+		candidaturaID := uuid.New()
+		repo.candidaturas[candidaturaID] = &empregabilidade.Candidatura{
+			ID:     candidaturaID,
+			CPF:    "66666666666",
+			Nome:   &nome,
+			Email:  &email,
+			IDVaga: vagaID,
+			Status: empregabilidade.StatusCandidaturaEnviada,
+		}
+
+		mock := newMockEmpEmailNotifier()
+		svc.SetEmailNotifier(mock)
+
+		if err := svc.UpdateEtapa(ctx, candidaturaID, etapaID); err != nil {
+			t.Fatalf("UpdateEtapa failed: %v", err)
+		}
+		if !mock.waitForCall("candidatura.proxima_etapa", 200*time.Millisecond) {
+			t.Error("expected SendCandidaturaProximaEtapaEmail to be called after UpdateEtapa")
+		}
+	})
+
+	t.Run("UpdateEtapa — does not send email when status is aprovada", func(t *testing.T) {
+		vagaID := uuid.New()
+		etapaID := uuid.New()
+		vagaRepo := NewMockVagaRepo()
+		vagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Status: empregabilidade.StatusVagaPublicadoAtivo,
+			Etapas: []empregabilidade.Etapa{{ID: etapaID, Titulo: "Final", IDVaga: vagaID}},
+		}
+		repo := NewMockCandidaturaRepo()
+		svc := newSvcWithDisabledEmail(repo, vagaRepo)
+
+		candidaturaID := uuid.New()
+		repo.candidaturas[candidaturaID] = &empregabilidade.Candidatura{
+			ID:     candidaturaID,
+			CPF:    "77777777777",
+			IDVaga: vagaID,
+			Status: empregabilidade.StatusCandidaturaAprovada,
+		}
+
+		mock := newMockEmpEmailNotifier()
+		svc.SetEmailNotifier(mock)
+
+		if err := svc.UpdateEtapa(ctx, candidaturaID, etapaID); err != nil {
+			t.Fatalf("UpdateEtapa failed: %v", err)
+		}
+		time.Sleep(80 * time.Millisecond)
+		if mock.callCount("candidatura.proxima_etapa") != 0 {
+			t.Error("should not send próxima etapa email when status is aprovada")
 		}
 	})
 

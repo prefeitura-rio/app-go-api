@@ -272,6 +272,42 @@ func (r *InscricaoRepository) UpdateCertificate(ctx context.Context, inscricaoID
 	return nil
 }
 
+// ListApprovedStartingBetween returns approved enrollments whose class starts within [start, end).
+// It matches course_schedules, remote_schedules, or curso.data_inicio when schedule_id is nil.
+func (r *InscricaoRepository) ListApprovedStartingBetween(ctx context.Context, start, end time.Time) ([]*models.Inscricao, error) {
+	var inscricoes []*models.Inscricao
+
+	err := r.db.WithContext(ctx).
+		Preload("Curso").
+		Where("status = ?", models.StatusInscricaoApproved).
+		Where(`(
+			schedule_id IN (
+				SELECT id FROM course_schedules
+				WHERE class_start_date >= ? AND class_start_date < ?
+			)
+			OR schedule_id IN (
+				SELECT id FROM remote_schedules
+				WHERE class_start_date IS NOT NULL
+				  AND class_start_date >= ? AND class_start_date < ?
+			)
+			OR (
+				schedule_id IS NULL
+				AND curso_id IN (
+					SELECT id FROM cursos
+					WHERE data_inicio IS NOT NULL
+					  AND data_inicio >= ? AND data_inicio < ?
+				)
+			)
+		)`, start, end, start, end, start, end).
+		Find(&inscricoes).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("erro ao listar inscrições para lembrete de aula: %w", err)
+	}
+
+	return inscricoes, nil
+}
+
 func (r *InscricaoRepository) Update(ctx context.Context, inscricao *models.Inscricao) error {
 	result := r.db.WithContext(ctx).
 		Model(inscricao).
