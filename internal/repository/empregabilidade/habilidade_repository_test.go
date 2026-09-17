@@ -216,6 +216,31 @@ func TestHabilidadeRepository_Update_Success(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestHabilidadeRepository_Update_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	entity := &empregabilidade.Habilidade{
+		ID:        15,
+		Nome:      "Go Avançado",
+		UpdatedAt: time.Now(),
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_habilidades"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.UpdateHabilidade(ctx, entity)
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "erro ao atualizar habilidade")
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestHabilidadeRepository_Delete_Success(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
@@ -467,6 +492,31 @@ func TestHabilidadeRepository_AddHabilidadeAoCurriculo_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+func TestHabilidadeRepository_AddHabilidadeAoCurriculo_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	vinculo := &empregabilidade.CurriculoHabilidade{
+		ID:           100,
+		CPF:          "12345678901",
+		IDHabilidade: 1,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.AddHabilidadeAoCurriculo(ctx, vinculo)
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "erro ao vincular habilidade ao currículo")
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestHabilidadeRepository_ListHabilidadesByCPF_Success(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
@@ -748,6 +798,30 @@ func TestHabilidadeRepository_ListHabilidades_FindError(t *testing.T) {
 	assert.Zero(t, total)
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "erro ao listar habilidades")
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_DetachHabilidadeDoCurriculo_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	vinculo := &empregabilidade.CurriculoHabilidade{
+		ID:  15,
+		CPF: "12345678901",
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_habilidades"`).
+		WithArgs(vinculo.ID, vinculo.CPF).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.DetachHabilidadeDoCurriculo(ctx, vinculo)
+	assert.Error(t, err)
 	assert.ErrorIs(t, err, assert.AnError)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

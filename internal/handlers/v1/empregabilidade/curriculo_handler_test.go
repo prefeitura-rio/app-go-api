@@ -1049,21 +1049,26 @@ func TestCurriculoHandler_AddHabilidadeAoCurriculo_ServiceError(t *testing.T) {
 }
 
 func TestCurriculoHandler_AddHabilidadeAoCurriculo_SemCPFNoContexto(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
 	repo := &mockCurriculoRepoH{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	h := handlers.NewCurriculoHandler(svc)
 
-	// Passa string vazia "" para simular ausência do CPF no contexto/claims do middleware
-	r := setupCurriculoRouter(repo, "", false)
-
-	body := bodyOf(`{"id_habilidade": 1}`)
-	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
-	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(
+		http.MethodPost,
+		"/curriculo/habilidades",
+		bodyOf(`{"id_habilidade": 1}`),
+	)
+	c.Request.Header.Set("Content-Type", "application/json")
 
-	r.ServeHTTP(w, req)
+	// Chama o handler diretamente, sem o middleware que aborta a requisição.
+	// Assim cobrimos especificamente o branch cpf == "" do handler.
+	h.AddHabilidadeAoCurriculo(c)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401 Unauthorized, got %d: %s", w.Code, w.Body.String())
-	}
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
 func TestCurriculoHandler_AddHabilidadeAoCurriculo_ValidationError(t *testing.T) {
