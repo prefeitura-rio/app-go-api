@@ -1,7 +1,9 @@
 package models
 
 import (
+	"crypto/sha256"
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
 	"time"
 )
@@ -74,6 +76,39 @@ type CitizenPersonalInfo struct {
 	RendaFamiliar  string           `json:"renda_familiar,omitempty"`
 	Escolaridade   string           `json:"escolaridade,omitempty"`
 	Deficiencia    string           `json:"deficiencia,omitempty"`
+	DataHash       string           `json:"data_hash,omitempty"`
+}
+
+// ComputeDataHash generates a deterministic SHA-256 hash of the snapshot's contact/profile data.
+// This allows detecting when citizen data has drifted or been updated in RMI.
+func (c *CitizenSnapshot) ComputeDataHash() string {
+	if c == nil {
+		return ""
+	}
+	h := sha256.New()
+	h.Write([]byte(c.Nome))
+	h.Write([]byte(c.NomeSocial))
+	h.Write([]byte(c.Email))
+	h.Write([]byte(c.Celular))
+	if c.DataNascimento != nil {
+		h.Write([]byte(c.DataNascimento.Format("2006-01-02")))
+	}
+	if c.Endereco != nil {
+		h.Write([]byte(c.Endereco.Logradouro))
+		h.Write([]byte(c.Endereco.TipoLogradouro))
+		h.Write([]byte(c.Endereco.Numero))
+		h.Write([]byte(c.Endereco.Complemento))
+		h.Write([]byte(c.Endereco.Bairro))
+		h.Write([]byte(c.Endereco.Municipio))
+		h.Write([]byte(c.Endereco.Estado))
+		h.Write([]byte(c.Endereco.CEP))
+	}
+	h.Write([]byte(c.Raca))
+	h.Write([]byte(c.Genero))
+	h.Write([]byte(c.RendaFamiliar))
+	h.Write([]byte(c.Escolaridade))
+	h.Write([]byte(c.Deficiencia))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // ToPersonalInfo converts a CitizenSnapshot to CitizenPersonalInfo for API responses
@@ -93,5 +128,6 @@ func (c *CitizenSnapshot) ToPersonalInfo() *CitizenPersonalInfo {
 		RendaFamiliar:  c.RendaFamiliar,
 		Escolaridade:   c.Escolaridade,
 		Deficiencia:    c.Deficiencia,
+		DataHash:       c.ComputeDataHash(),
 	}
 }

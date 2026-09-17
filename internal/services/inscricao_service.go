@@ -36,6 +36,7 @@ func enrollmentRuleErrorf(format string, args ...any) error {
 // CitizenDataFetcher interface for fetching citizen data
 type CitizenDataFetcher interface {
 	SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+	SyncCitizenForced(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
 }
 
 type InscricaoService struct {
@@ -157,9 +158,9 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		}
 	}
 
-	// Fetch citizen data from RMI (on-demand sync) to populate Email and Phone
+	// Fetch citizen data from RMI (forced sync) to populate Email and Phone
 	if s.citizenDataFetcher != nil && inscricao.CPF != "" {
-		citizenSnapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, inscricao.CPF)
+		citizenSnapshot, err := s.citizenDataFetcher.SyncCitizenForced(ctx, inscricao.CPF)
 		if err != nil {
 			// Log error but don't fail enrollment creation - use provided data as fallback
 			fmt.Printf("[InscricaoService] Failed to fetch citizen data for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
@@ -260,7 +261,7 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 	// (citizen_snapshots → personal_info for display/comparison). Do NOT overwrite the
 	// órgão-provided email/phone with the RMI snapshot; only fill in a missing name.
 	if s.citizenDataFetcher != nil && inscricao.CPF != "" {
-		citizenSnapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, inscricao.CPF)
+		citizenSnapshot, err := s.citizenDataFetcher.SyncCitizenForced(ctx, inscricao.CPF)
 		if err != nil {
 			fmt.Printf("[InscricaoService] Failed to fetch citizen data for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
 		} else if citizenSnapshot != nil {

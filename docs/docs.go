@@ -13783,6 +13783,9 @@ const docTemplate = `{
                 "celular": {
                     "type": "string"
                 },
+                "data_hash": {
+                    "type": "string"
+                },
                 "data_nascimento": {
                     "type": "string"
                 },
