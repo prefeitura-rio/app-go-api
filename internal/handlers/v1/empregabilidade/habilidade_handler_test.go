@@ -238,42 +238,175 @@ func TestGetHabilidadeByID_InternalServerError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
-func TestUpdateHabilidade_Success(t *testing.T) {
-	repo := &mockHabilidadeRepo{}
-	r := setupHabilidadeRouter(repo)
-
-	body := bytes.NewBufferString(`{"nome":"Go Avançado"}`)
-	req := httptest.NewRequest(http.MethodPut, "/habilidades/10", body)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestDeleteHabilidade_Success(t *testing.T) {
-	repo := &mockHabilidadeRepo{}
-	r := setupHabilidadeRouter(repo)
-
-	req := httptest.NewRequest(http.MethodDelete, "/habilidades/10", nil)
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestListHabilidades_Success(t *testing.T) {
-	repo := &mockHabilidadeRepo{
-		habilidades: []*empmodels.Habilidade{{ID: 1, Nome: "Go"}},
-		totalHab:    1,
+func TestUpdateHabilidade(t *testing.T) {
+	tests := []struct {
+		name       string
+		id         string
+		body       string
+		repoErr    error
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "success",
+			id:         "10",
+			body:       `{"nome":"Go Avançado"}`,
+			wantStatus: http.StatusOK,
+			wantBody:   "Habilidade atualizada com sucesso",
+		},
+		{
+			name:       "invalid id",
+			id:         "invalid-id",
+			body:       `{"nome":"Go Avançado"}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "ID inválido",
+		},
+		{
+			name:       "invalid json",
+			id:         "10",
+			body:       `{"nome":`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "Dados inválidos:",
+		},
+		{
+			name:       "required nome missing",
+			id:         "10",
+			body:       `{}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "Dados inválidos:",
+		},
+		{
+			name:       "service error",
+			id:         "10",
+			body:       `{"nome":"Go Avançado"}`,
+			repoErr:    errors.New("erro ao atualizar habilidade"),
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   "Erro ao atualizar habilidade",
+		},
 	}
-	r := setupHabilidadeRouter(repo)
 
-	req := httptest.NewRequest(http.MethodGet, "/habilidades?q=go&page=1&pageSize=10", nil)
-	w := httptest.NewRecorder()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockHabilidadeRepo{err: tt.repoErr}
+			r := setupHabilidadeRouter(repo)
 
-	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusOK, w.Code)
+			body := bytes.NewBufferString(tt.body)
+			req := httptest.NewRequest(http.MethodPut, "/habilidades/"+tt.id, body)
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Contains(t, w.Body.String(), tt.wantBody)
+		})
+	}
+}
+
+func TestDeleteHabilidade(t *testing.T) {
+	tests := []struct {
+		name       string
+		id         string
+		repoErr    error
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "success",
+			id:         "10",
+			wantStatus: http.StatusOK,
+			wantBody:   "Habilidade excluída com sucesso",
+		},
+		{
+			name:       "invalid id",
+			id:         "invalid-id",
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "ID inválido",
+		},
+		{
+			name:       "service error",
+			id:         "10",
+			repoErr:    errors.New("erro ao excluir habilidade"),
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   "Erro ao excluir habilidade",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockHabilidadeRepo{err: tt.repoErr}
+			r := setupHabilidadeRouter(repo)
+
+			req := httptest.NewRequest(http.MethodDelete, "/habilidades/"+tt.id, nil)
+			w := httptest.NewRecorder()
+
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Contains(t, w.Body.String(), tt.wantBody)
+		})
+	}
+}
+
+func TestListHabilidades(t *testing.T) {
+	tests := []struct {
+		name       string
+		url        string
+		repoErr    error
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "success with explicit pagination and search",
+			url:        "/habilidades?q=go&page=1&pageSize=10",
+			wantStatus: http.StatusOK,
+			wantBody:   "Go",
+		},
+		{
+			name:       "normalizes page below minimum and pageSize above maximum",
+			url:        "/habilidades?page=0&pageSize=101",
+			wantStatus: http.StatusOK,
+			wantBody:   "Go",
+		},
+		{
+			name:       "normalizes invalid numeric pagination",
+			url:        "/habilidades?page=invalid&pageSize=invalid",
+			wantStatus: http.StatusOK,
+			wantBody:   "Go",
+		},
+		{
+			name:       "uses default pagination when query params are omitted",
+			url:        "/habilidades",
+			wantStatus: http.StatusOK,
+			wantBody:   "Go",
+		},
+		{
+			name:       "internal server error from service",
+			url:        "/habilidades?q=go&page=1&pageSize=10",
+			repoErr:    errors.New("erro de banco"),
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   "Erro ao buscar habilidades",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockHabilidadeRepo{
+				err:         tt.repoErr,
+				habilidades: []*empmodels.Habilidade{{ID: 1, Nome: "Go"}},
+				totalHab:    1,
+			}
+			r := setupHabilidadeRouter(repo)
+
+			req := httptest.NewRequest(http.MethodGet, tt.url, nil)
+			w := httptest.NewRecorder()
+
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Contains(t, w.Body.String(), tt.wantBody)
+		})
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

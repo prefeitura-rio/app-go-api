@@ -149,7 +149,7 @@ func (s *CurriculoService) AddHabilidadeAoCurriculo(ctx context.Context, vinculo
 
 // DetachHabilidadeAoCurriculo desvincula uma habilidade do currículo do candidato
 func (s *CurriculoService) DetachHabilidadeDoCurriculo(ctx context.Context, id int64) error {
-	return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, id)
+	return s.repo.DetachHabilidadeDoCurriculo(ctx, id)
 }
 
 // --- Comportamentos e Atitudes ---

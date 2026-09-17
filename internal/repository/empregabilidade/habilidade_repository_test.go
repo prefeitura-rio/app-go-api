@@ -174,6 +174,25 @@ func TestHabilidadeRepository_GetByID_NotFound(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestHabilidadeRepository_GetByID_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+	var habilidadeID int64 = 10
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_habilidades"`).
+		WillReturnError(assert.AnError)
+
+	result, err := repo.GetHabilidadeByID(ctx, habilidadeID)
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "erro ao buscar habilidade por ID")
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestHabilidadeRepository_Update_Success(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
@@ -212,6 +231,26 @@ func TestHabilidadeRepository_Delete_Success(t *testing.T) {
 
 	err := repo.DeleteHabilidade(ctx, habilidadeID)
 	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_Delete_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+	var habilidadeID int64 = 20
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "emp_habilidades"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.DeleteHabilidade(ctx, habilidadeID)
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "erro ao excluir habilidade")
+	assert.ErrorIs(t, err, assert.AnError)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -621,5 +660,94 @@ func TestHabilidadeRepository_ListHabilidadesByCPF_DatabaseError(t *testing.T) {
 	result, err := repo.ListHabilidadesByCPF(ctx, cpf)
 	assert.Error(t, err)
 	assert.Nil(t, result)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// --- COBERTURA COMPLEMENTAR DE ListHabilidades ---
+
+func TestHabilidadeRepository_ListHabilidades_AreaAtuacaoFilter_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+	filter := empregabilidade.HabilidadeFilter{AreaAtuacaoID: 5}
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_habilidades" JOIN area_atuacao_habilidade aah ON aah.id_habilidade = emp_habilidades.id WHERE aah.id_area_atuacao = \$1`).
+		WithArgs(int64(5)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	mock.ExpectQuery(
+		`SELECT .* FROM "emp_habilidades" JOIN area_atuacao_habilidade aah ON aah.id_habilidade = emp_habilidades.id WHERE aah.id_area_atuacao = \$1`,
+	).
+		WithArgs(int64(5), sqlmock.AnyArg()).
+		WillReturnRows(
+			sqlmock.NewRows([]string{
+				"id",
+				"nome",
+				"created_at",
+				"updated_at",
+			}).
+				AddRow(
+					1,
+					"Pintura Predial",
+					time.Now(),
+					time.Now(),
+				),
+		)
+
+	mock.ExpectQuery(`SELECT \* FROM "area_atuacao_habilidade"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id_habilidade", "id_area_atuacao"}))
+
+	result, total, err := repo.ListHabilidades(ctx, filter, 10, 0)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	assert.Len(t, result, 1)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_ListHabilidades_CountError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+	filter := empregabilidade.HabilidadeFilter{}
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_habilidades"`).
+		WillReturnError(assert.AnError)
+
+	result, total, err := repo.ListHabilidades(ctx, filter, 10, 0)
+
+	assert.Nil(t, result)
+	assert.Zero(t, total)
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "erro ao contar habilidades")
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_ListHabilidades_FindError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+	filter := empregabilidade.HabilidadeFilter{}
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_habilidades"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	mock.ExpectQuery(`SELECT .* FROM "emp_habilidades"`).
+		WillReturnError(assert.AnError)
+
+	result, total, err := repo.ListHabilidades(ctx, filter, 10, 0)
+
+	assert.Nil(t, result)
+	assert.Zero(t, total)
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "erro ao listar habilidades")
+	assert.ErrorIs(t, err, assert.AnError)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

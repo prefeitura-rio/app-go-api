@@ -97,13 +97,13 @@
 				
 				<option value="file20">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/comportamento_atitudes_handler.go (97.2%)</option>
 				
-				<option value="file21">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/curriculo_handler.go (88.1%)</option>
+				<option value="file21">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/curriculo_handler.go (89.9%)</option>
 				
 				<option value="file22">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/empresa_handler.go (89.5%)</option>
 				
 				<option value="file23">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/etapa_handler.go (97.1%)</option>
 				
-				<option value="file24">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/habilidade_handler.go (65.8%)</option>
+				<option value="file24">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/habilidade_handler.go (73.1%)</option>
 				
 				<option value="file25">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/lookup_handlers.go (87.7%)</option>
 				
@@ -245,7 +245,7 @@
 				
 				<option value="file94">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/comportamento_atitudes_repository.go (88.1%)</option>
 				
-				<option value="file95">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/curriculo_repository.go (73.3%)</option>
+				<option value="file95">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/curriculo_repository.go (75.2%)</option>
 				
 				<option value="file96">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/disponibilidade_repository.go (100.0%)</option>
 				
@@ -255,7 +255,7 @@
 				
 				<option value="file99">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/etapa_repository.go (78.1%)</option>
 				
-				<option value="file100">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/habilidade_repository.go (89.0%)</option>
+				<option value="file100">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/habilidade_repository.go (92.0%)</option>
 				
 				<option value="file101">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/idioma_repository.go (97.6%)</option>
 				
@@ -21447,7 +21447,7 @@ type CurriculoHandler struct {
 }
 
 func NewCurriculoHandler(service *services.CurriculoService) *CurriculoHandler {
-        <span class="cov10" title="175">return &amp;CurriculoHandler{service: service}
+        <span class="cov10" title="184">return &amp;CurriculoHandler{service: service}
 </span>}
 
 // requireOwnership checks that the authenticated user owns the entity (identified by entityCPF).
@@ -22007,7 +22007,7 @@ func (h *CurriculoHandler) DeleteCursoComplementar(c *gin.Context) {
                 return
 </span>        }
 
-        <span class="cov5" title="10">existing, err := h.service.GetCursoComplementarByID(c.Request.Context(), id)
+        <span class="cov4" title="10">existing, err := h.service.GetCursoComplementarByID(c.Request.Context(), id)
         if err != nil </span>{
                 <span class="cov3" title="4">c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
                 return
@@ -22686,25 +22686,25 @@ func (h *CurriculoHandler) GetSituacaoInteressesByCPF(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/curriculo/habilidades [post]
 func (h *CurriculoHandler) AddHabilidadeAoCurriculo(c *gin.Context) {
-        <span class="cov3" title="4">cpf := middlewares.GetUserCPF(c)
+        <span class="cov4" title="7">cpf := middlewares.GetUserCPF(c)
         if cpf == "" </span>{
                 <span class="cov0" title="0">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
                 return
 </span>        }
 
-        <span class="cov3" title="4">var req AddHabilidadeRequest
+        <span class="cov4" title="7">var req AddHabilidadeRequest
         if err := c.ShouldBindJSON(&amp;req); err != nil </span>{
-                <span class="cov2" title="2">response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+                <span class="cov2" title="3">response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
                 return
 </span>        }
 
-        <span class="cov2" title="2">vinculo := &amp;empregabilidade.CurriculoHabilidade{
+        <span class="cov3" title="4">vinculo := &amp;empregabilidade.CurriculoHabilidade{
                 CPF:          cpf,
                 IDHabilidade: req.IDHabilidade,
 </span>        }
 
-        <span class="cov2" title="2">if err := h.service.AddHabilidadeAoCurriculo(c.Request.Context(), vinculo); err != nil </span>{
-                <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao adicionar habilidade ao currículo")
+        <span class="cov3" title="4">if err := h.service.AddHabilidadeAoCurriculo(c.Request.Context(), vinculo); err != nil </span>{
+                <span class="cov2" title="3">response.Error(c, http.StatusInternalServerError, "Erro ao adicionar habilidade ao currículo")
                 return
 </span>        }
 
@@ -22722,15 +22722,15 @@ func (h *CurriculoHandler) AddHabilidadeAoCurriculo(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/curriculo/habilidades [get]
 func (h *CurriculoHandler) ListHabilidadesDoCurriculo(c *gin.Context) {
-        <span class="cov1" title="1">cpf := middlewares.GetUserCPF(c)
+        <span class="cov2" title="3">cpf := middlewares.GetUserCPF(c)
         if cpf == "" </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
+                <span class="cov1" title="1">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
                 return
 </span>        }
 
-        <span class="cov1" title="1">habilidades, err := h.service.ListHabilidadesByCPF(c.Request.Context(), cpf)
+        <span class="cov2" title="2">habilidades, err := h.service.ListHabilidadesByCPF(c.Request.Context(), cpf)
         if err != nil </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusInternalServerError, "Erro ao buscar habilidades do currículo")
+                <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao buscar habilidades do currículo")
                 return
 </span>        }
 
@@ -22751,26 +22751,26 @@ func (h *CurriculoHandler) ListHabilidadesDoCurriculo(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/curriculo/habilidades/{id} [delete]
 func (h *CurriculoHandler) DeleteHabilidadeDoCurriculo(c *gin.Context) {
-        <span class="cov2" title="2">cpf := middlewares.GetUserCPF(c)
+        <span class="cov3" title="5">cpf := middlewares.GetUserCPF(c)
         if cpf == "" </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
+                <span class="cov1" title="1">response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
                 return
 </span>        }
 
-        <span class="cov2" title="2">idParam := c.Param("id")
+        <span class="cov3" title="4">idParam := c.Param("id")
         vinculoID, err := strconv.ParseInt(idParam, 10, 64)
         if err != nil </span>{
                 <span class="cov1" title="1">response.Error(c, http.StatusBadRequest, "ID inválido")
                 return
 </span>        }
 
-        <span class="cov1" title="1">err = h.service.DetachHabilidadeDoCurriculo(c.Request.Context(), vinculoID)
+        <span class="cov2" title="3">err = h.service.DetachHabilidadeDoCurriculo(c.Request.Context(), vinculoID)
         if err != nil </span>{
-                <span class="cov0" title="0">if errors.Is(err, gorm.ErrRecordNotFound) </span>{
-                        <span class="cov0" title="0">response.Error(c, http.StatusNotFound, "Vínculo não encontrado ou não pertence ao usuário")
+                <span class="cov2" title="2">if errors.Is(err, gorm.ErrRecordNotFound) </span>{
+                        <span class="cov1" title="1">response.Error(c, http.StatusNotFound, "Vínculo não encontrado ou não pertence ao usuário")
                         return
 </span>                }
-                <span class="cov0" title="0">response.Error(c, http.StatusInternalServerError, "Erro ao remover habilidade do currículo")
+                <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao remover habilidade do currículo")
                 return</span>
         }
 
@@ -23333,7 +23333,7 @@ type HabilidadeHandler struct {
 }
 
 func NewHabilidadeHandler(hService *service.HabilidadeService, cService *service.CurriculoService) *HabilidadeHandler {
-        <span class="cov10" title="20">return &amp;HabilidadeHandler{
+        <span class="cov10" title="30">return &amp;HabilidadeHandler{
                 habilidadeService: hService,
                 curriculoService:  cService,
 </span>        }
@@ -23356,17 +23356,17 @@ func NewHabilidadeHandler(hService *service.HabilidadeService, cService *service
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades [post]
 func (h *HabilidadeHandler) CreateHabilidade(c *gin.Context) {
-        <span class="cov4" title="3">var req CreateHabilidadeRequest
+        <span class="cov3" title="3">var req CreateHabilidadeRequest
         if err := c.ShouldBindJSON(&amp;req); err != nil </span>{
                 <span class="cov1" title="1">response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
                 return
 </span>        }
 
-        <span class="cov3" title="2">entity := &amp;empregabilidade.Habilidade{
+        <span class="cov2" title="2">entity := &amp;empregabilidade.Habilidade{
                 Nome: req.Nome,
 </span>        }
 
-        <span class="cov3" title="2">id, err := h.habilidadeService.CreateHabilidade(c.Request.Context(), entity)
+        <span class="cov2" title="2">id, err := h.habilidadeService.CreateHabilidade(c.Request.Context(), entity)
         if err != nil </span>{
                 <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao criar habilidade")
                 return
@@ -23387,19 +23387,19 @@ func (h *HabilidadeHandler) CreateHabilidade(c *gin.Context) {
 // @Failure      500  {object}  response.ErrorResponse "Erro ao buscar habilidade"
 // @Router       /api/v1/empregabilidade/habilidades/{id} [get]
 func (h *HabilidadeHandler) GetHabilidadeByID(c *gin.Context) {
-        <span class="cov5" title="4">idParam := c.Param("id")
+        <span class="cov4" title="4">idParam := c.Param("id")
         id, err := strconv.ParseInt(idParam, 10, 64)
         if err != nil </span>{
                 <span class="cov1" title="1">response.Error(c, http.StatusBadRequest, "ID inválido")
                 return
 </span>        }
 
-        <span class="cov4" title="3">item, err := h.habilidadeService.GetHabilidadeByID(c.Request.Context(), id)
+        <span class="cov3" title="3">item, err := h.habilidadeService.GetHabilidadeByID(c.Request.Context(), id)
         if err != nil </span>{
                 <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao buscar habilidade")
                 return
 </span>        }
-        <span class="cov3" title="2">if item == nil </span>{
+        <span class="cov2" title="2">if item == nil </span>{
                 <span class="cov1" title="1">response.Error(c, http.StatusNotFound, "Habilidade não encontrada")
                 return
 </span>        }
@@ -23421,26 +23421,26 @@ func (h *HabilidadeHandler) GetHabilidadeByID(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/{id} [put]
 func (h *HabilidadeHandler) UpdateHabilidade(c *gin.Context) {
-        <span class="cov1" title="1">idParam := c.Param("id")
+        <span class="cov5" title="5">idParam := c.Param("id")
         id, err := strconv.ParseInt(idParam, 10, 64)
         if err != nil </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusBadRequest, "ID inválido")
+                <span class="cov1" title="1">response.Error(c, http.StatusBadRequest, "ID inválido")
                 return
 </span>        }
 
-        <span class="cov1" title="1">var req UpdateHabilidadeRequest
+        <span class="cov4" title="4">var req UpdateHabilidadeRequest
         if err := c.ShouldBindJSON(&amp;req); err != nil </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+                <span class="cov2" title="2">response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
                 return
 </span>        }
 
-        <span class="cov1" title="1">entity := &amp;empregabilidade.Habilidade{
+        <span class="cov2" title="2">entity := &amp;empregabilidade.Habilidade{
                 ID:   id,
                 Nome: req.Nome,
 </span>        }
 
-        <span class="cov1" title="1">if err := h.habilidadeService.UpdateHabilidade(c.Request.Context(), entity); err != nil </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusInternalServerError, "Erro ao atualizar habilidade")
+        <span class="cov2" title="2">if err := h.habilidadeService.UpdateHabilidade(c.Request.Context(), entity); err != nil </span>{
+                <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao atualizar habilidade")
                 return
 </span>        }
 
@@ -23459,15 +23459,15 @@ func (h *HabilidadeHandler) UpdateHabilidade(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/{id} [delete]
 func (h *HabilidadeHandler) DeleteHabilidade(c *gin.Context) {
-        <span class="cov1" title="1">idParam := c.Param("id")
+        <span class="cov3" title="3">idParam := c.Param("id")
         id, err := strconv.ParseInt(idParam, 10, 64)
         if err != nil </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusBadRequest, "ID inválido")
+                <span class="cov1" title="1">response.Error(c, http.StatusBadRequest, "ID inválido")
                 return
 </span>        }
 
-        <span class="cov1" title="1">if err := h.habilidadeService.DeleteHabilidade(c.Request.Context(), id); err != nil </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusInternalServerError, "Erro ao excluir habilidade")
+        <span class="cov2" title="2">if err := h.habilidadeService.DeleteHabilidade(c.Request.Context(), id); err != nil </span>{
+                <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao excluir habilidade")
                 return
 </span>        }
 
@@ -23486,28 +23486,28 @@ func (h *HabilidadeHandler) DeleteHabilidade(c *gin.Context) {
 // @Failure      500       {object}  response.ErrorResponse "Erro ao buscar habilidades"
 // @Router       /api/v1/empregabilidade/habilidades [get]
 func (h *HabilidadeHandler) ListHabilidades(c *gin.Context) {
-        <span class="cov1" title="1">termo := c.Query("q")
+        <span class="cov5" title="5">termo := c.Query("q")
         page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
         pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 </span>
-        <span class="cov1" title="1">if page &lt; 1 </span>{
-                <span class="cov0" title="0">page = 1
+        <span class="cov5" title="5">if page &lt; 1 </span>{
+                <span class="cov2" title="2">page = 1
 </span>        }
-        <span class="cov1" title="1">if pageSize &lt; 1 || pageSize &gt; 100 </span>{
-                <span class="cov0" title="0">pageSize = 20
+        <span class="cov5" title="5">if pageSize &lt; 1 || pageSize &gt; 100 </span>{
+                <span class="cov2" title="2">pageSize = 20
 </span>        }
 
-        <span class="cov1" title="1">filter := empregabilidade.HabilidadeFilter{
+        <span class="cov5" title="5">filter := empregabilidade.HabilidadeFilter{
                 Search: termo,
 </span>        }
 
-        <span class="cov1" title="1">habilidades, total, err := h.habilidadeService.ListHabilidades(c.Request.Context(), filter, page, pageSize)
+        <span class="cov5" title="5">habilidades, total, err := h.habilidadeService.ListHabilidades(c.Request.Context(), filter, page, pageSize)
         if err != nil </span>{
-                <span class="cov0" title="0">response.Error(c, http.StatusInternalServerError, "Erro ao buscar habilidades")
+                <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao buscar habilidades")
                 return
 </span>        }
 
-        <span class="cov1" title="1">response.PaginatedJSON(c, http.StatusOK, habilidades, total, page, pageSize)</span>
+        <span class="cov4" title="4">response.PaginatedJSON(c, http.StatusOK, habilidades, total, page, pageSize)</span>
 }
 
 // ==========================================
@@ -23527,7 +23527,7 @@ func (h *HabilidadeHandler) ListHabilidades(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao/{areaId} [post]
 func (h *HabilidadeHandler) AttachAreaAtuacao(c *gin.Context) {
-        <span class="cov3" title="2">habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+        <span class="cov2" title="2">habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
         if err != nil </span>{
                 <span class="cov1" title="1">response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
                 return
@@ -23599,19 +23599,19 @@ func (h *HabilidadeHandler) DetachAreaAtuacao(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao [put]
 func (h *HabilidadeHandler) ReplaceAreasAtuacao(c *gin.Context) {
-        <span class="cov3" title="2">habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+        <span class="cov2" title="2">habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
         if err != nil </span>{
                 <span class="cov0" title="0">response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
                 return
 </span>        }
 
-        <span class="cov3" title="2">var req ReplaceAreasHabilidadeRequest
+        <span class="cov2" title="2">var req ReplaceAreasHabilidadeRequest
         if err := c.ShouldBindJSON(&amp;req); err != nil </span>{
                 <span class="cov0" title="0">response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
                 return
 </span>        }
 
-        <span class="cov3" title="2">if err := h.habilidadeService.ReplaceAreasAtuacao(c.Request.Context(), habilidadeID, req.AreaIDs); err != nil </span>{
+        <span class="cov2" title="2">if err := h.habilidadeService.ReplaceAreasAtuacao(c.Request.Context(), habilidadeID, req.AreaIDs); err != nil </span>{
                 <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao substituir áreas de atuação")
                 return
 </span>        }
@@ -35695,7 +35695,7 @@ type CurriculoRepository struct {
 }
 
 func NewCurriculoRepository(db *gorm.DB) *CurriculoRepository {
-        <span class="cov10" title="35">return &amp;CurriculoRepository{db: db}
+        <span class="cov10" title="37">return &amp;CurriculoRepository{db: db}
 </span>}
 
 // Formação Acadêmica
@@ -36229,17 +36229,17 @@ func (r *CurriculoRepository) ListHabilidadesByCPF(ctx context.Context, cpf stri
 
 // AddHabilidadeAoCurriculo vincula uma habilidade ao candidato sem permitir duplicidade
 func (r *CurriculoRepository) AddHabilidadeAoCurriculo(ctx context.Context, entity *empregabilidade.CurriculoHabilidade) error {
-        <span class="cov0" title="0">result := r.db.WithContext(ctx).
+        <span class="cov2" title="2">result := r.db.WithContext(ctx).
                 Clauses(clause.OnConflict{
                         Columns:   []clause.Column{{Name: "cpf"}, {Name: "id_habilidade"}},
                         DoNothing: true,
                 }).
                 Create(entity)
 </span>
-        <span class="cov0" title="0">if result.Error != nil </span>{
-                <span class="cov0" title="0">return fmt.Errorf("erro ao vincular habilidade ao currículo: %w", result.Error)
+        <span class="cov2" title="2">if result.Error != nil </span>{
+                <span class="cov1" title="1">return fmt.Errorf("erro ao vincular habilidade ao currículo: %w", result.Error)
 </span>        }
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov1" title="1">return nil</span>
 }
 
 // DetachHabilidadeDoCurriculo remove apenas o vínculo com o currículo (preserva a tabela mestre)
@@ -36657,11 +36657,11 @@ type HabilidadeRepository struct {
 }
 
 func NewHabilidadeRepository(db *gorm.DB) *HabilidadeRepository {
-        <span class="cov10" title="22">return &amp;HabilidadeRepository{db: db}
+        <span class="cov10" title="27">return &amp;HabilidadeRepository{db: db}
 </span>}
 
 func (r *HabilidadeRepository) CreateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) (int64, error) {
-        <span class="cov3" title="2">result := r.db.WithContext(ctx).Create(entity)
+        <span class="cov2" title="2">result := r.db.WithContext(ctx).Create(entity)
         if result.Error != nil </span>{
                 <span class="cov1" title="1">return 0, fmt.Errorf("erro ao criar habilidade: %w", result.Error)
 </span>        }
@@ -36670,18 +36670,18 @@ func (r *HabilidadeRepository) CreateHabilidade(ctx context.Context, entity *emp
 
 // GetHabilidadeByID traz a habilidade carregando suas áreas de atuação vinculadas
 func (r *HabilidadeRepository) GetHabilidadeByID(ctx context.Context, id int64) (*empregabilidade.Habilidade, error) {
-        <span class="cov3" title="2">var entity empregabilidade.Habilidade
+        <span class="cov4" title="3">var entity empregabilidade.Habilidade
 </span>
         // Preload("Areas") faz o JOIN automático com a tabela area_atuacao via tabela de junção
-        <span class="cov3" title="2">result := r.db.WithContext(ctx).
+        <span class="cov4" title="3">result := r.db.WithContext(ctx).
                 Preload("Areas").
                 First(&amp;entity, "id = ?", id)
 </span>
-        <span class="cov3" title="2">if result.Error != nil </span>{
-                <span class="cov1" title="1">if errors.Is(result.Error, gorm.ErrRecordNotFound) </span>{
+        <span class="cov4" title="3">if result.Error != nil </span>{
+                <span class="cov2" title="2">if errors.Is(result.Error, gorm.ErrRecordNotFound) </span>{
                         <span class="cov1" title="1">return nil, nil
 </span>                }
-                <span class="cov0" title="0">return nil, fmt.Errorf("erro ao buscar habilidade por ID: %w", result.Error)</span>
+                <span class="cov1" title="1">return nil, fmt.Errorf("erro ao buscar habilidade por ID: %w", result.Error)</span>
         }
         <span class="cov1" title="1">return &amp;entity, nil</span>
 }
@@ -36700,9 +36700,9 @@ func (r *HabilidadeRepository) UpdateHabilidade(ctx context.Context, entity *emp
 
 // DeleteHabilidade exclui uma habilidade
 func (r *HabilidadeRepository) DeleteHabilidade(ctx context.Context, id int64) error {
-        <span class="cov1" title="1">result := r.db.WithContext(ctx).Delete(&amp;empregabilidade.Habilidade{}, "id = ?", id)
+        <span class="cov2" title="2">result := r.db.WithContext(ctx).Delete(&amp;empregabilidade.Habilidade{}, "id = ?", id)
         if result.Error != nil </span>{
-                <span class="cov0" title="0">return fmt.Errorf("erro ao excluir habilidade: %w", result.Error)
+                <span class="cov1" title="1">return fmt.Errorf("erro ao excluir habilidade: %w", result.Error)
 </span>        }
         <span class="cov1" title="1">return nil</span>
 }
@@ -36772,32 +36772,32 @@ func (r *HabilidadeRepository) ReplaceAreasAtuacao(ctx context.Context, habilida
 
 // ListHabilidades faz a paginação, busca por nome/área e carrega as Áreas de Atuação
 func (r *HabilidadeRepository) ListHabilidades(ctx context.Context, filter empregabilidade.HabilidadeFilter, limit, offset int) ([]*empregabilidade.Habilidade, int64, error) {
-        <span class="cov1" title="1">var entities []*empregabilidade.Habilidade
+        <span class="cov4" title="4">var entities []*empregabilidade.Habilidade
         var total int64
 </span>
-        <span class="cov1" title="1">applyFilters := func(db *gorm.DB) *gorm.DB </span>{
-                <span class="cov3" title="2">if filter.Search != "" </span>{
-                        <span class="cov3" title="2">searchNome := fmt.Sprintf("%%%s%%", filter.Search)
+        <span class="cov4" title="4">applyFilters := func(db *gorm.DB) *gorm.DB </span>{
+                <span class="cov6" title="7">if filter.Search != "" </span>{
+                        <span class="cov2" title="2">searchNome := fmt.Sprintf("%%%s%%", filter.Search)
 </span>                        // Busca no nome da habilidade usando unaccent
-                        <span class="cov3" title="2">db = db.Where("lower(immutable_unaccent(emp_habilidades.nome)) LIKE lower(immutable_unaccent(?))", searchNome)
+                        <span class="cov2" title="2">db = db.Where("lower(immutable_unaccent(emp_habilidades.nome)) LIKE lower(immutable_unaccent(?))", searchNome)
 </span>                }
 
                 // Filtragem por ID da área de atuação usando o novo tipo int64 (&gt; 0)
-                <span class="cov3" title="2">if filter.AreaAtuacaoID &gt; 0 </span>{
-                        <span class="cov0" title="0">db = db.Joins("JOIN area_atuacao_habilidade aah ON aah.id_habilidade = emp_habilidades.id").
+                <span class="cov6" title="7">if filter.AreaAtuacaoID &gt; 0 </span>{
+                        <span class="cov2" title="2">db = db.Joins("JOIN area_atuacao_habilidade aah ON aah.id_habilidade = emp_habilidades.id").
                                 Where("aah.id_area_atuacao = ?", filter.AreaAtuacaoID)
 </span>                }
 
-                <span class="cov3" title="2">return db</span>
+                <span class="cov6" title="7">return db</span>
         }
 
-        <span class="cov1" title="1">countDB := applyFilters(r.db.WithContext(ctx).Model(&amp;empregabilidade.Habilidade{}))
+        <span class="cov4" title="4">countDB := applyFilters(r.db.WithContext(ctx).Model(&amp;empregabilidade.Habilidade{}))
         if err := countDB.Count(&amp;total).Error; err != nil </span>{
-                <span class="cov0" title="0">return nil, 0, fmt.Errorf("erro ao contar habilidades: %w", err)
+                <span class="cov1" title="1">return nil, 0, fmt.Errorf("erro ao contar habilidades: %w", err)
 </span>        }
 
         // Carrega as habilidades com Preload na relação Areas
-        <span class="cov1" title="1">findDB := applyFilters(r.db.WithContext(ctx).Model(&amp;empregabilidade.Habilidade{}))
+        <span class="cov4" title="3">findDB := applyFilters(r.db.WithContext(ctx).Model(&amp;empregabilidade.Habilidade{}))
         result := findDB.
                 Preload("Areas").
                 Order("emp_habilidades.nome ASC").
@@ -36805,16 +36805,16 @@ func (r *HabilidadeRepository) ListHabilidades(ctx context.Context, filter empre
                 Offset(offset).
                 Find(&amp;entities)
 </span>
-        <span class="cov1" title="1">if result.Error != nil </span>{
-                <span class="cov0" title="0">return nil, 0, fmt.Errorf("erro ao listar habilidades: %w", result.Error)
+        <span class="cov4" title="3">if result.Error != nil </span>{
+                <span class="cov1" title="1">return nil, 0, fmt.Errorf("erro ao listar habilidades: %w", result.Error)
 </span>        }
 
-        <span class="cov1" title="1">return entities, total, nil</span>
+        <span class="cov2" title="2">return entities, total, nil</span>
 }
 
 // CreateAreaAtuacao cria uma Área de Atuação
 func (r *HabilidadeRepository) CreateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) (int64, error) {
-        <span class="cov3" title="2">result := r.db.WithContext(ctx).Create(entity)
+        <span class="cov2" title="2">result := r.db.WithContext(ctx).Create(entity)
         if result.Error != nil </span>{
                 <span class="cov1" title="1">return 0, fmt.Errorf("erro ao criar Área de Atuação: %w", result.Error)
 </span>        }
@@ -36823,14 +36823,14 @@ func (r *HabilidadeRepository) CreateAreaAtuacao(ctx context.Context, entity *em
 
 // GetAreaAtuacaoByID traz a área de atuação carregando suas habilidades vinculadas
 func (r *HabilidadeRepository) GetAreaAtuacaoByID(ctx context.Context, id int64) (*empregabilidade.AreaAtuacao, error) {
-        <span class="cov3" title="2">var entity empregabilidade.AreaAtuacao
+        <span class="cov2" title="2">var entity empregabilidade.AreaAtuacao
 </span>
         // Preload("Habilidades") faz o JOIN automático com a tabela emp_habilidades via tabela de junção
-        <span class="cov3" title="2">result := r.db.WithContext(ctx).
+        <span class="cov2" title="2">result := r.db.WithContext(ctx).
                 Preload("Habilidades").
                 First(&amp;entity, "id = ?", id)
 </span>
-        <span class="cov3" title="2">if result.Error != nil </span>{
+        <span class="cov2" title="2">if result.Error != nil </span>{
                 <span class="cov1" title="1">if errors.Is(result.Error, gorm.ErrRecordNotFound) </span>{
                         <span class="cov1" title="1">return nil, nil
 </span>                }
@@ -36866,19 +36866,19 @@ func (r *HabilidadeRepository) ListAreasAtuacao(ctx context.Context, filter empr
         var total int64
 </span>
         <span class="cov1" title="1">applyFilters := func(db *gorm.DB) *gorm.DB </span>{
-                <span class="cov3" title="2">if filter.Search != "" </span>{
-                        <span class="cov3" title="2">searchNome := fmt.Sprintf("%%%s%%", filter.Search)
+                <span class="cov2" title="2">if filter.Search != "" </span>{
+                        <span class="cov2" title="2">searchNome := fmt.Sprintf("%%%s%%", filter.Search)
 </span>                        // Ajuste o nome da tabela base se no seu banco não for emp_areas_atuacao
-                        <span class="cov3" title="2">db = db.Where("lower(immutable_unaccent(emp_areas_atuacao.nome)) LIKE lower(immutable_unaccent(?))", searchNome)
+                        <span class="cov2" title="2">db = db.Where("lower(immutable_unaccent(emp_areas_atuacao.nome)) LIKE lower(immutable_unaccent(?))", searchNome)
 </span>                }
 
                 // Filtragem por ID da Habilidade
-                <span class="cov3" title="2">if filter.HabilidadeID &gt; 0 </span>{
+                <span class="cov2" title="2">if filter.HabilidadeID &gt; 0 </span>{
                         <span class="cov0" title="0">db = db.Joins("JOIN area_atuacao_habilidade aah ON aah.id_area_atuacao = area_atuacao.id").
                                 Where("aah.id_habilidade = ?", filter.HabilidadeID)
 </span>                }
 
-                <span class="cov3" title="2">return db</span>
+                <span class="cov2" title="2">return db</span>
         }
 
         <span class="cov1" title="1">countDB := applyFilters(r.db.WithContext(ctx).Model(&amp;empregabilidade.AreaAtuacao{}))
@@ -36914,15 +36914,15 @@ func (r *HabilidadeRepository) AddHabilidadeAoCurriculo(ctx context.Context, vin
 
 // DetachHabilidadeDoCurriculo remove o vínculo de uma habilidade do currículo
 func (r *HabilidadeRepository) DetachHabilidadeDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error {
-        <span class="cov3" title="2">result := r.db.WithContext(ctx).
+        <span class="cov2" title="2">result := r.db.WithContext(ctx).
                 Where("id = ? AND cpf = ?", vinculo.ID, vinculo.CPF).
                 Delete(&amp;empregabilidade.CurriculoHabilidade{})
 </span>
-        <span class="cov3" title="2">if result.Error != nil </span>{
+        <span class="cov2" title="2">if result.Error != nil </span>{
                 <span class="cov0" title="0">return result.Error
 </span>        }
 
-        <span class="cov3" title="2">if result.RowsAffected == 0 </span>{
+        <span class="cov2" title="2">if result.RowsAffected == 0 </span>{
                 <span class="cov1" title="1">return gorm.ErrRecordNotFound
 </span>        }
 
@@ -36930,13 +36930,13 @@ func (r *HabilidadeRepository) DetachHabilidadeDoCurriculo(ctx context.Context, 
 }
 
 func (r *HabilidadeRepository) ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
-        <span class="cov3" title="2">var vinculos []*empregabilidade.CurriculoHabilidade
+        <span class="cov2" title="2">var vinculos []*empregabilidade.CurriculoHabilidade
         result := r.db.WithContext(ctx).
                 Preload("Habilidade.Areas"). // Traz a Habilidade E as Áreas de Atuação dela
                 Where("cpf = ?", cpf).
                 Find(&amp;vinculos)
 </span>
-        <span class="cov3" title="2">if result.Error != nil </span>{
+        <span class="cov2" title="2">if result.Error != nil </span>{
                 <span class="cov1" title="1">return nil, fmt.Errorf("erro ao buscar habilidades por CPF: %w", result.Error)
 </span>        }
         <span class="cov1" title="1">return vinculos, nil</span>
@@ -43005,7 +43005,7 @@ func (s *CurriculoService) AddHabilidadeAoCurriculo(ctx context.Context, vinculo
 
 // DetachHabilidadeAoCurriculo desvincula uma habilidade do currículo do candidato
 func (s *CurriculoService) DetachHabilidadeDoCurriculo(ctx context.Context, id int64) error {
-        <span class="cov1" title="1">return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, id)
+        <span class="cov1" title="1">return s.repo.DetachHabilidadeDoCurriculo(ctx, id)
 </span>}
 
 // --- Comportamentos e Atitudes ---

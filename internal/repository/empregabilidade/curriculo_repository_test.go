@@ -1614,6 +1614,54 @@ func TestCurriculoRepository_ReplaceAllCursosComplementaresByCPF(t *testing.T) {
 	})
 }
 
+// Habilidades
+
+func TestCurriculoRepository_AddHabilidadeAoCurriculo_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	vinculo := &empregabilidade.CurriculoHabilidade{
+		ID:           100,
+		CPF:          "12345678901",
+		IDHabilidade: 10,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
+		WithArgs(vinculo.CPF, vinculo.IDHabilidade, sqlmock.AnyArg(), sqlmock.AnyArg(), vinculo.ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(vinculo.ID))
+	mock.ExpectCommit()
+
+	err := repo.AddHabilidadeAoCurriculo(ctx, vinculo)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurriculoRepository_AddHabilidadeAoCurriculo_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	vinculo := &empregabilidade.CurriculoHabilidade{
+		CPF:          "12345678901",
+		IDHabilidade: 10,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.AddHabilidadeAoCurriculo(ctx, vinculo)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // --- TESTES DE SUBSTITUIÇÃO MASSIVA DE ITENS DO CURRÍCULO (TRANSAÇÃO) ---
 
 func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_Success(t *testing.T) {
