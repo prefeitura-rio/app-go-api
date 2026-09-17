@@ -46,6 +46,7 @@ type CitizenSnapshotRepoForCandidaturaInterface interface {
 
 type CitizenDataFetcherForCandidaturaInterface interface {
 	SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+	SyncCitizenForced(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
 	StaleThreshold() time.Duration
 }
 
@@ -163,11 +164,12 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 	// Sync citizen data from RMI on-demand so the official contact (telefone,
 	// endereco) is available downstream via personal_info — parity with
 	// InscricaoService. The citizen has just confirmed these fields in the app,
-	// so this is the freshest they will ever be. Non-fatal: a failure here must
-	// not block the application itself.
+	// so this is the freshest they will ever be. We force a fresh sync here
+	// to bypass any local cache TTL. Non-fatal: a failure here must not block
+	// the application itself.
 	if s.citizenDataFetcher != nil && entity.CPF != "" {
-		if _, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, entity.CPF); err != nil {
-			log.Printf("[CandidaturaService] falha ao sincronizar dados do cidadão para CPF %s: %v", entity.CPF, err)
+		if _, err := s.citizenDataFetcher.SyncCitizenForced(ctx, entity.CPF); err != nil {
+			log.Printf("[CandidaturaService] falha ao sincronizar dados do cidadão para CPF %s: %v", maskCPF(entity.CPF), err)
 		}
 	}
 
@@ -529,10 +531,12 @@ func maskCPF(cpf string) string {
 }
 
 // EnrichWithPersonalInfo popula PersonalInfo de uma candidatura a partir do citizen_snapshot.
-func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empregabilidade.Candidatura) {
+func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empregabilidade.Candidatura, force ...bool) {
 	if s.citizenSnapshotRepo == nil || c == nil || c.CPF == "" {
 		return
 	}
+
+	forceRefresh := len(force) > 0 && force[0]
 
 	snapshot, err := s.citizenSnapshotRepo.GetByCPF(ctx, c.CPF)
 	if err != nil {
@@ -540,10 +544,14 @@ func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empr
 		return
 	}
 
-	// Refresh when the snapshot is missing OR stale. Serving a stale snapshot
-	// unconditionally is what made contact data (telefone, endereco) updated by
-	// the citizen after the first sync never reach the Portal Interno.
-	if s.needsRefresh(snapshot) {
+	if forceRefresh && s.citizenDataFetcher != nil {
+		refreshed, err := s.citizenDataFetcher.SyncCitizenForced(ctx, c.CPF)
+		if err != nil {
+			log.Printf("[CandidaturaService] Forced sync failed for CPF %s: %v", maskCPF(c.CPF), err)
+		} else if refreshed != nil {
+			snapshot = refreshed
+		}
+	} else if s.needsRefresh(snapshot) {
 		refreshed, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, c.CPF)
 		if err != nil {
 			log.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v", maskCPF(c.CPF), err)
@@ -558,10 +566,12 @@ func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empr
 }
 
 // EnrichMultipleWithPersonalInfo popula PersonalInfo de múltiplas candidaturas em batch.
-func (s *CandidaturaService) EnrichMultipleWithPersonalInfo(ctx context.Context, candidaturas []*empregabilidade.Candidatura) {
+func (s *CandidaturaService) EnrichMultipleWithPersonalInfo(ctx context.Context, candidaturas []*empregabilidade.Candidatura, force ...bool) {
 	if s.citizenSnapshotRepo == nil || len(candidaturas) == 0 {
 		return
 	}
+
+	forceRefresh := len(force) > 0 && force[0]
 
 	// Collect unique CPFs
 	cpfSet := make(map[string]struct{})
@@ -586,21 +596,29 @@ func (s *CandidaturaService) EnrichMultipleWithPersonalInfo(ctx context.Context,
 		return
 	}
 
-	// Sync CPFs whose snapshot is missing or stale, if a fetcher is available.
-	// Fresh snapshots are left untouched, so this costs no extra round-trip in
-	// the common case.
 	if s.citizenDataFetcher != nil {
 		for _, cpf := range cpfs {
-			if !s.needsRefresh(snapshotMap[cpf]) {
-				continue
-			}
-			snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
-			if err != nil {
-				log.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v", maskCPF(cpf), err)
-				continue
-			}
-			if snapshot != nil {
-				snapshotMap[cpf] = snapshot
+			if forceRefresh {
+				snapshot, err := s.citizenDataFetcher.SyncCitizenForced(ctx, cpf)
+				if err != nil {
+					log.Printf("[CandidaturaService] Forced sync failed for CPF %s: %v", maskCPF(cpf), err)
+					continue
+				}
+				if snapshot != nil {
+					snapshotMap[cpf] = snapshot
+				}
+			} else {
+				if !s.needsRefresh(snapshotMap[cpf]) {
+					continue
+				}
+				snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
+				if err != nil {
+					log.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v", maskCPF(cpf), err)
+					continue
+				}
+				if snapshot != nil {
+					snapshotMap[cpf] = snapshot
+				}
 			}
 		}
 	}

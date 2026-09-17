@@ -738,6 +738,8 @@ definitions:
     properties:
       celular:
         type: string
+      data_hash:
+        type: string
       data_nascimento:
         type: string
       deficiencia:
@@ -5152,6 +5154,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -6069,6 +6077,12 @@ paths:
             $ref: '#/definitions/empregabilidade.RegimeContratacao'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
           schema:
             additionalProperties:
               type: string
@@ -7108,6 +7122,12 @@ paths:
             $ref: '#/definitions/empregabilidade.Etapa'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
           schema:
             additionalProperties:
               type: string
