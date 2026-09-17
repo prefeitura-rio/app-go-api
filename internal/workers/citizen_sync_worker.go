@@ -195,17 +195,30 @@ func (w *CitizenSyncWorker) StaleThreshold() time.Duration {
 	return w.staleThreshold
 }
 
-// SyncCitizenOnDemand syncs a single citizen on-demand (called during enrollment creation)
+// SyncCitizenOnDemand syncs a single citizen on-demand, respecting staleThreshold.
 func (w *CitizenSyncWorker) SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+	return w.syncCitizen(ctx, cpf, false)
+}
+
+// SyncCitizenForced syncs a single citizen on-demand, always querying RMI directly (bypassing staleThreshold).
+// Used on write/application operations (such as candidatura and inscricao creation) where the citizen has
+// just confirmed their data, ensuring the freshest snapshot is always persisted.
+func (w *CitizenSyncWorker) SyncCitizenForced(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+	return w.syncCitizen(ctx, cpf, true)
+}
+
+func (w *CitizenSyncWorker) syncCitizen(ctx context.Context, cpf string, force bool) (*models.CitizenSnapshot, error) {
 	// Check if we already have a fresh snapshot
 	existing, err := w.citizenSnapshotRepo.GetByCPF(ctx, cpf)
 	if err != nil {
 		return nil, err
 	}
 
-	staleTime := time.Now().Add(-w.staleThreshold)
-	if existing != nil && existing.LastSyncedAt.After(staleTime) {
-		return existing, nil
+	if !force && existing != nil {
+		staleTime := time.Now().Add(-w.staleThreshold)
+		if existing.LastSyncedAt.After(staleTime) {
+			return existing, nil
+		}
 	}
 
 	// Fetch fresh data from RMI
@@ -231,6 +244,14 @@ func (w *CitizenSyncWorker) SyncCitizenOnDemand(ctx context.Context, cpf string)
 
 	// Convert to snapshot
 	snapshot := w.citizenInfoToSnapshot(cpf, citizenInfo)
+
+	if existing != nil {
+		oldHash := existing.ComputeDataHash()
+		newHash := snapshot.ComputeDataHash()
+		if oldHash != newHash && len(oldHash) >= 8 && len(newHash) >= 8 {
+			log.Printf("[CitizenSyncWorker] Citizen %s data updated in RMI (hash changed: %s -> %s)", maskCPF(cpf), oldHash[:8], newHash[:8])
+		}
+	}
 
 	// Upsert snapshot
 	if err := w.citizenSnapshotRepo.Upsert(ctx, snapshot); err != nil {

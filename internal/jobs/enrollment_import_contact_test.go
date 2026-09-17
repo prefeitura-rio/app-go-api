@@ -101,6 +101,10 @@ func (m *contactMockCitizenFetcher) SyncCitizenOnDemand(_ context.Context, _ str
 	return m.snapshot, nil
 }
 
+func (m *contactMockCitizenFetcher) SyncCitizenForced(_ context.Context, _ string) (*models.CitizenSnapshot, error) {
+	return m.snapshot, nil
+}
+
 // TestProcessRow_PreservesSecretariaContact covers the manual-import path end to end at the
 // job level: a spreadsheet row carrying the órgão/secretaria contact must be persisted with
 // that exact e-mail/phone, even when RMI (citizen snapshot) holds different values.
