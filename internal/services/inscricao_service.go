@@ -11,6 +11,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 // EnrollmentRuleError marks a rejection the citizen can act on — the course is
@@ -163,7 +164,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		citizenSnapshot, err := s.citizenDataFetcher.SyncCitizenForced(ctx, inscricao.CPF)
 		if err != nil {
 			// Log error but don't fail enrollment creation - use provided data as fallback
-			fmt.Printf("[InscricaoService] Failed to fetch citizen data for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+			fmt.Printf("[InscricaoService] Failed to fetch citizen data for CPF %s: %v\n", utils.MaskCPFForLog(inscricao.CPF), err)
 		} else if citizenSnapshot != nil {
 			// Use RMI data for email and phone (overrides any value sent by frontend)
 			if citizenSnapshot.Email != "" {
@@ -263,7 +264,7 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 	if s.citizenDataFetcher != nil && inscricao.CPF != "" {
 		citizenSnapshot, err := s.citizenDataFetcher.SyncCitizenForced(ctx, inscricao.CPF)
 		if err != nil {
-			fmt.Printf("[InscricaoService] Failed to fetch citizen data for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+			fmt.Printf("[InscricaoService] Failed to fetch citizen data for CPF %s: %v\n", utils.MaskCPFForLog(inscricao.CPF), err)
 		} else if citizenSnapshot != nil {
 			if citizenSnapshot.Nome != "" && inscricao.Name == "" {
 				inscricao.Name = citizenSnapshot.Nome
@@ -428,6 +429,8 @@ func (s *InscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UU
 					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), inscricao, curso)
 				case models.StatusInscricaoRejected:
 					emailErr = s.emailNotificationService.SendEnrollmentRejectedEmail(context.Background(), inscricao, curso)
+				case models.StatusInscricaoConcluded:
+					emailErr = s.emailNotificationService.SendEnrollmentConcludedEmail(context.Background(), inscricao, curso)
 				}
 				if emailErr != nil {
 					log.Printf("[InscricaoService] falha ao enviar email de mudança de status: %v", emailErr)
@@ -452,7 +455,7 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 	}
 	var enrollmentsForEmail []emailData
 
-	if s.emailNotificationService != nil && (status == models.StatusInscricaoApproved || status == models.StatusInscricaoRejected) {
+	if s.emailNotificationService != nil && (status == models.StatusInscricaoApproved || status == models.StatusInscricaoRejected || status == models.StatusInscricaoConcluded) {
 		for _, id := range inscricaoIDs {
 			inscricao, err := s.repo.GetByID(ctx, id)
 			if err == nil && inscricao != nil {
@@ -499,6 +502,8 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 					emailErr = s.emailNotificationService.SendEnrollmentApprovedEmail(context.Background(), &inscricaoCopy, curso)
 				case models.StatusInscricaoRejected:
 					emailErr = s.emailNotificationService.SendEnrollmentRejectedEmail(context.Background(), &inscricaoCopy, curso)
+				case models.StatusInscricaoConcluded:
+					emailErr = s.emailNotificationService.SendEnrollmentConcludedEmail(context.Background(), &inscricaoCopy, curso)
 				}
 				if emailErr != nil {
 					log.Printf("[InscricaoService] falha ao enviar email de mudança de status em lote (inscrição %s): %v", data.inscricao.ID, emailErr)
@@ -684,16 +689,16 @@ func (s *InscricaoService) EnrichWithPersonalInfo(ctx context.Context, inscricao
 
 	snapshot, err := s.citizenSnapshotRepo.GetByCPF(ctx, inscricao.CPF)
 	if err != nil {
-		fmt.Printf("[InscricaoService] Failed to get citizen snapshot for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+		fmt.Printf("[InscricaoService] Failed to get citizen snapshot for CPF %s: %v\n", utils.MaskCPFForLog(inscricao.CPF), err)
 		return
 	}
 
 	// If no snapshot exists and we have a fetcher, try to sync on-demand (for legacy enrollments)
 	if snapshot == nil && s.citizenDataFetcher != nil {
-		fmt.Printf("[InscricaoService] No snapshot for CPF %s - attempting on-demand sync for legacy enrollment\n", maskCPFForLog(inscricao.CPF))
+		fmt.Printf("[InscricaoService] No snapshot for CPF %s - attempting on-demand sync for legacy enrollment\n", utils.MaskCPFForLog(inscricao.CPF))
 		snapshot, err = s.citizenDataFetcher.SyncCitizenOnDemand(ctx, inscricao.CPF)
 		if err != nil {
-			fmt.Printf("[InscricaoService] On-demand sync failed for CPF %s: %v\n", maskCPFForLog(inscricao.CPF), err)
+			fmt.Printf("[InscricaoService] On-demand sync failed for CPF %s: %v\n", utils.MaskCPFForLog(inscricao.CPF), err)
 			return
 		}
 	}
@@ -754,7 +759,7 @@ func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, i
 		for _, cpf := range missingCPFs {
 			snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
 			if err != nil {
-				fmt.Printf("[InscricaoService] On-demand sync failed for CPF %s: %v\n", maskCPFForLog(cpf), err)
+				fmt.Printf("[InscricaoService] On-demand sync failed for CPF %s: %v\n", utils.MaskCPFForLog(cpf), err)
 				continue
 			}
 			if snapshot != nil {
@@ -775,14 +780,6 @@ func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, i
 	if enrichedCount < len(cpfs) {
 		fmt.Printf("[InscricaoService] Enriched %d/%d enrollments with personal info\n", enrichedCount, len(cpfs))
 	}
-}
-
-// maskCPFForLog masks CPF for logging (shows only first 3 and last 2 digits)
-func maskCPFForLog(cpf string) string {
-	if len(cpf) < 5 {
-		return "***"
-	}
-	return cpf[:3] + "******" + cpf[len(cpf)-2:]
 }
 
 // ChangeSchedule allows a citizen to change their enrollment to a different schedule/class
