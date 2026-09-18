@@ -33,7 +33,7 @@ func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *model
 
     <p>👉 Se preferir, pode acompanhar também o status clicando em "Meus Cursos" na plataforma <a href="%s" style="color: #0066cc; text-decoration: none;">Oportunidades Cariocas</a>.</p>
 
-    <p><em>Observação: Este é um e-mail automático. Por favor, não o responda.</em></p>
+    <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
 		inscricao.Name,
@@ -78,7 +78,7 @@ func GetEnrollmentApprovedEmailTemplate(inscricao *models.Inscricao, curso *mode
 
     <p>Aproveite para conferir outros cursos na nossa plataforma <a href="%s" style="color: #0066cc; text-decoration: none;">Oportunidades Cariocas</a>.</p>
 
-    <p><em>Observação: Este é um e-mail automático. Por favor, não o responda.</em></p>
+    <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
 		inscricao.Name,
@@ -122,7 +122,7 @@ func GetEnrollmentRejectedEmailTemplate(inscricao *models.Inscricao, curso *mode
     <p>💡 <strong>Mas não desanime!</strong> Convidamos você a conhecer outras oportunidades disponíveis em nossa plataforma. Fique de olho e não perca nenhuma das atividades oferecidas pela Prefeitura do Rio, você não vai querer ficar de fora, né? 😉</p>
     <p>👉 Acesse aqui: <a href="%s" style="color: #0066cc; text-decoration: none;">Oportunidades Cariocas</a></p>
 
-    <p><em>Observação: Este é um e-mail automático. Por favor, não o responda.</em></p>
+    <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
 		inscricao.Name,
@@ -159,7 +159,7 @@ func GetEnrollmentConcludedEmailTemplate(inscricao *models.Inscricao, curso *mod
 
     <p>Estamos aqui na torcida pelo seu sucesso e esperamos você nas próximas atividades! 👋</p>
 
-    <p><em>Observação: Este é um e-mail automático. Por favor, não o responda.</em></p>
+    <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
 		inscricao.Name,
@@ -197,7 +197,7 @@ func GetEnrollmentClassReminderEmailTemplate(inscricao *models.Inscricao, curso 
 
     <p>Caso tenha alguma informação extra sobre a atividade (como material, link de acesso ou instruções), a equipe responsável do(a) <strong>%s</strong> poderá entrar em contato direto com você por e-mail ou telefone. Fique de olho!</p>
 
-    <p><em>Observação: Este é um e-mail automático. Por favor, não o responda.</em></p>
+    <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
 		inscricao.Name,
@@ -245,7 +245,7 @@ func GetScheduleChangedEmailTemplate(inscricao *models.Inscricao, curso *models.
 
     <p>Até a próxima 👋</p>
 
-    <p><em>Observação: Este é um e-mail automático. Por favor, não o responda.</em></p>
+    <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
 		inscricao.Name,
