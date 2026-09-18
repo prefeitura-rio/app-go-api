@@ -2,6 +2,7 @@ package workers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -19,6 +20,15 @@ const (
 	classReminderSentKeyPrefix = "email:temporal:"
 	classReminderDefaultTTL    = 48 * time.Hour
 )
+
+// classReminderLocation is the business calendar for temporal email offsets (D-1, etc.).
+var classReminderLocation = func() *time.Location {
+	loc, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		return time.FixedZone("BRT", -3*60*60)
+	}
+	return loc
+}()
 
 // ClassReminderEnrollmentLister lists approved enrollments whose class starts in a time window.
 type ClassReminderEnrollmentLister interface {
@@ -133,7 +143,10 @@ func (w *ClassReminderWorker) processJob(ctx context.Context, now time.Time, job
 		}
 
 		if err := w.sendForRule(ctx, rule, inscricao); err != nil {
-			log.Printf("[ClassReminderWorker] Failed to enqueue %s for enrollment %s: %v", rule.ID, inscricao.ID, err)
+			if !errors.Is(err, services.ErrEmailNotDeliverable) {
+				log.Printf("[ClassReminderWorker] Failed to send %s for enrollment %s: %v", rule.ID, inscricao.ID, err)
+			}
+			// Release claim so we can retry when address appears / notifications are re-enabled / transient errors clear.
 			w.clearSentMark(ctx, rule, inscricao.ID, targetDay)
 			continue
 		}
@@ -154,8 +167,9 @@ func (w *ClassReminderWorker) sendForRule(ctx context.Context, rule services.Ema
 }
 
 func startOfDay(t time.Time) time.Time {
+	t = t.In(classReminderLocation)
 	y, m, d := t.Date()
-	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
+	return time.Date(y, m, d, 0, 0, 0, 0, classReminderLocation)
 }
 
 func (w *ClassReminderWorker) sentKey(rule services.EmailCommunicationRule, inscricaoID uuid.UUID, day time.Time) string {
@@ -163,13 +177,15 @@ func (w *ClassReminderWorker) sentKey(rule services.EmailCommunicationRule, insc
 }
 
 func (w *ClassReminderWorker) markAsPendingSend(ctx context.Context, rule services.EmailCommunicationRule, inscricaoID uuid.UUID, day time.Time) bool {
+	// Fail closed: without Redis we cannot dedupe across pods — skip rather than risk duplicates.
 	if w.redisClient == nil {
-		return true
+		log.Printf("[ClassReminderWorker] Redis unavailable — skipping %s for enrollment %s (fail-closed)", rule.ID, inscricaoID)
+		return false
 	}
 	ok, err := w.redisClient.SetNX(ctx, w.sentKey(rule, inscricaoID, day), "1", classReminderDefaultTTL).Result()
 	if err != nil {
-		log.Printf("[ClassReminderWorker] Redis SetNX error for %s/%s: %v", rule.ID, inscricaoID, err)
-		return true
+		log.Printf("[ClassReminderWorker] Redis SetNX error for %s/%s: %v — skipping (fail-closed)", rule.ID, inscricaoID, err)
+		return false
 	}
 	return ok
 }

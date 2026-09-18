@@ -293,6 +293,16 @@ func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etap
 		return errors.New("etapa não pertence à vaga desta candidatura")
 	}
 
+	var currentEtapa *empregabilidade.Etapa
+	if candidatura.IDEtapaAtual != nil {
+		for i := range vaga.Etapas {
+			if vaga.Etapas[i].ID == *candidatura.IDEtapaAtual {
+				currentEtapa = &vaga.Etapas[i]
+				break
+			}
+		}
+	}
+
 	// Skip email when etapa did not change
 	etapaChanged := candidatura.IDEtapaAtual == nil || *candidatura.IDEtapaAtual != etapaID
 
@@ -300,12 +310,13 @@ func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etap
 		return err
 	}
 
-	if etapaChanged && shouldSendProximaEtapaEmail(candidatura.Status) {
-		candidatura.Vaga = vaga
-		candidatura.EtapaAtual = nextEtapa
+	if etapaChanged && shouldSendProximaEtapaEmail(candidatura.Status, currentEtapa, nextEtapa) {
+		candidaturaForEmail := *candidatura
+		candidaturaForEmail.Vaga = vaga
+		candidaturaForEmail.EtapaAtual = nextEtapa
 		etapaNome := nextEtapa.Titulo
 		go func() {
-			if err := s.emailNotificationService.SendCandidaturaProximaEtapaEmail(context.Background(), candidatura, etapaNome); err != nil {
+			if err := s.emailNotificationService.SendCandidaturaProximaEtapaEmail(context.Background(), &candidaturaForEmail, etapaNome); err != nil {
 				log.Printf("[CandidaturaService] falha ao enviar email de próxima etapa: %v", err)
 			}
 		}()
@@ -314,9 +325,19 @@ func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etap
 	return nil
 }
 
-func shouldSendProximaEtapaEmail(status empregabilidade.StatusCandidatura) bool {
-	return status != empregabilidade.StatusCandidaturaAprovada &&
-		status != empregabilidade.StatusCandidaturaReprovada
+func shouldSendProximaEtapaEmail(status empregabilidade.StatusCandidatura, currentEtapa, nextEtapa *empregabilidade.Etapa) bool {
+	if status == empregabilidade.StatusCandidaturaAprovada ||
+		status == empregabilidade.StatusCandidaturaReprovada {
+		return false
+	}
+	if nextEtapa == nil {
+		return false
+	}
+	// First etapa assignment counts as advancement.
+	if currentEtapa == nil {
+		return true
+	}
+	return nextEtapa.Ordem > currentEtapa.Ordem
 }
 
 func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
@@ -472,6 +493,16 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 	// Verificar que todos os candidatos encontrados estão na mesma etapa atual
 	if len(candidaturas) > 0 {
 		primeiraEtapa := candidaturas[0].IDEtapaAtual
+		var currentEtapa *empregabilidade.Etapa
+		if primeiraEtapa != nil {
+			for i := range vaga.Etapas {
+				if vaga.Etapas[i].ID == *primeiraEtapa {
+					currentEtapa = &vaga.Etapas[i]
+					break
+				}
+			}
+		}
+
 		for _, c := range candidaturas {
 			mesmaEtapa := false
 			if primeiraEtapa == nil && c.IDEtapaAtual == nil {
@@ -485,10 +516,11 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 			updateIDs = append(updateIDs, c.ID)
 
 			etapaChanged := c.IDEtapaAtual == nil || *c.IDEtapaAtual != etapaID
-			if etapaChanged && shouldSendProximaEtapaEmail(c.Status) {
-				c.Vaga = vaga
-				c.EtapaAtual = nextEtapa
-				toNotify = append(toNotify, c)
+			if etapaChanged && shouldSendProximaEtapaEmail(c.Status, currentEtapa, nextEtapa) {
+				cloned := *c
+				cloned.Vaga = vaga
+				cloned.EtapaAtual = nextEtapa
+				toNotify = append(toNotify, &cloned)
 			}
 		}
 	}
@@ -506,7 +538,7 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 		go func() {
 			for _, c := range toNotify {
 				if err := s.emailNotificationService.SendCandidaturaProximaEtapaEmail(context.Background(), c, etapaNome); err != nil {
-					log.Printf("[CandidaturaService] falha ao enviar email de próxima etapa em lote (CPF %s): %v", c.CPF, err)
+					log.Printf("[CandidaturaService] falha ao enviar email de próxima etapa em lote (CPF %s): %v", maskCPFForLog(c.CPF), err)
 				}
 			}
 		}()
@@ -514,6 +546,13 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 
 	result.Updated = len(updateIDs)
 	return result, nil
+}
+
+func maskCPFForLog(cpf string) string {
+	if len(cpf) < 5 {
+		return "***"
+	}
+	return cpf[:3] + "******" + cpf[len(cpf)-2:]
 }
 
 func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {

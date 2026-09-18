@@ -258,6 +258,44 @@ func TestCandidaturaService_SetEmailNotifier(t *testing.T) {
 		}
 	})
 
+	t.Run("UpdateEtapa — does not send email when moving to earlier etapa", func(t *testing.T) {
+		vagaID := uuid.New()
+		etapaAtualID := uuid.New()
+		etapaAnteriorID := uuid.New()
+		vagaRepo := NewMockVagaRepo()
+		vagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:     vagaID,
+			Titulo: "Dev Backend",
+			Status: empregabilidade.StatusVagaPublicadoAtivo,
+			Etapas: []empregabilidade.Etapa{
+				{ID: etapaAnteriorID, Titulo: "Triagem", IDVaga: vagaID, Ordem: 1},
+				{ID: etapaAtualID, Titulo: "Entrevista", IDVaga: vagaID, Ordem: 2},
+			},
+		}
+		repo := NewMockCandidaturaRepo()
+		svc := newSvcWithDisabledEmail(repo, vagaRepo)
+
+		candidaturaID := uuid.New()
+		repo.candidaturas[candidaturaID] = &empregabilidade.Candidatura{
+			ID:           candidaturaID,
+			CPF:          "88888888888",
+			IDVaga:       vagaID,
+			IDEtapaAtual: &etapaAtualID,
+			Status:       empregabilidade.StatusCandidaturaEnviada,
+		}
+
+		mock := newMockEmpEmailNotifier()
+		svc.SetEmailNotifier(mock)
+
+		if err := svc.UpdateEtapa(ctx, candidaturaID, etapaAnteriorID); err != nil {
+			t.Fatalf("UpdateEtapa failed: %v", err)
+		}
+		time.Sleep(80 * time.Millisecond)
+		if mock.callCount("candidatura.proxima_etapa") != 0 {
+			t.Error("should not send próxima etapa email when moving to an earlier etapa")
+		}
+	})
+
 	t.Run("UpdateEtapa — does not send email when status is aprovada", func(t *testing.T) {
 		vagaID := uuid.New()
 		etapaID := uuid.New()

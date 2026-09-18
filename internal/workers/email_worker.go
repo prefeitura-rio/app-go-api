@@ -3,6 +3,7 @@ package workers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -189,6 +190,12 @@ func (w *EmailWorker) consume(ctx context.Context) {
 		}
 
 		if err := w.dispatch(ctx, &task); err != nil {
+			if errors.Is(err, services.ErrEmailNotDeliverable) {
+				// Permanent skip (disabled / no address) — do not retry or dead-letter.
+				log.Printf("[EmailWorker] task %s skipped (not deliverable): %v", task.Type, err)
+				continue
+			}
+
 			task.Attempts++
 
 			if task.Attempts >= emailMaxRetries {

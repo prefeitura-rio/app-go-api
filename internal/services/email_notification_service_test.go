@@ -2733,3 +2733,43 @@ func TestSendCandidaturaProximaEtapaEmail_NoVaga(t *testing.T) {
 		t.Errorf("Expected no emails without vaga, got %d", len(mockClient.sentEmails))
 	}
 }
+
+func TestSendCandidaturaProximaEtapaEmail_FallsBackToCitizenSnapshot(t *testing.T) {
+	mockClient := &MockDataRelayClient{}
+	db := setupTestDB(t)
+	citizenRepo := repository.NewCitizenSnapshotRepository(db)
+	snapshot := &models.CitizenSnapshot{
+		CPF:   "12345678901",
+		Email: "snapshot@rmi.com",
+	}
+	db.Create(snapshot)
+
+	service := NewEmailNotificationService(mockClient, nil, nil, citizenRepo, true, "pref.rio")
+	candidatura := &empregabilidade.Candidatura{
+		ID:    uuid.New(),
+		Email: nil, // no email on candidatura — must use RMI snapshot
+		CPF:   "12345678901",
+		Vaga:  &empregabilidade.Vaga{Titulo: "Analista"},
+	}
+
+	err := service.SendCandidaturaProximaEtapaEmail(context.Background(), candidatura, "Entrevista")
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if len(mockClient.sentEmails) != 1 {
+		t.Fatalf("Expected 1 email via CPF fallback, got %d", len(mockClient.sentEmails))
+	}
+	if mockClient.sentEmails[0].ToAddresses[0] != "snapshot@rmi.com" {
+		t.Errorf("Expected snapshot email, got %v", mockClient.sentEmails[0].ToAddresses)
+	}
+}
+
+func TestSendEnrollmentClassReminderEmail_DisabledReturnsNotDeliverable(t *testing.T) {
+	service := NewEmailNotificationService(&MockDataRelayClient{}, nil, nil, nil, false, "pref.rio")
+	err := service.SendEnrollmentClassReminderEmail(context.Background(), &models.Inscricao{
+		ID: uuid.New(), Email: "a@b.com",
+	}, &models.Curso{Titulo: "Curso"})
+	if !errors.Is(err, ErrEmailNotDeliverable) {
+		t.Fatalf("expected ErrEmailNotDeliverable, got %v", err)
+	}
+}

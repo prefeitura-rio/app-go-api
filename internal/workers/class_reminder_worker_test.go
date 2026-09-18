@@ -82,10 +82,10 @@ func (m *mockClassReminderNotifier) SendCandidaturaProximaEtapaEmail(context.Con
 var _ services.EmailNotifier = (*mockClassReminderNotifier)(nil)
 
 func TestTargetClassDateForOffset(t *testing.T) {
-	now := time.Date(2026, 9, 17, 10, 0, 0, 0, time.Local)
+	now := time.Date(2026, 9, 17, 10, 0, 0, 0, classReminderLocation)
 
-	assert.Equal(t, time.Date(2026, 9, 18, 0, 0, 0, 0, time.Local), targetClassDateForOffset(now, -1))
-	assert.Equal(t, time.Date(2026, 9, 15, 0, 0, 0, 0, time.Local), targetClassDateForOffset(now, 2))
+	assert.Equal(t, time.Date(2026, 9, 18, 0, 0, 0, 0, classReminderLocation), targetClassDateForOffset(now, -1))
+	assert.Equal(t, time.Date(2026, 9, 15, 0, 0, 0, 0, classReminderLocation), targetClassDateForOffset(now, 2))
 }
 
 func TestTemporalClassStartJobs_OnlyCatalogTemporalEmails(t *testing.T) {
@@ -105,7 +105,7 @@ func TestClassReminderWorker_runCycle_SendsOnlyOwnTemporalEmail(t *testing.T) {
 	defer redisClient.Close()
 
 	d1ID := uuid.New()
-	fixedNow := time.Date(2026, 9, 17, 10, 0, 0, 0, time.Local)
+	fixedNow := time.Date(2026, 9, 17, 10, 0, 0, 0, classReminderLocation)
 	d1Day := targetClassDateForOffset(fixedNow, -1)
 
 	lister := &mockClassReminderLister{
@@ -140,7 +140,7 @@ func TestClassReminderWorker_runCycle_SendsOnlyOwnTemporalEmail(t *testing.T) {
 }
 
 func TestClassReminderWorker_runCycle_SkipsWithoutCurso(t *testing.T) {
-	fixedNow := time.Date(2026, 9, 17, 10, 0, 0, 0, time.Local)
+	fixedNow := time.Date(2026, 9, 17, 10, 0, 0, 0, classReminderLocation)
 	d1Day := targetClassDateForOffset(fixedNow, -1)
 
 	lister := &mockClassReminderLister{
@@ -152,19 +152,25 @@ func TestClassReminderWorker_runCycle_SkipsWithoutCurso(t *testing.T) {
 	}
 	notifier := &mockClassReminderNotifier{}
 
-	worker := NewClassReminderWorker(lister, notifier, nil, &config.ClassReminderSettings{
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	defer mr.Close()
+	redisClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	defer redisClient.Close()
+
+	worker := NewClassReminderWorker(lister, notifier, redisClient, &config.ClassReminderSettings{
 		Enabled:      true,
 		SyncInterval: time.Hour,
 	})
 	worker.now = func() time.Time { return fixedNow }
 
-	err := worker.runCycle(context.Background())
+	err = worker.runCycle(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 0, notifier.called)
 }
 
 func TestClassReminderWorker_runCycle_SkipsWhenSendDisabled(t *testing.T) {
-	fixedNow := time.Date(2026, 9, 17, 10, 0, 0, 0, time.Local)
+	fixedNow := time.Date(2026, 9, 17, 10, 0, 0, 0, classReminderLocation)
 	d1Day := targetClassDateForOffset(fixedNow, -1)
 	id := uuid.New()
 
@@ -177,7 +183,13 @@ func TestClassReminderWorker_runCycle_SkipsWhenSendDisabled(t *testing.T) {
 	}
 	notifier := &mockClassReminderNotifier{}
 
-	worker := NewClassReminderWorker(lister, notifier, nil, &config.ClassReminderSettings{
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	defer mr.Close()
+	redisClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	defer redisClient.Close()
+
+	worker := NewClassReminderWorker(lister, notifier, redisClient, &config.ClassReminderSettings{
 		Enabled:      true,
 		SyncInterval: time.Hour,
 	})
@@ -192,7 +204,7 @@ func TestClassReminderWorker_runCycle_SkipsWhenSendDisabled(t *testing.T) {
 		},
 	}}
 
-	err := worker.runCycle(context.Background())
+	err = worker.runCycle(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 0, notifier.called)
 }
@@ -207,12 +219,83 @@ func TestClassReminderWorker_Start_Disabled(t *testing.T) {
 }
 
 func TestStartOfDay(t *testing.T) {
-	ts := time.Date(2026, 9, 17, 15, 30, 45, 0, time.Local)
+	ts := time.Date(2026, 9, 17, 15, 30, 45, 0, classReminderLocation)
 	got := startOfDay(ts)
 	assert.Equal(t, 2026, got.Year())
 	assert.Equal(t, time.September, got.Month())
 	assert.Equal(t, 17, got.Day())
 	assert.Equal(t, 0, got.Hour())
+	assert.Equal(t, classReminderLocation, got.Location())
+}
+
+func TestClassReminderWorker_runCycle_FailClosedWithoutRedis(t *testing.T) {
+	fixedNow := time.Date(2026, 9, 17, 10, 0, 0, 0, classReminderLocation)
+	d1Day := targetClassDateForOffset(fixedNow, -1)
+
+	lister := &mockClassReminderLister{
+		inscricoes: map[string][]*models.Inscricao{
+			d1Day.Format("2006-01-02"): {
+				{ID: uuid.New(), Email: "a@b.com", Curso: &models.Curso{ID: 1}},
+			},
+		},
+	}
+	notifier := &mockClassReminderNotifier{}
+
+	worker := NewClassReminderWorker(lister, notifier, nil, &config.ClassReminderSettings{
+		Enabled:      true,
+		SyncInterval: time.Hour,
+	})
+	worker.now = func() time.Time { return fixedNow }
+
+	err := worker.runCycle(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, 0, notifier.called)
+}
+
+type skipNotifier struct {
+	mockClassReminderNotifier
+}
+
+func (m *skipNotifier) SendEnrollmentClassReminderEmail(context.Context, *models.Inscricao, *models.Curso) error {
+	return services.ErrEmailNotDeliverable
+}
+
+func TestClassReminderWorker_runCycle_ClearsDedupOnNotDeliverable(t *testing.T) {
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	defer mr.Close()
+
+	redisClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	defer redisClient.Close()
+
+	id := uuid.New()
+	fixedNow := time.Date(2026, 9, 17, 10, 0, 0, 0, classReminderLocation)
+	d1Day := targetClassDateForOffset(fixedNow, -1)
+
+	lister := &mockClassReminderLister{
+		inscricoes: map[string][]*models.Inscricao{
+			d1Day.Format("2006-01-02"): {
+				{ID: id, Email: "", Curso: &models.Curso{ID: 1}},
+			},
+		},
+	}
+	notifier := &skipNotifier{}
+
+	worker := NewClassReminderWorker(lister, notifier, redisClient, &config.ClassReminderSettings{
+		Enabled:      true,
+		SyncInterval: time.Hour,
+	})
+	worker.now = func() time.Time { return fixedNow }
+
+	require.NoError(t, worker.runCycle(context.Background()))
+
+	rule := services.EmailCommunicationRule{ID: "enrollment.class_reminder_d1"}
+	key := worker.sentKey(rule, id, d1Day)
+	assert.False(t, mr.Exists(key), "dedup key should be cleared when email is not deliverable")
+
+	// Second cycle can claim again (retry)
+	require.NoError(t, worker.runCycle(context.Background()))
+	assert.False(t, mr.Exists(key))
 }
 
 func TestClassReminderWorker_sendForRule_Unknown(t *testing.T) {

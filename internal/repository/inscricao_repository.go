@@ -273,9 +273,13 @@ func (r *InscricaoRepository) UpdateCertificate(ctx context.Context, inscricaoID
 }
 
 // ListApprovedStartingBetween returns approved enrollments whose class starts within [start, end).
-// It matches course_schedules, remote_schedules, or curso.data_inicio when schedule_id is nil.
+// It matches course_schedules, remote_schedules, enrolled_unit.schedules dates, or
+// curso.data_inicio when schedule_id is nil and enrolled_unit has no schedule dates.
 func (r *InscricaoRepository) ListApprovedStartingBetween(ctx context.Context, start, end time.Time) ([]*models.Inscricao, error) {
 	var inscricoes []*models.Inscricao
+
+	startDate := start.Format("2006-01-02")
+	endDate := end.Format("2006-01-02")
 
 	err := r.db.WithContext(ctx).
 		Preload("Curso").
@@ -292,13 +296,29 @@ func (r *InscricaoRepository) ListApprovedStartingBetween(ctx context.Context, s
 			)
 			OR (
 				schedule_id IS NULL
+				AND enrolled_unit IS NOT NULL
+				AND EXISTS (
+					SELECT 1
+					FROM jsonb_array_elements(COALESCE(enrolled_unit->'schedules', '[]'::jsonb)) AS sched
+					WHERE NULLIF(TRIM(sched->>'class_start_date'), '') IS NOT NULL
+					  AND LEFT(sched->>'class_start_date', 10)::date >= ?::date
+					  AND LEFT(sched->>'class_start_date', 10)::date < ?::date
+				)
+			)
+			OR (
+				schedule_id IS NULL
+				AND NOT EXISTS (
+					SELECT 1
+					FROM jsonb_array_elements(COALESCE(enrolled_unit->'schedules', '[]'::jsonb)) AS sched
+					WHERE NULLIF(TRIM(sched->>'class_start_date'), '') IS NOT NULL
+				)
 				AND curso_id IN (
 					SELECT id FROM cursos
 					WHERE data_inicio IS NOT NULL
 					  AND data_inicio >= ? AND data_inicio < ?
 				)
 			)
-		)`, start, end, start, end, start, end).
+		)`, start, end, start, end, startDate, endDate, start, end).
 		Find(&inscricoes).Error
 
 	if err != nil {

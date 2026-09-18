@@ -77,9 +77,10 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 	log.Println("[Router] Email worker started")
 
 	if cfg.ClassReminder.Enabled {
+		// Use EmailNotificationService (sync) so failed/skipped sends release the Redis dedup claim.
 		classReminderWorker := workers.NewClassReminderWorker(
 			app.InscricaoRepo,
-			app.EmailWorker,
+			app.EmailNotificationService,
 			app.RedisClient,
 			&cfg.ClassReminder,
 		)

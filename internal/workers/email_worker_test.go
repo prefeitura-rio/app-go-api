@@ -274,6 +274,12 @@ func TestEmailWorker_dispatch_EnrollmentTasks(t *testing.T) {
 		t.Run(string(typ), func(t *testing.T) {
 			task := buildEnrollmentTask(t, typ, 0)
 			err := worker.dispatch(ctx, &task)
+			if typ == taskEnrollmentClassReminder {
+				// Disabled notification service returns ErrEmailNotDeliverable for temporal reminders
+				// so ClassReminderWorker can release its Redis dedup claim.
+				assert.ErrorIs(t, err, services.ErrEmailNotDeliverable)
+				return
+			}
 			assert.NoError(t, err)
 		})
 	}
