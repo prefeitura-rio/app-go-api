@@ -63,6 +63,10 @@ func (m *MockCitizenFetcher) SyncCitizenOnDemand(ctx context.Context, cpf string
 	return m.fresh[cpf], nil
 }
 
+func (m *MockCitizenFetcher) SyncCitizenForced(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+	return m.SyncCitizenOnDemand(ctx, cpf)
+}
+
 func (m *MockCitizenFetcher) StaleThreshold() time.Duration { return testStaleThreshold }
 
 func snapshotSyncedAgo(celular string, age time.Duration) *models.CitizenSnapshot {
@@ -195,6 +199,24 @@ func TestCandidaturaService_EnrichWithPersonalInfo(t *testing.T) {
 
 		if c.PersonalInfo == nil || c.PersonalInfo.Celular != "5521987719458" {
 			t.Errorf("Expected the cached snapshot to be served as-is, got %+v", c.PersonalInfo)
+		}
+	})
+
+	t.Run("Forces refresh even for a fresh snapshot when force is true", func(t *testing.T) {
+		repo := NewMockCitizenSnapshotRepo()
+		repo.snapshots["12345678901"] = snapshotSyncedAgo("5521111111111", time.Minute)
+
+		fetcher := NewMockCitizenFetcher()
+		fetcher.fresh["12345678901"] = snapshotSyncedAgo("5521987719458", 0)
+
+		c := &empregabilidade.Candidatura{CPF: "12345678901"}
+		newService(repo, fetcher).EnrichWithPersonalInfo(context.Background(), c, true)
+
+		if len(fetcher.syncedCPFs) != 1 {
+			t.Fatalf("Expected forced refresh to hit RMI, got %d syncs", len(fetcher.syncedCPFs))
+		}
+		if c.PersonalInfo == nil || c.PersonalInfo.Celular != "5521987719458" {
+			t.Errorf("Expected the freshly refreshed phone to be served, got %+v", c.PersonalInfo)
 		}
 	})
 }

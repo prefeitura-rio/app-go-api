@@ -158,8 +158,9 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 		return
 	}
 
+	forceRefresh := c.Query("refresh") == "true" || c.Query("sync") == "true"
 	h.service.EnrichRespostasWithTituloMultiple(entities)
-	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), entities)
+	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), entities, forceRefresh)
 	c.JSON(http.StatusOK, gin.H{
 		"data": entities,
 		"meta": gin.H{
@@ -247,8 +248,9 @@ func (h *CandidaturaHandler) ListByCPF(c *gin.Context) {
 		return
 	}
 
+	forceRefresh := c.Query("refresh") == "true" || c.Query("sync") == "true"
 	h.service.EnrichRespostasWithTituloMultiple(entities)
-	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), entities)
+	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), entities, forceRefresh)
 	c.JSON(http.StatusOK, gin.H{
 		"data": entities,
 		"meta": gin.H{
@@ -292,8 +294,9 @@ func (h *CandidaturaHandler) GetByID(c *gin.Context) {
 		return
 	}
 
+	forceRefresh := c.Query("refresh") == "true" || c.Query("sync") == "true"
 	h.service.EnrichRespostasWithTitulo(entity)
-	h.service.EnrichWithPersonalInfo(c.Request.Context(), entity)
+	h.service.EnrichWithPersonalInfo(c.Request.Context(), entity, forceRefresh)
 	c.JSON(http.StatusOK, entity)
 }
 
