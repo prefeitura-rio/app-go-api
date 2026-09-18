@@ -10,6 +10,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 // ErrEmailNotDeliverable is returned when a temporal/class-reminder email cannot be
@@ -286,7 +287,7 @@ func (s *EmailNotificationService) SendEnrollmentClassReminderEmail(ctx context.
 
 	email := s.resolveEmail(ctx, inscricao)
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for enrollment ID %s (CPF %s) - skipping", inscricao.ID, maskCPFForLog(inscricao.CPF))
+		log.Printf("[EmailNotificationService] No email address for enrollment ID %s (CPF %s) - skipping", inscricao.ID, utils.MaskCPFForLog(inscricao.CPF))
 		return ErrEmailNotDeliverable
 	}
 
@@ -370,7 +371,7 @@ func (s *EmailNotificationService) SendCandidaturaEnviadaEmail(ctx context.Conte
 		CPF:   candidatura.CPF,
 	})
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for application ID %s (CPF %s) - skipping", candidatura.ID, maskCPFForLog(candidatura.CPF))
+		log.Printf("[EmailNotificationService] No email address for application ID %s (CPF %s) - skipping", candidatura.ID, utils.MaskCPFForLog(candidatura.CPF))
 		return nil
 	}
 
@@ -512,7 +513,7 @@ func (s *EmailNotificationService) SendCandidaturaProximaEtapaEmail(ctx context.
 		CPF:   candidatura.CPF,
 	})
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for application ID %s (CPF %s) - skipping", candidatura.ID, maskCPFForLog(candidatura.CPF))
+		log.Printf("[EmailNotificationService] No email address for application ID %s (CPF %s) - skipping", candidatura.ID, utils.MaskCPFForLog(candidatura.CPF))
 		return nil
 	}
 

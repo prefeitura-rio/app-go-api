@@ -1,6 +1,7 @@
 package services
 
 import (
+	"html"
 	"strings"
 	"testing"
 	"time"
@@ -277,9 +278,15 @@ func TestEmailTemplate_SpecialCharacters(t *testing.T) {
 		t.Error("Body should not be empty with special characters")
 	}
 
-	// Verify special characters are preserved
-	if !strings.Contains(template.Body, "José & María") {
-		t.Error("Special characters in name should be preserved")
+	// Dynamic fields must be HTML-escaped in the body
+	if strings.Contains(template.Body, "José & María <test>") {
+		t.Error("raw special characters must not appear unescaped in HTML body")
+	}
+	if !strings.Contains(template.Body, html.EscapeString("José & María <test>")) {
+		t.Error("escaped name should be present in body")
+	}
+	if !strings.Contains(template.Body, html.EscapeString("Curso \"Especial\" & Avançado")) {
+		t.Error("escaped title should be present in body")
 	}
 }
 
@@ -661,4 +668,58 @@ func TestGetEnrollmentPendingEmailTemplate_UpdatedCopy(t *testing.T) {
 	if !strings.Contains(template.Body, "Sua inscrição será avaliada") {
 		t.Error("Novo texto de avaliação não encontrado")
 	}
+}
+
+func TestEmailTemplates_EscapeHTMLInDynamicFields(t *testing.T) {
+	name := `Ana <script>alert("x")</script>`
+	titulo := `Curso & Oficina <b>HTML</b>`
+	orgao := `Orgão "Especial" & Cia`
+	etapa := `Etapa <admin>`
+
+	inscricao := &models.Inscricao{Name: name, Email: "a@b.com"}
+	curso := &models.Curso{Titulo: titulo, LocalRealizacao: `Rua <A> & B`}
+	curso.Modalidade = models.ModalidadePresencial
+
+	t.Run("enrollment pending", func(t *testing.T) {
+		tpl := GetEnrollmentPendingEmailTemplate(inscricao, curso, orgao, "pref.rio")
+		if strings.Contains(tpl.Body, "<script>") {
+			t.Error("raw <script> must not appear in HTML body")
+		}
+		if !strings.Contains(tpl.Body, html.EscapeString(name)) {
+			t.Error("escaped name missing")
+		}
+		if !strings.Contains(tpl.Body, html.EscapeString(titulo)) {
+			t.Error("escaped title missing")
+		}
+		if !strings.Contains(tpl.Body, html.EscapeString(orgao)) {
+			t.Error("escaped orgao missing")
+		}
+	})
+
+	t.Run("enrollment approved location", func(t *testing.T) {
+		tpl := GetEnrollmentApprovedEmailTemplate(inscricao, curso, orgao, &ScheduleInfo{
+			Address:        `Praça <Central> & Sul`,
+			ClassStartDate: "01/01/2026",
+			ClassTime:      "10:00",
+			ClassDays:      `Seg & Ter`,
+		}, "pref.rio")
+		if strings.Contains(tpl.Body, "Praça <Central>") {
+			t.Error("raw address angle brackets must be escaped")
+		}
+		if !strings.Contains(tpl.Body, html.EscapeString(`Praça <Central> & Sul`)) {
+			t.Error("escaped address missing")
+		}
+	})
+
+	t.Run("candidatura proxima etapa", func(t *testing.T) {
+		cand := &empregabilidade.Candidatura{Nome: &name}
+		vaga := &empregabilidade.Vaga{Titulo: titulo}
+		tpl := GetCandidaturaProximaEtapaEmailTemplate(cand, vaga, etapa, "pref.rio")
+		if strings.Contains(tpl.Body, "<admin>") {
+			t.Error("raw etapa HTML must not appear")
+		}
+		if !strings.Contains(tpl.Body, html.EscapeString(etapa)) {
+			t.Error("escaped etapa missing")
+		}
+	})
 }

@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"html"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
@@ -36,10 +37,10 @@ func GetEnrollmentPendingEmailTemplate(inscricao *models.Inscricao, curso *model
     <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
-		inscricao.Name,
-		curso.Titulo,
-		orgaoName,
-		meusCursosURL,
+		html.EscapeString(inscricao.Name),
+		html.EscapeString(curso.Titulo),
+		html.EscapeString(orgaoName),
+		html.EscapeString(meusCursosURL),
 	)
 
 	return EmailTemplate{
@@ -81,13 +82,13 @@ func GetEnrollmentApprovedEmailTemplate(inscricao *models.Inscricao, curso *mode
     <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
-		inscricao.Name,
-		curso.Titulo,
+		html.EscapeString(inscricao.Name),
+		html.EscapeString(curso.Titulo),
 		locationInfoStr,
 		scheduleInfoStr,
-		orgaoName,
-		orgaoName,
-		cursosURL,
+		html.EscapeString(orgaoName),
+		html.EscapeString(orgaoName),
+		html.EscapeString(cursosURL),
 	)
 
 	return EmailTemplate{
@@ -125,10 +126,10 @@ func GetEnrollmentRejectedEmailTemplate(inscricao *models.Inscricao, curso *mode
     <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
-		inscricao.Name,
-		curso.Titulo,
-		orgaoName,
-		cursosURL,
+		html.EscapeString(inscricao.Name),
+		html.EscapeString(curso.Titulo),
+		html.EscapeString(orgaoName),
+		html.EscapeString(cursosURL),
 	)
 
 	return EmailTemplate{
@@ -162,9 +163,9 @@ func GetEnrollmentConcludedEmailTemplate(inscricao *models.Inscricao, curso *mod
     <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
-		inscricao.Name,
-		curso.Titulo,
-		cursosURL,
+		html.EscapeString(inscricao.Name),
+		html.EscapeString(curso.Titulo),
+		html.EscapeString(cursosURL),
 	)
 
 	return EmailTemplate{
@@ -200,11 +201,11 @@ func GetEnrollmentClassReminderEmailTemplate(inscricao *models.Inscricao, curso 
     <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
-		inscricao.Name,
-		curso.Titulo,
+		html.EscapeString(inscricao.Name),
+		html.EscapeString(curso.Titulo),
 		locationInfoStr,
 		scheduleInfoStr,
-		orgaoName,
+		html.EscapeString(orgaoName),
 	)
 
 	return EmailTemplate{
@@ -248,13 +249,13 @@ func GetScheduleChangedEmailTemplate(inscricao *models.Inscricao, curso *models.
     <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
-		inscricao.Name,
-		curso.Titulo,
+		html.EscapeString(inscricao.Name),
+		html.EscapeString(curso.Titulo),
 		locationInfoStr,
 		scheduleInfoStr,
-		orgaoName,
-		orgaoName,
-		cursosURL,
+		html.EscapeString(orgaoName),
+		html.EscapeString(orgaoName),
+		html.EscapeString(cursosURL),
 	)
 
 	return EmailTemplate{
@@ -300,11 +301,11 @@ func GetCandidaturaEnviadaEmailTemplate(candidatura *empregabilidade.Candidatura
     <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
-		nome,
-		vaga.Titulo,
-		companyName,
-		orgaoName,
-		candidaturasURL,
+		html.EscapeString(nome),
+		html.EscapeString(vaga.Titulo),
+		html.EscapeString(companyName),
+		html.EscapeString(orgaoName),
+		html.EscapeString(candidaturasURL),
 	)
 
 	return EmailTemplate{
@@ -326,6 +327,11 @@ func GetCandidaturaAprovadaEmailTemplate(candidatura *empregabilidade.Candidatur
 		companyName = empresa.RazaoSocial
 	}
 
+	nome := ""
+	if candidatura.Nome != nil {
+		nome = *candidatura.Nome
+	}
+
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head>
@@ -343,9 +349,9 @@ func GetCandidaturaAprovadaEmailTemplate(candidatura *empregabilidade.Candidatur
      <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
-		*candidatura.Nome,
-		vaga.Titulo,
-		companyName,
+		html.EscapeString(nome),
+		html.EscapeString(vaga.Titulo),
+		html.EscapeString(companyName),
 	)
 
 	return EmailTemplate{
@@ -359,6 +365,11 @@ func GetCandidaturaAprovadaEmailTemplate(candidatura *empregabilidade.Candidatur
 func GetCandidaturaReprovadaEmailTemplate(candidatura *empregabilidade.Candidatura, vaga *empregabilidade.Vaga, prefrioDomain string) EmailTemplate {
 	subject := fmt.Sprintf(`Informações sobre sua candidatura - %s`, vaga.Titulo)
 	vagasURL := fmt.Sprintf("https://%s/servicos/trabalho", prefrioDomain)
+
+	nome := ""
+	if candidatura.Nome != nil {
+		nome = *candidatura.Nome
+	}
 
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html>
@@ -379,10 +390,10 @@ func GetCandidaturaReprovadaEmailTemplate(candidatura *empregabilidade.Candidatu
      <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
-		*candidatura.Nome,
-		vaga.Titulo,
-		vagasURL,
-		vagasURL,
+		html.EscapeString(nome),
+		html.EscapeString(vaga.Titulo),
+		html.EscapeString(vagasURL),
+		html.EscapeString(vagasURL),
 	)
 
 	return EmailTemplate{
@@ -422,10 +433,10 @@ func GetCandidaturaProximaEtapaEmailTemplate(candidatura *empregabilidade.Candid
     <p><em><strong>Observação:</strong> Este é um e-mail automático. Por favor, não o responda.</em></p>
 </body>
 </html>`,
-		nome,
-		vaga.Titulo,
-		etapaNome,
-		candidaturasURL,
+		html.EscapeString(nome),
+		html.EscapeString(vaga.Titulo),
+		html.EscapeString(etapaNome),
+		html.EscapeString(candidaturasURL),
 	)
 
 	return EmailTemplate{
@@ -435,18 +446,18 @@ func GetCandidaturaProximaEtapaEmailTemplate(candidatura *empregabilidade.Candid
 	}
 }
 
-// Build location info from schedule or course
+// Build location info from schedule or course (HTML-safe for email bodies).
 func getLocationString(scheduleInfo *ScheduleInfo, curso *models.Curso) string {
 	var locationInfoStr string
 	if scheduleInfo != nil && scheduleInfo.Address != "" {
 		if scheduleInfo.Address == "online" {
 			locationInfoStr = "📍 Endereço: online"
 		} else {
-			locationInfoStr = fmt.Sprintf("📍 Endereço: %s", scheduleInfo.Address)
+			locationInfoStr = fmt.Sprintf("📍 Endereço: %s", html.EscapeString(scheduleInfo.Address))
 		}
 	} else if curso.Modalidade == models.ModalidadePresencial || curso.Modalidade == models.ModalidadePresencialLegacy {
 		if curso.LocalRealizacao != "" {
-			locationInfoStr = fmt.Sprintf("📍 Endereço: %s", curso.LocalRealizacao)
+			locationInfoStr = fmt.Sprintf("📍 Endereço: %s", html.EscapeString(curso.LocalRealizacao))
 		} else {
 			locationInfoStr = "📍 Endereço: a confirmar"
 		}
@@ -456,20 +467,22 @@ func getLocationString(scheduleInfo *ScheduleInfo, curso *models.Curso) string {
 	return locationInfoStr
 }
 
-// Build schedule info from enrollment's schedule or fallback to course data
+// Build schedule info from enrollment's schedule or fallback to course data (HTML-safe).
 func getScheduleInfoString(scheduleInfo *ScheduleInfo, curso *models.Curso) string {
 	var scheduleInfoStr string
 	if scheduleInfo != nil && scheduleInfo.ClassStartDate != "" {
 		if scheduleInfo.ClassTime != "" {
-			scheduleInfoStr = fmt.Sprintf("⏰ Horário de início: %s às %s", scheduleInfo.ClassStartDate, scheduleInfo.ClassTime)
+			scheduleInfoStr = fmt.Sprintf("⏰ Horário de início: %s às %s",
+				html.EscapeString(scheduleInfo.ClassStartDate),
+				html.EscapeString(scheduleInfo.ClassTime))
 		} else {
-			scheduleInfoStr = fmt.Sprintf("⏰ Data de início: %s", scheduleInfo.ClassStartDate)
+			scheduleInfoStr = fmt.Sprintf("⏰ Data de início: %s", html.EscapeString(scheduleInfo.ClassStartDate))
 		}
 		if scheduleInfo.ClassDays != "" {
-			scheduleInfoStr += fmt.Sprintf(" (%s)", scheduleInfo.ClassDays)
+			scheduleInfoStr += fmt.Sprintf(" (%s)", html.EscapeString(scheduleInfo.ClassDays))
 		}
 	} else if curso.DataInicio != nil {
-		scheduleInfoStr = fmt.Sprintf("⏰ Horário de início: %s", curso.DataInicio.Format("02/01/2006 15:04"))
+		scheduleInfoStr = fmt.Sprintf("⏰ Horário de início: %s", html.EscapeString(curso.DataInicio.Format("02/01/2006 15:04")))
 	} else {
 		scheduleInfoStr = "⏰ Horário de início: a confirmar"
 	}

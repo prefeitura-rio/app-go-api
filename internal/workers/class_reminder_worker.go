@@ -133,6 +133,10 @@ func (w *ClassReminderWorker) processJob(ctx context.Context, now time.Time, job
 
 	sent := 0
 	for _, inscricao := range inscricoes {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		if inscricao.Curso == nil {
 			log.Printf("[ClassReminderWorker] Enrollment %s has no course loaded, skipping", inscricao.ID)
 			continue

@@ -300,7 +300,7 @@ func (r *InscricaoRepository) ListApprovedStartingBetween(ctx context.Context, s
 				AND EXISTS (
 					SELECT 1
 					FROM jsonb_array_elements(COALESCE(enrolled_unit->'schedules', '[]'::jsonb)) AS sched
-					WHERE NULLIF(TRIM(sched->>'class_start_date'), '') IS NOT NULL
+					WHERE sched->>'class_start_date' ~ '^\d{4}-\d{2}-\d{2}'
 					  AND LEFT(sched->>'class_start_date', 10)::date >= ?::date
 					  AND LEFT(sched->>'class_start_date', 10)::date < ?::date
 				)
@@ -310,7 +310,7 @@ func (r *InscricaoRepository) ListApprovedStartingBetween(ctx context.Context, s
 				AND NOT EXISTS (
 					SELECT 1
 					FROM jsonb_array_elements(COALESCE(enrolled_unit->'schedules', '[]'::jsonb)) AS sched
-					WHERE NULLIF(TRIM(sched->>'class_start_date'), '') IS NOT NULL
+					WHERE sched->>'class_start_date' ~ '^\d{4}-\d{2}-\d{2}'
 				)
 				AND curso_id IN (
 					SELECT id FROM cursos

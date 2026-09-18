@@ -298,6 +298,63 @@ func TestClassReminderWorker_runCycle_ClearsDedupOnNotDeliverable(t *testing.T) 
 	assert.False(t, mr.Exists(key))
 }
 
+type cancelAfterFirstNotifier struct {
+	mockClassReminderNotifier
+	cancel context.CancelFunc
+}
+
+func (m *cancelAfterFirstNotifier) SendEnrollmentClassReminderEmail(_ context.Context, inscricao *models.Inscricao, _ *models.Curso) error {
+	m.mu.Lock()
+	m.called++
+	m.ids = append(m.ids, inscricao.ID)
+	m.mu.Unlock()
+	if m.cancel != nil {
+		m.cancel()
+	}
+	return nil
+}
+
+func TestClassReminderWorker_processJob_StopsOnContextCancel(t *testing.T) {
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	defer mr.Close()
+
+	redisClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	defer redisClient.Close()
+
+	fixedNow := time.Date(2026, 9, 17, 10, 0, 0, 0, classReminderLocation)
+	d1Day := targetClassDateForOffset(fixedNow, -1)
+
+	lister := &mockClassReminderLister{
+		inscricoes: map[string][]*models.Inscricao{
+			d1Day.Format("2006-01-02"): {
+				{ID: uuid.New(), Email: "a@b.com", Curso: &models.Curso{ID: 1}},
+				{ID: uuid.New(), Email: "c@d.com", Curso: &models.Curso{ID: 2}},
+				{ID: uuid.New(), Email: "e@f.com", Curso: &models.Curso{ID: 3}},
+			},
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	notifier := &cancelAfterFirstNotifier{cancel: cancel}
+
+	worker := NewClassReminderWorker(lister, notifier, redisClient, &config.ClassReminderSettings{
+		Enabled:      true,
+		SyncInterval: time.Hour,
+	})
+	worker.now = func() time.Time { return fixedNow }
+
+	err = worker.processJob(ctx, fixedNow, TemporalEmailJob{Rule: services.EmailCommunicationRule{
+		ID:                 "enrollment.class_reminder_d1",
+		Kind:               services.EmailTriggerTemporal,
+		TemporalAnchor:     services.EmailAnchorClassStart,
+		TemporalOffsetDays: -1,
+		SendEnabled:        true,
+	}})
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, 1, notifier.called, "should stop after context cancel mid-batch")
+}
+
 func TestClassReminderWorker_sendForRule_Unknown(t *testing.T) {
 	worker := NewClassReminderWorker(nil, &mockClassReminderNotifier{}, nil, &config.ClassReminderSettings{Enabled: true})
 	err := worker.sendForRule(context.Background(), services.EmailCommunicationRule{ID: "future.email_d2"}, &models.Inscricao{

@@ -12,6 +12,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type CandidaturaRepositoryInterface interface {
@@ -540,7 +541,7 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 		go func() {
 			for _, c := range toNotify {
 				if err := s.emailNotificationService.SendCandidaturaProximaEtapaEmail(context.Background(), c, etapaNome); err != nil {
-					log.Printf("[CandidaturaService] falha ao enviar email de próxima etapa em lote (CPF %s): %v", maskCPFForLog(c.CPF), err)
+					log.Printf("[CandidaturaService] falha ao enviar email de próxima etapa em lote (CPF %s): %v", utils.MaskCPFForLog(c.CPF), err)
 				}
 			}
 		}()
@@ -548,13 +549,6 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 
 	result.Updated = len(updateIDs)
 	return result, nil
-}
-
-func maskCPFForLog(cpf string) string {
-	if len(cpf) < 5 {
-		return "***"
-	}
-	return cpf[:3] + "******" + cpf[len(cpf)-2:]
 }
 
 func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {

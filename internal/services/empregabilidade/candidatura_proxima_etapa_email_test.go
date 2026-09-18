@@ -34,12 +34,3 @@ func TestShouldSendProximaEtapaEmail(t *testing.T) {
 		})
 	}
 }
-
-func TestMaskCPFForLog(t *testing.T) {
-	if got := maskCPFForLog("12345678901"); got != "123******01" {
-		t.Errorf("maskCPFForLog = %q, want 123******01", got)
-	}
-	if got := maskCPFForLog("12"); got != "***" {
-		t.Errorf("maskCPFForLog short = %q, want ***", got)
-	}
-}
