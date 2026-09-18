@@ -1614,6 +1614,203 @@ func TestCurriculoRepository_ReplaceAllCursosComplementaresByCPF(t *testing.T) {
 	})
 }
 
+// Habilidades
+
+func TestCurriculoRepository_AddHabilidadeAoCurriculo_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	vinculo := &empregabilidade.CurriculoHabilidade{
+		ID:           100,
+		CPF:          "12345678901",
+		IDHabilidade: 10,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
+		WithArgs(vinculo.CPF, vinculo.IDHabilidade, sqlmock.AnyArg(), sqlmock.AnyArg(), vinculo.ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(vinculo.ID))
+	mock.ExpectCommit()
+
+	err := repo.AddHabilidadeAoCurriculo(ctx, vinculo)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurriculoRepository_AddHabilidadeAoCurriculo_DatabaseError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	vinculo := &empregabilidade.CurriculoHabilidade{
+		CPF:          "12345678901",
+		IDHabilidade: 10,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.AddHabilidadeAoCurriculo(ctx, vinculo)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurriculoRepository_ReplaceAllHabilidadesByCPF(t *testing.T) {
+	const cpf = "12345678901"
+
+	t.Run("success with items resets CPF and ID", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+
+		repo := NewCurriculoRepository(db)
+		ctx := context.Background()
+
+		items := []*empregabilidade.CurriculoHabilidade{
+			{ID: 101, CPF: "99999999999", IDHabilidade: 10},
+			{ID: 202, CPF: "88888888888", IDHabilidade: 20},
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_habilidades" WHERE cpf = $1`)).
+			WithArgs(cpf).
+			WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
+		mock.ExpectCommit()
+
+		err := repo.ReplaceAllHabilidadesByCPF(ctx, cpf, items)
+
+		assert.NoError(t, err)
+		assert.Equal(t, cpf, items[0].CPF)
+		assert.Equal(t, int64(1), items[0].ID)
+		assert.Equal(t, cpf, items[1].CPF)
+		assert.Equal(t, int64(2), items[1].ID)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success with empty items only deletes", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+
+		repo := NewCurriculoRepository(db)
+		ctx := context.Background()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_habilidades" WHERE cpf = $1`)).
+			WithArgs(cpf).
+			WillReturnResult(sqlmock.NewResult(0, 3))
+		mock.ExpectCommit()
+
+		err := repo.ReplaceAllHabilidadesByCPF(ctx, cpf, nil)
+
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("delete error rolls back", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+
+		repo := NewCurriculoRepository(db)
+		ctx := context.Background()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_habilidades" WHERE cpf = $1`)).
+			WithArgs(cpf).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.ReplaceAllHabilidadesByCPF(ctx, cpf, nil)
+
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, assert.AnError)
+		assert.Contains(t, err.Error(), "erro ao remover habilidades antigas")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("insert error rolls back", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+
+		repo := NewCurriculoRepository(db)
+		ctx := context.Background()
+
+		items := []*empregabilidade.CurriculoHabilidade{
+			{ID: 999, CPF: "00000000000", IDHabilidade: 10},
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_habilidades" WHERE cpf = $1`)).
+			WithArgs(cpf).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.ReplaceAllHabilidadesByCPF(ctx, cpf, items)
+
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, assert.AnError)
+		assert.Contains(t, err.Error(), "erro ao inserir novas habilidades")
+		assert.Equal(t, cpf, items[0].CPF)
+		assert.Equal(t, int64(0), items[0].ID)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+// --- TESTES DE SUBSTITUIÇÃO MASSIVA DE ITENS DO CURRÍCULO (TRANSAÇÃO) ---
+
+func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	cpf := "12345678901"
+	habilidadesIDs := []int64{10, 20}
+	comportamentoIDs := []int64{100}
+
+	itensCurriculo := &empregabilidade.CurriculoItensReplaceAll{
+		HabilidadesIDs:           habilidadesIDs,
+		ComportamentoAtitudesIDs: comportamentoIDs,
+	}
+
+	// 1. Início da Transação
+	mock.ExpectBegin()
+
+	// 2. Remoção e Inserção das Habilidades
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_habilidades"`).
+		WithArgs(cpf).
+		WillReturnResult(sqlmock.NewResult(0, 2))
+
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
+
+	// 3. Remoção e Inserção dos Comportamentos/Atitudes
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_comportamento_atitudes"`).
+		WithArgs(cpf).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_comportamento_atitudes"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
+
+	// 4. Commit da Transação
+	mock.ExpectCommit()
+
+	err := repo.ReplaceAllItensCurriculoByCPF(ctx, cpf, itensCurriculo)
+	assert.NoError(t, err)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // Situação e Interesses Tests
 
 func TestCurriculoRepository_UpsertSituacaoInteresses(t *testing.T) {

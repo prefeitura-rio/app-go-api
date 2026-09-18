@@ -125,12 +125,82 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	apiPublicEmp.GET("/vagas", app.EmpVagaHandler.PublicList)
 	apiPublicEmp.GET("/vagas/slug/:slug", app.EmpVagaHandler.PublicGetBySlug)
 	apiPublicEmp.GET("/vagas/:id", app.EmpVagaHandler.PublicGetByID)
+
+	// Habilidades & Áreas de Atuação
+	// Reutiliza ou declara o grupo /empregabilidade
+	empGroup := apiV1.Group("/empregabilidade")
+
+	// -----------------------------------------------------------------
+	// 1. Tabela Global / Autocomplete / Admin de Habilidades e Áreas
+	// -----------------------------------------------------------------
+	empHabilidades := empGroup.Group("/habilidades")
+	{
+		// CRUD Habilidades
+		empHabilidades.GET("", app.EmpHabilidadeHandler.ListHabilidades)
+		empHabilidades.POST("", app.EmpHabilidadeHandler.CreateHabilidade)
+		empHabilidades.GET("/:id", app.EmpHabilidadeHandler.GetHabilidadeByID)
+		empHabilidades.PUT("/:id", app.EmpHabilidadeHandler.UpdateHabilidade)
+		empHabilidades.DELETE("/:id", app.EmpHabilidadeHandler.DeleteHabilidade)
+
+		// CRUD Áreas de Atuação
+		empHabilidades.POST("/areas-atuacao", app.EmpHabilidadeHandler.CreateAreaAtuacao)
+		empHabilidades.GET("/areas-atuacao/:id", app.EmpHabilidadeHandler.GetAreaAtuacaoByID)
+		empHabilidades.PUT("/areas-atuacao/:id", app.EmpHabilidadeHandler.UpdateAreaAtuacao)
+		empHabilidades.DELETE("/areas-atuacao/:id", app.EmpHabilidadeHandler.DeleteAreaAtuacao)
+		empHabilidades.GET("/areas-atuacao", app.EmpHabilidadeHandler.ListAreasAtuacao)
+
+		// Relacionamentos: Habilidade <-> Área de Atuação
+		empHabilidades.POST("/:id/areas-atuacao/:areaId", app.EmpHabilidadeHandler.AttachAreaAtuacao)
+		empHabilidades.DELETE("/:id/areas-atuacao/:areaId", app.EmpHabilidadeHandler.DetachAreaAtuacao)
+		empHabilidades.PUT("/:id/areas-atuacao", app.EmpHabilidadeHandler.ReplaceAreasAtuacao)
+	}
+
+	empComportamentosAtitudes := empGroup.Group("/comportamentos-atitudes")
+	{
+		// CRUD Comportamentos e Atitudes
+		empComportamentosAtitudes.GET("", app.EmpComportamentoAtitudesHandler.ListComportamentoAtitudes)
+		empComportamentosAtitudes.POST("", app.EmpComportamentoAtitudesHandler.CreateComportamentoAtitudes)
+		empComportamentosAtitudes.GET("/:id", app.EmpComportamentoAtitudesHandler.GetComportamentoAtitudesByID)
+		empComportamentosAtitudes.PUT("/:id", app.EmpComportamentoAtitudesHandler.UpdateComportamentoAtitudes)
+		empComportamentosAtitudes.DELETE("/:id", app.EmpComportamentoAtitudesHandler.DeleteComportamentoAtitudes)
+
+	}
+
+	// -----------------------------------------------------------------
+	// 2. Gestão do Currículo do Candidato (Autenticado via JWT)
+	// -----------------------------------------------------------------
+	empCurriculo := empGroup.Group("/curriculo")
+	{
+		// Endpoints específicos para Habilidades no Currículo
+		empCurriculo.GET("/habilidades", app.EmpCurriculoHandler.ListHabilidadesDoCurriculo)
+		empCurriculo.POST("/habilidades", app.EmpCurriculoHandler.AddHabilidadeAoCurriculo)
+		empCurriculo.DELETE("/habilidades/:id", app.EmpCurriculoHandler.DeleteHabilidadeDoCurriculo)
+
+		// Endpoints específicos para Comportamento e atitudes no Currículo
+		empCurriculo.GET("/comportamentos-atitudes", app.EmpCurriculoHandler.ListComportamentoAtitudesDoCurriculo)
+		empCurriculo.POST("/comportamentos-atitudes", app.EmpCurriculoHandler.AddComportamentoAtitudesAoCurriculo)
+		empCurriculo.DELETE("/comportamentos-atitudes/:id", app.EmpCurriculoHandler.DeleteComportamentoAtitudesDoCurriculo)
+
+		// Endpoint de Substituição Completa (Accordion UI)
+		empCurriculo.PUT("/accordion/habilidades", app.EmpHabilidadeHandler.ReplaceAllHabilidades)
+	}
+
+	// -----------------------------------------------------------------
+	// 3. Consultas Públicas (Sem necessidade de JWT / Token)
+	// -----------------------------------------------------------------
+	publicEmpGroup := apiPublic.Group("/empregabilidade")
+	{
+		publicEmpGroup.GET("/habilidades", app.EmpHabilidadeHandler.ListHabilidades)
+		publicEmpGroup.GET("/areas-atuacao", app.EmpHabilidadeHandler.ListAreasAtuacao)
+	}
+
 }
 
 // registerEmpCurriculoRoutes registers curriculo sub-routes.
 func registerEmpCurriculoRoutes(emp *gin.RouterGroup, app *wire.ApplicationContainer) {
 	c := emp.Group("/curriculo")
 	c.GET("/:cpf", app.EmpCurriculoHandler.GetCurriculoCompleto)
+	c.PUT("", app.EmpCurriculoHandler.ReplaceAllItensCurriculoByCPF)
 
 	registerCurriculoSection(c, "formacoes", app.EmpCurriculoHandler.CreateFormacao,
 		app.EmpCurriculoHandler.GetFormacaoByID, app.EmpCurriculoHandler.UpdateFormacao,

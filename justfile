@@ -1,6 +1,9 @@
 # Justfile for app-go-api
 # Run 'just --list' to see all available commands
 
+# Load .env file
+set dotenv-load
+
 # Default recipe to display help information
 default:
     @just --list
@@ -72,7 +75,21 @@ test-coverage:
     @go test -v -race -coverprofile=coverage/coverage.out -covermode=atomic ./...
     @go tool cover -html=coverage/coverage.out -o coverage/coverage.html
     @echo "✅ Coverage report generated: coverage/coverage.html"
-    @./scripts/extract-coverage.sh
+    @./scripts/extract-coverage.sh coverage/coverage.out
+
+# Exemplo de uso: just cover-func AddHabilidadeAoCurriculo
+cover-func FUNC:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! OUTPUT=$(go test -count=1 -coverprofile=coverage.out \
+        ./internal/handlers/v1/empregabilidade/... \
+        ./internal/repository/empregabilidade/... \
+        ./internal/services/empregabilidade/... 2>&1); then
+        echo "$OUTPUT"
+        exit 1
+    fi
+    
+    go tool cover -func=coverage.out | grep -E "[[:space:]]{{FUNC}}[[:space:]]"
 
 # Run tests for a specific package
 test-pkg pkg:
@@ -150,9 +167,24 @@ docker-build tag="latest":
 docker-run:
     @echo "Running Docker container..."
     @docker run --rm -p 8080:8080 \
-      -e DATABASE_URL=${DATABASE_URL:-postgres://postgres:postgres@host.docker.internal:5432/app?sslmode=disable} \
-      -e REDIS_URL=${REDIS_URL:-redis://host.docker.internal:6379} \
-      app-go-api:latest
+        -e DB_HOST=db \
+        -e DB_PORT=5432 \
+        -e DB_USER=postgres \
+        -e DB_NAME=app_go_api \
+        -e DB_SSL_MODE=disable \
+        -e REDIS_HOST=redis \
+        -e REDIS_PORT=6379 \
+        -e REDIS_PASSWORD=12345678 \
+        --network app-go-api_backend \
+        --name app-go-api \
+        --env-file ./.env \
+        app-go-api:latest
+        
+# Run Docker Compose container locally
+docker-compose-up:
+    @echo "Running Docker Compose container..."
+    @docker-compose up -d
+    @echo "✅ Docker Compose container running!"
 
 # ==============================================================================
 # Database
@@ -161,19 +193,22 @@ docker-run:
 # Generate Swagger documentation
 swagger:
     @echo "Generating Swagger documentation..."
-    @swag init -g cmd/server/main.go -o docs
+    @swag init --dir ./cmd/server,./internal/models,./internal/handlers/v1 -g main.go -o docs --parseInternal --packagePrefix github.com/prefeitura-rio/app-go-api
     @echo "✅ Swagger documentation generated!"
+
+# Monta a URL de conexão do Goose apontando para o localhost da sua máquina
+DATABASE_URL := "postgres://$DB_USER:$DB_PASSWORD@localhost:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE"
 
 # Run database migrations up
 migrate-up:
     @echo "Running database migrations..."
-    @goose -dir internal/db/migrations postgres "$(DATABASE_URL)" up
+    @goose -dir internal/db/migrations postgres "{{DATABASE_URL}}" up
     @echo "✅ Migrations applied!"
 
 # Run database migrations down
 migrate-down:
     @echo "Rolling back database migrations..."
-    @goose -dir internal/db/migrations postgres "$(DATABASE_URL)" down
+    @goose -dir internal/db/migrations postgres "{{DATABASE_URL}}" down
 
 # Create new migration file
 migrate-create name:

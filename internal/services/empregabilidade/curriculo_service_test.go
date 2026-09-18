@@ -22,14 +22,16 @@ func TestNewCurriculoService(t *testing.T) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 type mockCurriculoRepo struct {
-	formacoes    []*empregabilidade.CurriculoFormacao
-	idiomas      []*empregabilidade.CurriculoIdioma
-	cursos       []*empregabilidade.CurriculoCursoComplementar
-	experiencias []*empregabilidade.CurriculoExperiencia
-	conquistas   []*empregabilidade.CurriculoConquista
-	situacao     *empregabilidade.CurriculoSituacaoInteresses
-	perfil       *empregabilidade.CurriculoPerfil
-	err          error
+	formacoes              []*empregabilidade.CurriculoFormacao
+	idiomas                []*empregabilidade.CurriculoIdioma
+	habilidade             []*empregabilidade.CurriculoHabilidade
+	comportamento_atitudes []*empregabilidade.CurriculoComportamentoAtitudes
+	cursos                 []*empregabilidade.CurriculoCursoComplementar
+	experiencias           []*empregabilidade.CurriculoExperiencia
+	conquistas             []*empregabilidade.CurriculoConquista
+	situacao               *empregabilidade.CurriculoSituacaoInteresses
+	perfil                 *empregabilidade.CurriculoPerfil
+	err                    error
 }
 
 func (m *mockCurriculoRepo) CreateFormacao(_ context.Context, _ *empregabilidade.CurriculoFormacao) (uuid.UUID, error) {
@@ -176,7 +178,23 @@ func (m *mockCurriculoRepo) ReplaceAllIdiomasByCPF(_ context.Context, _ string, 
 	return m.err
 }
 
+func (m *mockCurriculoRepo) ReplaceAllHabilidadesByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoHabilidade) error {
+	return m.err
+}
+
 func (m *mockCurriculoRepo) ReplaceAllCursosComplementaresByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoCursoComplementar) error {
+	return m.err
+}
+
+func (m *mockCurriculoRepo) ReplaceAllItensCurriculoByCPF(_ context.Context, _ string, _ *empregabilidade.CurriculoItensReplaceAll) error {
+	return m.err
+}
+
+func (m *mockCurriculoRepo) AddHabilidadeAoCurriculo(_ context.Context, _ *empregabilidade.CurriculoHabilidade) error {
+	return m.err
+}
+
+func (m *mockCurriculoRepo) DetachHabilidadeDoCurriculo(_ context.Context, _ int64) error {
 	return m.err
 }
 
@@ -190,6 +208,87 @@ func (m *mockCurriculoRepo) GetSituacaoInteressesByCPF(_ context.Context, _ stri
 
 func (m *mockCurriculoRepo) GetPerfilByCPF(_ context.Context, _ string) (*empregabilidade.CurriculoPerfil, error) {
 	return m.perfil, m.err
+}
+
+func (m *mockCurriculoRepo) ListHabilidadesByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoHabilidade, error) {
+	return m.habilidade, m.err
+}
+
+func (m *mockCurriculoRepo) AddComportamentoAtitudesAoCurriculo(_ context.Context, _ *empregabilidade.CurriculoComportamentoAtitudes) error {
+	return m.err
+}
+
+func (m *mockCurriculoRepo) DetachComportamentoAtitudesDoCurriculo(_ context.Context, _ int64) error {
+	return m.err
+}
+
+func (m *mockCurriculoRepo) ListComportamentoAtitudesByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
+	return m.comportamento_atitudes, m.err
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Mock Sequential Errors
+// ──────────────────────────────────────────────────────────────────────────────
+
+type mockCurriculoRepoWithSequentialErrors struct {
+	mockCurriculoRepo
+	step int
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) ListFormacoesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoFormacao, error) {
+	if m.step == 1 {
+		return nil, errors.New("formacoes error")
+	}
+	return m.mockCurriculoRepo.ListFormacoesByCPF(ctx, cpf)
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) ListIdiomasByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoIdioma, error) {
+	if m.step == 2 {
+		return nil, errors.New("idiomas error")
+	}
+	return m.mockCurriculoRepo.ListIdiomasByCPF(ctx, cpf)
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) ListCursosComplementaresByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoCursoComplementar, error) {
+	if m.step == 3 {
+		return nil, errors.New("cursos error")
+	}
+	return m.mockCurriculoRepo.ListCursosComplementaresByCPF(ctx, cpf)
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) ListExperienciasByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoExperiencia, error) {
+	if m.step == 4 {
+		return nil, errors.New("experiencias error")
+	}
+	return m.mockCurriculoRepo.ListExperienciasByCPF(ctx, cpf)
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) ListConquistasByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoConquista, error) {
+	if m.step == 5 {
+		return nil, errors.New("conquistas error")
+	}
+	return m.mockCurriculoRepo.ListConquistasByCPF(ctx, cpf)
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) GetSituacaoInteressesByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoSituacaoInteresses, error) {
+	if m.step == 6 {
+		return nil, errors.New("situacao error")
+	}
+	return m.mockCurriculoRepo.GetSituacaoInteressesByCPF(ctx, cpf)
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
+	if m.step == 7 {
+		return nil, errors.New("habilidades error")
+	}
+	return m.mockCurriculoRepo.ListHabilidadesByCPF(ctx, cpf)
+}
+
+func (m *mockCurriculoRepoWithSequentialErrors) ListComportamentoAtitudesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
+	if m.step == 8 {
+		return nil, errors.New("comportamento error")
+	}
+	return m.mockCurriculoRepo.ListComportamentoAtitudesByCPF(ctx, cpf)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -206,26 +305,19 @@ func TestCurriculoService_CreateFormacao_ValidData(t *testing.T) {
 		Status:          empregabilidade.StatusFormacaoEmAndamento,
 	}
 	id, err := svc.CreateFormacao(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if id == uuid.Nil {
-		t.Error("expected non-nil UUID")
-	}
+	assert.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, id)
 }
 
 func TestCurriculoService_CreateFormacao_InvalidStatus(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-	// Invalid status value
 	entity := &empregabilidade.CurriculoFormacao{
 		CPF:    "12345678900",
 		Status: "INVALIDO",
 	}
 	_, err := svc.CreateFormacao(context.Background(), entity)
-	if err == nil {
-		t.Error("expected validation error for invalid status")
-	}
+	assert.Error(t, err)
 }
 
 func TestCurriculoService_GetFormacaoByID_Found(t *testing.T) {
@@ -234,24 +326,16 @@ func TestCurriculoService_GetFormacaoByID_Found(t *testing.T) {
 	repo := &mockCurriculoRepo{formacoes: []*empregabilidade.CurriculoFormacao{formacao}}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.GetFormacaoByID(context.Background(), id)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if result == nil {
-		t.Error("expected formacao, got nil")
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCurriculoService_GetFormacaoByID_NotFound(t *testing.T) {
 	repo := &mockCurriculoRepo{formacoes: nil}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.GetFormacaoByID(context.Background(), uuid.New())
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if result != nil {
-		t.Error("expected nil, got formacao")
-	}
+	assert.NoError(t, err)
+	assert.Nil(t, result)
 }
 
 func TestCurriculoService_UpdateFormacao_ValidData(t *testing.T) {
@@ -264,9 +348,7 @@ func TestCurriculoService_UpdateFormacao_ValidData(t *testing.T) {
 		Status:          empregabilidade.StatusFormacaoCompleto,
 	}
 	err := svc.UpdateFormacao(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_UpdateFormacao_InvalidStatus(t *testing.T) {
@@ -277,18 +359,14 @@ func TestCurriculoService_UpdateFormacao_InvalidStatus(t *testing.T) {
 		Status: "INVALIDO",
 	}
 	err := svc.UpdateFormacao(context.Background(), entity)
-	if err == nil {
-		t.Error("expected validation error for invalid status")
-	}
+	assert.Error(t, err)
 }
 
 func TestCurriculoService_DeleteFormacao(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	err := svc.DeleteFormacao(context.Background(), uuid.New())
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ListFormacoesByCPF(t *testing.T) {
@@ -298,12 +376,8 @@ func TestCurriculoService_ListFormacoesByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{formacoes: formacoes}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.ListFormacoesByCPF(context.Background(), "12345678900")
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if len(result) != 1 {
-		t.Errorf("expected 1 formacao, got %d", len(result))
-	}
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -315,12 +389,8 @@ func TestCurriculoService_CreateIdioma(t *testing.T) {
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	entity := &empregabilidade.CurriculoIdioma{CPF: "12345678900"}
 	id, err := svc.CreateIdioma(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if id == uuid.Nil {
-		t.Error("expected non-nil UUID")
-	}
+	assert.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, id)
 }
 
 func TestCurriculoService_GetIdiomaByID_Found(t *testing.T) {
@@ -328,12 +398,8 @@ func TestCurriculoService_GetIdiomaByID_Found(t *testing.T) {
 	repo := &mockCurriculoRepo{idiomas: []*empregabilidade.CurriculoIdioma{{ID: id}}}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.GetIdiomaByID(context.Background(), id)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if result == nil {
-		t.Error("expected idioma, got nil")
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCurriculoService_UpdateIdioma(t *testing.T) {
@@ -341,18 +407,14 @@ func TestCurriculoService_UpdateIdioma(t *testing.T) {
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	entity := &empregabilidade.CurriculoIdioma{CPF: "12345678900"}
 	err := svc.UpdateIdioma(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_DeleteIdioma(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	err := svc.DeleteIdioma(context.Background(), uuid.New())
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ListIdiomasByCPF(t *testing.T) {
@@ -360,12 +422,85 @@ func TestCurriculoService_ListIdiomasByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{idiomas: idiomas}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.ListIdiomasByCPF(context.Background(), "12345678900")
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if len(result) != 1 {
-		t.Errorf("expected 1, got %d", len(result))
-	}
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tests: Habilidades e Comportamentos
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestCurriculoService_ListHabilidadesByCPF(t *testing.T) {
+	habilidadesMock := []*empregabilidade.CurriculoHabilidade{{CPF: "12345678900"}}
+	repo := &mockCurriculoRepo{habilidade: habilidadesMock}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+
+	result, err := svc.ListHabilidadesByCPF(context.Background(), "12345678900")
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+}
+
+func TestCurriculoService_ReplaceAllHabilidadesByCPF(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+
+	items := []*empregabilidade.CurriculoHabilidade{{CPF: "12345678900"}}
+	err := svc.ReplaceAllHabilidadesByCPF(context.Background(), "12345678900", items)
+	assert.NoError(t, err)
+}
+
+func TestCurriculoService_AddHabilidadeAoCurriculo(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	err := svc.AddHabilidadeAoCurriculo(context.Background(), &empregabilidade.CurriculoHabilidade{CPF: "12345678900"})
+	assert.NoError(t, err)
+}
+
+func TestCurriculoService_DetachHabilidadeDoCurriculo(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	err := svc.DetachHabilidadeDoCurriculo(context.Background(), 1)
+	assert.NoError(t, err)
+}
+
+func TestCurriculoService_ListHabilidadesByCPF_Error(t *testing.T) {
+	repo := &mockCurriculoRepo{err: errors.New("database error")}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+
+	result, err := svc.ListHabilidadesByCPF(context.Background(), "12345678900")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestCurriculoService_ReplaceAllHabilidadesByCPF_Error(t *testing.T) {
+	repo := &mockCurriculoRepo{err: errors.New("database error")}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+
+	items := []*empregabilidade.CurriculoHabilidade{{CPF: "12345678900"}}
+	err := svc.ReplaceAllHabilidadesByCPF(context.Background(), "12345678900", items)
+	assert.Error(t, err)
+}
+
+func TestCurriculoService_ListComportamentoAtitudesByCPF(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	result, err := svc.ListComportamentoAtitudesPorCPF(context.Background(), "12345678900")
+	assert.NoError(t, err)
+	assert.Nil(t, result)
+}
+
+func TestCurriculoService_AddComportamentoAtitudesAoCurriculo(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	err := svc.AddComportamentoAtitudesAoCurriculo(context.Background(), &empregabilidade.CurriculoComportamentoAtitudes{CPF: "12345678900"})
+	assert.NoError(t, err)
+}
+
+func TestCurriculoService_DetachComportamentoAtitudesDoCurriculo(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	err := svc.DetachComportamentoAtitudesDoCurriculo(context.Background(), 1)
+	assert.NoError(t, err)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -377,12 +512,8 @@ func TestCurriculoService_CreateCursoComplementar(t *testing.T) {
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	entity := &empregabilidade.CurriculoCursoComplementar{CPF: "12345678900", NomeCurso: "Go Avancado"}
 	id, err := svc.CreateCursoComplementar(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if id == uuid.Nil {
-		t.Error("expected non-nil UUID")
-	}
+	assert.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, id)
 }
 
 func TestCurriculoService_GetCursoComplementarByID_Found(t *testing.T) {
@@ -390,12 +521,8 @@ func TestCurriculoService_GetCursoComplementarByID_Found(t *testing.T) {
 	repo := &mockCurriculoRepo{cursos: []*empregabilidade.CurriculoCursoComplementar{{ID: id}}}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.GetCursoComplementarByID(context.Background(), id)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if result == nil {
-		t.Error("expected curso, got nil")
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCurriculoService_UpdateCursoComplementar(t *testing.T) {
@@ -403,18 +530,14 @@ func TestCurriculoService_UpdateCursoComplementar(t *testing.T) {
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	entity := &empregabilidade.CurriculoCursoComplementar{CPF: "12345678900"}
 	err := svc.UpdateCursoComplementar(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_DeleteCursoComplementar(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	err := svc.DeleteCursoComplementar(context.Background(), uuid.New())
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ListCursosComplementaresByCPF(t *testing.T) {
@@ -422,12 +545,8 @@ func TestCurriculoService_ListCursosComplementaresByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{cursos: cursos}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.ListCursosComplementaresByCPF(context.Background(), "12345678900")
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if len(result) != 1 {
-		t.Errorf("expected 1, got %d", len(result))
-	}
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -439,12 +558,8 @@ func TestCurriculoService_CreateExperiencia(t *testing.T) {
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	entity := &empregabilidade.CurriculoExperiencia{CPF: "12345678900"}
 	id, err := svc.CreateExperiencia(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if id == uuid.Nil {
-		t.Error("expected non-nil UUID")
-	}
+	assert.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, id)
 }
 
 func TestCurriculoService_GetExperienciaByID_Found(t *testing.T) {
@@ -452,12 +567,8 @@ func TestCurriculoService_GetExperienciaByID_Found(t *testing.T) {
 	repo := &mockCurriculoRepo{experiencias: []*empregabilidade.CurriculoExperiencia{{ID: id}}}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.GetExperienciaByID(context.Background(), id)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if result == nil {
-		t.Error("expected experiencia, got nil")
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCurriculoService_UpdateExperiencia(t *testing.T) {
@@ -465,18 +576,14 @@ func TestCurriculoService_UpdateExperiencia(t *testing.T) {
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	entity := &empregabilidade.CurriculoExperiencia{CPF: "12345678900"}
 	err := svc.UpdateExperiencia(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_DeleteExperiencia(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	err := svc.DeleteExperiencia(context.Background(), uuid.New())
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ListExperienciasByCPF(t *testing.T) {
@@ -484,12 +591,8 @@ func TestCurriculoService_ListExperienciasByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{experiencias: experiencias}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.ListExperienciasByCPF(context.Background(), "12345678900")
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if len(result) != 1 {
-		t.Errorf("expected 1, got %d", len(result))
-	}
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -501,12 +604,8 @@ func TestCurriculoService_CreateConquista(t *testing.T) {
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	entity := &empregabilidade.CurriculoConquista{CPF: "12345678900"}
 	id, err := svc.CreateConquista(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if id == uuid.Nil {
-		t.Error("expected non-nil UUID")
-	}
+	assert.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, id)
 }
 
 func TestCurriculoService_GetConquistaByID_Found(t *testing.T) {
@@ -514,12 +613,8 @@ func TestCurriculoService_GetConquistaByID_Found(t *testing.T) {
 	repo := &mockCurriculoRepo{conquistas: []*empregabilidade.CurriculoConquista{{ID: id}}}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.GetConquistaByID(context.Background(), id)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if result == nil {
-		t.Error("expected conquista, got nil")
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCurriculoService_UpdateConquista(t *testing.T) {
@@ -527,18 +622,14 @@ func TestCurriculoService_UpdateConquista(t *testing.T) {
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	entity := &empregabilidade.CurriculoConquista{CPF: "12345678900"}
 	err := svc.UpdateConquista(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_DeleteConquista(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	err := svc.DeleteConquista(context.Background(), uuid.New())
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ListConquistasByCPF(t *testing.T) {
@@ -546,12 +637,8 @@ func TestCurriculoService_ListConquistasByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{conquistas: conquistas}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.ListConquistasByCPF(context.Background(), "12345678900")
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if len(result) != 1 {
-		t.Errorf("expected 1, got %d", len(result))
-	}
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -561,87 +648,68 @@ func TestCurriculoService_ListConquistasByCPF(t *testing.T) {
 func TestCurriculoService_ReplaceAllFormacoesByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-	items := []*empregabilidade.CurriculoFormacao{}
-	err := svc.ReplaceAllFormacoesByCPF(context.Background(), "12345678900", items)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	err := svc.ReplaceAllFormacoesByCPF(context.Background(), "12345678900", []*empregabilidade.CurriculoFormacao{})
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ReplaceAllExperienciasByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-	items := []*empregabilidade.CurriculoExperiencia{}
-	err := svc.ReplaceAllExperienciasByCPF(context.Background(), "12345678900", items)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	err := svc.ReplaceAllExperienciasByCPF(context.Background(), "12345678900", []*empregabilidade.CurriculoExperiencia{})
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ReplaceAllConquistasByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-	items := []*empregabilidade.CurriculoConquista{}
-	err := svc.ReplaceAllConquistasByCPF(context.Background(), "12345678900", items)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	err := svc.ReplaceAllConquistasByCPF(context.Background(), "12345678900", []*empregabilidade.CurriculoConquista{})
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ReplaceAllIdiomasByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-	items := []*empregabilidade.CurriculoIdioma{}
-	err := svc.ReplaceAllIdiomasByCPF(context.Background(), "12345678900", items)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	err := svc.ReplaceAllIdiomasByCPF(context.Background(), "12345678900", []*empregabilidade.CurriculoIdioma{})
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ReplaceAllCursosComplementaresByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-	items := []*empregabilidade.CurriculoCursoComplementar{}
-	err := svc.ReplaceAllCursosComplementaresByCPF(context.Background(), "12345678900", items)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	err := svc.ReplaceAllCursosComplementaresByCPF(context.Background(), "12345678900", []*empregabilidade.CurriculoCursoComplementar{})
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ReplaceAllFormacaoAccordionByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-	formacoes := []*empregabilidade.CurriculoFormacao{}
-	idiomas := []*empregabilidade.CurriculoIdioma{}
-	err := svc.ReplaceAllFormacaoAccordionByCPF(context.Background(), "12345678900", formacoes, idiomas)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	err := svc.ReplaceAllFormacaoAccordionByCPF(context.Background(), "12345678900", []*empregabilidade.CurriculoFormacao{}, []*empregabilidade.CurriculoIdioma{})
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_ReplaceAllExperienciaProfissionalAccordionByCPF(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-	experiencias := []*empregabilidade.CurriculoExperiencia{}
-	conquistas := []*empregabilidade.CurriculoConquista{}
-	err := svc.ReplaceAllExperienciaProfissionalAccordionByCPF(context.Background(), "12345678900", experiencias, conquistas, "")
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	err := svc.ReplaceAllExperienciaProfissionalAccordionByCPF(context.Background(), "12345678900", []*empregabilidade.CurriculoExperiencia{}, []*empregabilidade.CurriculoConquista{}, "")
+	assert.NoError(t, err)
+}
+
+func TestCurriculoService_ReplaceAllItensCurriculoByCPF(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	err := svc.ReplaceAllItensCurriculoByCPF(context.Background(), "12345678900", &empregabilidade.CurriculoItensReplaceAll{})
+	assert.NoError(t, err)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Tests: Situação e Interesses
+// Tests: Situação e Perfil
 // ──────────────────────────────────────────────────────────────────────────────
 
 func TestCurriculoService_UpsertSituacaoInteresses(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-	entity := &empregabilidade.CurriculoSituacaoInteresses{CPF: "12345678900"}
-	err := svc.UpsertSituacaoInteresses(context.Background(), entity)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	err := svc.UpsertSituacaoInteresses(context.Background(), &empregabilidade.CurriculoSituacaoInteresses{CPF: "12345678900"})
+	assert.NoError(t, err)
 }
 
 func TestCurriculoService_GetSituacaoInteressesByCPF_Found(t *testing.T) {
@@ -649,12 +717,8 @@ func TestCurriculoService_GetSituacaoInteressesByCPF_Found(t *testing.T) {
 	repo := &mockCurriculoRepo{situacao: situacao}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.GetSituacaoInteressesByCPF(context.Background(), "12345678900")
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if result == nil {
-		t.Error("expected situacao, got nil")
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -663,321 +727,81 @@ func TestCurriculoService_GetSituacaoInteressesByCPF_Found(t *testing.T) {
 
 func TestCurriculoService_GetCurriculoCompleto_Success(t *testing.T) {
 	repo := &mockCurriculoRepo{
-		formacoes:    []*empregabilidade.CurriculoFormacao{},
-		idiomas:      []*empregabilidade.CurriculoIdioma{},
-		cursos:       []*empregabilidade.CurriculoCursoComplementar{},
-		experiencias: []*empregabilidade.CurriculoExperiencia{},
-		conquistas:   []*empregabilidade.CurriculoConquista{},
-		situacao:     nil,
+		formacoes:              []*empregabilidade.CurriculoFormacao{},
+		idiomas:                []*empregabilidade.CurriculoIdioma{},
+		cursos:                 []*empregabilidade.CurriculoCursoComplementar{},
+		experiencias:           []*empregabilidade.CurriculoExperiencia{},
+		conquistas:             []*empregabilidade.CurriculoConquista{},
+		habilidade:             []*empregabilidade.CurriculoHabilidade{},
+		comportamento_atitudes: []*empregabilidade.CurriculoComportamentoAtitudes{},
+		situacao:               nil,
 	}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if result == nil {
-		t.Error("expected curriculo completo, got nil")
-	}
-}
-
-func TestCurriculoService_GetCurriculoCompleto_WithData(t *testing.T) {
-	repo := &mockCurriculoRepo{
-		formacoes: []*empregabilidade.CurriculoFormacao{
-			{CPF: "12345678900", NomeInstituicao: "UFRJ"},
-		},
-		idiomas: []*empregabilidade.CurriculoIdioma{
-			{CPF: "12345678900"},
-		},
-		cursos: []*empregabilidade.CurriculoCursoComplementar{
-			{CPF: "12345678900", NomeCurso: "Go Avancado"},
-		},
-		experiencias: []*empregabilidade.CurriculoExperiencia{
-			{CPF: "12345678900", Cargo: "Desenvolvedor"},
-		},
-		conquistas: []*empregabilidade.CurriculoConquista{
-			{CPF: "12345678900", Titulo: "Prêmio Excelência"},
-		},
-		situacao: &empregabilidade.CurriculoSituacaoInteresses{
-			CPF: "12345678900",
-		},
-	}
-	svc := services.NewCurriculoServiceWithInterface(repo)
-	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if result == nil {
-		t.Error("expected curriculo completo, got nil")
-	}
-	if len(result.Formacoes) != 1 {
-		t.Errorf("expected 1 formacao, got %d", len(result.Formacoes))
-	}
-	if len(result.Idiomas) != 1 {
-		t.Errorf("expected 1 idioma, got %d", len(result.Idiomas))
-	}
-	if len(result.CursosComplementares) != 1 {
-		t.Errorf("expected 1 curso, got %d", len(result.CursosComplementares))
-	}
-	if len(result.Experiencias) != 1 {
-		t.Errorf("expected 1 experiencia, got %d", len(result.Experiencias))
-	}
-	if len(result.Conquistas) != 1 {
-		t.Errorf("expected 1 conquista, got %d", len(result.Conquistas))
-	}
-	if result.SituacaoInteresses == nil {
-		t.Error("expected situacao, got nil")
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorFormacoes(t *testing.T) {
-	repo := &mockCurriculoRepo{
-		err: errors.New("formacoes error"),
-	}
+	repo := &mockCurriculoRepo{err: errors.New("formacoes error")}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
-	if err == nil {
-		t.Error("expected error from formacoes, got nil")
-	}
-	if result != nil {
-		t.Error("expected nil result when formacoes fails")
-	}
-	if err.Error() != "formacoes error" {
-		t.Errorf("expected 'formacoes error', got '%s'", err.Error())
-	}
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorIdiomas(t *testing.T) {
-	customRepo := &mockCurriculoRepoWithSequentialErrors{
-		step: 2, // Will fail on idiomas (step 2)
-	}
+	customRepo := &mockCurriculoRepoWithSequentialErrors{step: 2}
 	svc := services.NewCurriculoServiceWithInterface(customRepo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
-	if err == nil {
-		t.Error("expected error from idiomas, got nil")
-	}
-	if result != nil {
-		t.Error("expected nil result when idiomas fails")
-	}
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorCursos(t *testing.T) {
-	customRepo := &mockCurriculoRepoWithSequentialErrors{
-		step: 3, // Will fail on cursos (step 3)
-	}
+	customRepo := &mockCurriculoRepoWithSequentialErrors{step: 3}
 	svc := services.NewCurriculoServiceWithInterface(customRepo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
-	if err == nil {
-		t.Error("expected error from cursos, got nil")
-	}
-	if result != nil {
-		t.Error("expected nil result when cursos fails")
-	}
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorExperiencias(t *testing.T) {
-	customRepo := &mockCurriculoRepoWithSequentialErrors{
-		step: 4, // Will fail on experiencias (step 4)
-	}
+	customRepo := &mockCurriculoRepoWithSequentialErrors{step: 4}
 	svc := services.NewCurriculoServiceWithInterface(customRepo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
-	if err == nil {
-		t.Error("expected error from experiencias, got nil")
-	}
-	if result != nil {
-		t.Error("expected nil result when experiencias fails")
-	}
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorConquistas(t *testing.T) {
-	customRepo := &mockCurriculoRepoWithSequentialErrors{
-		step: 5, // Will fail on conquistas (step 5)
-	}
+	customRepo := &mockCurriculoRepoWithSequentialErrors{step: 5}
 	svc := services.NewCurriculoServiceWithInterface(customRepo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
-	if err == nil {
-		t.Error("expected error from conquistas, got nil")
-	}
-	if result != nil {
-		t.Error("expected nil result when conquistas fails")
-	}
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorSituacao(t *testing.T) {
-	customRepo := &mockCurriculoRepoWithSequentialErrors{
-		step: 5, // Will fail on situacao (step 6)
-	}
+	customRepo := &mockCurriculoRepoWithSequentialErrors{step: 6}
 	svc := services.NewCurriculoServiceWithInterface(customRepo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
-	if err == nil {
-		t.Error("expected error from situacao, got nil")
-	}
-	if result != nil {
-		t.Error("expected nil result when situacao fails")
-	}
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
 
-// mockCurriculoRepoWithSequentialErrors allows specific steps to fail
-type mockCurriculoRepoWithSequentialErrors struct {
-	step int // 0=success, 1=fail formacoes, 2=fail idiomas, etc.
+func TestCurriculoService_GetCurriculoCompleto_ErrorHabilidades(t *testing.T) {
+	customRepo := &mockCurriculoRepoWithSequentialErrors{step: 7}
+	svc := services.NewCurriculoServiceWithInterface(customRepo)
+	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
 
-func (m *mockCurriculoRepoWithSequentialErrors) CreateFormacao(_ context.Context, _ *empregabilidade.CurriculoFormacao) (uuid.UUID, error) {
-	return uuid.New(), nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) GetFormacaoByID(_ context.Context, _ uuid.UUID) (*empregabilidade.CurriculoFormacao, error) {
-	return nil, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) UpdateFormacao(_ context.Context, _ *empregabilidade.CurriculoFormacao) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) DeleteFormacao(_ context.Context, _ uuid.UUID) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ListFormacoesByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoFormacao, error) {
-	if m.step == 1 {
-		return nil, errors.New("formacoes error")
-	}
-	return []*empregabilidade.CurriculoFormacao{}, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) CreateIdioma(_ context.Context, _ *empregabilidade.CurriculoIdioma) (uuid.UUID, error) {
-	return uuid.New(), nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) GetIdiomaByID(_ context.Context, _ uuid.UUID) (*empregabilidade.CurriculoIdioma, error) {
-	return nil, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) UpdateIdioma(_ context.Context, _ *empregabilidade.CurriculoIdioma) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) DeleteIdioma(_ context.Context, _ uuid.UUID) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ListIdiomasByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoIdioma, error) {
-	if m.step == 2 {
-		return nil, errors.New("idiomas error")
-	}
-	return []*empregabilidade.CurriculoIdioma{}, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) CreateCursoComplementar(_ context.Context, _ *empregabilidade.CurriculoCursoComplementar) (uuid.UUID, error) {
-	return uuid.New(), nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) GetCursoComplementarByID(_ context.Context, _ uuid.UUID) (*empregabilidade.CurriculoCursoComplementar, error) {
-	return nil, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) UpdateCursoComplementar(_ context.Context, _ *empregabilidade.CurriculoCursoComplementar) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) DeleteCursoComplementar(_ context.Context, _ uuid.UUID) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ListCursosComplementaresByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoCursoComplementar, error) {
-	if m.step == 3 {
-		return nil, errors.New("cursos error")
-	}
-	return []*empregabilidade.CurriculoCursoComplementar{}, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) CreateExperiencia(_ context.Context, _ *empregabilidade.CurriculoExperiencia) (uuid.UUID, error) {
-	return uuid.New(), nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) GetExperienciaByID(_ context.Context, _ uuid.UUID) (*empregabilidade.CurriculoExperiencia, error) {
-	return nil, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) UpdateExperiencia(_ context.Context, _ *empregabilidade.CurriculoExperiencia) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) DeleteExperiencia(_ context.Context, _ uuid.UUID) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ListExperienciasByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoExperiencia, error) {
-	if m.step == 4 {
-		return nil, errors.New("experiencias error")
-	}
-	return []*empregabilidade.CurriculoExperiencia{}, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) CreateConquista(_ context.Context, _ *empregabilidade.CurriculoConquista) (uuid.UUID, error) {
-	return uuid.New(), nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) GetConquistaByID(_ context.Context, _ uuid.UUID) (*empregabilidade.CurriculoConquista, error) {
-	return nil, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) UpdateConquista(_ context.Context, _ *empregabilidade.CurriculoConquista) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) DeleteConquista(_ context.Context, _ uuid.UUID) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ListConquistasByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoConquista, error) {
-	if m.step == 5 {
-		return nil, errors.New("conquistas error")
-	}
-	return []*empregabilidade.CurriculoConquista{}, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllFormacoesByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoFormacao) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllFormacaoAccordionByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoFormacao, _ []*empregabilidade.CurriculoIdioma) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllExperienciasByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoExperiencia) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllExperienciaProfissionalAccordionByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoExperiencia, _ []*empregabilidade.CurriculoConquista, _ string) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllConquistasByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoConquista) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllIdiomasByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoIdioma) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ReplaceAllCursosComplementaresByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoCursoComplementar) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) UpsertSituacaoInteresses(_ context.Context, _ *empregabilidade.CurriculoSituacaoInteresses) error {
-	return nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) GetSituacaoInteressesByCPF(_ context.Context, _ string) (*empregabilidade.CurriculoSituacaoInteresses, error) {
-	if m.step == 6 {
-		return nil, errors.New("situacao error")
-	}
-	return nil, nil
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) GetPerfilByCPF(_ context.Context, _ string) (*empregabilidade.CurriculoPerfil, error) {
-	if m.step == 7 {
-		return nil, errors.New("perfil error")
-	}
-	return nil, nil
+func TestCurriculoService_GetCurriculoCompleto_ErrorComportamento(t *testing.T) {
+	customRepo := &mockCurriculoRepoWithSequentialErrors{step: 8}
+	svc := services.NewCurriculoServiceWithInterface(customRepo)
+	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }

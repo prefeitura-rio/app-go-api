@@ -556,7 +556,8 @@ func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 		// Only accept explicit true/false values
 		if lowerVal == "true" || lowerVal == "1" {
 			return true
-		} else if lowerVal == "false" || lowerVal == "0" {
+		}
+		if lowerVal == "false" || lowerVal == "0" {
 			return false
 		}
 		// Invalid boolean value - use default
@@ -567,7 +568,8 @@ func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 		lowerVal := strings.ToLower(strings.TrimSpace(value))
 		if lowerVal == "true" || lowerVal == "1" {
 			return true
-		} else if lowerVal == "false" || lowerVal == "0" {
+		}
+		if lowerVal == "false" || lowerVal == "0" {
 			return false
 		}
 	}

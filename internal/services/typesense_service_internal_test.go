@@ -43,37 +43,37 @@ func NewMockTypesenseService(mockClient *typesense.Client) *TypesenseService {
 }
 
 // Helper function to create mock search results
-func createMockSearchResult(found int, page int, hits []map[string]interface{}) *api.SearchResult {
-	resultHits := make([]api.SearchResultHit, len(hits))
+//func createMockSearchResult(found int, page int, hits []map[string]interface{}) *api.SearchResult {
+//	resultHits := make([]api.SearchResultHit, len(hits))
+//
+//	for i, hit := range hits {
+//		hitCopy := hit
+//		resultHits[i] = api.SearchResultHit{
+//			Document:   &hitCopy,
+//			Highlights: &[]api.SearchHighlight{},
+//		}
+//	}
 
-	for i, hit := range hits {
-		hitCopy := hit
-		resultHits[i] = api.SearchResultHit{
-			Document:   &hitCopy,
-			Highlights: &[]api.SearchHighlight{},
-		}
-	}
-
-	requestParams := struct {
-		CollectionName string `json:"collection_name"`
-		PerPage        int    `json:"per_page"`
-		Q              string `json:"q"`
-		VoiceQuery     *struct {
-			TranscribedQuery *string `json:"transcribed_query,omitempty"`
-		} `json:"voice_query,omitempty"`
-	}{
-		CollectionName: "test",
-		PerPage:        10,
-		Q:              "test",
-	}
-
-	return &api.SearchResult{
-		Found:         &found,
-		Hits:          &resultHits,
-		Page:          &page,
-		RequestParams: &requestParams,
-	}
-}
+//	requestParams := struct {
+//		CollectionName string `json:"collection_name"`
+//		PerPage        int    `json:"per_page"`
+//		Q              string `json:"q"`
+//		VoiceQuery     *struct {
+//			TranscribedQuery *string `json:"transcribed_query,omitempty"`
+//		} `json:"voice_query,omitempty"`
+//	}{
+//		CollectionName: "test",
+//		PerPage:        10,
+//		Q:              "test",
+//	}
+//
+//	return &api.SearchResult{
+//		Found:         &found,
+//		Hits:          &resultHits,
+//		Page:          &page,
+//		RequestParams: &requestParams,
+//	}
+//}
 
 // Helper to create curso hit data
 func createCursoHit(id string, titulo string, descricao string) map[string]interface{} {

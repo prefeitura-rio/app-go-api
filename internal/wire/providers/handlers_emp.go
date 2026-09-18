@@ -94,3 +94,13 @@ func ProvideEmpZonaHandler(service *empServices.ZonaService) *empHandlers.ZonaHa
 func ProvideEmpCandidaturaBloqueioHandler(service *empServices.CandidaturaBloqueioService) *empHandlers.CandidaturaBloqueioHandler {
 	return empHandlers.NewCandidaturaBloqueioHandler(service)
 }
+
+// ProvideEmpHabilidadeHandler creates empregabilidade HabilidadeHandler
+func ProvideEmpHabilidadeHandler(hService *empServices.HabilidadeService, cService *empServices.CurriculoService) *empHandlers.HabilidadeHandler {
+	return empHandlers.NewHabilidadeHandler(hService, cService)
+}
+
+// ProvideEmpComportamentoAtitudesHandler creates empregabilidade ComportamentoAtitudesHandler
+func ProvideEmpComportamentoAtitudesHandler(hService *empServices.ComportamentoAtitudesService) *empHandlers.ComportamentoAtitudesHandler {
+	return empHandlers.NewComportamentoAtitudesHandler(hService)
+}
