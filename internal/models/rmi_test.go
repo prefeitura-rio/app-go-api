@@ -164,7 +164,7 @@ func TestCitizenContactInfo_GetEmail(t *testing.T) {
 			expected: "test@example.com",
 		},
 		{
-			name: "indicador_false",
+			name: "indicador_false_with_valid_email",
 			citizen: &CitizenContactInfo{
 				Email: CitizenEmailInfo{
 					Indicador: false,
@@ -175,6 +175,23 @@ func TestCitizenContactInfo_GetEmail(t *testing.T) {
 						UpdatedAt string `json:"updated_at"`
 					}{
 						Valor: "test@example.com",
+					},
+				},
+			},
+			expected: "test@example.com",
+		},
+		{
+			name: "indicador_false_with_invalid_email",
+			citizen: &CitizenContactInfo{
+				Email: CitizenEmailInfo{
+					Indicador: false,
+					Principal: struct {
+						Valor     string `json:"valor"`
+						Origem    string `json:"origem"`
+						Sistema   string `json:"sistema"`
+						UpdatedAt string `json:"updated_at"`
+					}{
+						Valor: "invalid-email",
 					},
 				},
 			},

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"html"
 	"strings"
 	"testing"
 	"time"
@@ -160,7 +161,7 @@ func TestGetEnrollmentRejectedEmailTemplate(t *testing.T) {
 		Titulo: "Curso de Gestão",
 	}
 
-	template := GetEnrollmentRejectedEmailTemplate(inscricao, curso, "oportunidades.rio")
+	template := GetEnrollmentRejectedEmailTemplate(inscricao, curso, "Secretaria de Trabalho", "oportunidades.rio")
 
 	// Verificar nome do usuário
 	if !strings.Contains(template.Body, "Carlos Oliveira") {
@@ -173,8 +174,8 @@ func TestGetEnrollmentRejectedEmailTemplate(t *testing.T) {
 	}
 
 	// Verificar mensagem de não aprovação
-	if !strings.Contains(template.Body, "sua inscrição não foi aprovada") {
-		t.Error("Mensagem de não aprovação não encontrada no template")
+	if !strings.Contains(template.Body, "sua inscrição não foi selecionada") {
+		t.Error("Mensagem de não seleção não encontrada no template")
 	}
 
 	// Verificar subject
@@ -277,9 +278,15 @@ func TestEmailTemplate_SpecialCharacters(t *testing.T) {
 		t.Error("Body should not be empty with special characters")
 	}
 
-	// Verify special characters are preserved
-	if !strings.Contains(template.Body, "José & María") {
-		t.Error("Special characters in name should be preserved")
+	// Dynamic fields must be HTML-escaped in the body
+	if strings.Contains(template.Body, "José & María <test>") {
+		t.Error("raw special characters must not appear unescaped in HTML body")
+	}
+	if !strings.Contains(template.Body, html.EscapeString("José & María <test>")) {
+		t.Error("escaped name should be present in body")
+	}
+	if !strings.Contains(template.Body, html.EscapeString("Curso \"Especial\" & Avançado")) {
+		t.Error("escaped title should be present in body")
 	}
 }
 
@@ -436,6 +443,13 @@ func TestGetCandidaturaEnviadaEmailTemplate(t *testing.T) {
 	if !strings.Contains(template.Body, "Org Teste") {
 		t.Error("Organ name not found on template")
 	}
+
+	if !strings.Contains(template.Body, "https://oportunidades.rio/servicos/trabalho/minhas-candidaturas") {
+		t.Error("Link Minhas candidaturas not found on template")
+	}
+	if !strings.Contains(template.Body, ">Minhas candidaturas<") {
+		t.Error("Link label Minhas candidaturas not found on template")
+	}
 }
 
 func TestGetCandidaturaEnviadaEmailTemplate_EmptyStrings(t *testing.T) {
@@ -559,4 +573,153 @@ func TestGetCandidaturaReprovadaEmailTemplate_EmptyStrings(t *testing.T) {
 	if template.Body == "" {
 		t.Error("Template body should not be empty with empty strings")
 	}
+}
+
+func TestGetEnrollmentConcludedEmailTemplate(t *testing.T) {
+	inscricao := &models.Inscricao{Name: "Ana Concluiu", Email: "ana@teste.com"}
+	curso := &models.Curso{Titulo: "Curso de Certificação"}
+
+	template := GetEnrollmentConcludedEmailTemplate(inscricao, curso, "pref.rio")
+
+	if template.Subject != "Parabéns! 🎉 Certificado disponível - Curso de Certificação" {
+		t.Errorf("Subject incorreto: %s", template.Subject)
+	}
+	if !strings.Contains(template.Body, "Ana Concluiu") {
+		t.Error("Nome do aluno não encontrado")
+	}
+	if !strings.Contains(template.Body, "Certificados") {
+		t.Error("Menção a Certificados não encontrada")
+	}
+	if !strings.Contains(template.Body, "https://pref.rio/servicos/cursos") {
+		t.Error("Link da plataforma não encontrado")
+	}
+	if !template.IsHTML {
+		t.Error("Template deve ser HTML")
+	}
+}
+
+func TestGetEnrollmentClassReminderEmailTemplate(t *testing.T) {
+	inscricao := &models.Inscricao{Name: "Pedro Lembrete", Email: "pedro@teste.com"}
+	curso := &models.Curso{Titulo: "Curso de Manhã", Modalidade: models.ModalidadePresencial}
+	scheduleInfo := &ScheduleInfo{
+		ClassTime:      "09:00",
+		ClassStartDate: "18/09/2026",
+		Address:        "Av. Rio Branco, 1",
+	}
+
+	template := GetEnrollmentClassReminderEmailTemplate(inscricao, curso, "SMTE", scheduleInfo, "pref.rio")
+
+	expectedSubject := "Atenção, Pedro Lembrete! Falta pouco para a atividade Curso de Manhã"
+	if template.Subject != expectedSubject {
+		t.Errorf("Subject incorreto. Esperado: %s, Recebido: %s", expectedSubject, template.Subject)
+	}
+	if !strings.Contains(template.Body, "começa amanhã") {
+		t.Error("Mensagem de D-1 não encontrada")
+	}
+	if !strings.Contains(template.Body, "Av. Rio Branco, 1") {
+		t.Error("Endereço não encontrado")
+	}
+	if !strings.Contains(template.Body, "SMTE") {
+		t.Error("Nome do órgão não encontrado")
+	}
+	if !strings.Contains(template.Body, "⏰ Horário de início") {
+		t.Error("Horário com emoji ⏰ não encontrado")
+	}
+}
+
+func TestGetCandidaturaProximaEtapaEmailTemplate(t *testing.T) {
+	nome := "Maria Avançou"
+	email := "maria@teste.com"
+	candidatura := &empregabilidade.Candidatura{Nome: &nome, Email: &email}
+	vaga := &empregabilidade.Vaga{Titulo: "Analista de Dados"}
+
+	template := GetCandidaturaProximaEtapaEmailTemplate(candidatura, vaga, "Entrevista Técnica", "pref.rio")
+
+	expectedSubject := "Boas notícias! Você avançou no processo para vaga de Analista de Dados 🚀"
+	if template.Subject != expectedSubject {
+		t.Errorf("Subject incorreto. Esperado: %s, Recebido: %s", expectedSubject, template.Subject)
+	}
+	if !strings.Contains(template.Body, "Maria Avançou") {
+		t.Error("Nome do candidato não encontrado")
+	}
+	if !strings.Contains(template.Body, "Entrevista Técnica") {
+		t.Error("Nome da próxima etapa não encontrado")
+	}
+	if !strings.Contains(template.Body, "https://pref.rio/servicos/trabalho/minhas-candidaturas") {
+		t.Error("Link de minhas candidaturas não encontrado")
+	}
+	if !strings.Contains(template.Body, "O que acontece agora?") {
+		t.Error("Seção de próximos passos não encontrada")
+	}
+}
+
+func TestGetEnrollmentPendingEmailTemplate_UpdatedCopy(t *testing.T) {
+	inscricao := &models.Inscricao{Name: "João", Email: "joao@teste.com"}
+	curso := &models.Curso{Titulo: "Curso Novo"}
+
+	template := GetEnrollmentPendingEmailTemplate(inscricao, curso, "SEBRAE", "pref.rio")
+
+	if strings.Contains(template.Body, "Tudo bem?") {
+		t.Error("Texto antigo 'Tudo bem?' não deveria estar presente")
+	}
+	if !strings.Contains(template.Body, "https://pref.rio/servicos/cursos/meus-cursos") {
+		t.Error("Link de Meus Cursos não encontrado")
+	}
+	if !strings.Contains(template.Body, "Sua inscrição será avaliada") {
+		t.Error("Novo texto de avaliação não encontrado")
+	}
+}
+
+func TestEmailTemplates_EscapeHTMLInDynamicFields(t *testing.T) {
+	name := `Ana <script>alert("x")</script>`
+	titulo := `Curso & Oficina <b>HTML</b>`
+	orgao := `Orgão "Especial" & Cia`
+	etapa := `Etapa <admin>`
+
+	inscricao := &models.Inscricao{Name: name, Email: "a@b.com"}
+	curso := &models.Curso{Titulo: titulo, LocalRealizacao: `Rua <A> & B`}
+	curso.Modalidade = models.ModalidadePresencial
+
+	t.Run("enrollment pending", func(t *testing.T) {
+		tpl := GetEnrollmentPendingEmailTemplate(inscricao, curso, orgao, "pref.rio")
+		if strings.Contains(tpl.Body, "<script>") {
+			t.Error("raw <script> must not appear in HTML body")
+		}
+		if !strings.Contains(tpl.Body, html.EscapeString(name)) {
+			t.Error("escaped name missing")
+		}
+		if !strings.Contains(tpl.Body, html.EscapeString(titulo)) {
+			t.Error("escaped title missing")
+		}
+		if !strings.Contains(tpl.Body, html.EscapeString(orgao)) {
+			t.Error("escaped orgao missing")
+		}
+	})
+
+	t.Run("enrollment approved location", func(t *testing.T) {
+		tpl := GetEnrollmentApprovedEmailTemplate(inscricao, curso, orgao, &ScheduleInfo{
+			Address:        `Praça <Central> & Sul`,
+			ClassStartDate: "01/01/2026",
+			ClassTime:      "10:00",
+			ClassDays:      `Seg & Ter`,
+		}, "pref.rio")
+		if strings.Contains(tpl.Body, "Praça <Central>") {
+			t.Error("raw address angle brackets must be escaped")
+		}
+		if !strings.Contains(tpl.Body, html.EscapeString(`Praça <Central> & Sul`)) {
+			t.Error("escaped address missing")
+		}
+	})
+
+	t.Run("candidatura proxima etapa", func(t *testing.T) {
+		cand := &empregabilidade.Candidatura{Nome: &name}
+		vaga := &empregabilidade.Vaga{Titulo: titulo}
+		tpl := GetCandidaturaProximaEtapaEmailTemplate(cand, vaga, etapa, "pref.rio")
+		if strings.Contains(tpl.Body, "<admin>") {
+			t.Error("raw etapa HTML must not appear")
+		}
+		if !strings.Contains(tpl.Body, html.EscapeString(etapa)) {
+			t.Error("escaped etapa missing")
+		}
+	})
 }

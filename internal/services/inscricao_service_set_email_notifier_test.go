@@ -72,6 +72,14 @@ func (m *MockEmailNotifier) SendEnrollmentRejectedEmail(_ context.Context, _ *mo
 	m.record("enrollment.rejected")
 	return nil
 }
+func (m *MockEmailNotifier) SendEnrollmentConcludedEmail(_ context.Context, _ *models.Inscricao, _ *models.Curso) error {
+	m.record("enrollment.concluded")
+	return nil
+}
+func (m *MockEmailNotifier) SendEnrollmentClassReminderEmail(_ context.Context, _ *models.Inscricao, _ *models.Curso) error {
+	m.record("enrollment.class_reminder")
+	return nil
+}
 func (m *MockEmailNotifier) SendScheduleChangedEmail(_ context.Context, _ *models.Inscricao, _ *models.Curso) error {
 	m.record("schedule.changed")
 	return nil
@@ -86,6 +94,10 @@ func (m *MockEmailNotifier) SendCandidaturaAprovadaEmail(_ context.Context, _ *e
 }
 func (m *MockEmailNotifier) SendCandidaturaReprovadaEmail(_ context.Context, _ *empregabilidade.Candidatura) error {
 	m.record("candidatura.reprovada")
+	return nil
+}
+func (m *MockEmailNotifier) SendCandidaturaProximaEtapaEmail(_ context.Context, _ *empregabilidade.Candidatura, _ string) error {
+	m.record("candidatura.proxima_etapa")
 	return nil
 }
 
@@ -126,6 +138,28 @@ func TestInscricaoService_SetEmailNotifier(t *testing.T) {
 		}
 		// Give the goroutine a chance to run in case the nil guard is missing.
 		time.Sleep(20 * time.Millisecond)
+	})
+
+	t.Run("SetEmailNotifier — concluded status triggers SendEnrollmentConcludedEmail", func(t *testing.T) {
+		id := uuid.New()
+		repo := MockInscricaoRepository{
+			GetByIDFunc: func(_ context.Context, _ uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{ID: id, CursoID: 1, Status: models.StatusInscricaoApproved}, nil
+			},
+			UpdateStatusFunc: func(_ context.Context, _ uuid.UUID, _ models.StatusInscricao, _, _ string) error {
+				return nil
+			},
+		}
+		svc := newSvcWithNilNotifier(repo)
+		mock := newMockEmailNotifier()
+		svc.SetEmailNotifier(mock)
+
+		if err := svc.UpdateStatus(ctx, id, models.StatusInscricaoConcluded, "", ""); err != nil {
+			t.Fatalf("UpdateStatus failed: %v", err)
+		}
+		if !mock.waitForCall("enrollment.concluded", 200*time.Millisecond) {
+			t.Error("expected SendEnrollmentConcludedEmail to be called after SetEmailNotifier")
+		}
 	})
 
 	t.Run("SetEmailNotifier — approved status triggers SendEnrollmentApprovedEmail", func(t *testing.T) {

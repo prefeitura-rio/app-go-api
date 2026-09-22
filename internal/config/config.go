@@ -26,10 +26,11 @@ type AppConfig struct {
 	RMI         RMISettings
 	Redis       RedisSettings
 	Tracing     TracingSettings
-	OrgaoSync   OrgaoSyncSettings
-	CitizenSync CitizenSyncSettings
-	DataRelay   DataRelaySettings
-	PrefRio     PrefRioSettings
+	OrgaoSync     OrgaoSyncSettings
+	CitizenSync   CitizenSyncSettings
+	ClassReminder ClassReminderSettings
+	DataRelay     DataRelaySettings
+	PrefRio       PrefRioSettings
 	Cerbos      CerbosSettings
 	PropostaMEI PropostaMEIPermissions
 	Cache       CacheSettings
@@ -163,6 +164,14 @@ type CitizenSyncSettings struct {
 	SyncInterval   time.Duration // How often to run sync cycle
 	StaleThreshold time.Duration // Consider snapshot stale after this duration
 	BatchSize      int           // Number of citizens to sync per batch
+}
+
+// ClassReminderSettings define configurações do worker de e-mails temporais
+// ancorados na data de início da turma (hoje: apenas Lembrete D-1).
+// Demais e-mails da régua são event-driven e não passam por este worker.
+type ClassReminderSettings struct {
+	Enabled      bool
+	SyncInterval time.Duration // How often to evaluate per-email temporal rules
 }
 
 // CerbosSettings define configurações do Cerbos PDP para autorização
@@ -429,6 +438,10 @@ func Load() (*AppConfig, error) {
 			SyncInterval:   getDuration(v, "CITIZEN_SYNC_INTERVAL", 15*time.Minute),
 			StaleThreshold: getDuration(v, "CITIZEN_SYNC_STALE_THRESHOLD", 15*time.Minute),
 			BatchSize:      getInt(v, "CITIZEN_SYNC_BATCH_SIZE", 100),
+		},
+		ClassReminder: ClassReminderSettings{
+			Enabled:      getBool(v, "CLASS_REMINDER_ENABLED", true),
+			SyncInterval: getDuration(v, "CLASS_REMINDER_INTERVAL", 1*time.Hour),
 		},
 		DataRelay: DataRelaySettings{
 			BaseURL: getEnv(v, "DATA_RELAY_BASE_URL", ""),

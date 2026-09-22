@@ -12,6 +12,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type CandidaturaRepositoryInterface interface {
@@ -46,6 +47,7 @@ type CitizenSnapshotRepoForCandidaturaInterface interface {
 
 type CitizenDataFetcherForCandidaturaInterface interface {
 	SyncCitizenOnDemand(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
+	SyncCitizenForced(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
 	StaleThreshold() time.Duration
 }
 
@@ -163,21 +165,35 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 	// Sync citizen data from RMI on-demand so the official contact (telefone,
 	// endereco) is available downstream via personal_info — parity with
 	// InscricaoService. The citizen has just confirmed these fields in the app,
-	// so this is the freshest they will ever be. Non-fatal: a failure here must
-	// not block the application itself.
+	// so this is the freshest they will ever be. We force a fresh sync here
+	// to bypass any local cache TTL. Non-fatal: a failure here must not block
+	// the application itself.
 	if s.citizenDataFetcher != nil && entity.CPF != "" {
-		if _, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, entity.CPF); err != nil {
-			log.Printf("[CandidaturaService] falha ao sincronizar dados do cidadão para CPF %s: %v", entity.CPF, err)
+		if _, err := s.citizenDataFetcher.SyncCitizenForced(ctx, entity.CPF); err != nil {
+			log.Printf("[CandidaturaService] falha ao sincronizar dados do cidadão para CPF %s: %v", maskCPF(entity.CPF), err)
 		}
 	}
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
+
+	id, err := s.repo.Create(ctx, entity)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	// Attach vaga (with Contratante/OrgaoParceiro) before enqueueing the confirmation
+	// email — SendCandidaturaEnviadaEmail reads candidatura.Vaga for company/órgão.
+	entity.ID = id
+	entity.Vaga = vaga
+
+	candidaturaForEmail := *entity
 	go func() {
-		if err := s.emailNotificationService.SendCandidaturaEnviadaEmail(context.Background(), entity); err != nil {
+		if err := s.emailNotificationService.SendCandidaturaEnviadaEmail(context.Background(), &candidaturaForEmail); err != nil {
 			log.Printf("[CandidaturaService] falha ao enviar email de candidatura enviada: %v", err)
 		}
 	}()
-	return s.repo.Create(ctx, entity)
+
+	return id, nil
 }
 
 func (s *CandidaturaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Candidatura, error) {
@@ -269,18 +285,62 @@ func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etap
 		return errors.New("vaga não encontrada")
 	}
 
-	etapaValida := false
-	for _, etapa := range vaga.Etapas {
-		if etapa.ID == etapaID {
-			etapaValida = true
+	var nextEtapa *empregabilidade.Etapa
+	for i := range vaga.Etapas {
+		if vaga.Etapas[i].ID == etapaID {
+			nextEtapa = &vaga.Etapas[i]
 			break
 		}
 	}
-	if !etapaValida {
+	if nextEtapa == nil {
 		return errors.New("etapa não pertence à vaga desta candidatura")
 	}
 
-	return s.repo.UpdateEtapa(ctx, id, etapaID)
+	var currentEtapa *empregabilidade.Etapa
+	if candidatura.IDEtapaAtual != nil {
+		for i := range vaga.Etapas {
+			if vaga.Etapas[i].ID == *candidatura.IDEtapaAtual {
+				currentEtapa = &vaga.Etapas[i]
+				break
+			}
+		}
+	}
+
+	// Skip email when etapa did not change
+	etapaChanged := candidatura.IDEtapaAtual == nil || *candidatura.IDEtapaAtual != etapaID
+
+	if err := s.repo.UpdateEtapa(ctx, id, etapaID); err != nil {
+		return err
+	}
+
+	if etapaChanged && shouldSendProximaEtapaEmail(candidatura.Status, currentEtapa, nextEtapa) {
+		candidaturaForEmail := *candidatura
+		candidaturaForEmail.Vaga = vaga
+		candidaturaForEmail.EtapaAtual = nextEtapa
+		etapaNome := nextEtapa.Titulo
+		go func() {
+			if err := s.emailNotificationService.SendCandidaturaProximaEtapaEmail(context.Background(), &candidaturaForEmail, etapaNome); err != nil {
+				log.Printf("[CandidaturaService] falha ao enviar email de próxima etapa: %v", err)
+			}
+		}()
+	}
+
+	return nil
+}
+
+func shouldSendProximaEtapaEmail(status empregabilidade.StatusCandidatura, currentEtapa, nextEtapa *empregabilidade.Etapa) bool {
+	if status == empregabilidade.StatusCandidaturaAprovada ||
+		status == empregabilidade.StatusCandidaturaReprovada {
+		return false
+	}
+	if nextEtapa == nil {
+		return false
+	}
+	// First etapa assignment counts as advancement.
+	if currentEtapa == nil {
+		return true
+	}
+	return nextEtapa.Ordem > currentEtapa.Ordem
 }
 
 func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
@@ -400,9 +460,11 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 	}
 
 	etapaValida := false
-	for _, etapa := range vaga.Etapas {
-		if etapa.ID == etapaID {
+	var nextEtapa *empregabilidade.Etapa
+	for i := range vaga.Etapas {
+		if vaga.Etapas[i].ID == etapaID {
 			etapaValida = true
+			nextEtapa = &vaga.Etapas[i]
 			break
 		}
 	}
@@ -422,6 +484,7 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 
 	var result BulkUpdateEtapaResult
 	var updateIDs []uuid.UUID
+	var toNotify []*empregabilidade.Candidatura
 
 	// Coletar CPFs não encontrados
 	for _, cpf := range cpfs {
@@ -433,6 +496,16 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 	// Verificar que todos os candidatos encontrados estão na mesma etapa atual
 	if len(candidaturas) > 0 {
 		primeiraEtapa := candidaturas[0].IDEtapaAtual
+		var currentEtapa *empregabilidade.Etapa
+		if primeiraEtapa != nil {
+			for i := range vaga.Etapas {
+				if vaga.Etapas[i].ID == *primeiraEtapa {
+					currentEtapa = &vaga.Etapas[i]
+					break
+				}
+			}
+		}
+
 		for _, c := range candidaturas {
 			mesmaEtapa := false
 			if primeiraEtapa == nil && c.IDEtapaAtual == nil {
@@ -444,6 +517,14 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 				return BulkUpdateEtapaResult{}, errors.New("todos os candidatos precisam estar na mesma etapa para atualização em massa")
 			}
 			updateIDs = append(updateIDs, c.ID)
+
+			etapaChanged := c.IDEtapaAtual == nil || *c.IDEtapaAtual != etapaID
+			if etapaChanged && shouldSendProximaEtapaEmail(c.Status, currentEtapa, nextEtapa) {
+				cloned := *c
+				cloned.Vaga = vaga
+				cloned.EtapaAtual = nextEtapa
+				toNotify = append(toNotify, &cloned)
+			}
 		}
 	}
 
@@ -453,6 +534,17 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 
 	if err := s.repo.BulkUpdateEtapa(ctx, updateIDs, etapaID); err != nil {
 		return BulkUpdateEtapaResult{}, err
+	}
+
+	if len(toNotify) > 0 && nextEtapa != nil {
+		etapaNome := nextEtapa.Titulo
+		go func() {
+			for _, c := range toNotify {
+				if err := s.emailNotificationService.SendCandidaturaProximaEtapaEmail(context.Background(), c, etapaNome); err != nil {
+					log.Printf("[CandidaturaService] falha ao enviar email de próxima etapa em lote (CPF %s): %v", utils.MaskCPFForLog(c.CPF), err)
+				}
+			}
+		}()
 	}
 
 	result.Updated = len(updateIDs)
@@ -521,25 +613,38 @@ func (s *CandidaturaService) needsRefresh(snapshot *models.CitizenSnapshot) bool
 	return time.Since(snapshot.LastSyncedAt) >= s.citizenDataFetcher.StaleThreshold()
 }
 
+func maskCPF(cpf string) string {
+	if len(cpf) != 11 {
+		return "***"
+	}
+	return cpf[:3] + "******" + cpf[9:]
+}
+
 // EnrichWithPersonalInfo popula PersonalInfo de uma candidatura a partir do citizen_snapshot.
-func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empregabilidade.Candidatura) {
+func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empregabilidade.Candidatura, force ...bool) {
 	if s.citizenSnapshotRepo == nil || c == nil || c.CPF == "" {
 		return
 	}
 
+	forceRefresh := len(force) > 0 && force[0]
+
 	snapshot, err := s.citizenSnapshotRepo.GetByCPF(ctx, c.CPF)
 	if err != nil {
-		fmt.Printf("[CandidaturaService] Failed to get citizen snapshot for CPF %s: %v\n", c.CPF, err)
+		log.Printf("[CandidaturaService] Failed to get citizen snapshot for CPF %s: %v", maskCPF(c.CPF), err)
 		return
 	}
 
-	// Refresh when the snapshot is missing OR stale. Serving a stale snapshot
-	// unconditionally is what made contact data (telefone, endereco) updated by
-	// the citizen after the first sync never reach the Portal Interno.
-	if s.needsRefresh(snapshot) {
+	if forceRefresh && s.citizenDataFetcher != nil {
+		refreshed, err := s.citizenDataFetcher.SyncCitizenForced(ctx, c.CPF)
+		if err != nil {
+			log.Printf("[CandidaturaService] Forced sync failed for CPF %s: %v", maskCPF(c.CPF), err)
+		} else if refreshed != nil {
+			snapshot = refreshed
+		}
+	} else if s.needsRefresh(snapshot) {
 		refreshed, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, c.CPF)
 		if err != nil {
-			fmt.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v\n", c.CPF, err)
+			log.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v", maskCPF(c.CPF), err)
 		} else if refreshed != nil {
 			snapshot = refreshed
 		}
@@ -551,10 +656,12 @@ func (s *CandidaturaService) EnrichWithPersonalInfo(ctx context.Context, c *empr
 }
 
 // EnrichMultipleWithPersonalInfo popula PersonalInfo de múltiplas candidaturas em batch.
-func (s *CandidaturaService) EnrichMultipleWithPersonalInfo(ctx context.Context, candidaturas []*empregabilidade.Candidatura) {
+func (s *CandidaturaService) EnrichMultipleWithPersonalInfo(ctx context.Context, candidaturas []*empregabilidade.Candidatura, force ...bool) {
 	if s.citizenSnapshotRepo == nil || len(candidaturas) == 0 {
 		return
 	}
+
+	forceRefresh := len(force) > 0 && force[0]
 
 	// Collect unique CPFs
 	cpfSet := make(map[string]struct{})
@@ -575,25 +682,33 @@ func (s *CandidaturaService) EnrichMultipleWithPersonalInfo(ctx context.Context,
 
 	snapshotMap, err := s.citizenSnapshotRepo.GetByCPFs(ctx, cpfs)
 	if err != nil {
-		fmt.Printf("[CandidaturaService] Failed to get citizen snapshots: %v\n", err)
+		log.Printf("[CandidaturaService] Failed to get citizen snapshots: %v", err)
 		return
 	}
 
-	// Sync CPFs whose snapshot is missing or stale, if a fetcher is available.
-	// Fresh snapshots are left untouched, so this costs no extra round-trip in
-	// the common case.
 	if s.citizenDataFetcher != nil {
 		for _, cpf := range cpfs {
-			if !s.needsRefresh(snapshotMap[cpf]) {
-				continue
-			}
-			snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
-			if err != nil {
-				fmt.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v\n", cpf, err)
-				continue
-			}
-			if snapshot != nil {
-				snapshotMap[cpf] = snapshot
+			if forceRefresh {
+				snapshot, err := s.citizenDataFetcher.SyncCitizenForced(ctx, cpf)
+				if err != nil {
+					log.Printf("[CandidaturaService] Forced sync failed for CPF %s: %v", maskCPF(cpf), err)
+					continue
+				}
+				if snapshot != nil {
+					snapshotMap[cpf] = snapshot
+				}
+			} else {
+				if !s.needsRefresh(snapshotMap[cpf]) {
+					continue
+				}
+				snapshot, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
+				if err != nil {
+					log.Printf("[CandidaturaService] On-demand sync failed for CPF %s: %v", maskCPF(cpf), err)
+					continue
+				}
+				if snapshot != nil {
+					snapshotMap[cpf] = snapshot
+				}
 			}
 		}
 	}

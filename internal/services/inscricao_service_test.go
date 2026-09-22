@@ -119,6 +119,13 @@ func (m *MockCitizenDataFetcher) SyncCitizenOnDemand(ctx context.Context, cpf st
 	return nil, nil
 }
 
+func (m *MockCitizenDataFetcher) SyncCitizenForced(ctx context.Context, cpf string) (*models.CitizenSnapshot, error) {
+	if m.SyncFunc != nil {
+		return m.SyncFunc(ctx, cpf)
+	}
+	return nil, nil
+}
+
 // TestInscricaoService_Create tests the Create method
 func TestInscricaoService_Create(t *testing.T) {
 	ctx := context.Background()

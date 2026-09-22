@@ -59,6 +59,45 @@ func TestCitizenSnapshot_ToPersonalInfo(t *testing.T) {
 	})
 }
 
+func TestCitizenSnapshot_ComputeDataHash(t *testing.T) {
+	t.Run("deterministic_hash", func(t *testing.T) {
+		s1 := &CitizenSnapshot{
+			Nome:    "João Silva",
+			Email:   "joao@example.com",
+			Celular: "21987654321",
+			Endereco: &CitizenEndereco{
+				Logradouro: "Rua A",
+				Numero:     "123",
+				Bairro:     "Centro",
+			},
+		}
+		s2 := &CitizenSnapshot{
+			Nome:    "João Silva",
+			Email:   "joao@example.com",
+			Celular: "21987654321",
+			Endereco: &CitizenEndereco{
+				Logradouro: "Rua A",
+				Numero:     "123",
+				Bairro:     "Centro",
+			},
+		}
+
+		h1 := s1.ComputeDataHash()
+		h2 := s2.ComputeDataHash()
+
+		assert.NotEmpty(t, h1)
+		assert.Equal(t, h1, h2)
+
+		s2.Endereco.Logradouro = "Rua B"
+		assert.NotEqual(t, h1, s2.ComputeDataHash())
+	})
+
+	t.Run("nil_snapshot_returns_empty", func(t *testing.T) {
+		var s *CitizenSnapshot
+		assert.Equal(t, "", s.ComputeDataHash())
+	})
+}
+
 func TestOrgaoSnapshot_TableName(t *testing.T) {
 	snapshot := &OrgaoSnapshot{}
 	assert.Equal(t, "orgao_snapshots", snapshot.TableName())
