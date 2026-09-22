@@ -153,6 +153,7 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empHabilidades.POST("/:id/areas-atuacao/:areaId", app.EmpHabilidadeHandler.AttachAreaAtuacao)
 		empHabilidades.DELETE("/:id/areas-atuacao/:areaId", app.EmpHabilidadeHandler.DetachAreaAtuacao)
 		empHabilidades.PUT("/:id/areas-atuacao", app.EmpHabilidadeHandler.ReplaceAreasAtuacao)
+		empHabilidades.GET("/areas-atuacao-habilidades", app.EmpHabilidadeHandler.ListAreaAtuacaoHabilidades)
 	}
 
 	empComportamentosAtitudes := empGroup.Group("/comportamentos-atitudes")
@@ -171,18 +172,16 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	// -----------------------------------------------------------------
 	empCurriculo := empGroup.Group("/curriculo")
 	{
-		// Endpoints específicos para Habilidades no Currículo
-		empCurriculo.GET("/habilidades", app.EmpCurriculoHandler.ListHabilidadesDoCurriculo)
-		empCurriculo.POST("/habilidades", app.EmpCurriculoHandler.AddHabilidadeAoCurriculo)
-		empCurriculo.DELETE("/habilidades/:id", app.EmpCurriculoHandler.DeleteHabilidadeDoCurriculo)
+		// Endpoints específicos para Áreas atuação/habilidades no Currículo
+		empCurriculo.GET("/curriculo/areas-atuacao-habilidades", app.EmpCurriculoHandler.ListAreaAtuacaoHabilidadeDoCurriculoByCPF)
+		empCurriculo.POST("/curriculo/areas-atuacao-habilidades", app.EmpCurriculoHandler.AddAreaAtuacaoHabilidadeAoCurriculoByCPF)
+		empCurriculo.DELETE("/curriculo/areas-atuacao-habilidades/:id", app.EmpCurriculoHandler.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF)
+		empCurriculo.PUT("/curriculo/areas-atuacao-habilidades", app.EmpCurriculoHandler.ReplaceAllItensCurriculoByCPF)
 
 		// Endpoints específicos para Comportamento e atitudes no Currículo
 		empCurriculo.GET("/comportamentos-atitudes", app.EmpCurriculoHandler.ListComportamentoAtitudesDoCurriculo)
 		empCurriculo.POST("/comportamentos-atitudes", app.EmpCurriculoHandler.AddComportamentoAtitudesAoCurriculo)
 		empCurriculo.DELETE("/comportamentos-atitudes/:id", app.EmpCurriculoHandler.DeleteComportamentoAtitudesDoCurriculo)
-
-		// Endpoint de Substituição Completa (Accordion UI)
-		empCurriculo.PUT("/accordion/habilidades", app.EmpHabilidadeHandler.ReplaceAllHabilidades)
 	}
 
 	// -----------------------------------------------------------------

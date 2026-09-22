@@ -5,6 +5,7 @@ type CurriculoCompleto struct {
 	Formacoes             []*CurriculoFormacao              `json:"formacoes,omitempty"`
 	Idiomas               []*CurriculoIdioma                `json:"idiomas,omitempty"`
 	Habilidades           []*CurriculoHabilidade            `json:"habilidades,omitempty"`
+	AreaAtuacaoHabilidade []*CurriculoAreaAtuacaoHabilidade `json:"area_atuacao_habilidade,omitempty"`
 	ComportamentoAtitudes []*CurriculoComportamentoAtitudes `json:"comportamento_atitudes,omitempty"`
 	CursosComplementares  []*CurriculoCursoComplementar     `json:"cursos_complementares,omitempty"`
 	Experiencias          []*CurriculoExperiencia           `json:"experiencias,omitempty"`
@@ -15,6 +16,6 @@ type CurriculoCompleto struct {
 
 // CurriculoItensReplaceAll agrupa apenas os IDs para substituição massiva no currículo.
 type CurriculoItensReplaceAll struct {
-	HabilidadesIDs           []int64 `json:"habilidades_ids"`
+	AreaAtuacaoHabilidadeIDs []int64 `json:"area_atuacao_habilidade_ids"`
 	ComportamentoAtitudesIDs []int64 `json:"comportamento_atitudes_ids"`
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
@@ -106,6 +107,16 @@ func (m *MockHabilidadeRepository) AttachAreaAtuacao(ctx context.Context, habili
 func (m *MockHabilidadeRepository) DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
 	args := m.Called(ctx, habilidadeID, areaID)
 	return args.Error(0)
+}
+
+func (m *MockHabilidadeRepository) ListAreaAtuacaoHabilidades(ctx context.Context) ([]*empregabilidade.AreaAtuacaoHabilidade, error) {
+	args := m.Called(ctx)
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
+	return args.Get(0).([]*empregabilidade.AreaAtuacaoHabilidade), args.Error(1)
 }
 
 func (m *MockHabilidadeRepository) ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error {
@@ -477,6 +488,63 @@ func TestHabilidadeService_DetachAreaAtuacao(t *testing.T) {
 
 		err := service.DetachAreaAtuacao(ctx, 1, 2)
 		assert.NoError(t, err)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("id invalido", func(t *testing.T) {
+		err := service.DetachAreaAtuacao(ctx, 0, 2)
+		assert.Error(t, err)
+	})
+}
+
+func TestHabilidadeService_ListAreaAtuacaoHabilidades(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		mockRepo := new(MockHabilidadeRepository)
+		svc := NewHabilidadeServiceWithInterface(mockRepo)
+
+		expected := []*empregabilidade.AreaAtuacaoHabilidade{
+			{
+				ID:            1,
+				IDHabilidade:  10,
+				IDAreaAtuacao: 20,
+			},
+			{
+				ID:            2,
+				IDHabilidade:  11,
+				IDAreaAtuacao: 20,
+			},
+		}
+
+		mockRepo.
+			On("ListAreaAtuacaoHabilidades", ctx).
+			Return(expected, nil)
+
+		result, err := svc.ListAreaAtuacaoHabilidades(ctx)
+
+		require.NoError(t, err)
+		assert.Equal(t, expected, result)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		mockRepo := new(MockHabilidadeRepository)
+		svc := NewHabilidadeServiceWithInterface(mockRepo)
+
+		expectedErr := errors.New("erro ao listar áreas de atuação e habilidades")
+
+		mockRepo.
+			On("ListAreaAtuacaoHabilidades", ctx).
+			Return(nil, expectedErr)
+
+		result, err := svc.ListAreaAtuacaoHabilidades(ctx)
+
+		assert.Nil(t, result)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, expectedErr)
+
 		mockRepo.AssertExpectations(t)
 	})
 }

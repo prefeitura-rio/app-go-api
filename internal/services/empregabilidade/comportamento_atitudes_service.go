@@ -14,10 +14,6 @@ func NewComportamentoAtitudesService(repo ComportamentoAtitudesRepositoryInterfa
 	return &ComportamentoAtitudesService{repo: repo}
 }
 
-func NewComportamentoAtitudesServiceWithInterface(repo ComportamentoAtitudesRepositoryInterface) *ComportamentoAtitudesService {
-	return &ComportamentoAtitudesService{repo: repo}
-}
-
 // CreateComportamentoAtitudes cria um novo comportamento/atitude e retorna o ID gerado (int64)
 func (s *ComportamentoAtitudesService) CreateComportamentoAtitudes(ctx context.Context, entity *empregabilidade.ComportamentoAtitudes) (int64, error) {
 	return s.repo.CreateComportamentoAtitudes(ctx, entity)

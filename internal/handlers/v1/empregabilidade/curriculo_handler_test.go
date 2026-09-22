@@ -25,15 +25,15 @@ import (
 // ──────────────────────────────────────────────────────────────────────────────
 
 type mockCurriculoRepoH struct {
-	formacao               *empmodels.CurriculoFormacao
-	idioma                 *empmodels.CurriculoIdioma
-	habilidade             *empmodels.CurriculoHabilidade
-	comportamento_atitudes empmodels.ComportamentoAtitudes
-	curso                  *empmodels.CurriculoCursoComplementar
-	experiencia            *empmodels.CurriculoExperiencia
-	conquista              *empmodels.CurriculoConquista
-	situacao               *empmodels.CurriculoSituacaoInteresses
-	err                    error
+	formacao                *empmodels.CurriculoFormacao
+	idioma                  *empmodels.CurriculoIdioma
+	area_atuacao_habilidade *empmodels.CurriculoAreaAtuacaoHabilidade
+	comportamento_atitudes  empmodels.ComportamentoAtitudes
+	curso                   *empmodels.CurriculoCursoComplementar
+	experiencia             *empmodels.CurriculoExperiencia
+	conquista               *empmodels.CurriculoConquista
+	situacao                *empmodels.CurriculoSituacaoInteresses
+	err                     error
 	mock.Mock
 }
 
@@ -234,27 +234,34 @@ func (m *mockCurriculoRepoH) GetPerfilByCPF(_ context.Context, _ string) (*empmo
 	return nil, m.err
 }
 
-// Habilidade
+// Área atuação/habilidades
 
-func (m *mockCurriculoRepoH) ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empmodels.CurriculoHabilidade, error) {
+func (m *mockCurriculoRepoH) ListAreaAtuacaoHabilidadeDoCurriculoByCPF(
+	ctx context.Context,
+	cpf string,
+) ([]*empmodels.CurriculoAreaAtuacaoHabilidade, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	if m.habilidade != nil {
-		return []*empmodels.CurriculoHabilidade{m.habilidade}, nil
+
+	if m.area_atuacao_habilidade != nil {
+		return []*empmodels.CurriculoAreaAtuacaoHabilidade{
+			m.area_atuacao_habilidade,
+		}, nil
 	}
 
-	return []*empmodels.CurriculoHabilidade{}, nil
+	return []*empmodels.CurriculoAreaAtuacaoHabilidade{}, nil
 }
 
-func (m *mockCurriculoRepoH) AddHabilidadeAoCurriculo(_ context.Context, _ *empmodels.CurriculoHabilidade) error {
+func (m *mockCurriculoRepoH) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(_ context.Context, _ *empmodels.CurriculoAreaAtuacaoHabilidade) error {
 	if m.err != nil {
 		return m.err
 	}
+
 	return nil
 }
 
-func (m *mockCurriculoRepoH) DetachHabilidadeDoCurriculo(ctx context.Context, id int64) error {
+func (m *mockCurriculoRepoH) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(_ context.Context, _ int64) error {
 	return m.err
 }
 
@@ -336,10 +343,10 @@ func setupCurriculoRouter(repo services.CurriculoRepositoryInterface, cpf string
 	r.DELETE("/curriculo/conquistas/:id", h.DeleteConquista)
 	r.GET("/curriculo/:cpf/conquistas", h.ListConquistasByCPF)
 
-	// Habilidades
-	r.GET("/curriculo/habilidades", h.ListHabilidadesDoCurriculo)
-	r.DELETE("/curriculo/habilidades/:id", h.DeleteHabilidadeDoCurriculo)
-	r.POST("/curriculo/habilidades", h.AddHabilidadeAoCurriculo)
+	// Áreas atuação/habilidades
+	r.GET("/curriculo/areas-atuacao-habilidades", h.ListAreaAtuacaoHabilidadeDoCurriculoByCPF)
+	r.POST("/curriculo/areas-atuacao-habilidades", h.AddAreaAtuacaoHabilidadeAoCurriculoByCPF)
+	r.DELETE("/curriculo/areas-atuacao-habilidades/:id", h.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF)
 
 	// Comportamento/atitudes
 	r.GET("/curriculo/comportamentos-atitudes", h.ListComportamentoAtitudesDoCurriculo)
@@ -937,14 +944,18 @@ func TestCurriculoHandler_UpdateCursoComplementar_BadJSON(t *testing.T) {
 	}
 }
 
-// --- HABILIDADES ---
+// --- Áreas atuação/habilidades ---
 
-// 1. Sucesso na listagem de habilidades (HTTP 200)
-func TestCurriculoHandler_ListHabilidadesDoCurriculo_Success(t *testing.T) {
+// 1. Sucesso na listagem de áreas de atuação/habilidades (HTTP 200)
+func TestCurriculoHandler_ListAreaAtuacaoHabilidadeDoCurriculo_Success(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
 	r := setupCurriculoRouter(repo, "12345678900", false)
 
-	req := httptest.NewRequest(http.MethodGet, "/curriculo/habilidades", nil)
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/curriculo/areas-atuacao-habilidades",
+		nil,
+	)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -952,8 +963,8 @@ func TestCurriculoHandler_ListHabilidadesDoCurriculo_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-// 2. Não Autenticado / CPF ausente no contexto (HTTP 401)
-func TestCurriculoHandler_ListHabilidadesDoCurriculo_Unauthorized(t *testing.T) {
+// 2. Não autenticado / CPF ausente no contexto (HTTP 401)
+func TestCurriculoHandler_ListAreaAtuacaoHabilidadeDoCurriculo_Unauthorized(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &mockCurriculoRepoH{}
@@ -965,21 +976,30 @@ func TestCurriculoHandler_ListHabilidadesDoCurriculo_Unauthorized(t *testing.T) 
 
 	c.Request = httptest.NewRequest(
 		http.MethodGet,
-		"/curriculo/habilidades",
+		"/curriculo/areas-atuacao-habilidades",
 		nil,
 	)
 
-	h.ListHabilidadesDoCurriculo(c)
+	// Use exatamente a chave esperada por middlewares.GetUserCPF.
+	c.Set("user_cpf", "")
+
+	h.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(c)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
 // 3. Erro na camada de serviço/banco de dados (HTTP 500)
-func TestCurriculoHandler_ListHabilidadesDoCurriculo_ServiceError(t *testing.T) {
-	repo := &mockCurriculoRepoH{err: errors.New("erro ao consultar habilidades")}
+func TestCurriculoHandler_ListAreaAtuacaoHabilidadeDoCurriculo_ServiceError(t *testing.T) {
+	repo := &mockCurriculoRepoH{
+		err: errors.New("erro ao consultar áreas de atuação/habilidades"),
+	}
 	r := setupCurriculoRouter(repo, "12345678900", false)
 
-	req := httptest.NewRequest(http.MethodGet, "/curriculo/habilidades", nil)
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/curriculo/areas-atuacao-habilidades",
+		nil,
+	)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -988,12 +1008,16 @@ func TestCurriculoHandler_ListHabilidadesDoCurriculo_ServiceError(t *testing.T) 
 }
 
 // 1. Sucesso (HTTP 201)
-func TestCurriculoHandler_AddHabilidadeAoCurriculo_Success(t *testing.T) {
+func TestCurriculoHandler_AddAreaAtuacaoHabilidadeAoCurriculoByCPF_Success(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
 	r := setupCurriculoRouter(repo, "12345678900", false)
 
-	body := bodyOf(`{"id_habilidade": 1}`)
-	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+	body := bodyOf(`{"id_area_atuacao_habilidade": 1}`)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/curriculo/areas-atuacao-habilidades",
+		body,
+	)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -1018,13 +1042,17 @@ func TestCurriculoHandler_AddHabilidadeAoCurriculo_Unauthorized(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code, "Deveria retornar 401 quando GetUserCPF retorna string vazia")
 }
 
-// 3. JSON Inválido / ShouldBindJSON Error (HTTP 400)
-func TestCurriculoHandler_AddHabilidadeAoCurriculo_InvalidJSON(t *testing.T) {
+// 3. JSON inválido / ShouldBindJSON Error (HTTP 400)
+func TestCurriculoHandler_AddAreaAtuacaoHabilidadeAoCurriculo_InvalidJSON(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
 	r := setupCurriculoRouter(repo, "12345678900", false)
 
-	body := bodyOf(`{"id_habilidade": "texto_em_vez_de_int"}`)
-	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+	body := bodyOf(`{"id_area_atuacao_habilidade": "texto_em_vez_de_int"}`)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/curriculo/areas-atuacao-habilidades",
+		body,
+	)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -1034,12 +1062,18 @@ func TestCurriculoHandler_AddHabilidadeAoCurriculo_InvalidJSON(t *testing.T) {
 }
 
 // 4. Erro de Serviço/Banco (HTTP 500)
-func TestCurriculoHandler_AddHabilidadeAoCurriculo_ServiceError(t *testing.T) {
-	repo := &mockCurriculoRepoH{err: errors.New("erro interno")}
+func TestCurriculoHandler_AddAreaAtuacaoHabilidadeAoCurriculo_ServiceError(t *testing.T) {
+	repo := &mockCurriculoRepoH{
+		err: errors.New("erro interno"),
+	}
 	r := setupCurriculoRouter(repo, "12345678900", false)
 
-	body := bodyOf(`{"id_habilidade": 1}`)
-	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+	body := bodyOf(`{"id_area_atuacao_habilidade": 1}`)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/curriculo/areas-atuacao-habilidades",
+		body,
+	)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -1048,7 +1082,7 @@ func TestCurriculoHandler_AddHabilidadeAoCurriculo_ServiceError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
-func TestCurriculoHandler_AddHabilidadeAoCurriculo_SemCPFNoContexto(t *testing.T) {
+func TestCurriculoHandler_AddAreaAtuacaoHabilidadeAoCurriculoByCPF_SemCPFNoContexto(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &mockCurriculoRepoH{}
@@ -1057,107 +1091,170 @@ func TestCurriculoHandler_AddHabilidadeAoCurriculo_SemCPFNoContexto(t *testing.T
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
+
 	c.Request = httptest.NewRequest(
 		http.MethodPost,
-		"/curriculo/habilidades",
-		bodyOf(`{"id_habilidade": 1}`),
+		"/curriculo/areas-atuacao-habilidades",
+		bodyOf(`{"id_area_atuacao_habilidade": 1}`),
 	)
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	// Chama o handler diretamente, sem o middleware que aborta a requisição.
 	// Assim cobrimos especificamente o branch cpf == "" do handler.
-	h.AddHabilidadeAoCurriculo(c)
+	h.AddAreaAtuacaoHabilidadeAoCurriculoByCPF(c)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
-func TestCurriculoHandler_AddHabilidadeAoCurriculo_ValidationError(t *testing.T) {
+func TestCurriculoHandler_AddAreaAtuacaoHabilidadeAoCurriculoByCPF_ValidationError(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
 	r := setupCurriculoRouter(repo, "12345678900", false)
-	body := bodyOf(`{}`) // Sem o id_habilidade obrigatório
-	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+
+	body := bodyOf(`{}`) // Sem o id_area_atuacao_habilidade obrigatório
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/curriculo/areas-atuacao-habilidades",
+		body,
+	)
 	req.Header.Set("Content-Type", "application/json")
+
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest && w.Code != http.StatusUnprocessableEntity {
-		t.Errorf("expected 400 or 422, got %d: %s", w.Code, w.Body.String())
+		t.Errorf(
+			"expected 400 or 422, got %d: %s",
+			w.Code,
+			w.Body.String(),
+		)
 	}
 }
 
-func TestCurriculoHandler_AddHabilidadeAoCurriculo_RepoError(t *testing.T) {
-	repo := &mockCurriculoRepoH{err: errors.New("erro de banco")}
+func TestCurriculoHandler_AddAreaAtuacaoHabilidadeAoCurriculoByCPF_RepoError(t *testing.T) {
+	repo := &mockCurriculoRepoH{
+		err: errors.New("erro de banco"),
+	}
 	r := setupCurriculoRouter(repo, "12345678900", false)
-	body := bodyOf(`{"id_habilidade": 1}`)
-	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+
+	body := bodyOf(`{"id_area_atuacao_habilidade": 1}`)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/curriculo/areas-atuacao-habilidades",
+		body,
+	)
 	req.Header.Set("Content-Type", "application/json")
+
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusInternalServerError {
-		t.Errorf("expected status %d, got %d: %s", http.StatusInternalServerError, w.Code, w.Body.String())
+		t.Errorf(
+			"expected status %d, got %d: %s",
+			http.StatusInternalServerError,
+			w.Code,
+			w.Body.String(),
+		)
 	}
 }
 
-func TestCurriculoHandler_AddHabilidadeAoCurriculo_Conflict(t *testing.T) {
-	repo := &mockCurriculoRepoH{err: errors.New("habilidade ja vinculada")}
+func TestCurriculoHandler_AddAreaAtuacaoHabilidadeAoCurriculoByCPF_Conflict(t *testing.T) {
+	repo := &mockCurriculoRepoH{
+		err: errors.New("área de atuação/habilidade já vinculada"),
+	}
 	r := setupCurriculoRouter(repo, "12345678900", false)
 
-	body := bodyOf(`{"id_habilidade": 1}`)
-	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+	body := bodyOf(`{"id_area_atuacao_habilidade": 1}`)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/curriculo/areas-atuacao-habilidades",
+		body,
+	)
 	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
 
+	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	// O handler retorna 500 para qualquer erro do repositório/serviço
+	// O handler retorna 500 para qualquer erro do repositório/serviço.
 	if w.Code != http.StatusInternalServerError {
-		t.Errorf("expected status %d, got %d: %s", http.StatusInternalServerError, w.Code, w.Body.String())
+		t.Errorf(
+			"expected status %d, got %d: %s",
+			http.StatusInternalServerError,
+			w.Code,
+			w.Body.String(),
+		)
 	}
 }
 
-func TestCurriculoHandler_AddHabilidadeAoCurriculo_IdZeroOuNegativo(t *testing.T) {
+func TestCurriculoHandler_AddAreaAtuacaoHabilidadeAoCurriculoByCPF_IdZeroOuNegativo(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
 	r := setupCurriculoRouter(repo, "12345678900", false)
 
-	body := bodyOf(`{"id_habilidade": 0}`)
-	req := httptest.NewRequest(http.MethodPost, "/curriculo/habilidades", body)
+	body := bodyOf(`{"id_area_atuacao_habilidade": 0}`)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/curriculo/areas-atuacao-habilidades",
+		body,
+	)
 	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
 
+	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest && w.Code != http.StatusUnprocessableEntity {
-		t.Errorf("expected 400 or 422, got %d: %s", w.Code, w.Body.String())
+		t.Errorf(
+			"expected 400 or 422, got %d: %s",
+			w.Code,
+			w.Body.String(),
+		)
 	}
 }
 
-func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_NotFound(t *testing.T) {
+func TestCurriculoHandler_DeleteAreaAtuacaoHabilidadeDoCurriculo_NotFound(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
 	r := setupCurriculoRouter(repo, "12345678900", false)
 
-	// Sem o ID no final, a rota não existe no Gin
-	req := httptest.NewRequest(http.MethodDelete, "/curriculo/habilidades", nil)
+	// Sem o ID no final, a rota não existe no Gin.
+	req := httptest.NewRequest(
+		http.MethodDelete,
+		"/curriculo/areas-atuacao-habilidades",
+		nil,
+	)
 	w := httptest.NewRecorder()
+
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+		t.Errorf(
+			"expected 404, got %d: %s",
+			w.Code,
+			w.Body.String(),
+		)
 	}
 }
 
-func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_Success(t *testing.T) {
+func TestCurriculoHandler_DeleteAreaAtuacaoHabilidadeDoCurriculo_Success(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
 	r := setupCurriculoRouter(repo, "12345678900", false)
-	req := httptest.NewRequest(http.MethodDelete, "/curriculo/habilidades/1", nil)
+
+	req := httptest.NewRequest(
+		http.MethodDelete,
+		"/curriculo/areas-atuacao-habilidades/1",
+		nil,
+	)
 	w := httptest.NewRecorder()
+
 	r.ServeHTTP(w, req)
+
 	if w.Code != http.StatusNoContent && w.Code != http.StatusOK {
-		t.Errorf("expected 204 or 200, got %d: %s", w.Code, w.Body.String())
+		t.Errorf(
+			"expected 204 or 200, got %d: %s",
+			w.Code,
+			w.Body.String(),
+		)
 	}
 }
 
-func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_Unauthorized(t *testing.T) {
+func TestCurriculoHandler_DeleteAreaAtuacaoHabilidadeDoCurriculo_Unauthorized(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &mockCurriculoRepoH{}
@@ -1169,25 +1266,25 @@ func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_Unauthorized(t *testing.T)
 
 	c.Request = httptest.NewRequest(
 		http.MethodDelete,
-		"/curriculo/habilidades/1",
+		"/curriculo/areas-atuacao-habilidades/1",
 		nil,
 	)
 	c.Params = gin.Params{
 		{Key: "id", Value: "1"},
 	}
 
-	h.DeleteHabilidadeDoCurriculo(c)
+	h.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(c)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
-func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_InvalidID(t *testing.T) {
+func TestCurriculoHandler_DeleteAreaAtuacaoHabilidadeDoCurriculo_InvalidID(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
 	r := setupCurriculoRouter(repo, "12345678900", false)
 
 	req := httptest.NewRequest(
 		http.MethodDelete,
-		"/curriculo/habilidades/abc",
+		"/curriculo/areas-atuacao-habilidades/abc",
 		nil,
 	)
 	w := httptest.NewRecorder()
@@ -1197,7 +1294,7 @@ func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_InvalidID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_RecordNotFound(t *testing.T) {
+func TestCurriculoHandler_DeleteAreaAtuacaoHabilidadeDoCurriculo_RecordNotFound(t *testing.T) {
 	repo := &mockCurriculoRepoH{
 		err: gorm.ErrRecordNotFound,
 	}
@@ -1205,7 +1302,7 @@ func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_RecordNotFound(t *testing.
 
 	req := httptest.NewRequest(
 		http.MethodDelete,
-		"/curriculo/habilidades/1",
+		"/curriculo/areas-atuacao-habilidades/1",
 		nil,
 	)
 	w := httptest.NewRecorder()
@@ -1215,15 +1312,15 @@ func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_RecordNotFound(t *testing.
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
-func TestCurriculoHandler_DeleteHabilidadeDoCurriculo_ServiceError(t *testing.T) {
+func TestCurriculoHandler_DeleteAreaAtuacaoHabilidadeDoCurriculo_ServiceError(t *testing.T) {
 	repo := &mockCurriculoRepoH{
-		err: errors.New("erro ao remover habilidade"),
+		err: errors.New("erro ao remover área de atuação/habilidade"),
 	}
 	r := setupCurriculoRouter(repo, "12345678900", false)
 
 	req := httptest.NewRequest(
 		http.MethodDelete,
-		"/curriculo/habilidades/1",
+		"/curriculo/areas-atuacao-habilidades/1",
 		nil,
 	)
 	w := httptest.NewRecorder()
@@ -1426,14 +1523,96 @@ func TestCurriculoHandler_DeleteComportamentoAtitudesDoCurriculo_Unauthorized(t 
 func TestCurriculoHandler_ReplaceAllItensCurriculoByCPF_Success(t *testing.T) {
 	repo := &mockCurriculoRepoH{}
 	r := setupCurriculoRouter(repo, "12345678900", false)
-	body := bodyOf(`{"habilidades":[{"descricao":"Go"}],"comportamentos":[{"descricao":"Liderança"}]}`)
-	req := httptest.NewRequest(http.MethodPut, "/curriculo", body)
+
+	body := bodyOf(`{
+		"area_atuacao_habilidade_ids": [1, 2],
+		"comportamento_atitudes_ids": [3, 4]
+	}`)
+
+	req := httptest.NewRequest(
+		http.MethodPut,
+		"/curriculo",
+		body,
+	)
 	req.Header.Set("Content-Type", "application/json")
+
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCurriculoHandler_ReplaceAllItensCurriculoByCPF_Unauthorized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &mockCurriculoRepoH{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	h := handlers.NewCurriculoHandler(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	c.Request = httptest.NewRequest(
+		http.MethodPut,
+		"/curriculo",
+		bodyOf(`{
+			"area_atuacao_habilidade_ids": [1, 2],
+			"comportamento_atitudes_ids": [3]
+		}`),
+	)
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	h.ReplaceAllItensCurriculoByCPF(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "Usuário não identificado")
+}
+
+func TestCurriculoHandler_ReplaceAllItensCurriculoByCPF_InvalidJSON(t *testing.T) {
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+
+	body := bodyOf(`{"area_atuacao_habilidade_ids": [}`)
+	req := httptest.NewRequest(
+		http.MethodPut,
+		"/curriculo",
+		body,
+	)
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCurriculoHandler_ReplaceAllItensCurriculoByCPF_ServiceError(t *testing.T) {
+	repo := &mockCurriculoRepoH{
+		err: errors.New("erro ao substituir itens do currículo"),
 	}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+
+	body := bodyOf(`{
+		"area_atuacao_habilidade_ids": [1, 2],
+		"comportamento_atitudes_ids": [3]
+	}`)
+
+	req := httptest.NewRequest(
+		http.MethodPut,
+		"/curriculo",
+		body,
+	)
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(
+		t,
+		w.Body.String(),
+		"erro ao substituir itens do currículo",
+	)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

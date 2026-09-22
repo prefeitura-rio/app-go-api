@@ -14,6 +14,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// DTOs / Structs de Requisição e Resposta
+
+type AddAreaAtuacaoHabilidadeRequest struct {
+	IDAreaAtuacaoHabilidade int64 `json:"id_area_atuacao_habilidade" binding:"required"`
+}
+
 type CurriculoHandler struct {
 	service *services.CurriculoService
 }
@@ -1244,85 +1250,99 @@ func (h *CurriculoHandler) GetSituacaoInteressesByCPF(c *gin.Context) {
 	c.JSON(http.StatusOK, entity)
 }
 
-// AddHabilidadeAoCurriculo vincula uma nova habilidade ao currículo do usuário.
-// @Summary      Adicionar habilidade ao currículo
-// @Description  Vincula uma habilidade específica ao currículo do usuário autenticado via JWT
+// AddAreaAtuacaoHabilidadeAoCurriculoByCPF vincula uma área de atuação/habilidade ao currículo do usuário.
+// @Summary      Adicionar área de atuação/habilidade ao currículo
+// @Description  Vincula uma combinação específica de área de atuação e habilidade ao currículo do usuário autenticado via JWT
 // @Tags         empregabilidade-curriculo
 // @Accept       json
 // @Produce      json
-// @Param        request  body      AddHabilidadeRequest  true  "ID da habilidade a ser vinculada"
-// @Success      201      {object}  empregabilidade.CurriculoHabilidade
+// @Param        request  body      AddAreaAtuacaoHabilidadeRequest  true  "ID do vínculo entre área de atuação e habilidade"
+// @Success      201      {object}  empregabilidade.CurriculoAreaAtuacaoHabilidade
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
 // @Failure      401      {object}  response.ErrorResponse "Usuário não autenticado"
-// @Failure      500      {object}  response.ErrorResponse "Erro ao adicionar habilidade ao currículo"
+// @Failure      500      {object}  response.ErrorResponse "Erro ao adicionar área de atuação/habilidade ao currículo"
 // @Security     BearerAuth
-// @Router       /api/v1/empregabilidade/curriculo/habilidades [post]
-func (h *CurriculoHandler) AddHabilidadeAoCurriculo(c *gin.Context) {
+// @Router       /api/v1/empregabilidade/curriculo/areas-atuacao-habilidades [post]
+func (h *CurriculoHandler) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(c *gin.Context) {
 	cpf := middlewares.GetUserCPF(c)
 	if cpf == "" {
 		response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
 		return
 	}
 
-	var req AddHabilidadeRequest
+	var req AddAreaAtuacaoHabilidadeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
-	vinculo := &empregabilidade.CurriculoHabilidade{
-		CPF:          cpf,
-		IDHabilidade: req.IDHabilidade,
+	vinculo := &empregabilidade.CurriculoAreaAtuacaoHabilidade{
+		CPF:                     cpf,
+		IDAreaAtuacaoHabilidade: req.IDAreaAtuacaoHabilidade,
 	}
 
-	if err := h.service.AddHabilidadeAoCurriculo(c.Request.Context(), vinculo); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao adicionar habilidade ao currículo")
+	if err := h.service.AddAreaAtuacaoHabilidadeAoCurriculoByCPF(
+		c.Request.Context(),
+		vinculo,
+	); err != nil {
+		response.Error(
+			c,
+			http.StatusInternalServerError,
+			"Erro ao adicionar área de atuação/habilidade ao currículo",
+		)
 		return
 	}
 
 	c.JSON(http.StatusCreated, vinculo)
 }
 
-// ListHabilidadesDoCurriculo busca as habilidades associadas ao candidato logado.
-// @Summary      Listar habilidades do currículo
-// @Description  Retorna as habilidades vinculadas ao currículo do usuário autenticado via JWT
+// ListAreaAtuacaoHabilidadeDoCurriculoByCPF busca as áreas de atuação/habilidades associadas ao candidato logado.
+// @Summary      Listar áreas de atuação/habilidades do currículo
+// @Description  Retorna os vínculos entre áreas de atuação e habilidades associados ao currículo do usuário autenticado via JWT
 // @Tags         empregabilidade-curriculo
 // @Produce      json
-// @Success      200  {array}   empregabilidade.CurriculoHabilidade
+// @Success      200  {array}   empregabilidade.CurriculoAreaAtuacaoHabilidade
 // @Failure      401  {object}  response.ErrorResponse "Usuário não autenticado"
-// @Failure      500  {object}  response.ErrorResponse "Erro ao buscar habilidades do currículo"
+// @Failure      500  {object}  response.ErrorResponse "Erro ao buscar áreas de atuação/habilidades do currículo"
 // @Security     BearerAuth
-// @Router       /api/v1/empregabilidade/curriculo/habilidades [get]
-func (h *CurriculoHandler) ListHabilidadesDoCurriculo(c *gin.Context) {
+// @Router       /api/v1/empregabilidade/curriculo/areas-atuacao-habilidades [get]
+func (h *CurriculoHandler) ListAreaAtuacaoHabilidadeDoCurriculoByCPF(c *gin.Context) {
 	cpf := middlewares.GetUserCPF(c)
 	if cpf == "" {
 		response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
 		return
 	}
 
-	habilidades, err := h.service.ListHabilidadesByCPF(c.Request.Context(), cpf)
+	areasAtuacaoHabilidades, err := h.service.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(
+		c.Request.Context(),
+		cpf,
+	)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao buscar habilidades do currículo")
+		response.Error(
+			c,
+			http.StatusInternalServerError,
+			"Erro ao buscar áreas de atuação/habilidades do currículo",
+		)
 		return
 	}
 
-	c.JSON(http.StatusOK, habilidades)
+	c.JSON(http.StatusOK, areasAtuacaoHabilidades)
 }
 
-// DeleteHabilidadeDoCurriculo remove o vínculo de uma habilidade do currículo.
-// @Summary      Remover habilidade do currículo
-// @Description  Remove o vínculo de uma habilidade do currículo do usuário autenticado
+// DetachAreaAtuacaoHabilidadeDoCurriculoByCPF remove o vínculo de uma área de atuação/habilidade do currículo.
+// @Summary      Remover área de atuação/habilidade do currículo
+// @Description  Remove o vínculo de uma área de atuação/habilidade do currículo do usuário autenticado
 // @Tags         empregabilidade-curriculo
 // @Produce      json
-// @Param        id   path      int  true  "ID do vínculo (emp_curriculo_habilidades)" example(10)
+// @Param        id   path      int  true  "ID do vínculo (emp_curriculo_area_atuacao_habilidade)" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      401  {object}  response.ErrorResponse "Usuário não autenticado"
 // @Failure      404  {object}  response.ErrorResponse "Vínculo não encontrado ou não pertence ao usuário"
-// @Failure      500  {object}  response.ErrorResponse "Erro ao remover habilidade do currículo"
+// @Failure      500  {object}  response.ErrorResponse "Erro ao remover área de atuação/habilidade do currículo"
 // @Security     BearerAuth
-// @Router       /api/v1/empregabilidade/curriculo/habilidades/{id} [delete]
-func (h *CurriculoHandler) DeleteHabilidadeDoCurriculo(c *gin.Context) {
+// @Router       /api/v1/empregabilidade/curriculo/areas-atuacao-habilidades/{id} [delete]
+func (h *CurriculoHandler) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(c *gin.Context) {
 	cpf := middlewares.GetUserCPF(c)
 	if cpf == "" {
 		response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
@@ -1336,17 +1356,33 @@ func (h *CurriculoHandler) DeleteHabilidadeDoCurriculo(c *gin.Context) {
 		return
 	}
 
-	err = h.service.DetachHabilidadeDoCurriculo(c.Request.Context(), vinculoID)
+	err = h.service.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(
+		c.Request.Context(),
+		vinculoID,
+	)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Error(c, http.StatusNotFound, "Vínculo não encontrado ou não pertence ao usuário")
+			response.Error(
+				c,
+				http.StatusNotFound,
+				"Vínculo não encontrado ou não pertence ao usuário",
+			)
 			return
 		}
-		response.Error(c, http.StatusInternalServerError, "Erro ao remover habilidade do currículo")
+
+		response.Error(
+			c,
+			http.StatusInternalServerError,
+			"Erro ao remover área de atuação/habilidade do currículo",
+		)
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Habilidade desvinculada com sucesso")
+	response.Success(
+		c,
+		http.StatusOK,
+		"Área de atuação/habilidade desvinculada com sucesso",
+	)
 }
 
 // AddComportamentoAtitudesAoCurriculo vincula um novo comportamento/atitude ao currículo do usuário.

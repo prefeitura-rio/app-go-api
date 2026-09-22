@@ -260,42 +260,24 @@ func (r *HabilidadeRepository) ListAreasAtuacao(ctx context.Context, filter empr
 	return entities, total, nil
 }
 
-// Métodos para Vínculo com Currículo e Áreas
+// ListAreaAtuacaoHabilidades lista todos os vínculos entre Áreas de Atuação e Habilidades.
+func (r *HabilidadeRepository) ListAreaAtuacaoHabilidades(
+	ctx context.Context,
+) ([]*empregabilidade.AreaAtuacaoHabilidade, error) {
+	var entities []*empregabilidade.AreaAtuacaoHabilidade
 
-func (r *HabilidadeRepository) AddHabilidadeAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error {
-	result := r.db.WithContext(ctx).Create(vinculo)
-	if result.Error != nil {
-		return fmt.Errorf("erro ao vincular habilidade ao currículo: %w", result.Error)
-	}
-	return nil
-}
-
-// DetachHabilidadeDoCurriculo remove o vínculo de uma habilidade do currículo
-func (r *HabilidadeRepository) DetachHabilidadeDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND cpf = ?", vinculo.ID, vinculo.CPF).
-		Delete(&empregabilidade.CurriculoHabilidade{})
+		Preload("AreaAtuacao").
+		Preload("Habilidade").
+		Order("id_area_atuacao ASC, id_habilidade ASC").
+		Find(&entities)
 
 	if result.Error != nil {
-		return result.Error
+		return nil, fmt.Errorf(
+			"erro ao listar áreas de atuação e habilidades: %w",
+			result.Error,
+		)
 	}
 
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-
-	return nil
-}
-
-func (r *HabilidadeRepository) ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
-	var vinculos []*empregabilidade.CurriculoHabilidade
-	result := r.db.WithContext(ctx).
-		Preload("Habilidade.Areas"). // Traz a Habilidade E as Áreas de Atuação dela
-		Where("cpf = ?", cpf).
-		Find(&vinculos)
-
-	if result.Error != nil {
-		return nil, fmt.Errorf("erro ao buscar habilidades por CPF: %w", result.Error)
-	}
-	return vinculos, nil
+	return entities, nil
 }

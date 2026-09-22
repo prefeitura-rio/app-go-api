@@ -58,7 +58,7 @@ func (m *mockComportamentoAtitudesRepo) ListComportamentoAtitudes(_ context.Cont
 func setupComportametoAtitudesHandlerRouter(repo services.ComportamentoAtitudesRepositoryInterface) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	svc := services.NewComportamentoAtitudesServiceWithInterface(repo)
+	svc := services.NewComportamentoAtitudesService(repo)
 	h := handler.NewComportamentoAtitudesHandler(svc)
 
 	r.GET("/comportamentos-atitudes", h.ListComportamentoAtitudes)
@@ -95,6 +95,25 @@ func TestListComportamentoAtitudes(t *testing.T) {
 		router.ServeHTTP(resp, req)
 
 		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+	})
+
+	t.Run("sucesso - ajusta paginacao invalida", func(t *testing.T) {
+		repo := &mockComportamentoAtitudesRepo{
+			list:  []*empmodels.ComportamentoAtitudes{{ID: 1, Nome: "Pontualidade"}},
+			total: 1,
+		}
+		router := setupComportametoAtitudesHandlerRouter(repo)
+
+		req, _ := http.NewRequest(
+			http.MethodGet,
+			"/comportamentos-atitudes?page=0&pageSize=101",
+			nil,
+		)
+		resp := httptest.NewRecorder()
+
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusOK, resp.Code)
 	})
 }
 

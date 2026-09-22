@@ -273,11 +273,6 @@ type HabilidadeRepositoryInterface interface {
 	AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
 	DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
 	ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error
-
-	// Operações do Currículo (Tabela Pivô emp_curriculo_habilidades)
-	AddHabilidadeAoCurriculo(ctx context.Context, vinculo *modelsEmp.CurriculoHabilidade) error
-	DetachHabilidadeDoCurriculo(ctx context.Context, vinculoID int64, cpf string) error
-	ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*modelsEmp.CurriculoHabilidade, error)
 }
 
 // ComportamentoAtitudesRepositoryInterface defines the interface for Comportamento e Atitudes Service

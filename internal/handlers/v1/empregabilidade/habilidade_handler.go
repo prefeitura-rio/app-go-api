@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
-	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	service "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
@@ -46,13 +45,11 @@ type ReplaceAreasHabilidadeRequest struct {
 
 type HabilidadeHandler struct {
 	habilidadeService *service.HabilidadeService
-	curriculoService  *service.CurriculoService
 }
 
 func NewHabilidadeHandler(hService *service.HabilidadeService, cService *service.CurriculoService) *HabilidadeHandler {
 	return &HabilidadeHandler{
 		habilidadeService: hService,
-		curriculoService:  cService,
 	}
 }
 
@@ -507,40 +504,26 @@ func (h *HabilidadeHandler) ListAreasAtuacao(c *gin.Context) {
 	response.PaginatedJSON(c, http.StatusOK, areas, total, page, pageSize)
 }
 
-// ReplaceAllHabilidades substitui a lista inteira de habilidades no accordion do currículo.
-// @Summary      Substituir todas as habilidades (Accordion)
-// @Description  Substitui em lote a lista completa de habilidades cadastradas no currículo do usuário
-// @Tags         empregabilidade-curriculo
-// @Accept       json
+// ListAreaAtuacaoHabilidades lista todos os vínculos entre áreas de atuação e habilidades.
+// @Summary      Listar vínculos entre Áreas de Atuação e Habilidades
+// @Description  Retorna todos os vínculos cadastrados entre áreas de atuação e habilidades
+// @Tags         empregabilidade-habilidades
 // @Produce      json
-// @Param        request  body      ReplaceHabilidadesRequest  true  "Lista completa de habilidades"
-// @Success      200      {object}  response.SuccessResponse
-// @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
-// @Failure      401      {object}  response.ErrorResponse "Usuário não autenticado"
-// @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar accordion de habilidades"
-// @Security     BearerAuth
-// @Router       /api/v1/empregabilidade/curriculo/accordion/habilidades [put]
-func (h *HabilidadeHandler) ReplaceAllHabilidades(c *gin.Context) {
-	cpf := middlewares.GetUserCPF(c)
-	if cpf == "" {
-		response.Error(c, http.StatusUnauthorized, "Usuário não autenticado")
+// @Success      200  {array}   empregabilidade.AreaAtuacaoHabilidade
+// @Failure      500  {object}  response.ErrorResponse "Erro ao buscar áreas de atuação e habilidades"
+// @Router       /api/v1/empregabilidade/habilidades/areas-atuacao-habilidades [get]
+func (h *HabilidadeHandler) ListAreaAtuacaoHabilidades(c *gin.Context) {
+	areasAtuacaoHabilidades, err := h.habilidadeService.ListAreaAtuacaoHabilidades(
+		c.Request.Context(),
+	)
+	if err != nil {
+		response.Error(
+			c,
+			http.StatusInternalServerError,
+			"Erro ao buscar áreas de atuação e habilidades",
+		)
 		return
 	}
 
-	var req ReplaceHabilidadesRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
-		return
-	}
-
-	for _, item := range req.Habilidades {
-		item.CPF = cpf
-	}
-
-	if err := h.curriculoService.ReplaceAllHabilidadesByCPF(c.Request.Context(), cpf, req.Habilidades); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao atualizar accordion de habilidades")
-		return
-	}
-
-	response.Success(c, http.StatusOK, "Habilidades atualizadas com sucesso")
+	c.JSON(http.StatusOK, areasAtuacaoHabilidades)
 }

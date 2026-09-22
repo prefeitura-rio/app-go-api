@@ -83,6 +83,11 @@ func (s *HabilidadeService) DetachAreaAtuacao(ctx context.Context, habilidadeID,
 	return s.repo.DetachAreaAtuacao(ctx, habilidadeID, areaID)
 }
 
+// ListAreaAtuacaoHabilidades lista todos os vínculos entre áreas de atuação e habilidades.
+func (s *HabilidadeService) ListAreaAtuacaoHabilidades(ctx context.Context) ([]*empregabilidade.AreaAtuacaoHabilidade, error) {
+	return s.repo.ListAreaAtuacaoHabilidades(ctx)
+}
+
 // ReplaceAreasAtuacao substitui a lista inteira de áreas de atuação de uma habilidade
 func (s *HabilidadeService) ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error {
 	if habilidadeID <= 0 {

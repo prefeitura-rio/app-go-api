@@ -165,19 +165,27 @@ docker-build tag="latest":
 
 # Run Docker container locally
 docker-run:
+    @if ! docker network inspect app-go-api_backend >/dev/null 2>&1; then \
+        echo "Criando a rede app-go-api_backend..."; \
+        docker network create app-go-api_backend --driver bridge; \
+    else \
+        echo "A rede app-go-api_backend já existe."; \
+    fi
+
     @echo "Running Docker container..."
     @docker run --rm -p 8080:8080 \
-        -e DB_HOST=db \
-        -e DB_PORT=5432 \
-        -e DB_USER=postgres \
-        -e DB_NAME=app_go_api \
-        -e DB_SSL_MODE=disable \
-        -e REDIS_HOST=redis \
-        -e REDIS_PORT=6379 \
-        -e REDIS_PASSWORD=12345678 \
+        --name $DB_NAME \
         --network app-go-api_backend \
-        --name app-go-api \
         --env-file ./.env \
+        -e DB_HOST=db \
+        -e DB_PORT=$DB_PORT \
+        -e DB_USER=$DB_USER \
+        -e DB_NAME=$DB_NAME \
+        -e DB_SSL_MODE=$DB_SSL_MODE \
+        -e DB_TIMEZONE=$DB_TIMEZONE \
+        -e REDIS_HOST=redis \
+        -e REDIS_PORT=$REDIS_PORT \
+        -e REDIS_PASSWORD=$REDIS_PASSWORD \
         app-go-api:latest
         
 # Run Docker Compose container locally

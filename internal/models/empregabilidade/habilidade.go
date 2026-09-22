@@ -4,6 +4,23 @@ import (
 	"time"
 )
 
+// AreaAtuacaoHabilidade representa a tabela pivô 'area_atuacao_habilidade'
+type AreaAtuacaoHabilidade struct {
+	ID            int64 `json:"id" gorm:"primaryKey;autoIncrement"`
+	IDHabilidade  int64 `json:"id_habilidade" gorm:"column:id_habilidade;not null;uniqueIndex:uk_habilidade_area"`
+	IDAreaAtuacao int64 `json:"id_area_atuacao" gorm:"column:id_area_atuacao;not null;uniqueIndex:uk_habilidade_area"`
+
+	Habilidade  *Habilidade  `json:"habilidade,omitempty" gorm:"foreignKey:IDHabilidade;references:ID"`
+	AreaAtuacao *AreaAtuacao `json:"area_atuacao,omitempty" gorm:"foreignKey:IDAreaAtuacao;references:ID"`
+
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+func (AreaAtuacaoHabilidade) TableName() string {
+	return "area_atuacao_habilidade"
+}
+
 // Habilidade representa a tabela 'emp_habilidades'
 type Habilidade struct {
 	ID        int64         `json:"id" gorm:"primaryKey;autoIncrement"`
@@ -15,20 +32,6 @@ type Habilidade struct {
 
 func (Habilidade) TableName() string {
 	return "emp_habilidades"
-}
-
-// CurriculoHabilidade representa o vínculo entre o candidato (CPF) e suas Habilidades
-type CurriculoHabilidade struct {
-	ID           int64       `json:"id" gorm:"primaryKey;autoIncrement"`
-	CPF          string      `json:"cpf" gorm:"type:char(11);not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
-	IDHabilidade int64       `json:"id_habilidade" gorm:"not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
-	CreatedAt    time.Time   `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt    time.Time   `json:"updated_at" gorm:"autoUpdateTime"`
-	Habilidade   *Habilidade `json:"habilidade,omitempty" gorm:"foreignKey:IDHabilidade;references:ID"`
-}
-
-func (CurriculoHabilidade) TableName() string {
-	return "emp_curriculo_habilidades"
 }
 
 // AreaAtuacao representa a tabela 'emp_areas_atuacao'

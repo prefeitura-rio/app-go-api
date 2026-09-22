@@ -154,6 +154,7 @@ type HabilidadeRepositoryInterface interface {
 	AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
 	DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
 	ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error
+	ListAreaAtuacaoHabilidades(ctx context.Context) ([]*empregabilidade.AreaAtuacaoHabilidade, error)
 }
 
 // CurriculoRepositoryInterface defines the interface for Curriculo repository.
@@ -201,10 +202,9 @@ type CurriculoRepositoryInterface interface {
 	GetSituacaoInteressesByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoSituacaoInteresses, error)
 	GetPerfilByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoPerfil, error)
 
-	AddHabilidadeAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error
-	DetachHabilidadeDoCurriculo(ctx context.Context, id int64) error
-	ReplaceAllHabilidadesByCPF(ctx context.Context, cpf string, habilidades []*empregabilidade.CurriculoHabilidade) error
-	ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error)
+	ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoAreaAtuacaoHabilidade, error)
+	AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx context.Context, entity *empregabilidade.CurriculoAreaAtuacaoHabilidade) error
+	DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, id int64) error
 
 	AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error
 	DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error

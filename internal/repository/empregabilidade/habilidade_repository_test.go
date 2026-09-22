@@ -2,11 +2,14 @@ package empregabilidade_test
 
 import (
 	"context"
+	"errors"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
@@ -466,88 +469,6 @@ func TestHabilidadeRepository_ListAreasAtuacao_Success(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-// --- TESTES DE VÍNCULO COM O CURRÍCULO ---
-
-func TestHabilidadeRepository_AddHabilidadeAoCurriculo_Success(t *testing.T) {
-	db, mock, cleanup := repository.SetupMockDB(t)
-	defer cleanup()
-
-	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
-	ctx := context.Background()
-
-	var vinculoID int64 = 100
-	var habilidadeID int64 = 1
-	vinculo := &empregabilidade.CurriculoHabilidade{
-		ID:           vinculoID,
-		CPF:          "12345678901",
-		IDHabilidade: habilidadeID,
-	}
-
-	mock.ExpectBegin()
-	mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(vinculoID))
-	mock.ExpectCommit()
-
-	err := repo.AddHabilidadeAoCurriculo(ctx, vinculo)
-	assert.NoError(t, err)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-func TestHabilidadeRepository_AddHabilidadeAoCurriculo_DatabaseError(t *testing.T) {
-	db, mock, cleanup := repository.SetupMockDB(t)
-	defer cleanup()
-
-	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
-	ctx := context.Background()
-
-	vinculo := &empregabilidade.CurriculoHabilidade{
-		ID:           100,
-		CPF:          "12345678901",
-		IDHabilidade: 1,
-	}
-
-	mock.ExpectBegin()
-	mock.ExpectQuery(`INSERT INTO "emp_curriculo_habilidades"`).
-		WillReturnError(assert.AnError)
-	mock.ExpectRollback()
-
-	err := repo.AddHabilidadeAoCurriculo(ctx, vinculo)
-	assert.Error(t, err)
-	assert.ErrorContains(t, err, "erro ao vincular habilidade ao currículo")
-	assert.ErrorIs(t, err, assert.AnError)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestHabilidadeRepository_ListHabilidadesByCPF_Success(t *testing.T) {
-	db, mock, cleanup := repository.SetupMockDB(t)
-	defer cleanup()
-
-	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
-	ctx := context.Background()
-	cpf := "12345678901"
-	var vinculoID int64 = 100
-	var habilidadeID int64 = 1
-
-	// 1. Busca dos vínculos do currículo (usando os dois mapeamentos id_habilidade e habilidade_id)
-	mock.ExpectQuery(`SELECT \* FROM "emp_curriculo_habilidades"`).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "cpf", "id_habilidade", "habilidade_id"}).
-			AddRow(vinculoID, cpf, habilidadeID, habilidadeID))
-
-	// 2. Preload da Habilidade
-	mock.ExpectQuery(`SELECT \* FROM "emp_habilidades"`).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "nome"}).
-			AddRow(habilidadeID, "Pintura Predial"))
-
-	// 3. Preload das Áreas vinculadas à Habilidade
-	mock.ExpectQuery(`SELECT \* FROM "area_atuacao_habilidade"`).
-		WillReturnRows(sqlmock.NewRows([]string{"id_habilidade", "id_area_atuacao"}))
-
-	result, err := repo.ListHabilidadesByCPF(ctx, cpf)
-	assert.NoError(t, err)
-	assert.Len(t, result, 1)
-	assert.Equal(t, cpf, result[0].CPF)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
 // --- TESTES DE VÍNCULO E DESVÍNCULO de Áreas de Atuação (MANY-TO-MANY) ---
 
 func TestHabilidadeRepository_AttachAreaAtuacao_Success(t *testing.T) {
@@ -643,76 +564,6 @@ func TestHabilidadeRepository_ReplaceAreasAtuacao_Success(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-// --- COBERTURA DE DetachHabilidadeDoCurriculo ---
-
-func TestHabilidadeRepository_DetachHabilidadeDoCurriculo_Success(t *testing.T) {
-	db, mock, cleanup := repository.SetupMockDB(t)
-	defer cleanup()
-
-	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
-	ctx := context.Background()
-
-	vinculo := &empregabilidade.CurriculoHabilidade{
-		ID:  15,
-		CPF: "12345678901",
-	}
-
-	mock.ExpectBegin()
-	mock.ExpectExec(`DELETE FROM "emp_curriculo_habilidades"`).
-		WithArgs(vinculo.ID, vinculo.CPF).
-		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectCommit()
-
-	err := repo.DetachHabilidadeDoCurriculo(ctx, vinculo)
-	assert.NoError(t, err)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestHabilidadeRepository_DetachHabilidadeDoCurriculo_NotFound(t *testing.T) {
-	db, mock, cleanup := repository.SetupMockDB(t)
-	defer cleanup()
-
-	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
-	ctx := context.Background()
-
-	vinculo := &empregabilidade.CurriculoHabilidade{
-		ID:  999,
-		CPF: "12345678901",
-	}
-
-	mock.ExpectBegin()
-	mock.ExpectExec(`DELETE FROM "emp_curriculo_habilidades"`).
-		WithArgs(vinculo.ID, vinculo.CPF).
-		WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectCommit()
-
-	err := repo.DetachHabilidadeDoCurriculo(ctx, vinculo)
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
-// --- COBERTURA DE ERRO EM ListHabilidadesByCPF ---
-
-func TestHabilidadeRepository_ListHabilidadesByCPF_DatabaseError(t *testing.T) {
-	db, mock, cleanup := repository.SetupMockDB(t)
-	defer cleanup()
-
-	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
-	ctx := context.Background()
-	cpf := "12345678901"
-
-	// Tabela corrigida para "emp_curriculo_habilidades" (plural)
-	mock.ExpectQuery(`SELECT \* FROM "emp_curriculo_habilidades"`).
-		WithArgs(cpf).
-		WillReturnError(assert.AnError)
-
-	result, err := repo.ListHabilidadesByCPF(ctx, cpf)
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
 // --- COBERTURA COMPLEMENTAR DE ListHabilidades ---
 
 func TestHabilidadeRepository_ListHabilidades_AreaAtuacaoFilter_Success(t *testing.T) {
@@ -802,26 +653,329 @@ func TestHabilidadeRepository_ListHabilidades_FindError(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestHabilidadeRepository_DetachHabilidadeDoCurriculo_DatabaseError(t *testing.T) {
+func TestHabilidadeRepository_ListAreaAtuacaoHabilidades_Success(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
 
 	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
 	ctx := context.Background()
 
-	vinculo := &empregabilidade.CurriculoHabilidade{
-		ID:  15,
-		CPF: "12345678901",
+	now := time.Now()
+
+	// 1. Consulta principal
+	mock.ExpectQuery(
+		regexp.QuoteMeta(
+			`SELECT * FROM "area_atuacao_habilidade" ORDER BY id_area_atuacao ASC, id_habilidade ASC`,
+		),
+	).
+		WillReturnRows(
+			sqlmock.NewRows([]string{
+				"id",
+				"id_habilidade",
+				"id_area_atuacao",
+				"created_at",
+				"updated_at",
+			}).
+				AddRow(1, 10, 20, now, now).
+				AddRow(2, 11, 20, now, now),
+		)
+
+	// 2. Preload("AreaAtuacao")
+	mock.ExpectQuery(
+		regexp.QuoteMeta(
+			`SELECT * FROM "emp_areas_atuacao" WHERE "emp_areas_atuacao"."id" = $1`,
+		),
+	).
+		WithArgs(int64(20)).
+		WillReturnRows(
+			sqlmock.NewRows([]string{
+				"id",
+				"nome",
+				"created_at",
+				"updated_at",
+			}).
+				AddRow(20, "Tecnologia da Informação", now, now),
+		)
+
+	// 3. Preload("Habilidade")
+	mock.ExpectQuery(
+		regexp.QuoteMeta(
+			`SELECT * FROM "emp_habilidades" WHERE "emp_habilidades"."id" IN ($1,$2)`,
+		),
+	).
+		WithArgs(int64(10), int64(11)).
+		WillReturnRows(
+			sqlmock.NewRows([]string{
+				"id",
+				"nome",
+				"created_at",
+				"updated_at",
+			}).
+				AddRow(10, "Go", now, now).
+				AddRow(11, "Java", now, now),
+		)
+
+	result, err := repo.ListAreaAtuacaoHabilidades(ctx)
+
+	require.NoError(t, err)
+	require.Len(t, result, 2)
+
+	assert.Equal(t, int64(1), result[0].ID)
+	assert.Equal(t, int64(10), result[0].IDHabilidade)
+	assert.Equal(t, int64(20), result[0].IDAreaAtuacao)
+
+	assert.Equal(t, int64(2), result[1].ID)
+	assert.Equal(t, int64(11), result[1].IDHabilidade)
+	assert.Equal(t, int64(20), result[1].IDAreaAtuacao)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_ListAreaAtuacaoHabilidades_FindError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	mock.ExpectQuery(
+		`SELECT \* FROM "area_atuacao_habilidade" ORDER BY id_area_atuacao ASC, id_habilidade ASC`,
+	).
+		WillReturnError(assert.AnError)
+
+	result, err := repo.ListAreaAtuacaoHabilidades(ctx)
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.ErrorContains(
+		t,
+		err,
+		"erro ao listar áreas de atuação e habilidades",
+	)
+	assert.ErrorIs(t, err, assert.AnError)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_ListAreaAtuacaoHabilidades_AreaAtuacaoPreloadError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	now := time.Now()
+
+	// Consulta principal
+	mock.ExpectQuery(
+		regexp.QuoteMeta(
+			`SELECT * FROM "area_atuacao_habilidade" ORDER BY id_area_atuacao ASC, id_habilidade ASC`,
+		),
+	).
+		WillReturnRows(
+			sqlmock.NewRows([]string{
+				"id",
+				"id_habilidade",
+				"id_area_atuacao",
+				"created_at",
+				"updated_at",
+			}).
+				AddRow(1, 10, 20, now, now),
+		)
+
+	// Preload("AreaAtuacao") falha
+	mock.ExpectQuery(
+		regexp.QuoteMeta(
+			`SELECT * FROM "emp_areas_atuacao" WHERE "emp_areas_atuacao"."id" = $1`,
+		),
+	).
+		WithArgs(int64(20)).
+		WillReturnError(assert.AnError)
+
+	result, err := repo.ListAreaAtuacaoHabilidades(ctx)
+
+	assert.Nil(t, result)
+	require.Error(t, err)
+
+	assert.ErrorContains(
+		t,
+		err,
+		"erro ao listar áreas de atuação e habilidades",
+	)
+	assert.ErrorIs(t, err, assert.AnError)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_ListAreaAtuacaoHabilidades_HabilidadePreloadError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	now := time.Now()
+
+	// Consulta principal
+	mock.ExpectQuery(
+		regexp.QuoteMeta(
+			`SELECT * FROM "area_atuacao_habilidade" ORDER BY id_area_atuacao ASC, id_habilidade ASC`,
+		),
+	).
+		WillReturnRows(
+			sqlmock.NewRows([]string{
+				"id",
+				"id_habilidade",
+				"id_area_atuacao",
+				"created_at",
+				"updated_at",
+			}).
+				AddRow(1, 10, 20, now, now),
+		)
+
+	// Preload("AreaAtuacao") passa
+	mock.ExpectQuery(
+		regexp.QuoteMeta(
+			`SELECT * FROM "emp_areas_atuacao" WHERE "emp_areas_atuacao"."id" = $1`,
+		),
+	).
+		WithArgs(int64(20)).
+		WillReturnRows(
+			sqlmock.NewRows([]string{
+				"id",
+				"nome",
+				"created_at",
+				"updated_at",
+			}).
+				AddRow(20, "Tecnologia da Informação", now, now),
+		)
+
+	// Preload("Habilidade") falha
+	mock.ExpectQuery(
+		regexp.QuoteMeta(
+			`SELECT * FROM "emp_habilidades" WHERE "emp_habilidades"."id" = $1`,
+		),
+	).
+		WithArgs(int64(10)).
+		WillReturnError(assert.AnError)
+
+	result, err := repo.ListAreaAtuacaoHabilidades(ctx)
+
+	assert.Nil(t, result)
+	require.Error(t, err)
+
+	assert.ErrorContains(
+		t,
+		err,
+		"erro ao listar áreas de atuação e habilidades",
+	)
+	assert.ErrorIs(t, err, assert.AnError)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_AttachAreaAtuacao_Error(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	var habilidadeID int64 = 1
+	var areaID int64 = 5
+
+	mock.ExpectBegin()
+
+	mock.ExpectExec(`UPDATE "emp_habilidades"`).
+		WithArgs(sqlmock.AnyArg(), habilidadeID).
+		WillReturnError(errors.New("erro ao atualizar habilidade"))
+
+	mock.ExpectRollback()
+
+	err := repo.AttachAreaAtuacao(ctx, habilidadeID, areaID)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_DetachAreaAtuacao_Error(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	var habilidadeID int64 = 1
+	var areaID int64 = 5
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "area_atuacao_habilidade"`).
+		WithArgs(habilidadeID, areaID).
+		WillReturnError(errors.New("erro ao desvincular área de atuação"))
+	mock.ExpectRollback()
+
+	err := repo.DetachAreaAtuacao(ctx, habilidadeID, areaID)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_GetAreaAtuacaoByID_Error(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+	var areaID int64 = 10
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_areas_atuacao"`).
+		WithArgs(areaID, 1).
+		WillReturnError(errors.New("erro ao buscar área de atuação"))
+
+	result, err := repo.GetAreaAtuacaoByID(ctx, areaID)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "erro ao buscar área de atuação por ID")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_UpdateAreaAtuacao_Error(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	entity := &empregabilidade.AreaAtuacao{
+		ID:        15,
+		Nome:      "Construção Civil Atualizada",
+		UpdatedAt: time.Now(),
 	}
 
 	mock.ExpectBegin()
-	mock.ExpectExec(`DELETE FROM "emp_curriculo_habilidades"`).
-		WithArgs(vinculo.ID, vinculo.CPF).
-		WillReturnError(assert.AnError)
+	mock.ExpectExec(`UPDATE "emp_areas_atuacao"`).
+		WillReturnError(errors.New("erro ao atualizar área de atuação"))
 	mock.ExpectRollback()
 
-	err := repo.DetachHabilidadeDoCurriculo(ctx, vinculo)
+	err := repo.UpdateAreaAtuacao(ctx, entity)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(t, err.Error(), "erro ao atualizar área de atuação")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_DeleteAreaAtuacao_Error(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+	var areaID int64 = 20
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "emp_areas_atuacao"`).
+		WillReturnError(errors.New("erro ao excluir área de atuação"))
+	mock.ExpectRollback()
+
+	err := repo.DeleteAreaAtuacao(ctx, areaID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao excluir uma área de atuação")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
