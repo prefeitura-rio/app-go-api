@@ -226,6 +226,50 @@ func TestBancoCurriculosRequiresAuthorization(t *testing.T) {
 	}
 }
 
+// TestBancoCurriculosFichaContract checks the running API publishes the ficha
+// contract the admin consumes: the citizen data (e-mail, raça, PCD) and the last
+// update date required by the perfil detalhado card. It guards against changing
+// the model without regenerating the Swagger docs, which is what the frontend
+// client is generated from.
+func TestBancoCurriculosFichaContract(t *testing.T) {
+	baseURL := getBaseURL(t)
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Get(baseURL + "/docs/doc.json")
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected 200 for the OpenAPI spec, got %d", resp.StatusCode)
+	}
+
+	var spec struct {
+		Definitions map[string]struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		} `json:"definitions"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
+		t.Fatalf("Failed to decode OpenAPI spec: %v", err)
+	}
+
+	detalhe, ok := spec.Definitions["empregabilidade.BancoCurriculoDetalhe"]
+	if !ok {
+		t.Fatal("OpenAPI spec missing empregabilidade.BancoCurriculoDetalhe")
+	}
+
+	for _, field := range []string{
+		"cpf", "nome", "nome_social", "data_inclusao", "data_atualizacao",
+		"profissao", "escolaridade", "bairro", "celular", "email", "genero",
+		"raca", "deficiencia", "idade", "curriculo",
+	} {
+		if _, ok := detalhe.Properties[field]; !ok {
+			t.Errorf("Ficha contract missing field %q", field)
+		}
+	}
+}
+
 // getBaseURL retrieves the base URL from environment variable
 func getBaseURL(t *testing.T) string {
 	baseURL := os.Getenv("TEST_BASE_URL")
