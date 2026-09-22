@@ -28,13 +28,13 @@ func TestAPIEndpoints(t *testing.T) {
 		{
 			name:           "Swagger docs",
 			method:         "GET",
-			endpoint:       "/swagger/index.html",
+			endpoint:       "/docs/index.html",
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "OpenAPI spec",
 			method:         "GET",
-			endpoint:       "/swagger/doc.json",
+			endpoint:       "/docs/doc.json",
 			expectedStatus: http.StatusOK,
 		},
 		{
@@ -97,13 +97,13 @@ func TestHealthEndpointStructure(t *testing.T) {
 		t.Fatalf("Failed to decode health response: %v", err)
 	}
 
-	// Verify expected fields
-	if _, ok := health["status"]; !ok {
-		t.Error("Health response missing 'status' field")
+	// The endpoint answers {"status":"ok"} — see internal/router/router.go
+	status, ok := health["status"].(string)
+	if !ok {
+		t.Fatal("Health response missing 'status' field")
 	}
-
-	if _, ok := health["timestamp"]; !ok {
-		t.Error("Health response missing 'timestamp' field")
+	if status != "ok" {
+		t.Errorf("Expected health status \"ok\", got %q", status)
 	}
 }
 
@@ -166,7 +166,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 	client := &http.Client{Timeout: 10 * time.Second}
 
 	// Test Swagger UI
-	resp, err := client.Get(baseURL + "/swagger/index.html")
+	resp, err := client.Get(baseURL + "/docs/index.html")
 	if err != nil {
 		t.Fatalf("Failed to fetch Swagger UI: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 	}
 
 	// Test OpenAPI spec
-	resp2, err := client.Get(baseURL + "/swagger/doc.json")
+	resp2, err := client.Get(baseURL + "/docs/doc.json")
 	if err != nil {
 		t.Fatalf("Failed to fetch OpenAPI spec: %v", err)
 	}
