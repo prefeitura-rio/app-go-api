@@ -2,8 +2,10 @@ package empregabilidade
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -76,6 +78,35 @@ func (r *CurriculoRepository) GetCurriculoByCPF(ctx context.Context, cpf string)
 		return nil, fmt.Errorf("erro ao buscar currículo: %w", result.Error)
 	}
 	return &entity, nil
+}
+
+// GetUltimaAtualizacao retorna quando o cidadão salvou o currículo pela última
+// vez: o maior updated_at entre as seções, que são reescritas a cada salvamento.
+// As colunas das seções não têm fuso e guardam o horário de Brasília, daí a
+// conversão. Retorna nil quando o currículo não tem nenhuma seção.
+func (r *CurriculoRepository) GetUltimaAtualizacao(ctx context.Context, cpf string) (*time.Time, error) {
+	const query = `
+	SELECT MAX(atualizado) AT TIME ZONE 'America/Sao_Paulo'
+	FROM (
+		SELECT MAX(updated_at) AS atualizado FROM emp_curriculo_formacoes WHERE cpf = ?
+		UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_idiomas WHERE cpf = ?
+		UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_cursos_complementares WHERE cpf = ?
+		UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_experiencias WHERE cpf = ?
+		UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_conquistas WHERE cpf = ?
+		UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_situacao_interesses WHERE cpf = ?
+		UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_perfil WHERE cpf = ?
+	) secoes`
+
+	var atualizado sql.NullTime
+	err := r.db.WithContext(ctx).Raw(query, cpf, cpf, cpf, cpf, cpf, cpf, cpf).Scan(&atualizado).Error
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar última atualização do currículo: %w", err)
+	}
+	if !atualizado.Valid {
+		return nil, nil
+	}
+	quando := atualizado.Time
+	return &quando, nil
 }
 
 // ensureCurriculo registra o currículo raiz na primeira escrita do cidadão.

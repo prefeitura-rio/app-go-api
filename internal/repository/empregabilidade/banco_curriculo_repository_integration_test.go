@@ -144,6 +144,50 @@ func TestBancoCurriculosIntegration_EscritaListagemEBusca(t *testing.T) {
 	})
 }
 
+func TestBancoCurriculosIntegration_GetUltimaAtualizacao(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	ctx := context.Background()
+	repo := emprepo.NewCurriculoRepository(tx)
+	saoPaulo, err := time.LoadLocation("America/Sao_Paulo")
+	require.NoError(t, err)
+	exec := func(sql string, args ...interface{}) {
+		t.Helper()
+		require.NoError(t, tx.Exec(sql, args...).Error)
+	}
+
+	const (
+		cpfVariasSecoes = "99999999907"
+		cpfUmaSecao     = "99999999908"
+		cpfSemSecao     = "99999999909"
+	)
+
+	// updated_at das seções não tem fuso e guarda horário de Brasília.
+	exec(`INSERT INTO emp_curriculo_experiencias (cpf, cargo, empresa, updated_at) VALUES (?, 'Redatora', 'Empresa A', '2026-05-10 09:00')`, cpfVariasSecoes)
+	exec(`INSERT INTO emp_curriculo_formacoes (cpf, nome_curso, updated_at) VALUES (?, 'Letras', '2026-06-20 16:45')`, cpfVariasSecoes)
+	exec(`INSERT INTO emp_curriculo_perfil (cpf, resumo_profissional, updated_at) VALUES (?, 'Resumo', '2026-04-01 08:00')`, cpfVariasSecoes)
+	exec(`INSERT INTO emp_curriculo_situacao_interesses (cpf, updated_at) VALUES (?, '2026-07-05 18:30')`, cpfUmaSecao)
+
+	t.Run("vale a seção salva por último, em horário de Brasília", func(t *testing.T) {
+		quando, err := repo.GetUltimaAtualizacao(ctx, cpfVariasSecoes)
+		require.NoError(t, err)
+		require.NotNil(t, quando)
+		assert.True(t, quando.Equal(time.Date(2026, 6, 20, 16, 45, 0, 0, saoPaulo)), "obtido %v", quando)
+	})
+
+	t.Run("a data de outro cidadão não vaza", func(t *testing.T) {
+		quando, err := repo.GetUltimaAtualizacao(ctx, cpfUmaSecao)
+		require.NoError(t, err)
+		require.NotNil(t, quando)
+		assert.True(t, quando.Equal(time.Date(2026, 7, 5, 18, 30, 0, 0, saoPaulo)), "obtido %v", quando)
+	})
+
+	t.Run("sem nenhuma seção não tem data de atualização", func(t *testing.T) {
+		quando, err := repo.GetUltimaAtualizacao(ctx, cpfSemSecao)
+		require.NoError(t, err)
+		assert.Nil(t, quando)
+	})
+}
+
 func TestBancoCurriculosIntegration_BackfillDaMigration(t *testing.T) {
 	tx := bancoCurriculosIntegrationTx(t)
 	saoPaulo, err := time.LoadLocation("America/Sao_Paulo")

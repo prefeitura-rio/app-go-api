@@ -3,6 +3,7 @@ package empregabilidade
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"regexp"
 	"testing"
 	"time"
@@ -241,5 +242,71 @@ func TestCurriculoRepository_GetCurriculoByCPF(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, curriculo)
 		assert.Contains(t, err.Error(), "erro ao buscar currículo")
+	})
+}
+
+// A data de atualização é o maior updated_at das sete seções do currículo, que o
+// formulário reescreve a cada salvamento. O CPF vai uma vez por seção.
+const ultimaAtualizacaoSQL = `SELECT MAX(atualizado) AT TIME ZONE 'America/Sao_Paulo' FROM ( ` +
+	`SELECT MAX(updated_at) AS atualizado FROM emp_curriculo_formacoes WHERE cpf = $1 ` +
+	`UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_idiomas WHERE cpf = $2 ` +
+	`UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_cursos_complementares WHERE cpf = $3 ` +
+	`UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_experiencias WHERE cpf = $4 ` +
+	`UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_conquistas WHERE cpf = $5 ` +
+	`UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_situacao_interesses WHERE cpf = $6 ` +
+	`UNION ALL SELECT MAX(updated_at) FROM emp_curriculo_perfil WHERE cpf = $7 ) secoes`
+
+func TestCurriculoRepository_GetUltimaAtualizacao(t *testing.T) {
+	ctx := context.Background()
+	cpf := "11111111111"
+	query := regexp.QuoteMeta(ultimaAtualizacaoSQL)
+	cpfSeteVezes := []driver.Value{cpf, cpf, cpf, cpf, cpf, cpf, cpf}
+
+	t.Run("currículo com seções", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+		atualizacao := time.Date(2026, 9, 18, 14, 30, 0, 0, time.UTC)
+
+		mock.ExpectQuery(query).
+			WithArgs(cpfSeteVezes...).
+			WillReturnRows(sqlmock.NewRows([]string{"timezone"}).AddRow(atualizacao))
+
+		quando, err := repo.GetUltimaAtualizacao(ctx, cpf)
+
+		require.NoError(t, err)
+		require.NotNil(t, quando)
+		assert.True(t, atualizacao.Equal(*quando))
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("sem nenhuma seção devolve nulo", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		mock.ExpectQuery(query).
+			WithArgs(cpfSeteVezes...).
+			WillReturnRows(sqlmock.NewRows([]string{"timezone"}).AddRow(nil))
+
+		quando, err := repo.GetUltimaAtualizacao(ctx, cpf)
+
+		require.NoError(t, err)
+		assert.Nil(t, quando)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("erro", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		mock.ExpectQuery(query).WillReturnError(sql.ErrConnDone)
+
+		quando, err := repo.GetUltimaAtualizacao(ctx, cpf)
+
+		require.Error(t, err)
+		assert.Nil(t, quando)
+		assert.Contains(t, err.Error(), "erro ao buscar última atualização do currículo")
 	})
 }

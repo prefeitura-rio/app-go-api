@@ -14,14 +14,17 @@ import (
 )
 
 type fakeBancoRepo struct {
-	items     []*empregabilidade.BancoCurriculoItem
-	total     int64
-	listErr   error
-	gotFilter empregabilidade.BancoCurriculoFilter
-	gotPage   int
-	gotSize   int
-	curriculo *empregabilidade.Curriculo
-	getErr    error
+	items             []*empregabilidade.BancoCurriculoItem
+	total             int64
+	listErr           error
+	gotFilter         empregabilidade.BancoCurriculoFilter
+	gotPage           int
+	gotSize           int
+	curriculo         *empregabilidade.Curriculo
+	getErr            error
+	atualizacao       *time.Time
+	atualizacaoErr    error
+	gotCPFAtualizacao string
 }
 
 func (f *fakeBancoRepo) ListBancoCurriculos(_ context.Context, filter empregabilidade.BancoCurriculoFilter, page, pageSize int) ([]*empregabilidade.BancoCurriculoItem, int64, error) {
@@ -31,6 +34,11 @@ func (f *fakeBancoRepo) ListBancoCurriculos(_ context.Context, filter empregabil
 
 func (f *fakeBancoRepo) GetCurriculoByCPF(_ context.Context, _ string) (*empregabilidade.Curriculo, error) {
 	return f.curriculo, f.getErr
+}
+
+func (f *fakeBancoRepo) GetUltimaAtualizacao(_ context.Context, cpf string) (*time.Time, error) {
+	f.gotCPFAtualizacao = cpf
+	return f.atualizacao, f.atualizacaoErr
 }
 
 type fakeBancoCurriculoCompleto struct {
@@ -84,6 +92,17 @@ func newBancoService(snapshot *models.CitizenSnapshot, curriculo *empregabilidad
 		&fakeBancoSnapshotRepo{snapshot: snapshot},
 	)
 	return svc, completo
+}
+
+// newBancoServiceComRepo monta o service deixando o repositório do banco de
+// currículos à mão, para os testes que mexem na data de atualização.
+func newBancoServiceComRepo(repo *fakeBancoRepo, snapshot *models.CitizenSnapshot) *services.BancoCurriculoService {
+	repo.curriculo = &empregabilidade.Curriculo{CPF: bancoCPF, CreatedAt: bancoInclusao}
+	return services.NewBancoCurriculoService(
+		repo,
+		&fakeBancoCurriculoCompleto{curriculo: &empregabilidade.CurriculoCompleto{}},
+		&fakeBancoSnapshotRepo{snapshot: snapshot},
+	)
 }
 
 func TestBancoCurriculoService_List_RepassaFiltroEPaginacao(t *testing.T) {
@@ -197,7 +216,15 @@ func TestBancoCurriculoService_GetDetalhe_SemExperienciaProfissaoNula(t *testing
 }
 
 func TestBancoCurriculoService_GetDetalhe_DadosVaziosViramNulos(t *testing.T) {
-	snapshot := &models.CitizenSnapshot{CPF: bancoCPF, Nome: "Ana", Escolaridade: "  ", LastSyncedAt: time.Now()}
+	snapshot := &models.CitizenSnapshot{
+		CPF:          bancoCPF,
+		Nome:         "Ana",
+		Escolaridade: "  ",
+		Email:        "   ",
+		Raca:         "",
+		Deficiencia:  " ",
+		LastSyncedAt: time.Now(),
+	}
 	svc, _ := newBancoService(snapshot, &empregabilidade.CurriculoCompleto{})
 
 	d, err := svc.GetDetalhe(context.Background(), bancoCPF)
@@ -209,6 +236,58 @@ func TestBancoCurriculoService_GetDetalhe_DadosVaziosViramNulos(t *testing.T) {
 	assert.Nil(t, d.Celular)
 	assert.Nil(t, d.Genero)
 	assert.Nil(t, d.Idade)
+	assert.Nil(t, d.Email)
+	assert.Nil(t, d.Raca)
+	assert.Nil(t, d.Deficiencia)
+}
+
+// Email, raça e deficiência saem do cadastro do cidadão, como os demais dados
+// pessoais da ficha.
+func TestBancoCurriculoService_GetDetalhe_EmailRacaEDeficienciaDoCadastro(t *testing.T) {
+	snapshot := &models.CitizenSnapshot{
+		CPF:          bancoCPF,
+		Nome:         "Ana Claudia Silva",
+		Email:        " ana@exemplo.com ",
+		Raca:         "Parda",
+		Deficiencia:  "Deficiência auditiva",
+		LastSyncedAt: time.Now(),
+	}
+	svc, _ := newBancoService(snapshot, &empregabilidade.CurriculoCompleto{})
+
+	d, err := svc.GetDetalhe(context.Background(), bancoCPF)
+
+	require.NoError(t, err)
+	require.NotNil(t, d.Email)
+	assert.Equal(t, "ana@exemplo.com", *d.Email, "espaços das pontas são descartados")
+	require.NotNil(t, d.Raca)
+	assert.Equal(t, "Parda", *d.Raca)
+	require.NotNil(t, d.Deficiencia)
+	assert.Equal(t, "Deficiência auditiva", *d.Deficiencia)
+}
+
+func TestBancoCurriculoService_GetDetalhe_DataAtualizacao(t *testing.T) {
+	t.Run("repassa a data do repositório", func(t *testing.T) {
+		atualizacao := time.Date(2026, 9, 18, 14, 30, 0, 0, time.UTC)
+		repo := &fakeBancoRepo{atualizacao: &atualizacao}
+		svc := newBancoServiceComRepo(repo, &models.CitizenSnapshot{LastSyncedAt: time.Now()})
+
+		d, err := svc.GetDetalhe(context.Background(), bancoCPF)
+
+		require.NoError(t, err)
+		require.NotNil(t, d.DataAtualizacao)
+		assert.True(t, atualizacao.Equal(*d.DataAtualizacao))
+		assert.Equal(t, bancoCPF, repo.gotCPFAtualizacao)
+	})
+
+	t.Run("nula quando o currículo não tem nenhuma seção", func(t *testing.T) {
+		repo := &fakeBancoRepo{}
+		svc := newBancoServiceComRepo(repo, &models.CitizenSnapshot{LastSyncedAt: time.Now()})
+
+		d, err := svc.GetDetalhe(context.Background(), bancoCPF)
+
+		require.NoError(t, err)
+		assert.Nil(t, d.DataAtualizacao)
+	})
 }
 
 func TestBancoCurriculoService_GetDetalhe_GeneroSoAutodeclarado(t *testing.T) {
@@ -347,6 +426,16 @@ func TestBancoCurriculoService_GetDetalhe_Erros(t *testing.T) {
 			&fakeBancoCurriculoCompleto{err: errors.New("db")},
 			&fakeBancoSnapshotRepo{},
 		)
+
+		d, err := svc.GetDetalhe(context.Background(), bancoCPF)
+
+		require.Error(t, err)
+		assert.Nil(t, d)
+	})
+
+	t.Run("ao buscar a última atualização", func(t *testing.T) {
+		repo := &fakeBancoRepo{atualizacaoErr: errors.New("db")}
+		svc := newBancoServiceComRepo(repo, nil)
 
 		d, err := svc.GetDetalhe(context.Background(), bancoCPF)
 

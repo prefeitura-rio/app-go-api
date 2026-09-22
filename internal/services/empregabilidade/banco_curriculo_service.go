@@ -87,11 +87,20 @@ func (s *BancoCurriculoService) GetDetalhe(ctx context.Context, cpf string) (*em
 		detalhe.Profissao = profissaoDasExperiencias(curriculo.Experiencias)
 	}
 
+	atualizacao, err := s.repo.GetUltimaAtualizacao(ctx, cpf)
+	if err != nil {
+		return nil, err
+	}
+	detalhe.DataAtualizacao = atualizacao
+
 	if cadastro := s.carregarCadastro(ctx, cpf); cadastro != nil {
 		detalhe.Nome = naoVazio(cadastro.Nome)
 		detalhe.NomeSocial = naoVazio(cadastro.NomeSocial)
 		detalhe.Escolaridade = naoVazio(cadastro.Escolaridade)
 		detalhe.Celular = naoVazio(cadastro.Celular)
+		detalhe.Email = naoVazio(cadastro.Email)
+		detalhe.Raca = naoVazio(cadastro.Raca)
+		detalhe.Deficiencia = naoVazio(cadastro.Deficiencia)
 		detalhe.Genero = generoAutodeclarado(cadastro.Genero)
 		detalhe.Idade = idadeEm(cadastro.DataNascimento, time.Now())
 		if cadastro.Endereco != nil {

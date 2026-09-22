@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
@@ -187,6 +188,7 @@ type CurriculoRepositoryInterface interface {
 type BancoCurriculoRepositoryInterface interface {
 	ListBancoCurriculos(ctx context.Context, filter empregabilidade.BancoCurriculoFilter, page, pageSize int) ([]*empregabilidade.BancoCurriculoItem, int64, error)
 	GetCurriculoByCPF(ctx context.Context, cpf string) (*empregabilidade.Curriculo, error)
+	GetUltimaAtualizacao(ctx context.Context, cpf string) (*time.Time, error)
 }
 
 // CurriculoCompletoGetterInterface is satisfied by CurriculoService.

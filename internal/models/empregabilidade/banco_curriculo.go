@@ -46,7 +46,14 @@ type BancoCurriculoDetalhe struct {
 	Celular      *string   `json:"celular"`
 	// Genero é a identidade de gênero autodeclarada. O sexo da base cadastral
 	// não é usado como fallback.
-	Genero    *string            `json:"genero"`
-	Idade     *int               `json:"idade"`
-	Curriculo *CurriculoCompleto `json:"curriculo"`
+	Genero *string `json:"genero"`
+	Idade  *int    `json:"idade"`
+	Email  *string `json:"email"`
+	Raca   *string `json:"raca"`
+	// Deficiencia é o que o cidadão declarou sobre deficiência (PCD).
+	Deficiencia *string `json:"deficiencia"`
+	// DataAtualizacao é o último salvamento do currículo pelo cidadão. É nula
+	// quando nenhuma seção foi preenchida.
+	DataAtualizacao *time.Time         `json:"data_atualizacao"`
+	Curriculo       *CurriculoCompleto `json:"curriculo"`
 }

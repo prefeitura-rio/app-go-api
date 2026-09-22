@@ -11208,7 +11208,18 @@ const docTemplate = `{
                 "curriculo": {
                     "$ref": "#/definitions/empregabilidade.CurriculoCompleto"
                 },
+                "data_atualizacao": {
+                    "description": "DataAtualizacao é o último salvamento do currículo pelo cidadão. É nula\nquando nenhuma seção foi preenchida.",
+                    "type": "string"
+                },
                 "data_inclusao": {
+                    "type": "string"
+                },
+                "deficiencia": {
+                    "description": "Deficiencia é o que o cidadão declarou sobre deficiência (PCD).",
+                    "type": "string"
+                },
+                "email": {
                     "type": "string"
                 },
                 "escolaridade": {
@@ -11228,6 +11239,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "profissao": {
+                    "type": "string"
+                },
+                "raca": {
                     "type": "string"
                 }
             }
