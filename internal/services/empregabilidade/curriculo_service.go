@@ -266,6 +266,11 @@ func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string)
 		return nil, err
 	}
 
+	area_atuacao_habilidade, err := s.repo.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, cpf)
+	if err != nil {
+		return nil, err
+	}
+
 	cursos, err := s.repo.ListCursosComplementaresByCPF(ctx, cpf)
 	if err != nil {
 		return nil, err
@@ -300,6 +305,7 @@ func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string)
 		Formacoes:             formacoes,
 		Idiomas:               idiomas,
 		ComportamentoAtitudes: comportamentos_atitudes,
+		AreaAtuacaoHabilidade: area_atuacao_habilidade,
 		CursosComplementares:  cursos,
 		Experiencias:          experiencias,
 		Conquistas:            conquistas,

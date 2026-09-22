@@ -16,27 +16,27 @@ import (
 
 // AppConfig contém todas as configurações da aplicação
 type AppConfig struct {
-	App         AppSettings
-	Database    DatabaseSettings
-	Server      ServerSettings
-	JWT         JWTSettings
-	Swagger     SwaggerSettings
-	TypeSense   TypeSenseSettings
-	Migrations  MigrationSettings
-	RMI         RMISettings
-	Redis       RedisSettings
-	Tracing     TracingSettings
+	App           AppSettings
+	Database      DatabaseSettings
+	Server        ServerSettings
+	JWT           JWTSettings
+	Swagger       SwaggerSettings
+	TypeSense     TypeSenseSettings
+	Migrations    MigrationSettings
+	RMI           RMISettings
+	Redis         RedisSettings
+	Tracing       TracingSettings
 	OrgaoSync     OrgaoSyncSettings
 	CitizenSync   CitizenSyncSettings
 	ClassReminder ClassReminderSettings
 	DataRelay     DataRelaySettings
 	PrefRio       PrefRioSettings
-	Cerbos      CerbosSettings
-	PropostaMEI PropostaMEIPermissions
-	Cache       CacheSettings
-	Keycloak    KeycloakSettings
-	Enrollment  EnrollmentSettings
-	Heimdall    HeimdallSettings
+	Cerbos        CerbosSettings
+	PropostaMEI   PropostaMEIPermissions
+	Cache         CacheSettings
+	Keycloak      KeycloakSettings
+	Enrollment    EnrollmentSettings
+	Heimdall      HeimdallSettings
 }
 
 // EnrollmentSettings define configurações para inscrições em cursos

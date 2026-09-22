@@ -3118,7 +3118,7 @@ const docTemplate = `{
                 "summary": "Substituir itens do curriculo por CPF",
                 "parameters": [
                     {
-                        "description": "Lista de IDs de habilidades e comportamentos/atitudes",
+                        "description": "Lista de IDs de áreas atuaçãoXhabilidades e comportamentos/atitudes",
                         "name": "body",
                         "in": "body",
                         "required": true,

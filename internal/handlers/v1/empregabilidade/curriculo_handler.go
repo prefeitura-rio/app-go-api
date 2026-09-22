@@ -1158,7 +1158,7 @@ func (h *CurriculoHandler) ReplaceAllCursosComplementaresByCPF(c *gin.Context) {
 // @Tags         empregabilidade-curriculo
 // @Accept       json
 // @Produce      json
-// @Param        body  body      empregabilidade.CurriculoItensReplaceAll  true  "Lista de IDs de habilidades e comportamentos/atitudes"
+// @Param        body  body      empregabilidade.CurriculoItensReplaceAll  true  "Lista de IDs de áreas atuaçãoXhabilidades e comportamentos/atitudes"
 // @Success      200   {object}  map[string]interface{}
 // @Failure      400   {object}  map[string]string
 // @Failure      403   {object}  map[string]string
