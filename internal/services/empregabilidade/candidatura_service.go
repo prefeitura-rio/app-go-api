@@ -12,6 +12,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type CandidaturaRepositoryInterface interface {
@@ -174,12 +175,25 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 	}
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
+
+	id, err := s.repo.Create(ctx, entity)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	// Attach vaga (with Contratante/OrgaoParceiro) before enqueueing the confirmation
+	// email — SendCandidaturaEnviadaEmail reads candidatura.Vaga for company/órgão.
+	entity.ID = id
+	entity.Vaga = vaga
+
+	candidaturaForEmail := *entity
 	go func() {
-		if err := s.emailNotificationService.SendCandidaturaEnviadaEmail(context.Background(), entity); err != nil {
+		if err := s.emailNotificationService.SendCandidaturaEnviadaEmail(context.Background(), &candidaturaForEmail); err != nil {
 			log.Printf("[CandidaturaService] falha ao enviar email de candidatura enviada: %v", err)
 		}
 	}()
-	return s.repo.Create(ctx, entity)
+
+	return id, nil
 }
 
 func (s *CandidaturaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Candidatura, error) {
@@ -271,18 +285,62 @@ func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etap
 		return errors.New("vaga não encontrada")
 	}
 
-	etapaValida := false
-	for _, etapa := range vaga.Etapas {
-		if etapa.ID == etapaID {
-			etapaValida = true
+	var nextEtapa *empregabilidade.Etapa
+	for i := range vaga.Etapas {
+		if vaga.Etapas[i].ID == etapaID {
+			nextEtapa = &vaga.Etapas[i]
 			break
 		}
 	}
-	if !etapaValida {
+	if nextEtapa == nil {
 		return errors.New("etapa não pertence à vaga desta candidatura")
 	}
 
-	return s.repo.UpdateEtapa(ctx, id, etapaID)
+	var currentEtapa *empregabilidade.Etapa
+	if candidatura.IDEtapaAtual != nil {
+		for i := range vaga.Etapas {
+			if vaga.Etapas[i].ID == *candidatura.IDEtapaAtual {
+				currentEtapa = &vaga.Etapas[i]
+				break
+			}
+		}
+	}
+
+	// Skip email when etapa did not change
+	etapaChanged := candidatura.IDEtapaAtual == nil || *candidatura.IDEtapaAtual != etapaID
+
+	if err := s.repo.UpdateEtapa(ctx, id, etapaID); err != nil {
+		return err
+	}
+
+	if etapaChanged && shouldSendProximaEtapaEmail(candidatura.Status, currentEtapa, nextEtapa) {
+		candidaturaForEmail := *candidatura
+		candidaturaForEmail.Vaga = vaga
+		candidaturaForEmail.EtapaAtual = nextEtapa
+		etapaNome := nextEtapa.Titulo
+		go func() {
+			if err := s.emailNotificationService.SendCandidaturaProximaEtapaEmail(context.Background(), &candidaturaForEmail, etapaNome); err != nil {
+				log.Printf("[CandidaturaService] falha ao enviar email de próxima etapa: %v", err)
+			}
+		}()
+	}
+
+	return nil
+}
+
+func shouldSendProximaEtapaEmail(status empregabilidade.StatusCandidatura, currentEtapa, nextEtapa *empregabilidade.Etapa) bool {
+	if status == empregabilidade.StatusCandidaturaAprovada ||
+		status == empregabilidade.StatusCandidaturaReprovada {
+		return false
+	}
+	if nextEtapa == nil {
+		return false
+	}
+	// First etapa assignment counts as advancement.
+	if currentEtapa == nil {
+		return true
+	}
+	return nextEtapa.Ordem > currentEtapa.Ordem
 }
 
 func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
@@ -402,9 +460,11 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 	}
 
 	etapaValida := false
-	for _, etapa := range vaga.Etapas {
-		if etapa.ID == etapaID {
+	var nextEtapa *empregabilidade.Etapa
+	for i := range vaga.Etapas {
+		if vaga.Etapas[i].ID == etapaID {
 			etapaValida = true
+			nextEtapa = &vaga.Etapas[i]
 			break
 		}
 	}
@@ -424,6 +484,7 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 
 	var result BulkUpdateEtapaResult
 	var updateIDs []uuid.UUID
+	var toNotify []*empregabilidade.Candidatura
 
 	// Coletar CPFs não encontrados
 	for _, cpf := range cpfs {
@@ -435,6 +496,16 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 	// Verificar que todos os candidatos encontrados estão na mesma etapa atual
 	if len(candidaturas) > 0 {
 		primeiraEtapa := candidaturas[0].IDEtapaAtual
+		var currentEtapa *empregabilidade.Etapa
+		if primeiraEtapa != nil {
+			for i := range vaga.Etapas {
+				if vaga.Etapas[i].ID == *primeiraEtapa {
+					currentEtapa = &vaga.Etapas[i]
+					break
+				}
+			}
+		}
+
 		for _, c := range candidaturas {
 			mesmaEtapa := false
 			if primeiraEtapa == nil && c.IDEtapaAtual == nil {
@@ -446,6 +517,14 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 				return BulkUpdateEtapaResult{}, errors.New("todos os candidatos precisam estar na mesma etapa para atualização em massa")
 			}
 			updateIDs = append(updateIDs, c.ID)
+
+			etapaChanged := c.IDEtapaAtual == nil || *c.IDEtapaAtual != etapaID
+			if etapaChanged && shouldSendProximaEtapaEmail(c.Status, currentEtapa, nextEtapa) {
+				cloned := *c
+				cloned.Vaga = vaga
+				cloned.EtapaAtual = nextEtapa
+				toNotify = append(toNotify, &cloned)
+			}
 		}
 	}
 
@@ -455,6 +534,17 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 
 	if err := s.repo.BulkUpdateEtapa(ctx, updateIDs, etapaID); err != nil {
 		return BulkUpdateEtapaResult{}, err
+	}
+
+	if len(toNotify) > 0 && nextEtapa != nil {
+		etapaNome := nextEtapa.Titulo
+		go func() {
+			for _, c := range toNotify {
+				if err := s.emailNotificationService.SendCandidaturaProximaEtapaEmail(context.Background(), c, etapaNome); err != nil {
+					log.Printf("[CandidaturaService] falha ao enviar email de próxima etapa em lote (CPF %s): %v", utils.MaskCPFForLog(c.CPF), err)
+				}
+			}
+		}()
 	}
 
 	result.Updated = len(updateIDs)

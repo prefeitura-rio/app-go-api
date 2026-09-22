@@ -272,6 +272,62 @@ func (r *InscricaoRepository) UpdateCertificate(ctx context.Context, inscricaoID
 	return nil
 }
 
+// ListApprovedStartingBetween returns approved enrollments whose class starts within [start, end).
+// It matches course_schedules, remote_schedules, enrolled_unit.schedules dates, or
+// curso.data_inicio when schedule_id is nil and enrolled_unit has no schedule dates.
+func (r *InscricaoRepository) ListApprovedStartingBetween(ctx context.Context, start, end time.Time) ([]*models.Inscricao, error) {
+	var inscricoes []*models.Inscricao
+
+	startDate := start.Format("2006-01-02")
+	endDate := end.Format("2006-01-02")
+
+	err := r.db.WithContext(ctx).
+		Preload("Curso").
+		Where("status = ?", models.StatusInscricaoApproved).
+		Where(`(
+			schedule_id IN (
+				SELECT id FROM course_schedules
+				WHERE class_start_date >= ? AND class_start_date < ?
+			)
+			OR schedule_id IN (
+				SELECT id FROM remote_schedules
+				WHERE class_start_date IS NOT NULL
+				  AND class_start_date >= ? AND class_start_date < ?
+			)
+			OR (
+				schedule_id IS NULL
+				AND enrolled_unit IS NOT NULL
+				AND EXISTS (
+					SELECT 1
+					FROM jsonb_array_elements(COALESCE(enrolled_unit->'schedules', '[]'::jsonb)) AS sched
+					WHERE sched->>'class_start_date' ~ '^\d{4}-\d{2}-\d{2}'
+					  AND LEFT(sched->>'class_start_date', 10)::date >= ?::date
+					  AND LEFT(sched->>'class_start_date', 10)::date < ?::date
+				)
+			)
+			OR (
+				schedule_id IS NULL
+				AND NOT EXISTS (
+					SELECT 1
+					FROM jsonb_array_elements(COALESCE(enrolled_unit->'schedules', '[]'::jsonb)) AS sched
+					WHERE sched->>'class_start_date' ~ '^\d{4}-\d{2}-\d{2}'
+				)
+				AND curso_id IN (
+					SELECT id FROM cursos
+					WHERE data_inicio IS NOT NULL
+					  AND data_inicio >= ? AND data_inicio < ?
+				)
+			)
+		)`, start, end, start, end, startDate, endDate, start, end).
+		Find(&inscricoes).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("erro ao listar inscrições para lembrete de aula: %w", err)
+	}
+
+	return inscricoes, nil
+}
+
 func (r *InscricaoRepository) Update(ctx context.Context, inscricao *models.Inscricao) error {
 	result := r.db.WithContext(ctx).
 		Model(inscricao).

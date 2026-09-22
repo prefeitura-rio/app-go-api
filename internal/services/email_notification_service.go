@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -9,7 +10,13 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
+
+// ErrEmailNotDeliverable is returned when a temporal/class-reminder email cannot be
+// delivered (notifications disabled or no resolvable address). Callers that claim a
+// Redis dedup key before sending should clear it on this error so the send can retry.
+var ErrEmailNotDeliverable = errors.New("email not deliverable")
 
 // Compile-time assertion: EmailNotificationService satisfies EmailNotifier.
 var _ EmailNotifier = (*EmailNotificationService)(nil)
@@ -26,10 +33,13 @@ type EmailNotifier interface {
 	SendEnrollmentCreatedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
 	SendEnrollmentApprovedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
 	SendEnrollmentRejectedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
+	SendEnrollmentConcludedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
+	SendEnrollmentClassReminderEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
 	SendScheduleChangedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error
 	SendCandidaturaEnviadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error
 	SendCandidaturaAprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error
 	SendCandidaturaReprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error
+	SendCandidaturaProximaEtapaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura, etapaNome string) error
 }
 
 // EmailNotificationService handles enrollment email notifications
@@ -218,7 +228,8 @@ func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Conte
 		return nil
 	}
 
-	template := GetEnrollmentRejectedEmailTemplate(inscricao, curso, s.prefrioDomain)
+	orgaoName := s.getOrgaoName(ctx, curso)
+	template := GetEnrollmentRejectedEmailTemplate(inscricao, curso, orgaoName, s.prefrioDomain)
 
 	emailReq := &clients.EmailRequest{
 		ToAddresses: []string{email},
@@ -232,6 +243,70 @@ func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Conte
 	}
 
 	log.Printf("[EmailNotificationService] Sent enrollment rejected email to %s for course '%s'", email, curso.Titulo)
+	return nil
+}
+
+// SendEnrollmentConcludedEmail sends email when enrollment is marked as concluded
+func (s *EmailNotificationService) SendEnrollmentConcludedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
+	if !s.enabled {
+		log.Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment concluded email for %s", inscricao.Email)
+		return nil
+	}
+
+	email := s.resolveEmail(ctx, inscricao)
+	if email == "" {
+		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		return nil
+	}
+
+	template := GetEnrollmentConcludedEmailTemplate(inscricao, curso, s.prefrioDomain)
+
+	emailReq := &clients.EmailRequest{
+		ToAddresses: []string{email},
+		Subject:     template.Subject,
+		Body:        template.Body,
+		IsHTMLBody:  template.IsHTML,
+	}
+
+	if err := s.dataRelayClient.SendEmail(ctx, emailReq); err != nil {
+		return fmt.Errorf("failed to send enrollment concluded email: %w", err)
+	}
+
+	log.Printf("[EmailNotificationService] Sent enrollment concluded email to %s for course '%s'", email, curso.Titulo)
+	return nil
+}
+
+// SendEnrollmentClassReminderEmail sends D-1 reminder before class starts.
+// Returns ErrEmailNotDeliverable when disabled or no address so temporal workers
+// can release their Redis dedup claim and retry later.
+func (s *EmailNotificationService) SendEnrollmentClassReminderEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
+	if !s.enabled {
+		log.Printf("[EmailNotificationService] Email notifications disabled - skipping class reminder email for enrollment %s", inscricao.ID)
+		return ErrEmailNotDeliverable
+	}
+
+	email := s.resolveEmail(ctx, inscricao)
+	if email == "" {
+		log.Printf("[EmailNotificationService] No email address for enrollment ID %s (CPF %s) - skipping", inscricao.ID, utils.MaskCPFForLog(inscricao.CPF))
+		return ErrEmailNotDeliverable
+	}
+
+	orgaoName := s.getOrgaoName(ctx, curso)
+	scheduleInfo := s.getScheduleInfo(ctx, inscricao, curso)
+	template := GetEnrollmentClassReminderEmailTemplate(inscricao, curso, orgaoName, scheduleInfo, s.prefrioDomain)
+
+	emailReq := &clients.EmailRequest{
+		ToAddresses: []string{email},
+		Subject:     template.Subject,
+		Body:        template.Body,
+		IsHTMLBody:  template.IsHTML,
+	}
+
+	if err := s.dataRelayClient.SendEmail(ctx, emailReq); err != nil {
+		return fmt.Errorf("failed to send class reminder email: %w", err)
+	}
+
+	log.Printf("[EmailNotificationService] Sent class reminder email to %s for course '%s'", email, curso.Titulo)
 	return nil
 }
 
@@ -282,18 +357,38 @@ func (s *EmailNotificationService) SendCandidaturaEnviadaEmail(ctx context.Conte
 		return nil
 	}
 
-	if candidatura.Email == nil || *candidatura.Email == "" {
-		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
+	if candidatura.Vaga == nil {
+		log.Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping received application email", candidatura.ID)
 		return nil
 	}
 
+	inscricaoEmail := ""
+	if candidatura.Email != nil {
+		inscricaoEmail = *candidatura.Email
+	}
 	email := s.resolveEmail(ctx, &models.Inscricao{
-		Email: *candidatura.Email,
+		Email: inscricaoEmail,
 		CPF:   candidatura.CPF,
 	})
+	if email == "" {
+		log.Printf("[EmailNotificationService] No email address for application ID %s (CPF %s) - skipping", candidatura.ID, utils.MaskCPFForLog(candidatura.CPF))
+		return nil
+	}
 
-	orgaoName := s.getOrgaoName(ctx, &models.Curso{Organization: candidatura.Vaga.OrgaoParceiro.Name, OrgaoID: candidatura.Vaga.OrgaoParceiro.OrgaoID})
-	template := GetCandidaturaEnviadaEmailTemplate(candidatura, candidatura.Vaga, candidatura.Vaga.Contratante, orgaoName, s.prefrioDomain)
+	orgaoOrg := ""
+	orgaoID := ""
+	if candidatura.Vaga.OrgaoParceiro != nil {
+		orgaoOrg = candidatura.Vaga.OrgaoParceiro.Name
+		orgaoID = candidatura.Vaga.OrgaoParceiro.OrgaoID
+	}
+	orgaoName := s.getOrgaoName(ctx, &models.Curso{Organization: orgaoOrg, OrgaoID: orgaoID})
+
+	empresa := candidatura.Vaga.Contratante
+	if empresa == nil {
+		empresa = &empregabilidade.Empresa{}
+	}
+
+	template := GetCandidaturaEnviadaEmailTemplate(candidatura, candidatura.Vaga, empresa, orgaoName, s.prefrioDomain)
 
 	emailReq := &clients.EmailRequest{
 		ToAddresses: []string{email},
@@ -389,6 +484,53 @@ func (s *EmailNotificationService) SendCandidaturaReprovadaEmail(ctx context.Con
 	}
 
 	log.Printf("[EmailNotificationService] Sent failed application email to %s for position '%s'", email, candidatura.Vaga.Titulo)
+
+	return nil
+}
+
+// SendCandidaturaProximaEtapaEmail sends email when a candidate advances to the next selective stage
+func (s *EmailNotificationService) SendCandidaturaProximaEtapaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura, etapaNome string) error {
+	if !s.enabled {
+		logMessage := "[EmailNotificationService] Email notifications disabled - skipping next stage application email"
+		if candidatura.Email != nil {
+			logMessage += fmt.Sprintf(" for %s", *candidatura.Email)
+		}
+		log.Printf("%s", logMessage)
+		return nil
+	}
+
+	if candidatura.Vaga == nil {
+		log.Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping próxima etapa email", candidatura.ID)
+		return nil
+	}
+
+	inscricaoEmail := ""
+	if candidatura.Email != nil {
+		inscricaoEmail = *candidatura.Email
+	}
+	email := s.resolveEmail(ctx, &models.Inscricao{
+		Email: inscricaoEmail,
+		CPF:   candidatura.CPF,
+	})
+	if email == "" {
+		log.Printf("[EmailNotificationService] No email address for application ID %s (CPF %s) - skipping", candidatura.ID, utils.MaskCPFForLog(candidatura.CPF))
+		return nil
+	}
+
+	template := GetCandidaturaProximaEtapaEmailTemplate(candidatura, candidatura.Vaga, etapaNome, s.prefrioDomain)
+
+	emailReq := &clients.EmailRequest{
+		ToAddresses: []string{email},
+		Subject:     template.Subject,
+		Body:        template.Body,
+		IsHTMLBody:  template.IsHTML,
+	}
+
+	if err := s.dataRelayClient.SendEmail(ctx, emailReq); err != nil {
+		return fmt.Errorf("failed to send próxima etapa application email: %w", err)
+	}
+
+	log.Printf("[EmailNotificationService] Sent próxima etapa email to %s for position '%s' (etapa: %s)", email, candidatura.Vaga.Titulo, etapaNome)
 
 	return nil
 }
