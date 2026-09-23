@@ -66,13 +66,22 @@ func (f *fakeBancoSnapshotRepo) GetByCPFs(_ context.Context, _ []string) (map[st
 }
 
 type fakeBancoFetcher struct {
-	snapshot *models.CitizenSnapshot
-	err      error
-	calls    int
+	snapshot    *models.CitizenSnapshot
+	err         error
+	calls       int
+	forcedCalls int
 }
 
 func (f *fakeBancoFetcher) SyncCitizenOnDemand(_ context.Context, _ string) (*models.CitizenSnapshot, error) {
 	f.calls++
+	return f.snapshot, f.err
+}
+
+// SyncCitizenForced existe para satisfazer a interface: a ficha do banco de
+// currículos usa só o sync sob demanda, então contamos as chamadas para provar
+// que ela não força atualização do cadastro.
+func (f *fakeBancoFetcher) SyncCitizenForced(_ context.Context, _ string) (*models.CitizenSnapshot, error) {
+	f.forcedCalls++
 	return f.snapshot, f.err
 }
 
@@ -327,6 +336,7 @@ func TestBancoCurriculoService_GetDetalhe_SemCadastroSincronizaSobDemanda(t *tes
 
 	require.NoError(t, err)
 	assert.Equal(t, 1, fetcher.calls)
+	assert.Equal(t, 0, fetcher.forcedCalls, "a ficha usa o sync sob demanda, não o forçado")
 	require.NotNil(t, d.Nome)
 	assert.Equal(t, "Ana Sincronizada", *d.Nome)
 }
