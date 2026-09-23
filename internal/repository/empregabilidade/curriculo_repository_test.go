@@ -34,6 +34,8 @@ func TestCurriculoRepository_CreateFormacao(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_formacoes"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(formacao.ID))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		id, err := repo.CreateFormacao(ctx, formacao)
@@ -262,6 +264,8 @@ func TestCurriculoRepository_CreateIdioma(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_idiomas"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(idioma.ID))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		id, err := repo.CreateIdioma(ctx, idioma)
@@ -474,6 +478,8 @@ func TestCurriculoRepository_CreateCursoComplementar(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_cursos_complementares"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(curso.ID))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		id, err := repo.CreateCursoComplementar(ctx, curso)
@@ -676,6 +682,8 @@ func TestCurriculoRepository_CreateExperiencia(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_experiencias"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(experiencia.ID))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		id, err := repo.CreateExperiencia(ctx, experiencia)
@@ -880,6 +888,8 @@ func TestCurriculoRepository_CreateConquista(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_conquistas"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(conquista.ID))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		id, err := repo.CreateConquista(ctx, conquista)
@@ -1095,6 +1105,8 @@ func TestCurriculoRepository_ReplaceAllFormacoesByCPF(t *testing.T) {
 		// Insert new
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_formacoes"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		err := repo.ReplaceAllFormacoesByCPF(ctx, cpf, formacoes)
@@ -1109,6 +1121,8 @@ func TestCurriculoRepository_ReplaceAllFormacoesByCPF(t *testing.T) {
 		// Delete existing
 		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_formacoes"`)).
 			WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		err := repo.ReplaceAllFormacoesByCPF(ctx, cpf, []*empregabilidade.CurriculoFormacao{})
@@ -1180,6 +1194,8 @@ func TestCurriculoRepository_ReplaceAllFormacaoAccordionByCPF(t *testing.T) {
 		// Insert idiomas
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_idiomas"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		err := repo.ReplaceAllFormacaoAccordionByCPF(ctx, cpf, formacoes, idiomas)
@@ -1278,6 +1294,8 @@ func TestCurriculoRepository_ReplaceAllExperienciasByCPF(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_experiencias"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		err := repo.ReplaceAllExperienciasByCPF(ctx, cpf, experiencias)
@@ -1343,6 +1361,8 @@ func TestCurriculoRepository_ReplaceAllExperienciaProfissionalAccordionByCPF(t *
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
 		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_perfil" ("cpf","resumo_profissional","created_at","updated_at") VALUES ($1,$2,$3,$4) ON CONFLICT ("cpf") DO UPDATE SET "resumo_profissional"="excluded"."resumo_profissional","updated_at"="excluded"."updated_at"`)).
 			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		err := repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas, "texto resumo")
@@ -1464,6 +1484,8 @@ func TestCurriculoRepository_ReplaceAllConquistasByCPF(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_conquistas"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		err := repo.ReplaceAllConquistasByCPF(ctx, cpf, conquistas)
@@ -1520,6 +1542,8 @@ func TestCurriculoRepository_ReplaceAllIdiomasByCPF(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_idiomas"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		err := repo.ReplaceAllIdiomasByCPF(ctx, cpf, idiomas)
@@ -1576,6 +1600,8 @@ func TestCurriculoRepository_ReplaceAllCursosComplementaresByCPF(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_cursos_complementares"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		err := repo.ReplaceAllCursosComplementaresByCPF(ctx, cpf, cursos)
@@ -1637,6 +1663,8 @@ func TestCurriculoRepository_UpsertSituacaoInteresses(t *testing.T) {
 		// GORM.Save() with a primary key value performs UPDATE with ON CONFLICT INSERT
 		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_curriculo_situacao_interesses"`)).
 			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
 		err := repo.UpsertSituacaoInteresses(ctx, situacao)

@@ -129,20 +129,25 @@ func (r *CitizenSnapshotRepository) GetCPFsWithEnrollments(ctx context.Context, 
 	var cpfs []string
 	staleTime := time.Now().Add(-staleThreshold)
 
-	// Find CPFs from course enrollments (inscricoes) AND job applications
-	// (emp_candidaturas) that either:
+	// Find CPFs from course enrollments (inscricoes), job applications
+	// (emp_candidaturas) AND resumes (emp_curriculos) that either:
 	// 1. Don't have a citizen_snapshot record
 	// 2. Have a stale citizen_snapshot record
 	//
 	// emp_candidaturas must be included: a citizen who only applied to a vaga
 	// would otherwise never be refreshed, leaving personal_info (telefone,
 	// endereco) frozen at whatever the first on-demand sync captured.
+	//
+	// emp_curriculos covers citizens who only filled a resume: the banco de
+	// currículos lists them by name, which comes from the snapshot.
 	query := `
 		SELECT DISTINCT e.cpf
 		FROM (
 			SELECT i.cpf AS cpf FROM inscricoes i
 			UNION
 			SELECT c.cpf AS cpf FROM emp_candidaturas c WHERE c.deleted_at IS NULL
+			UNION
+			SELECT cur.cpf AS cpf FROM emp_curriculos cur
 		) e
 		LEFT JOIN citizen_snapshots cs ON e.cpf = cs.cpf
 		WHERE cs.cpf IS NULL OR cs.last_synced_at < $1

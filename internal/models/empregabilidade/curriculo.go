@@ -125,6 +125,18 @@ type ExperienciaProfissionalAccordionRequest struct {
 	ResumoProfissional string                  `json:"resumo_profissional"`
 }
 
+// Curriculo é o registro raiz do currículo de um cidadão. Existe para guardar a
+// data de inclusão no banco de currículos, que não pode vir das seções: elas são
+// apagadas e recriadas a cada salvamento, e o created_at delas é resetado junto.
+type Curriculo struct {
+	CPF       string    `json:"cpf" gorm:"type:varchar(14);primaryKey"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+}
+
+func (Curriculo) TableName() string {
+	return "emp_curriculos"
+}
+
 type CurriculoPerfil struct {
 	CPF                string    `json:"cpf" gorm:"type:varchar(14);primaryKey"`
 	ResumoProfissional string    `json:"resumo_profissional" gorm:"type:text"`

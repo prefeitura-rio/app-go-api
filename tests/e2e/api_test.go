@@ -28,13 +28,13 @@ func TestAPIEndpoints(t *testing.T) {
 		{
 			name:           "Swagger docs",
 			method:         "GET",
-			endpoint:       "/swagger/index.html",
+			endpoint:       "/docs/index.html",
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "OpenAPI spec",
 			method:         "GET",
-			endpoint:       "/swagger/doc.json",
+			endpoint:       "/docs/doc.json",
 			expectedStatus: http.StatusOK,
 		},
 		{
@@ -97,13 +97,13 @@ func TestHealthEndpointStructure(t *testing.T) {
 		t.Fatalf("Failed to decode health response: %v", err)
 	}
 
-	// Verify expected fields
-	if _, ok := health["status"]; !ok {
-		t.Error("Health response missing 'status' field")
+	// The endpoint answers {"status":"ok"} — see internal/router/router.go
+	status, ok := health["status"].(string)
+	if !ok {
+		t.Fatal("Health response missing 'status' field")
 	}
-
-	if _, ok := health["timestamp"]; !ok {
-		t.Error("Health response missing 'timestamp' field")
+	if status != "ok" {
+		t.Errorf("Expected health status \"ok\", got %q", status)
 	}
 }
 
@@ -166,7 +166,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 	client := &http.Client{Timeout: 10 * time.Second}
 
 	// Test Swagger UI
-	resp, err := client.Get(baseURL + "/swagger/index.html")
+	resp, err := client.Get(baseURL + "/docs/index.html")
 	if err != nil {
 		t.Fatalf("Failed to fetch Swagger UI: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 	}
 
 	// Test OpenAPI spec
-	resp2, err := client.Get(baseURL + "/swagger/doc.json")
+	resp2, err := client.Get(baseURL + "/docs/doc.json")
 	if err != nil {
 		t.Fatalf("Failed to fetch OpenAPI spec: %v", err)
 	}
@@ -197,6 +197,75 @@ func TestSwaggerDocumentation(t *testing.T) {
 	if _, ok := spec["openapi"]; !ok {
 		if _, ok := spec["swagger"]; !ok {
 			t.Error("OpenAPI spec missing version field")
+		}
+	}
+}
+
+// TestBancoCurriculosRequiresAuthorization checks that the banco de currículos
+// stays closed without credentials on a running environment. Its authorization
+// does not depend on RBAC_ENABLED, so this holds in every environment.
+func TestBancoCurriculosRequiresAuthorization(t *testing.T) {
+	baseURL := getBaseURL(t)
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	for _, endpoint := range []string{
+		"/api/v1/empregabilidade/banco-curriculos",
+		"/api/v1/empregabilidade/banco-curriculos/11111111111",
+	} {
+		t.Run(endpoint, func(t *testing.T) {
+			resp, err := client.Get(baseURL + endpoint)
+			if err != nil {
+				t.Fatalf("Request failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden {
+				t.Errorf("Expected 401 or 403 without credentials, got %d", resp.StatusCode)
+			}
+		})
+	}
+}
+
+// TestBancoCurriculosFichaContract checks the running API publishes the ficha
+// contract the admin consumes: the citizen data (e-mail, raça, PCD) and the last
+// update date required by the perfil detalhado card. It guards against changing
+// the model without regenerating the Swagger docs, which is what the frontend
+// client is generated from.
+func TestBancoCurriculosFichaContract(t *testing.T) {
+	baseURL := getBaseURL(t)
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Get(baseURL + "/docs/doc.json")
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected 200 for the OpenAPI spec, got %d", resp.StatusCode)
+	}
+
+	var spec struct {
+		Definitions map[string]struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		} `json:"definitions"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
+		t.Fatalf("Failed to decode OpenAPI spec: %v", err)
+	}
+
+	detalhe, ok := spec.Definitions["empregabilidade.BancoCurriculoDetalhe"]
+	if !ok {
+		t.Fatal("OpenAPI spec missing empregabilidade.BancoCurriculoDetalhe")
+	}
+
+	for _, field := range []string{
+		"cpf", "nome", "nome_social", "data_inclusao", "data_atualizacao",
+		"profissao", "escolaridade", "bairro", "celular", "email", "genero",
+		"raca", "deficiencia", "idade", "curriculo",
+	} {
+		if _, ok := detalhe.Properties[field]; !ok {
+			t.Errorf("Ficha contract missing field %q", field)
 		}
 	}
 }

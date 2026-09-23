@@ -109,6 +109,13 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	// Curriculo
 	registerEmpCurriculoRoutes(emp, app)
 
+	// Banco de currículos (backoffice). A autorização não passa por rbacMiddleware:
+	// vale mesmo com RBAC_ENABLED=false, senão qualquer usuário autenticado
+	// listaria todos os currículos.
+	bancoCurriculos := emp.Group("/banco-curriculos", middlewares.BancoCurriculosAuthorization())
+	bancoCurriculos.GET("", app.EmpBancoCurriculoHandler.List)
+	bancoCurriculos.GET("/:cpf", app.EmpBancoCurriculoHandler.GetByCPF)
+
 	// Onboarding
 	empOnboarding := emp.Group("/onboarding")
 	empOnboarding.GET("/:cpf", app.EmpOnboardingHandler.IsFirstLogin)

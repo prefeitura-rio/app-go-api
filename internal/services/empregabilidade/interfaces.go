@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
@@ -181,4 +182,16 @@ type CurriculoRepositoryInterface interface {
 	GetSituacaoInteressesByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoSituacaoInteresses, error)
 
 	GetPerfilByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoPerfil, error)
+}
+
+// BancoCurriculoRepositoryInterface defines the data access of the banco de currículos.
+type BancoCurriculoRepositoryInterface interface {
+	ListBancoCurriculos(ctx context.Context, filter empregabilidade.BancoCurriculoFilter, page, pageSize int) ([]*empregabilidade.BancoCurriculoItem, int64, error)
+	GetCurriculoByCPF(ctx context.Context, cpf string) (*empregabilidade.Curriculo, error)
+	GetUltimaAtualizacao(ctx context.Context, cpf string) (*time.Time, error)
+}
+
+// CurriculoCompletoGetterInterface is satisfied by CurriculoService.
+type CurriculoCompletoGetterInterface interface {
+	GetCurriculoCompleto(ctx context.Context, cpf string) (*empregabilidade.CurriculoCompleto, error)
 }

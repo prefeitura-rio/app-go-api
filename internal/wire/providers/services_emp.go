@@ -78,6 +78,16 @@ func ProvideEmpCurriculoService(repo *empRepository.CurriculoRepository) *empSer
 	return empServices.NewCurriculoService(repo)
 }
 
+// ProvideEmpBancoCurriculoService creates empregabilidade BancoCurriculoService.
+// The citizen data fetcher is set in the router, where the citizen sync worker starts.
+func ProvideEmpBancoCurriculoService(
+	curriculoRepo *empRepository.CurriculoRepository,
+	curriculoService *empServices.CurriculoService,
+	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
+) *empServices.BancoCurriculoService {
+	return empServices.NewBancoCurriculoService(curriculoRepo, curriculoService, citizenSnapshotRepo)
+}
+
 // ProvideEmpCandidaturaService creates empregabilidade CandidaturaService.
 // citizenSnapshotRepo and citizenDataFetcher are passed from the core domain.
 // citizenDataFetcher may be nil when citizen sync is disabled.
