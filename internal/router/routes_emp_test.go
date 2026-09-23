@@ -39,6 +39,8 @@ func createMockAppContainer() *wire.ApplicationContainer {
 		EmpCurriculoHandler:   &empHandlers.CurriculoHandler{},
 		EmpOnboardingHandler:  &empHandlers.OnboardingHandler{},
 		EmpTermosUsoHandler:   &empHandlers.TermosUsoHandler{},
+		// Banco de currículos
+		EmpBancoCurriculoHandler: &empHandlers.BancoCurriculoHandler{},
 	}
 }
 

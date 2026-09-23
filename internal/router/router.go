@@ -57,6 +57,7 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 		w := workers.NewCitizenSyncWorker(app.RMIClient, app.CitizenSnapshotRepo, app.TokenManager, &cfg.CitizenSync)
 		app.InscricaoService.SetCitizenDataFetcher(w)
 		app.EmpCandidaturaService.SetCitizenDataFetcher(w)
+		app.EmpBancoCurriculoService.SetCitizenDataFetcher(w)
 		go func() {
 			if err := w.Start(ctx); err != nil && err != context.Canceled {
 				log.Printf("[Router] Citizen sync worker stopped: %v", err)
