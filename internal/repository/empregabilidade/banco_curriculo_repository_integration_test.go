@@ -368,6 +368,33 @@ func TestBancoCurriculosIntegration_SalvarDeNovoPreservaCreatedAt(t *testing.T) 
 	})
 }
 
+func TestBancoCurriculosIntegration_BuscaTrataCuringasComoTexto(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	ctx := context.Background()
+	repo := emprepo.NewCurriculoRepository(tx)
+	const (
+		cpfComPorcento = "99999999908"
+		cpfSemPorcento = "99999999909"
+	)
+
+	for cpf, nome := range map[string]string{
+		cpfComPorcento: "Promo 100% Integração",
+		cpfSemPorcento: "Beatriz Integração",
+	} {
+		require.NoError(t, repo.UpsertSituacaoInteresses(ctx, &empregabilidade.CurriculoSituacaoInteresses{CPF: cpf}))
+		require.NoError(t, tx.Create(&models.CitizenSnapshot{CPF: cpf, Nome: nome, LastSyncedAt: time.Now()}).Error)
+	}
+
+	items, _, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: "%"}, 1, 100)
+	require.NoError(t, err)
+	cpfs := map[string]bool{}
+	for _, item := range items {
+		cpfs[item.CPF] = true
+	}
+	assert.True(t, cpfs[cpfComPorcento], "o nome com %% deve casar")
+	assert.False(t, cpfs[cpfSemPorcento], "%% não pode funcionar como curinga")
+}
+
 func TestBancoCurriculosIntegration_CorrecaoDaDataZerada(t *testing.T) {
 	tx := bancoCurriculosIntegrationTx(t)
 	saoPaulo, err := time.LoadLocation("America/Sao_Paulo")
