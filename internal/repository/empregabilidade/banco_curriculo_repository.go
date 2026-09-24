@@ -42,9 +42,19 @@ func (r *CurriculoRepository) ListBancoCurriculos(ctx context.Context, filter em
 	var where string
 	var args []interface{}
 	if search := strings.TrimSpace(filter.Search); search != "" {
-		where = ` WHERE (unaccent(cs.nome) ILIKE unaccent(?) OR unaccent(cs.nome_social) ILIKE unaccent(?))`
+		condicoes := []string{
+			"unaccent(cs.nome) ILIKE unaccent(?)",
+			"unaccent(cs.nome_social) ILIKE unaccent(?)",
+		}
 		term := "%" + search + "%"
 		args = append(args, term, term)
+		// O CPF é gravado só com dígitos; comparar pelos dígitos do termo aceita
+		// o que o operador digitar com ou sem máscara.
+		if digitos := apenasDigitos(search); digitos != "" {
+			condicoes = append(condicoes, "c.cpf LIKE ?")
+			args = append(args, "%"+digitos+"%")
+		}
+		where = " WHERE (" + strings.Join(condicoes, " OR ") + ")"
 	}
 
 	var total int64
@@ -120,4 +130,15 @@ func ensureCurriculo(tx *gorm.DB, cpf string) error {
 		return fmt.Errorf("erro ao registrar currículo: %w", err)
 	}
 	return nil
+}
+
+// apenasDigitos extrai os dígitos do termo de busca, usado para casar o CPF.
+func apenasDigitos(valor string) string {
+	var digitos strings.Builder
+	for _, r := range valor {
+		if r >= '0' && r <= '9' {
+			digitos.WriteRune(r)
+		}
+	}
+	return digitos.String()
 }

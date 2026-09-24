@@ -3097,7 +3097,7 @@ paths:
         in: query
         name: pageSize
         type: integer
-      - description: Busca parcial por nome ou nome social
+      - description: Busca parcial por nome, nome social ou CPF
         in: query
         name: search
         type: string

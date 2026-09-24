@@ -78,6 +78,73 @@ func TestCurriculoRepository_ListBancoCurriculos(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	t.Run("busca por CPF mascarado casa os dígitos gravados", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		where := ` WHERE (unaccent(cs.nome) ILIKE unaccent($1) OR unaccent(cs.nome_social) ILIKE unaccent($2) OR c.cpf LIKE $3)`
+		mock.ExpectQuery(regexp.QuoteMeta(bancoCurriculosCountSQL+where)).
+			WithArgs("%100.000.000-01%", "%100.000.000-01%", "%10000000001%").
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectQuery(regexp.QuoteMeta(where+` ORDER BY c.created_at DESC, c.cpf ASC LIMIT $4 OFFSET $5`)).
+			WithArgs("%100.000.000-01%", "%100.000.000-01%", "%10000000001%", 10, 0).
+			WillReturnRows(sqlmock.NewRows(bancoCurriculosListCols).
+				AddRow("10000000001", inclusao, "Ana Silva", nil, nil, nil))
+
+		items, total, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: " 100.000.000-01 "}, 1, 10)
+
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, items, 1)
+		assert.Equal(t, "10000000001", items[0].CPF)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("busca por trecho do CPF também casa o CPF", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		where := ` WHERE (unaccent(cs.nome) ILIKE unaccent($1) OR unaccent(cs.nome_social) ILIKE unaccent($2) OR c.cpf LIKE $3)`
+		mock.ExpectQuery(regexp.QuoteMeta(bancoCurriculosCountSQL+where)).
+			WithArgs("%1000000%", "%1000000%", "%1000000%").
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectQuery(regexp.QuoteMeta(where+` ORDER BY c.created_at DESC, c.cpf ASC LIMIT $4 OFFSET $5`)).
+			WithArgs("%1000000%", "%1000000%", "%1000000%", 10, 0).
+			WillReturnRows(sqlmock.NewRows(bancoCurriculosListCols).
+				AddRow("10000000001", inclusao, nil, nil, nil, nil))
+
+		_, total, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: "1000000"}, 1, 10)
+
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("busca só com letras não gera a condição de CPF", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		// O fechamento do parêntese logo após $2 e o LIMIT em $3 provam que não
+		// entrou um terceiro argumento para o CPF.
+		where := ` WHERE (unaccent(cs.nome) ILIKE unaccent($1) OR unaccent(cs.nome_social) ILIKE unaccent($2))`
+		mock.ExpectQuery(regexp.QuoteMeta(bancoCurriculosCountSQL+where)).
+			WithArgs("%ana%", "%ana%").
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectQuery(regexp.QuoteMeta(where+` ORDER BY c.created_at DESC, c.cpf ASC LIMIT $3 OFFSET $4`)).
+			WithArgs("%ana%", "%ana%", 10, 0).
+			WillReturnRows(sqlmock.NewRows(bancoCurriculosListCols).
+				AddRow("11111111111", inclusao, "Ana Silva", nil, nil, nil))
+
+		_, total, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: "ana"}, 1, 10)
+
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("profissão vem do emprego atual ou da maior experiência", func(t *testing.T) {
 		db, mock, cleanup := repository.SetupMockDB(t)
 		defer cleanup()

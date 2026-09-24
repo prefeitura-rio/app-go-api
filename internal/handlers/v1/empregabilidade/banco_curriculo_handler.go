@@ -31,7 +31,7 @@ func NewBancoCurriculoHandler(service BancoCurriculoServiceInterface) *BancoCurr
 // @Produce      json
 // @Param        page      query     int     false  "Número da página (default: 1)"
 // @Param        pageSize  query     int     false  "Tamanho da página (default: 10, máximo: 100)"
-// @Param        search    query     string  false  "Busca parcial por nome ou nome social"
+// @Param        search    query     string  false  "Busca parcial por nome, nome social ou CPF"
 // @Success      200       {object}  empregabilidade.BancoCurriculoListResponse
 // @Failure      403       {object}  map[string]string
 // @Failure      500       {object}  map[string]string

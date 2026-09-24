@@ -2042,7 +2042,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Busca parcial por nome ou nome social",
+                        "description": "Busca parcial por nome, nome social ou CPF",
                         "name": "search",
                         "in": "query"
                     }
