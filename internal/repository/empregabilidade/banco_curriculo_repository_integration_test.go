@@ -144,6 +144,71 @@ func TestBancoCurriculosIntegration_EscritaListagemEBusca(t *testing.T) {
 	})
 }
 
+func TestBancoCurriculosIntegration_BuscaPorCPF(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	ctx := context.Background()
+	repo := emprepo.NewCurriculoRepository(tx)
+
+	// O CPF é gravado só com dígitos; o operador digita com ou sem máscara.
+	const (
+		cpfProcurado = "98765432100"
+		cpfOutro     = "12345678909"
+	)
+
+	require.NoError(t, repo.UpsertSituacaoInteresses(ctx, &empregabilidade.CurriculoSituacaoInteresses{CPF: cpfProcurado}))
+	require.NoError(t, repo.UpsertSituacaoInteresses(ctx, &empregabilidade.CurriculoSituacaoInteresses{CPF: cpfOutro}))
+	require.NoError(t, tx.Create(&models.CitizenSnapshot{
+		CPF: cpfProcurado, Nome: "Carlos Procurado Integração", LastSyncedAt: time.Now(),
+	}).Error)
+	require.NoError(t, tx.Create(&models.CitizenSnapshot{
+		CPF: cpfOutro, Nome: "Diego Outro Integração", LastSyncedAt: time.Now(),
+	}).Error)
+
+	// A base local pode ter outros currículos, então o teste olha quem veio, não
+	// o total. A página é grande para o esperado não ficar de fora.
+	cpfsEncontrados := func(t *testing.T, busca string) []string {
+		t.Helper()
+		items, _, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: busca}, 1, 100)
+		require.NoError(t, err)
+		cpfs := make([]string, 0, len(items))
+		for _, item := range items {
+			cpfs = append(cpfs, item.CPF)
+		}
+		return cpfs
+	}
+
+	t.Run("acha pelo CPF inteiro", func(t *testing.T) {
+		cpfs := cpfsEncontrados(t, cpfProcurado)
+		assert.Contains(t, cpfs, cpfProcurado)
+		assert.NotContains(t, cpfs, cpfOutro)
+	})
+
+	t.Run("acha pelo CPF com máscara", func(t *testing.T) {
+		cpfs := cpfsEncontrados(t, " 987.654.321-00 ")
+		assert.Contains(t, cpfs, cpfProcurado)
+		assert.NotContains(t, cpfs, cpfOutro)
+	})
+
+	t.Run("acha por trecho do CPF", func(t *testing.T) {
+		cpfs := cpfsEncontrados(t, "76543210")
+		assert.Contains(t, cpfs, cpfProcurado)
+		assert.NotContains(t, cpfs, cpfOutro)
+	})
+
+	t.Run("busca por nome continua funcionando e não mistura os dois", func(t *testing.T) {
+		cpfs := cpfsEncontrados(t, "diego outro integracao")
+		assert.Contains(t, cpfs, cpfOutro)
+		assert.NotContains(t, cpfs, cpfProcurado)
+	})
+
+	t.Run("CPF que não existe não traz ninguém", func(t *testing.T) {
+		items, total, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: "55555555555"}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), total)
+		assert.Empty(t, items)
+	})
+}
+
 func TestBancoCurriculosIntegration_GetUltimaAtualizacao(t *testing.T) {
 	tx := bancoCurriculosIntegrationTx(t)
 	ctx := context.Background()
