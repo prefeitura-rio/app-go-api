@@ -227,8 +227,9 @@ func TestBancoCurriculosRequiresAuthorization(t *testing.T) {
 }
 
 // TestBancoCurriculosFichaContract checks the running API publishes the ficha
-// contract the admin consumes: the citizen data (e-mail, raça, PCD) and the last
-// update date required by the perfil detalhado card. It guards against changing
+// contract the admin consumes: the citizen data (e-mail, raça, PCD), the last
+// update date required by the perfil detalhado card and the situação e
+// interesses section of the resume. It guards against changing
 // the model without regenerating the Swagger docs, which is what the frontend
 // client is generated from.
 func TestBancoCurriculosFichaContract(t *testing.T) {
@@ -254,18 +255,36 @@ func TestBancoCurriculosFichaContract(t *testing.T) {
 		t.Fatalf("Failed to decode OpenAPI spec: %v", err)
 	}
 
-	detalhe, ok := spec.Definitions["empregabilidade.BancoCurriculoDetalhe"]
-	if !ok {
-		t.Fatal("OpenAPI spec missing empregabilidade.BancoCurriculoDetalhe")
+	// A ficha lê também o currículo completo e, dentro dele, a situação e os
+	// interesses do cidadão, com as descrições já resolvidas pela API.
+	contrato := []struct {
+		definition string
+		fields     []string
+	}{
+		{"empregabilidade.BancoCurriculoDetalhe", []string{
+			"cpf", "nome", "nome_social", "data_inclusao", "data_atualizacao",
+			"profissao", "escolaridade", "bairro", "celular", "email", "genero",
+			"raca", "deficiencia", "idade", "curriculo",
+		}},
+		{"empregabilidade.CurriculoCompleto", []string{"situacao_interesses"}},
+		{"empregabilidade.CurriculoSituacaoInteresses", []string{
+			"situacao", "disponibilidade", "tempo_procurando_emprego",
+			"ids_tipos_vinculo_preferencia",
+		}},
+		{"empregabilidade.SituacaoAtual", []string{"descricao"}},
+		{"empregabilidade.Disponibilidade", []string{"descricao"}},
 	}
 
-	for _, field := range []string{
-		"cpf", "nome", "nome_social", "data_inclusao", "data_atualizacao",
-		"profissao", "escolaridade", "bairro", "celular", "email", "genero",
-		"raca", "deficiencia", "idade", "curriculo",
-	} {
-		if _, ok := detalhe.Properties[field]; !ok {
-			t.Errorf("Ficha contract missing field %q", field)
+	for _, item := range contrato {
+		definition, ok := spec.Definitions[item.definition]
+		if !ok {
+			t.Errorf("OpenAPI spec missing %s", item.definition)
+			continue
+		}
+		for _, field := range item.fields {
+			if _, ok := definition.Properties[field]; !ok {
+				t.Errorf("Ficha contract missing field %s.%s", item.definition, field)
+			}
 		}
 	}
 }

@@ -78,6 +78,24 @@ func TestCurriculoRepository_ListBancoCurriculos(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	t.Run("curingas do LIKE digitados valem ao pé da letra", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		where := ` WHERE (unaccent(cs.nome) ILIKE unaccent($1) OR unaccent(cs.nome_social) ILIKE unaccent($2))`
+		mock.ExpectQuery(regexp.QuoteMeta(bancoCurriculosCountSQL+where)).
+			WithArgs(`%\%\_\\%`, `%\%\_\\%`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+		items, total, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: `%_\`}, 1, 10)
+
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), total)
+		assert.Empty(t, items)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("busca por CPF mascarado casa os dígitos gravados", func(t *testing.T) {
 		db, mock, cleanup := repository.SetupMockDB(t)
 		defer cleanup()

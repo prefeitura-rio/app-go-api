@@ -46,7 +46,7 @@ func (r *CurriculoRepository) ListBancoCurriculos(ctx context.Context, filter em
 			"unaccent(cs.nome) ILIKE unaccent(?)",
 			"unaccent(cs.nome_social) ILIKE unaccent(?)",
 		}
-		term := "%" + search + "%"
+		term := "%" + escaparLike(search) + "%"
 		args = append(args, term, term)
 		// O CPF é gravado só com dígitos; comparar pelos dígitos do termo aceita
 		// o que o operador digitar com ou sem máscara.
@@ -130,6 +130,12 @@ func ensureCurriculo(tx *gorm.DB, cpf string) error {
 		return fmt.Errorf("erro ao registrar currículo: %w", err)
 	}
 	return nil
+}
+
+// escaparLike faz o termo valer ao pé da letra no LIKE: sem isso, "%" e "_"
+// digitados viram curingas. A barra é o escape padrão do LIKE no Postgres.
+func escaparLike(valor string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(valor)
 }
 
 // apenasDigitos extrai os dígitos do termo de busca, usado para casar o CPF.

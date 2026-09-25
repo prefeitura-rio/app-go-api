@@ -47,7 +47,7 @@ func (r *CurriculoRepository) GetFormacaoByID(ctx context.Context, id uuid.UUID)
 }
 
 func (r *CurriculoRepository) UpdateFormacao(ctx context.Context, entity *empregabilidade.CurriculoFormacao) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("created_at").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar formação: %w", result.Error)
 	}
@@ -99,7 +99,7 @@ func (r *CurriculoRepository) GetIdiomaByID(ctx context.Context, id uuid.UUID) (
 }
 
 func (r *CurriculoRepository) UpdateIdioma(ctx context.Context, entity *empregabilidade.CurriculoIdioma) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("created_at").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar idioma: %w", result.Error)
 	}
@@ -151,7 +151,7 @@ func (r *CurriculoRepository) GetCursoComplementarByID(ctx context.Context, id u
 }
 
 func (r *CurriculoRepository) UpdateCursoComplementar(ctx context.Context, entity *empregabilidade.CurriculoCursoComplementar) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("created_at").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar curso complementar: %w", result.Error)
 	}
@@ -203,7 +203,7 @@ func (r *CurriculoRepository) GetExperienciaByID(ctx context.Context, id uuid.UU
 }
 
 func (r *CurriculoRepository) UpdateExperiencia(ctx context.Context, entity *empregabilidade.CurriculoExperiencia) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("created_at").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar experiência: %w", result.Error)
 	}
@@ -255,7 +255,7 @@ func (r *CurriculoRepository) GetConquistaByID(ctx context.Context, id uuid.UUID
 }
 
 func (r *CurriculoRepository) UpdateConquista(ctx context.Context, entity *empregabilidade.CurriculoConquista) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("created_at").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar conquista: %w", result.Error)
 	}
@@ -447,7 +447,18 @@ func (r *CurriculoRepository) ReplaceAllCursosComplementaresByCPF(ctx context.Co
 
 func (r *CurriculoRepository) UpsertSituacaoInteresses(ctx context.Context, entity *empregabilidade.CurriculoSituacaoInteresses) error {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(entity).Error; err != nil {
+		// Upsert pela chave, sem tocar em created_at: o Save regravava a coluna
+		// com o zero do Go a cada novo salvamento.
+		if err := tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "cpf"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"id_situacao",
+				"tempo_procurando_emprego",
+				"id_disponibilidade",
+				"ids_tipos_vinculo_preferencia",
+				"updated_at",
+			}),
+		}).Create(entity).Error; err != nil {
 			return err
 		}
 		return ensureCurriculo(tx, entity.CPF)
