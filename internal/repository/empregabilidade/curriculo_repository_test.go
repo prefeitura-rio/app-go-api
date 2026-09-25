@@ -1979,6 +1979,7 @@ func TestCurriculoRepository_DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(t *test
 		err := repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id, cpf)
 
 		assert.Error(t, err)
+		assert.Equal(t, "record not found", err.Error())
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
