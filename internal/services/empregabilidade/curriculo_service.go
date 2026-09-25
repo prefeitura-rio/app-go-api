@@ -156,8 +156,9 @@ func (s *CurriculoService) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx context.
 func (s *CurriculoService) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(
 	ctx context.Context,
 	id int64,
+	cpf string,
 ) error {
-	return s.repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id)
+	return s.repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id, cpf)
 }
 
 // --- Comportamentos e Atitudes ---

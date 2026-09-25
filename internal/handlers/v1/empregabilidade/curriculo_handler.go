@@ -1359,6 +1359,7 @@ func (h *CurriculoHandler) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(c *gin.Co
 	err = h.service.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(
 		c.Request.Context(),
 		vinculoID,
+		cpf,
 	)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

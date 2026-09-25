@@ -1915,9 +1915,10 @@ func TestCurriculoRepository_DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(t *test
 	repo := NewCurriculoRepository(db)
 	ctx := context.Background()
 
-	t.Run("delete success", func(t *testing.T) {
-		id := int64(10)
+	id := int64(10)
+	cpf := "12345678901"
 
+	t.Run("delete success", func(t *testing.T) {
 		mock.ExpectBegin()
 
 		mock.ExpectExec(
@@ -1925,20 +1926,18 @@ func TestCurriculoRepository_DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(t *test
 				`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`,
 			),
 		).
-			WithArgs(id).
+			WithArgs(id, cpf).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
 		mock.ExpectCommit()
 
-		err := repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id)
+		err := repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id, cpf)
 
 		assert.NoError(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
 	t.Run("delete error", func(t *testing.T) {
-		id := int64(10)
-
 		mock.ExpectBegin()
 
 		mock.ExpectExec(
@@ -1946,12 +1945,12 @@ func TestCurriculoRepository_DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(t *test
 				`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`,
 			),
 		).
-			WithArgs(id).
+			WithArgs(id, cpf).
 			WillReturnError(assert.AnError)
 
 		mock.ExpectRollback()
 
-		err := repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id)
+		err := repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id, cpf)
 
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
@@ -1963,6 +1962,26 @@ func TestCurriculoRepository_DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(t *test
 
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("delete not found", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		mock.ExpectExec(
+			regexp.QuoteMeta(
+				`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`,
+			),
+		).
+			WithArgs(id, cpf).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		mock.ExpectCommit()
+
+		err := repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id, cpf)
+
+		assert.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 }
 
 // --- TESTES DE SUBSTITUIÇÃO MASSIVA DE ITENS DO CURRÍCULO (TRANSAÇÃO) ---

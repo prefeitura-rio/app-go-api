@@ -195,7 +195,7 @@ func (m *mockCurriculoRepo) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(_ context.C
 	return m.err
 }
 
-func (m *mockCurriculoRepo) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(_ context.Context, _ int64) error {
+func (m *mockCurriculoRepo) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(_ context.Context, _ int64, _ string) error {
 	return m.err
 }
 
@@ -496,6 +496,7 @@ func TestCurriculoService_DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(t *testing
 	err := svc.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(
 		context.Background(),
 		1,
+		"12345678901",
 	)
 
 	assert.NoError(t, err)

@@ -570,15 +570,20 @@ func (r *CurriculoRepository) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx conte
 // DetachAreaAtuacaoHabilidadeDoCurriculo remove apenas o vínculo
 // entre o currículo e a combinação área de atuação/habilidade,
 // preservando as tabelas mestre.
-func (r *CurriculoRepository) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, id int64) error {
+func (r *CurriculoRepository) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, id int64, cpf string) error {
 	result := r.db.WithContext(ctx).
-		Delete(&empregabilidade.CurriculoAreaAtuacaoHabilidade{}, "id = ?", id)
+		Where("id = ? AND cpf = ?", id, cpf).
+		Delete(&empregabilidade.CurriculoAreaAtuacaoHabilidade{})
 
 	if result.Error != nil {
 		return fmt.Errorf(
 			"erro ao remover área de atuação/habilidade do currículo: %w",
 			result.Error,
 		)
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 
 	return nil

@@ -257,7 +257,7 @@ func (m *mockCurriculoRepoH) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(_ context.
 	return nil
 }
 
-func (m *mockCurriculoRepoH) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(_ context.Context, _ int64) error {
+func (m *mockCurriculoRepoH) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(_ context.Context, _ int64, _ string) error {
 	return m.err
 }
 
