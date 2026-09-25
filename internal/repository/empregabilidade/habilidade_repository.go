@@ -232,7 +232,7 @@ func (r *HabilidadeRepository) ListAreasAtuacao(ctx context.Context, filter empr
 
 		// Filtragem por ID da Habilidade
 		if filter.HabilidadeID > 0 {
-			db = db.Joins("JOIN area_atuacao_habilidade aah ON aah.id_area_atuacao = area_atuacao.id").
+			db = db.Joins("JOIN area_atuacao_habilidade aah ON aah.id_area_atuacao = emp_area_atuacao.id").
 				Where("aah.id_habilidade = ?", filter.HabilidadeID)
 		}
 

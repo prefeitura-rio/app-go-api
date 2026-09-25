@@ -80,25 +80,6 @@ func (m *MockHabilidadeRepository) ListAreasAtuacao(ctx context.Context, filter 
 	return args.Get(0).([]*empregabilidade.AreaAtuacao), args.Get(1).(int64), args.Error(2)
 }
 
-func (m *MockHabilidadeRepository) AddHabilidadeAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error {
-	args := m.Called(ctx, vinculo)
-	return args.Error(0)
-}
-
-// DetachHabilidadeDoCurriculo remove o vínculo de uma habilidade do currículo no mock
-func (m *MockHabilidadeRepository) DetachHabilidadeDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoHabilidade) error {
-	args := m.Called(ctx, vinculo)
-	return args.Error(0)
-}
-
-func (m *MockHabilidadeRepository) ListHabilidadesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoHabilidade, error) {
-	args := m.Called(ctx, cpf)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*empregabilidade.CurriculoHabilidade), args.Error(1)
-}
-
 func (m *MockHabilidadeRepository) AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
 	args := m.Called(ctx, habilidadeID, areaID)
 	return args.Error(0)

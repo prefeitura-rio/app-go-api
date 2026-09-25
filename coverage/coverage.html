@@ -97,7 +97,7 @@
 				
 				<option value="file20">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/comportamento_atitudes_handler.go (100.0%)</option>
 				
-				<option value="file21">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/curriculo_handler.go (93.8%)</option>
+				<option value="file21">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/curriculo_handler.go (93.9%)</option>
 				
 				<option value="file22">github.com/prefeitura-rio/app-go-api/internal/handlers/v1/empregabilidade/empresa_handler.go (89.5%)</option>
 				
@@ -167,7 +167,7 @@
 				
 				<option value="file55">github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade/comportamento_atitudes.go (0.0%)</option>
 				
-				<option value="file56">github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade/curriculo.go (80.0%)</option>
+				<option value="file56">github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade/curriculo.go (85.7%)</option>
 				
 				<option value="file57">github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade/disponibilidade.go (100.0%)</option>
 				
@@ -245,7 +245,7 @@
 				
 				<option value="file94">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/comportamento_atitudes_repository.go (100.0%)</option>
 				
-				<option value="file95">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/curriculo_repository.go (97.2%)</option>
+				<option value="file95">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/curriculo_repository.go (94.4%)</option>
 				
 				<option value="file96">github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade/disponibilidade_repository.go (100.0%)</option>
 				
@@ -305,7 +305,7 @@
 				
 				<option value="file124">github.com/prefeitura-rio/app-go-api/internal/router/routes_core.go (89.2%)</option>
 				
-				<option value="file125">github.com/prefeitura-rio/app-go-api/internal/router/routes_emp.go (98.3%)</option>
+				<option value="file125">github.com/prefeitura-rio/app-go-api/internal/router/routes_emp.go (98.2%)</option>
 				
 				<option value="file126">github.com/prefeitura-rio/app-go-api/internal/services/acessibilidade_service.go (71.4%)</option>
 				
@@ -14219,12 +14219,6 @@ const docTemplate = `{
                         "$ref": "#/definitions/empregabilidade.CurriculoFormacao"
                     }
                 },
-                "habilidades": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/empregabilidade.CurriculoHabilidade"
-                    }
-                },
                 "idiomas": {
                     "type": "array",
                     "items": {
@@ -14391,29 +14385,6 @@ const docTemplate = `{
                 },
                 "status": {
                     "$ref": "#/definitions/empregabilidade.StatusFormacao"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "empregabilidade.CurriculoHabilidade": {
-            "type": "object",
-            "properties": {
-                "cpf": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "habilidade": {
-                    "$ref": "#/definitions/empregabilidade.Habilidade"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "id_habilidade": {
-                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
@@ -16629,10 +16600,7 @@ const docTemplate = `{
                 "data": {
                     "type": "array",
                     "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/empregabilidade.AreaAtuacao"
-                        }
+                        "$ref": "#/definitions/empregabilidade.AreaAtuacao"
                     }
                 },
                 "page": {
@@ -16655,10 +16623,7 @@ const docTemplate = `{
                 "data": {
                     "type": "array",
                     "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/empregabilidade.ComportamentoAtitudes"
-                        }
+                        "$ref": "#/definitions/empregabilidade.ComportamentoAtitudes"
                     }
                 },
                 "page": {
@@ -16681,10 +16646,7 @@ const docTemplate = `{
                 "data": {
                     "type": "array",
                     "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/empregabilidade.Habilidade"
-                        }
+                        "$ref": "#/definitions/empregabilidade.Habilidade"
                     }
                 },
                 "page": {
@@ -22944,17 +22906,38 @@ func (h *CurriculoHandler) DeleteComportamentoAtitudesDoCurriculo(c *gin.Context
                 return
 </span>        }
 
-        <span class="cov2" title="3">err = h.service.DetachComportamentoAtitudesDoCurriculo(c.Request.Context(), vinculoID)
+        <span class="cov2" title="3">vinculo := &amp;empregabilidade.CurriculoComportamentoAtitudes{
+                ID:  vinculoID,
+                CPF: cpf,
+</span>        }
+
+        <span class="cov2" title="3">err = h.service.DetachComportamentoAtitudesDoCurriculo(
+                c.Request.Context(),
+                vinculo,
+        )
         if err != nil </span>{
                 <span class="cov2" title="2">if errors.Is(err, gorm.ErrRecordNotFound) </span>{
-                        <span class="cov1" title="1">response.Error(c, http.StatusNotFound, "Vínculo não encontrado ou não pertence ao usuário")
+                        <span class="cov1" title="1">response.Error(
+                                c,
+                                http.StatusNotFound,
+                                "Vínculo não encontrado ou não pertence ao usuário",
+                        )
                         return
 </span>                }
-                <span class="cov1" title="1">response.Error(c, http.StatusInternalServerError, "Erro ao remover comportamento/atitude do currículo")
+
+                <span class="cov1" title="1">response.Error(
+                        c,
+                        http.StatusInternalServerError,
+                        "Erro ao remover comportamento/atitude do currículo",
+                )
                 return</span>
         }
 
-        <span class="cov1" title="1">response.Success(c, http.StatusOK, "Comportamento/atitude desvinculado com sucesso")</span>
+        <span class="cov1" title="1">response.Success(
+                c,
+                http.StatusOK,
+                "Comportamento/atitude desvinculado com sucesso",
+        )</span>
 }
 </pre>
 		
@@ -23381,10 +23364,6 @@ type UpdateHabilidadeRequest struct {
 
 type AddHabilidadeRequest struct {
         IDHabilidade int64 `json:"id_habilidade" binding:"required" example:"10"`
-}
-
-type ReplaceHabilidadesRequest struct {
-        Habilidades []*empregabilidade.CurriculoHabilidade `json:"habilidades" binding:"required"`
 }
 
 type CreateAreaAtuacaoRequest struct {
@@ -28678,11 +28657,11 @@ type Paginated[T any] struct {
         PageSize int   `json:"pageSize" example:"20"`
 }
 
-type ListHabilidadesPaginatedResponse = Paginated[[]empregabilidade.Habilidade]
+type ListHabilidadesPaginatedResponse = Paginated[empregabilidade.Habilidade]
 
-type ListAreasAtuacaoPaginatedResponse = Paginated[[]empregabilidade.AreaAtuacao]
+type ListAreasAtuacaoPaginatedResponse = Paginated[empregabilidade.AreaAtuacao]
 
-type ListComportamentoAtitudesPaginatedResponse = Paginated[[]empregabilidade.ComportamentoAtitudes]
+type ListComportamentoAtitudesPaginatedResponse = Paginated[empregabilidade.ComportamentoAtitudes]
 
 // Helpers HTTP
 
@@ -29868,16 +29847,16 @@ func (p *JobProcessor) ProcessJob(jobID uuid.UUID) error {
 
         <span class="cov9" title="54">job, err := p.jobService.GetByID(ctx, jobID)
         if err != nil </span>{
-                <span class="cov8" title="31">return fmt.Errorf("erro ao buscar job: %w", err)
+                <span class="cov8" title="32">return fmt.Errorf("erro ao buscar job: %w", err)
 </span>        }
 
-        <span class="cov7" title="23">if job == nil </span>{
+        <span class="cov7" title="22">if job == nil </span>{
                 <span class="cov3" title="3">return fmt.Errorf("job não encontrado")
 </span>        }
 
         // Update status to processing
-        <span class="cov7" title="20">if err := p.jobService.UpdateStatus(ctx, jobID, models.JobStatusProcessing); err != nil </span>{
-                <span class="cov4" title="5">log.Printf("Erro ao atualizar status do job %s para processing: %v", jobID, err)
+        <span class="cov7" title="19">if err := p.jobService.UpdateStatus(ctx, jobID, models.JobStatusProcessing); err != nil </span>{
+                <span class="cov3" title="4">log.Printf("Erro ao atualizar status do job %s para processing: %v", jobID, err)
                 return err
 </span>        }
         <span class="cov6" title="15">job.Status = models.JobStatusProcessing
@@ -31951,20 +31930,6 @@ type CurriculoAreaAtuacaoHabilidade struct {
 
 func (CurriculoAreaAtuacaoHabilidade) TableName() string {
         <span class="cov0" title="0">return "emp_curriculo_area_atuacao_habilidade"
-</span>}
-
-// CurriculoHabilidade representa o vínculo entre o candidato (CPF) e suas Habilidades
-type CurriculoHabilidade struct {
-        ID           int64       `json:"id" gorm:"primaryKey;autoIncrement"`
-        CPF          string      `json:"cpf" gorm:"type:char(11);not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
-        IDHabilidade int64       `json:"id_habilidade" gorm:"not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
-        CreatedAt    time.Time   `json:"created_at" gorm:"autoCreateTime"`
-        UpdatedAt    time.Time   `json:"updated_at" gorm:"autoUpdateTime"`
-        Habilidade   *Habilidade `json:"habilidade,omitempty" gorm:"foreignKey:IDHabilidade;references:ID"`
-}
-
-func (CurriculoHabilidade) TableName() string {
-        <span class="cov0" title="0">return "emp_curriculo_habilidades"
 </span>}
 </pre>
 		
@@ -35677,7 +35642,7 @@ type ComportamentoAtitudesRepository struct {
 }
 
 func NewComportamentoAtitudesRepository(db *gorm.DB) *ComportamentoAtitudesRepository {
-        <span class="cov10" title="20">return &amp;ComportamentoAtitudesRepository{db: db}
+        <span class="cov10" title="13">return &amp;ComportamentoAtitudesRepository{db: db}
 </span>}
 
 // CreateComportamentoAtitudes insere um novo comportamento no catálogo mestre
@@ -35732,11 +35697,11 @@ func (r *ComportamentoAtitudesRepository) ListComportamentoAtitudes(ctx context.
         var total int64
 </span>
         <span class="cov5" title="4">applyFilters := func(db *gorm.DB) *gorm.DB </span>{
-                <span class="cov6" title="7">if filter.Search != "" </span>{
-                        <span class="cov5" title="5">searchNome := fmt.Sprintf("%%%s%%", filter.Search)
+                <span class="cov7" title="7">if filter.Search != "" </span>{
+                        <span class="cov6" title="5">searchNome := fmt.Sprintf("%%%s%%", filter.Search)
                         db = db.Where("lower(immutable_unaccent(emp_comportamento_atitudes.nome)) LIKE lower(immutable_unaccent(?))", searchNome)
 </span>                }
-                <span class="cov6" title="7">return db</span>
+                <span class="cov7" title="7">return db</span>
         }
 
         <span class="cov5" title="4">countDB := applyFilters(r.db.WithContext(ctx).Model(&amp;empregabilidade.ComportamentoAtitudes{}))
@@ -35756,48 +35721,6 @@ func (r *ComportamentoAtitudesRepository) ListComportamentoAtitudes(ctx context.
 </span>        }
 
         <span class="cov3" title="2">return entities, total, nil</span>
-}
-
-// --- MÉTODOS DE VÍNCULO COM O CURRÍCULO (emp_curriculo_comportamento_atitudes) ---
-
-// AddComportamentoAtitudesAoCurriculo vincula um comportamento ao currículo
-func (r *ComportamentoAtitudesRepository) AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error {
-        <span class="cov3" title="2">result := r.db.WithContext(ctx).Create(vinculo)
-        if result.Error != nil </span>{
-                <span class="cov1" title="1">return fmt.Errorf("erro ao vincular comportamento ao currículo: %w", result.Error)
-</span>        }
-        <span class="cov1" title="1">return nil</span>
-}
-
-// DetachComportamentoAtitudesDoCurriculo remove o vínculo garantindo ownership pelo CPF
-func (r *ComportamentoAtitudesRepository) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error {
-        <span class="cov4" title="3">result := r.db.WithContext(ctx).
-                Where("id = ? AND cpf = ?", vinculo.ID, vinculo.CPF).
-                Delete(&amp;empregabilidade.CurriculoComportamentoAtitudes{})
-</span>
-        <span class="cov4" title="3">if result.Error != nil </span>{
-                <span class="cov1" title="1">return fmt.Errorf("erro ao desvincular comportamento do currículo: %w", result.Error)
-</span>        }
-
-        <span class="cov3" title="2">if result.RowsAffected == 0 </span>{
-                <span class="cov1" title="1">return gorm.ErrRecordNotFound
-</span>        }
-
-        <span class="cov1" title="1">return nil</span>
-}
-
-// ListComportamentoAtitudesPorCPF lista todos os comportamentos vinculados ao currículo do usuário carregando os dados mestre
-func (r *ComportamentoAtitudesRepository) ListComportamentoAtitudesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
-        <span class="cov3" title="2">var vinculos []*empregabilidade.CurriculoComportamentoAtitudes
-        result := r.db.WithContext(ctx).
-                Preload("ComportamentoAtitudes").
-                Where("cpf = ?", cpf).
-                Find(&amp;vinculos)
-</span>
-        <span class="cov3" title="2">if result.Error != nil </span>{
-                <span class="cov1" title="1">return nil, fmt.Errorf("erro ao buscar comportamentos do currículo por CPF: %w", result.Error)
-</span>        }
-        <span class="cov1" title="1">return vinculos, nil</span>
 }
 </pre>
 		
@@ -35819,7 +35742,7 @@ type CurriculoRepository struct {
 }
 
 func NewCurriculoRepository(db *gorm.DB) *CurriculoRepository {
-        <span class="cov10" title="45">return &amp;CurriculoRepository{db: db}
+        <span class="cov10" title="44">return &amp;CurriculoRepository{db: db}
 </span>}
 
 // Formação Acadêmica
@@ -36393,6 +36316,7 @@ func (r *CurriculoRepository) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx co
 func (r *CurriculoRepository) ListComportamentoAtitudesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
         <span class="cov2" title="2">var entities []*empregabilidade.CurriculoComportamentoAtitudes
         result := r.db.WithContext(ctx).
+                Preload("ComportamentoAtitudes").
                 Where("cpf = ?", cpf).
                 Order("created_at DESC").
                 Find(&amp;entities)
@@ -36419,12 +36343,20 @@ func (r *CurriculoRepository) AddComportamentoAtitudesAoCurriculo(ctx context.Co
 }
 
 // DetachComportamentoAtitudesDoCurriculo remove apenas o vínculo com o currículo (preserva a tabela mestre)
-func (r *CurriculoRepository) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error {
-        <span class="cov2" title="2">result := r.db.WithContext(ctx).Delete(&amp;empregabilidade.CurriculoComportamentoAtitudes{}, "id = ?", id)
-        if result.Error != nil </span>{
-                <span class="cov1" title="1">return fmt.Errorf("erro ao remover comportamento/atitude do currículo: %w", result.Error)
+func (r *CurriculoRepository) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error {
+        <span class="cov0" title="0">result := r.db.WithContext(ctx).
+                Where("id = ? AND cpf = ?", vinculo.ID, vinculo.CPF).
+                Delete(&amp;empregabilidade.CurriculoComportamentoAtitudes{})
+</span>
+        <span class="cov0" title="0">if result.Error != nil </span>{
+                <span class="cov0" title="0">return fmt.Errorf("erro ao desvincular comportamento do currículo: %w", result.Error)
 </span>        }
-        <span class="cov1" title="1">return nil</span>
+
+        <span class="cov0" title="0">if result.RowsAffected == 0 </span>{
+                <span class="cov0" title="0">return gorm.ErrRecordNotFound
+</span>        }
+
+        <span class="cov0" title="0">return nil</span>
 }
 </pre>
 		
@@ -36988,7 +36920,7 @@ func (r *HabilidadeRepository) ListAreasAtuacao(ctx context.Context, filter empr
 
                 // Filtragem por ID da Habilidade
                 <span class="cov2" title="2">if filter.HabilidadeID &gt; 0 </span>{
-                        <span class="cov0" title="0">db = db.Joins("JOIN area_atuacao_habilidade aah ON aah.id_area_atuacao = area_atuacao.id").
+                        <span class="cov0" title="0">db = db.Joins("JOIN area_atuacao_habilidade aah ON aah.id_area_atuacao = emp_area_atuacao.id").
                                 Where("aah.id_habilidade = ?", filter.HabilidadeID)
 </span>                }
 
@@ -40035,7 +39967,7 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
         <span class="cov0" title="0">r.Use(middlewares.TimeoutMiddleware(time.Duration(cfg.Server.RequestTimeout) * time.Second))
         r.Use(middlewares.CorsMiddleware())
 </span>
-        <span class="cov0" title="0">r.GET("/swagger/*any", middlewares.DynamicSwaggerHandler())
+        <span class="cov0" title="0">r.GET("/docs/*any", middlewares.DynamicSwaggerHandler())
         r.GET("/health", func(c *gin.Context) </span>{
                 <span class="cov0" title="0">c.JSON(200, gin.H{"status": "ok"})
 </span>        })
@@ -40415,10 +40347,9 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
         <span class="cov4" title="8">empCurriculo := empGroup.Group("/curriculo")
 </span>        {
                 // Endpoints específicos para Áreas atuação/habilidades no Currículo
-                <span class="cov4" title="8">empCurriculo.GET("/curriculo/areas-atuacao-habilidades", app.EmpCurriculoHandler.ListAreaAtuacaoHabilidadeDoCurriculoByCPF)
-                empCurriculo.POST("/curriculo/areas-atuacao-habilidades", app.EmpCurriculoHandler.AddAreaAtuacaoHabilidadeAoCurriculoByCPF)
-                empCurriculo.DELETE("/curriculo/areas-atuacao-habilidades/:id", app.EmpCurriculoHandler.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF)
-                empCurriculo.PUT("/curriculo/areas-atuacao-habilidades", app.EmpCurriculoHandler.ReplaceAllItensCurriculoByCPF)
+                <span class="cov4" title="8">empCurriculo.GET("/areas-atuacao-habilidades", app.EmpCurriculoHandler.ListAreaAtuacaoHabilidadeDoCurriculoByCPF)
+                empCurriculo.POST("/areas-atuacao-habilidades", app.EmpCurriculoHandler.AddAreaAtuacaoHabilidadeAoCurriculoByCPF)
+                empCurriculo.DELETE("/areas-atuacao-habilidades/:id", app.EmpCurriculoHandler.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF)
 </span>
                 // Endpoints específicos para Comportamento e atitudes no Currículo
                 <span class="cov4" title="8">empCurriculo.GET("/comportamentos-atitudes", app.EmpCurriculoHandler.ListComportamentoAtitudesDoCurriculo)
@@ -40434,7 +40365,6 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
                 <span class="cov4" title="8">publicEmpGroup.GET("/habilidades", app.EmpHabilidadeHandler.ListHabilidades)
                 publicEmpGroup.GET("/areas-atuacao", app.EmpHabilidadeHandler.ListAreasAtuacao)
 </span>        }
-
 }
 
 // registerEmpCurriculoRoutes registers curriculo sub-routes.
@@ -43554,7 +43484,7 @@ func NewCurriculoService(repo CurriculoRepositoryInterface) *CurriculoService {
 </span>}
 
 func NewCurriculoServiceWithInterface(repo CurriculoRepositoryInterface) *CurriculoService {
-        <span class="cov10" title="57">return &amp;CurriculoService{repo: repo}
+        <span class="cov10" title="58">return &amp;CurriculoService{repo: repo}
 </span>}
 
 // --- Formação Acadêmica ---
@@ -43723,8 +43653,11 @@ func (s *CurriculoService) ReplaceAllItensCurriculoByCPF(ctx context.Context, cp
 }
 
 // DetachComportamentoAtitudesDoCurriculo remove o vínculo de um comportamento/atitude do currículo (CPF)
-func (s *CurriculoService) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error {
-        <span class="cov1" title="1">return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, id)
+func (s *CurriculoService) DetachComportamentoAtitudesDoCurriculo(
+        ctx context.Context,
+        vinculo *empregabilidade.CurriculoComportamentoAtitudes,
+) error {
+        <span class="cov1" title="1">return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, vinculo)
 </span>}
 
 // ListComportamentoAtitudesPorCPF busca todos os comportamentos/atitudes associados a um CPF
@@ -43785,59 +43718,59 @@ func (s *CurriculoService) GetSituacaoInteressesByCPF(ctx context.Context, cpf s
 // --- Currículo Completo ---
 
 func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string) (*empregabilidade.CurriculoCompleto, error) {
-        <span class="cov5" title="8">cpf = strings.TrimSpace(cpf)
+        <span class="cov5" title="9">cpf = strings.TrimSpace(cpf)
 </span>
-        <span class="cov5" title="8">formacoes, err := s.repo.ListFormacoesByCPF(ctx, cpf)
+        <span class="cov5" title="9">formacoes, err := s.repo.ListFormacoesByCPF(ctx, cpf)
         if err != nil </span>{
                 <span class="cov1" title="1">return nil, err
 </span>        }
 
-        <span class="cov5" title="7">idiomas, err := s.repo.ListIdiomasByCPF(ctx, cpf)
+        <span class="cov5" title="8">idiomas, err := s.repo.ListIdiomasByCPF(ctx, cpf)
         if err != nil </span>{
                 <span class="cov1" title="1">return nil, err
 </span>        }
 
-        <span class="cov4" title="6">comportamentos_atitudes, err := s.repo.ListComportamentoAtitudesByCPF(ctx, cpf)
+        <span class="cov5" title="7">comportamentos_atitudes, err := s.repo.ListComportamentoAtitudesByCPF(ctx, cpf)
         if err != nil </span>{
                 <span class="cov1" title="1">return nil, err
 </span>        }
 
-        <span class="cov4" title="5">area_atuacao_habilidade, err := s.repo.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, cpf)
+        <span class="cov4" title="6">area_atuacao_habilidade, err := s.repo.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, cpf)
         if err != nil </span>{
                 <span class="cov0" title="0">return nil, err
 </span>        }
 
-        <span class="cov4" title="5">cursos, err := s.repo.ListCursosComplementaresByCPF(ctx, cpf)
+        <span class="cov4" title="6">cursos, err := s.repo.ListCursosComplementaresByCPF(ctx, cpf)
         if err != nil </span>{
                 <span class="cov1" title="1">return nil, err
 </span>        }
 
-        <span class="cov4" title="4">experiencias, err := s.repo.ListExperienciasByCPF(ctx, cpf)
+        <span class="cov4" title="5">experiencias, err := s.repo.ListExperienciasByCPF(ctx, cpf)
         if err != nil </span>{
                 <span class="cov1" title="1">return nil, err
 </span>        }
 
-        <span class="cov3" title="3">conquistas, err := s.repo.ListConquistasByCPF(ctx, cpf)
+        <span class="cov4" title="4">conquistas, err := s.repo.ListConquistasByCPF(ctx, cpf)
         if err != nil </span>{
                 <span class="cov1" title="1">return nil, err
 </span>        }
 
-        <span class="cov2" title="2">situacao, err := s.repo.GetSituacaoInteressesByCPF(ctx, cpf)
+        <span class="cov3" title="3">situacao, err := s.repo.GetSituacaoInteressesByCPF(ctx, cpf)
         if err != nil </span>{
                 <span class="cov1" title="1">return nil, err
 </span>        }
 
-        <span class="cov1" title="1">perfil, err := s.repo.GetPerfilByCPF(ctx, cpf)
+        <span class="cov2" title="2">perfil, err := s.repo.GetPerfilByCPF(ctx, cpf)
         if err != nil </span>{
                 <span class="cov0" title="0">return nil, err
 </span>        }
 
-        <span class="cov1" title="1">resumoProfissional := ""
+        <span class="cov2" title="2">resumoProfissional := ""
         if perfil != nil </span>{
                 <span class="cov0" title="0">resumoProfissional = perfil.ResumoProfissional
 </span>        }
 
-        <span class="cov1" title="1">return &amp;empregabilidade.CurriculoCompleto{
+        <span class="cov2" title="2">return &amp;empregabilidade.CurriculoCompleto{
                 Formacoes:             formacoes,
                 Idiomas:               idiomas,
                 ComportamentoAtitudes: comportamentos_atitudes,

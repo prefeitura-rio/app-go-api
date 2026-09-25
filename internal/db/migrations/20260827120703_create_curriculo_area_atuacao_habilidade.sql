@@ -20,9 +20,6 @@ CREATE TRIGGER update_emp_curriculo_area_atuacao_habilidade_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- 3. Índices de performance
-CREATE INDEX IF NOT EXISTS idx_emp_curriculo_aah_cpf 
-ON emp_curriculo_area_atuacao_habilidade (cpf);
-
 CREATE INDEX IF NOT EXISTS idx_emp_curriculo_aah_id_aah 
 ON emp_curriculo_area_atuacao_habilidade (id_area_atuacao_habilidade);
 

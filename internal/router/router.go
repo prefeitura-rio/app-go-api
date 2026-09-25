@@ -49,7 +49,7 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 	r.Use(middlewares.TimeoutMiddleware(time.Duration(cfg.Server.RequestTimeout) * time.Second))
 	r.Use(middlewares.CorsMiddleware())
 
-	r.GET("/swagger/*any", middlewares.DynamicSwaggerHandler())
+	r.GET("/docs/*any", middlewares.DynamicSwaggerHandler())
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})

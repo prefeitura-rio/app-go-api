@@ -167,17 +167,3 @@ type CurriculoAreaAtuacaoHabilidade struct {
 func (CurriculoAreaAtuacaoHabilidade) TableName() string {
 	return "emp_curriculo_area_atuacao_habilidade"
 }
-
-// CurriculoHabilidade representa o vínculo entre o candidato (CPF) e suas Habilidades
-type CurriculoHabilidade struct {
-	ID           int64       `json:"id" gorm:"primaryKey;autoIncrement"`
-	CPF          string      `json:"cpf" gorm:"type:char(11);not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
-	IDHabilidade int64       `json:"id_habilidade" gorm:"not null;uniqueIndex:uk_emp_curriculo_habilidades_cpf_habilidade"`
-	CreatedAt    time.Time   `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt    time.Time   `json:"updated_at" gorm:"autoUpdateTime"`
-	Habilidade   *Habilidade `json:"habilidade,omitempty" gorm:"foreignKey:IDHabilidade;references:ID"`
-}
-
-func (CurriculoHabilidade) TableName() string {
-	return "emp_curriculo_habilidades"
-}

@@ -4,7 +4,6 @@ package empregabilidade
 type CurriculoCompleto struct {
 	Formacoes             []*CurriculoFormacao              `json:"formacoes,omitempty"`
 	Idiomas               []*CurriculoIdioma                `json:"idiomas,omitempty"`
-	Habilidades           []*CurriculoHabilidade            `json:"habilidades,omitempty"`
 	AreaAtuacaoHabilidade []*CurriculoAreaAtuacaoHabilidade `json:"area_atuacao_habilidade,omitempty"`
 	ComportamentoAtitudes []*CurriculoComportamentoAtitudes `json:"comportamento_atitudes,omitempty"`
 	CursosComplementares  []*CurriculoCursoComplementar     `json:"cursos_complementares,omitempty"`

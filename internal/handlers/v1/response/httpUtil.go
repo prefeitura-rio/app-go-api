@@ -22,11 +22,11 @@ type Paginated[T any] struct {
 	PageSize int   `json:"pageSize" example:"20"`
 }
 
-type ListHabilidadesPaginatedResponse = Paginated[[]empregabilidade.Habilidade]
+type ListHabilidadesPaginatedResponse = Paginated[empregabilidade.Habilidade]
 
-type ListAreasAtuacaoPaginatedResponse = Paginated[[]empregabilidade.AreaAtuacao]
+type ListAreasAtuacaoPaginatedResponse = Paginated[empregabilidade.AreaAtuacao]
 
-type ListComportamentoAtitudesPaginatedResponse = Paginated[[]empregabilidade.ComportamentoAtitudes]
+type ListComportamentoAtitudesPaginatedResponse = Paginated[empregabilidade.ComportamentoAtitudes]
 
 // Helpers HTTP
 

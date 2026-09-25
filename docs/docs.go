@@ -12700,12 +12700,6 @@ const docTemplate = `{
                         "$ref": "#/definitions/empregabilidade.CurriculoFormacao"
                     }
                 },
-                "habilidades": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/empregabilidade.CurriculoHabilidade"
-                    }
-                },
                 "idiomas": {
                     "type": "array",
                     "items": {
@@ -12872,29 +12866,6 @@ const docTemplate = `{
                 },
                 "status": {
                     "$ref": "#/definitions/empregabilidade.StatusFormacao"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "empregabilidade.CurriculoHabilidade": {
-            "type": "object",
-            "properties": {
-                "cpf": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "habilidade": {
-                    "$ref": "#/definitions/empregabilidade.Habilidade"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "id_habilidade": {
-                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
@@ -15110,10 +15081,7 @@ const docTemplate = `{
                 "data": {
                     "type": "array",
                     "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/empregabilidade.AreaAtuacao"
-                        }
+                        "$ref": "#/definitions/empregabilidade.AreaAtuacao"
                     }
                 },
                 "page": {
@@ -15136,10 +15104,7 @@ const docTemplate = `{
                 "data": {
                     "type": "array",
                     "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/empregabilidade.ComportamentoAtitudes"
-                        }
+                        "$ref": "#/definitions/empregabilidade.ComportamentoAtitudes"
                     }
                 },
                 "page": {
@@ -15162,10 +15127,7 @@ const docTemplate = `{
                 "data": {
                     "type": "array",
                     "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/empregabilidade.Habilidade"
-                        }
+                        "$ref": "#/definitions/empregabilidade.Habilidade"
                     }
                 },
                 "page": {

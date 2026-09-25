@@ -206,10 +206,6 @@ func (m *mockCurriculoRepoH) ReplaceAllIdiomasByCPF(_ context.Context, _ string,
 	return m.err
 }
 
-func (m *mockCurriculoRepoH) ReplaceAllHabilidadesByCPF(_ context.Context, _ string, _ []*empmodels.CurriculoHabilidade) error {
-	return m.err
-}
-
 func (m *mockCurriculoRepoH) ReplaceAllCursosComplementaresByCPF(_ context.Context, _ string, _ []*empmodels.CurriculoCursoComplementar) error {
 	return m.err
 }
@@ -281,7 +277,7 @@ func (m *mockCurriculoRepoH) AddComportamentoAtitudesAoCurriculo(ctx context.Con
 	return nil
 }
 
-func (m *mockCurriculoRepoH) DetachComportamentoAtitudesDoCurriculo(_ context.Context, _ int64) error {
+func (m *mockCurriculoRepoH) DetachComportamentoAtitudesDoCurriculo(_ context.Context, _ *empmodels.CurriculoComportamentoAtitudes) error {
 	return m.err
 }
 

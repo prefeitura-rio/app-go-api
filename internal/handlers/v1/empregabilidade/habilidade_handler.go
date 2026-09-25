@@ -25,10 +25,6 @@ type AddHabilidadeRequest struct {
 	IDHabilidade int64 `json:"id_habilidade" binding:"required" example:"10"`
 }
 
-type ReplaceHabilidadesRequest struct {
-	Habilidades []*empregabilidade.CurriculoHabilidade `json:"habilidades" binding:"required"`
-}
-
 type CreateAreaAtuacaoRequest struct {
 	Nome string `json:"nome" binding:"required" example:"Tecnologia da Informação"`
 }

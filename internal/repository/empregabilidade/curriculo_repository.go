@@ -590,6 +590,7 @@ func (r *CurriculoRepository) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx co
 func (r *CurriculoRepository) ListComportamentoAtitudesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
 	var entities []*empregabilidade.CurriculoComportamentoAtitudes
 	result := r.db.WithContext(ctx).
+		Preload("ComportamentoAtitudes").
 		Where("cpf = ?", cpf).
 		Order("created_at DESC").
 		Find(&entities)
@@ -616,10 +617,18 @@ func (r *CurriculoRepository) AddComportamentoAtitudesAoCurriculo(ctx context.Co
 }
 
 // DetachComportamentoAtitudesDoCurriculo remove apenas o vínculo com o currículo (preserva a tabela mestre)
-func (r *CurriculoRepository) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error {
-	result := r.db.WithContext(ctx).Delete(&empregabilidade.CurriculoComportamentoAtitudes{}, "id = ?", id)
+func (r *CurriculoRepository) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND cpf = ?", vinculo.ID, vinculo.CPF).
+		Delete(&empregabilidade.CurriculoComportamentoAtitudes{})
+
 	if result.Error != nil {
-		return fmt.Errorf("erro ao remover comportamento/atitude do currículo: %w", result.Error)
+		return fmt.Errorf("erro ao desvincular comportamento do currículo: %w", result.Error)
 	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
 	return nil
 }

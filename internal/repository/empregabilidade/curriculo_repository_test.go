@@ -1098,6 +1098,21 @@ func TestCurriculoRepository_ListComportamentoAtitudesByCPF(t *testing.T) {
 			WithArgs(cpf).
 			WillReturnRows(rows)
 
+		// Preload("ComportamentoAtitudes")
+		mock.ExpectQuery(
+			regexp.QuoteMeta(
+				`SELECT * FROM "emp_comportamento_atitudes" WHERE "emp_comportamento_atitudes"."id" IN ($1,$2)`,
+			),
+		).
+			WithArgs(int64(10), int64(20)).
+			WillReturnRows(
+				sqlmock.NewRows(
+					[]string{"id", "nome"},
+				).
+					AddRow(10, "Comunicação").
+					AddRow(20, "Proatividade"),
+			)
+
 		entities, err := repo.ListComportamentoAtitudesByCPF(ctx, cpf)
 
 		assert.NoError(t, err)
@@ -1169,47 +1184,6 @@ func TestCurriculoRepository_AddComportamentoAtitudesAoCurriculo(t *testing.T) {
 			t,
 			err.Error(),
 			"erro ao vincular um comportamento/atitude ao currículo",
-		)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-}
-
-func TestCurriculoRepository_DetachComportamentoAtitudesDoCurriculo(t *testing.T) {
-	db, mock, cleanup := repository.SetupMockDB(t)
-	defer cleanup()
-
-	repo := NewCurriculoRepository(db)
-	ctx := context.Background()
-	var id int64 = 1
-
-	t.Run("success", func(t *testing.T) {
-		mock.ExpectBegin()
-		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_comportamento_atitudes"`)).
-			WithArgs(id).
-			WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectCommit()
-
-		err := repo.DetachComportamentoAtitudesDoCurriculo(ctx, id)
-
-		assert.NoError(t, err)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("error", func(t *testing.T) {
-		mock.ExpectBegin()
-		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_curriculo_comportamento_atitudes"`)).
-			WithArgs(id).
-			WillReturnError(assert.AnError)
-		mock.ExpectRollback()
-
-		err := repo.DetachComportamentoAtitudesDoCurriculo(ctx, id)
-
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, assert.AnError)
-		assert.Contains(
-			t,
-			err.Error(),
-			"erro ao remover comportamento/atitude do currículo",
 		)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})

@@ -205,7 +205,7 @@ swagger:
     @echo "✅ Swagger documentation generated!"
 
 # Monta a URL de conexão do Goose apontando para o localhost da sua máquina
-DATABASE_URL := "postgres://$DB_USER:$DB_PASSWORD@localhost:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE"
+DATABASE_URL := "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE"
 
 # Run database migrations up
 migrate-up:

@@ -187,8 +187,11 @@ func (s *CurriculoService) ReplaceAllItensCurriculoByCPF(ctx context.Context, cp
 }
 
 // DetachComportamentoAtitudesDoCurriculo remove o vínculo de um comportamento/atitude do currículo (CPF)
-func (s *CurriculoService) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error {
-	return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, id)
+func (s *CurriculoService) DetachComportamentoAtitudesDoCurriculo(
+	ctx context.Context,
+	vinculo *empregabilidade.CurriculoComportamentoAtitudes,
+) error {
+	return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, vinculo)
 }
 
 // ListComportamentoAtitudesPorCPF busca todos os comportamentos/atitudes associados a um CPF

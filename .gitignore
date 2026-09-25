@@ -45,3 +45,11 @@ scripts/touch_all_courses.sh
 
 # VSCODE
 .vscode/
+
+# COVERAGE
+coverage.out
+coverage/*
+coverage/test.log
+coverage/test-output.log
+coverage/coverage.html
+coverage/coverage.out

@@ -1477,15 +1477,36 @@ func (h *CurriculoHandler) DeleteComportamentoAtitudesDoCurriculo(c *gin.Context
 		return
 	}
 
-	err = h.service.DetachComportamentoAtitudesDoCurriculo(c.Request.Context(), vinculoID)
+	vinculo := &empregabilidade.CurriculoComportamentoAtitudes{
+		ID:  vinculoID,
+		CPF: cpf,
+	}
+
+	err = h.service.DetachComportamentoAtitudesDoCurriculo(
+		c.Request.Context(),
+		vinculo,
+	)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Error(c, http.StatusNotFound, "Vínculo não encontrado ou não pertence ao usuário")
+			response.Error(
+				c,
+				http.StatusNotFound,
+				"Vínculo não encontrado ou não pertence ao usuário",
+			)
 			return
 		}
-		response.Error(c, http.StatusInternalServerError, "Erro ao remover comportamento/atitude do currículo")
+
+		response.Error(
+			c,
+			http.StatusInternalServerError,
+			"Erro ao remover comportamento/atitude do currículo",
+		)
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Comportamento/atitude desvinculado com sucesso")
+	response.Success(
+		c,
+		http.StatusOK,
+		"Comportamento/atitude desvinculado com sucesso",
+	)
 }

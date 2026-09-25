@@ -212,10 +212,6 @@ definitions:
         items:
           $ref: '#/definitions/empregabilidade.CurriculoFormacao'
         type: array
-      habilidades:
-        items:
-          $ref: '#/definitions/empregabilidade.CurriculoHabilidade'
-        type: array
       idiomas:
         items:
           $ref: '#/definitions/empregabilidade.CurriculoIdioma'
@@ -323,21 +319,6 @@ definitions:
         type: string
       status:
         $ref: '#/definitions/empregabilidade.StatusFormacao'
-      updated_at:
-        type: string
-    type: object
-  empregabilidade.CurriculoHabilidade:
-    properties:
-      cpf:
-        type: string
-      created_at:
-        type: string
-      habilidade:
-        $ref: '#/definitions/empregabilidade.Habilidade'
-      id:
-        type: integer
-      id_habilidade:
-        type: integer
       updated_at:
         type: string
     type: object
@@ -1854,9 +1835,7 @@ definitions:
     properties:
       data:
         items:
-          items:
-            $ref: '#/definitions/empregabilidade.AreaAtuacao'
-          type: array
+          $ref: '#/definitions/empregabilidade.AreaAtuacao'
         type: array
       page:
         example: 1
@@ -1872,9 +1851,7 @@ definitions:
     properties:
       data:
         items:
-          items:
-            $ref: '#/definitions/empregabilidade.ComportamentoAtitudes'
-          type: array
+          $ref: '#/definitions/empregabilidade.ComportamentoAtitudes'
         type: array
       page:
         example: 1
@@ -1890,9 +1867,7 @@ definitions:
     properties:
       data:
         items:
-          items:
-            $ref: '#/definitions/empregabilidade.Habilidade'
-          type: array
+          $ref: '#/definitions/empregabilidade.Habilidade'
         type: array
       page:
         example: 1

@@ -506,7 +506,4 @@ DROP TABLE IF EXISTS area_atuacao_habilidade;
 DROP TABLE IF EXISTS emp_areas_atuacao;
 DROP TABLE IF EXISTS emp_habilidades;
 
--- 3. Remoção da Função de Unaccent
-DROP FUNCTION IF EXISTS immutable_unaccent(text);
-
 -- +goose StatementEnd

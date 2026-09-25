@@ -207,7 +207,7 @@ type CurriculoRepositoryInterface interface {
 	DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, id int64) error
 
 	AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error
-	DetachComportamentoAtitudesDoCurriculo(ctx context.Context, id int64) error
+	DetachComportamentoAtitudesDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error
 	ListComportamentoAtitudesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error)
 }
 

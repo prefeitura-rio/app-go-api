@@ -173,10 +173,9 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	empCurriculo := empGroup.Group("/curriculo")
 	{
 		// Endpoints específicos para Áreas atuação/habilidades no Currículo
-		empCurriculo.GET("/curriculo/areas-atuacao-habilidades", app.EmpCurriculoHandler.ListAreaAtuacaoHabilidadeDoCurriculoByCPF)
-		empCurriculo.POST("/curriculo/areas-atuacao-habilidades", app.EmpCurriculoHandler.AddAreaAtuacaoHabilidadeAoCurriculoByCPF)
-		empCurriculo.DELETE("/curriculo/areas-atuacao-habilidades/:id", app.EmpCurriculoHandler.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF)
-		empCurriculo.PUT("/curriculo/areas-atuacao-habilidades", app.EmpCurriculoHandler.ReplaceAllItensCurriculoByCPF)
+		empCurriculo.GET("/areas-atuacao-habilidades", app.EmpCurriculoHandler.ListAreaAtuacaoHabilidadeDoCurriculoByCPF)
+		empCurriculo.POST("/areas-atuacao-habilidades", app.EmpCurriculoHandler.AddAreaAtuacaoHabilidadeAoCurriculoByCPF)
+		empCurriculo.DELETE("/areas-atuacao-habilidades/:id", app.EmpCurriculoHandler.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF)
 
 		// Endpoints específicos para Comportamento e atitudes no Currículo
 		empCurriculo.GET("/comportamentos-atitudes", app.EmpCurriculoHandler.ListComportamentoAtitudesDoCurriculo)
@@ -192,7 +191,6 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		publicEmpGroup.GET("/habilidades", app.EmpHabilidadeHandler.ListHabilidades)
 		publicEmpGroup.GET("/areas-atuacao", app.EmpHabilidadeHandler.ListAreasAtuacao)
 	}
-
 }
 
 // registerEmpCurriculoRoutes registers curriculo sub-routes.

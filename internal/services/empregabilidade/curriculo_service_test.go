@@ -25,7 +25,6 @@ func TestNewCurriculoService(t *testing.T) {
 type mockCurriculoRepo struct {
 	formacoes               []*empregabilidade.CurriculoFormacao
 	idiomas                 []*empregabilidade.CurriculoIdioma
-	habilidade              []*empregabilidade.CurriculoHabilidade
 	area_atuacao_habilidade []*empregabilidade.CurriculoAreaAtuacaoHabilidade
 	comportamento_atitudes  []*empregabilidade.CurriculoComportamentoAtitudes
 	cursos                  []*empregabilidade.CurriculoCursoComplementar
@@ -212,15 +211,11 @@ func (m *mockCurriculoRepo) GetPerfilByCPF(_ context.Context, _ string) (*empreg
 	return m.perfil, m.err
 }
 
-func (m *mockCurriculoRepo) ListHabilidadesByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoHabilidade, error) {
-	return m.habilidade, m.err
-}
-
 func (m *mockCurriculoRepo) AddComportamentoAtitudesAoCurriculo(_ context.Context, _ *empregabilidade.CurriculoComportamentoAtitudes) error {
 	return m.err
 }
 
-func (m *mockCurriculoRepo) DetachComportamentoAtitudesDoCurriculo(_ context.Context, _ int64) error {
+func (m *mockCurriculoRepo) DetachComportamentoAtitudesDoCurriculo(_ context.Context, _ *empregabilidade.CurriculoComportamentoAtitudes) error {
 	return m.err
 }
 
@@ -596,7 +591,17 @@ func TestCurriculoService_AddComportamentoAtitudesAoCurriculo(t *testing.T) {
 func TestCurriculoService_DetachComportamentoAtitudesDoCurriculo(t *testing.T) {
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-	err := svc.DetachComportamentoAtitudesDoCurriculo(context.Background(), 1)
+
+	vinculo := &empregabilidade.CurriculoComportamentoAtitudes{
+		ID:  1,
+		CPF: "12345678901",
+	}
+
+	err := svc.DetachComportamentoAtitudesDoCurriculo(
+		context.Background(),
+		vinculo,
+	)
+
 	assert.NoError(t, err)
 }
 
@@ -822,7 +827,6 @@ func TestCurriculoService_GetCurriculoCompleto_Success(t *testing.T) {
 		cursos:                  []*empregabilidade.CurriculoCursoComplementar{},
 		experiencias:            []*empregabilidade.CurriculoExperiencia{},
 		conquistas:              []*empregabilidade.CurriculoConquista{},
-		habilidade:              []*empregabilidade.CurriculoHabilidade{},
 		area_atuacao_habilidade: []*empregabilidade.CurriculoAreaAtuacaoHabilidade{},
 		comportamento_atitudes:  []*empregabilidade.CurriculoComportamentoAtitudes{},
 		situacao:                nil,
@@ -831,6 +835,55 @@ func TestCurriculoService_GetCurriculoCompleto_Success(t *testing.T) {
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestCurriculoService_GetCurriculoCompleto_WithData(t *testing.T) {
+	repo := &mockCurriculoRepo{
+		formacoes: []*empregabilidade.CurriculoFormacao{
+			{CPF: "12345678900", NomeInstituicao: "UFRJ"},
+		},
+		idiomas: []*empregabilidade.CurriculoIdioma{
+			{CPF: "12345678900"},
+		},
+		cursos: []*empregabilidade.CurriculoCursoComplementar{
+			{CPF: "12345678900", NomeCurso: "Go Avancado"},
+		},
+		experiencias: []*empregabilidade.CurriculoExperiencia{
+			{CPF: "12345678900", Cargo: "Desenvolvedor"},
+		},
+		conquistas: []*empregabilidade.CurriculoConquista{
+			{CPF: "12345678900", Titulo: "Prêmio Excelência"},
+		},
+		situacao: &empregabilidade.CurriculoSituacaoInteresses{
+			CPF: "12345678900",
+		},
+	}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+	if result == nil {
+		t.Error("expected curriculo completo, got nil")
+	}
+	if len(result.Formacoes) != 1 {
+		t.Errorf("expected 1 formacao, got %d", len(result.Formacoes))
+	}
+	if len(result.Idiomas) != 1 {
+		t.Errorf("expected 1 idioma, got %d", len(result.Idiomas))
+	}
+	if len(result.CursosComplementares) != 1 {
+		t.Errorf("expected 1 curso, got %d", len(result.CursosComplementares))
+	}
+	if len(result.Experiencias) != 1 {
+		t.Errorf("expected 1 experiencia, got %d", len(result.Experiencias))
+	}
+	if len(result.Conquistas) != 1 {
+		t.Errorf("expected 1 conquista, got %d", len(result.Conquistas))
+	}
+	if result.SituacaoInteresses == nil {
+		t.Error("expected situacao, got nil")
+	}
 }
 
 func TestCurriculoService_GetCurriculoCompleto_ErrorFormacoes(t *testing.T) {
