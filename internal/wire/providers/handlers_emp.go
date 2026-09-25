@@ -75,6 +75,11 @@ func ProvideEmpCurriculoHandler(service *empServices.CurriculoService) *empHandl
 	return empHandlers.NewCurriculoHandler(service)
 }
 
+// ProvideEmpBancoCurriculoHandler creates empregabilidade BancoCurriculoHandler
+func ProvideEmpBancoCurriculoHandler(service *empServices.BancoCurriculoService) *empHandlers.BancoCurriculoHandler {
+	return empHandlers.NewBancoCurriculoHandler(service)
+}
+
 // ProvideEmpOnboardingHandler creates empregabilidade OnboardingHandler
 func ProvideEmpOnboardingHandler(service *empServices.OnboardingService) *empHandlers.OnboardingHandler {
 	return empHandlers.NewOnboardingHandler(service)

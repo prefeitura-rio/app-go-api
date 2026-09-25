@@ -2015,6 +2015,129 @@
                 }
             }
         },
+        "/api/v1/empregabilidade/banco-curriculos": {
+            "get": {
+                "description": "Lista todos os currículos da base, do mais recente para o mais antigo. Exige admin ou role go:curriculos:admin / go:curriculos:editor.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-banco-curriculos"
+                ],
+                "summary": "Listar banco de currículos",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10, máximo: 100)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Busca parcial por nome, nome social ou CPF",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.BancoCurriculoListResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/banco-curriculos/{cpf}": {
+            "get": {
+                "description": "Retorna a ficha de um currículo: dados pessoais do cadastro do cidadão e o currículo completo. Exige admin ou role go:curriculos:admin / go:curriculos:editor.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-banco-curriculos"
+                ],
+                "summary": "Detalhar currículo do banco",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do cidadão, com ou sem máscara",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.BancoCurriculoDetalhe"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/empregabilidade/candidatura-bloqueios": {
             "get": {
                 "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a administradores.",
@@ -12456,6 +12579,110 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "empregabilidade.BancoCurriculoDetalhe": {
+            "type": "object",
+            "properties": {
+                "bairro": {
+                    "type": "string"
+                },
+                "celular": {
+                    "type": "string"
+                },
+                "cpf": {
+                    "type": "string"
+                },
+                "curriculo": {
+                    "$ref": "#/definitions/empregabilidade.CurriculoCompleto"
+                },
+                "data_atualizacao": {
+                    "description": "DataAtualizacao é o último salvamento do currículo pelo cidadão. É nula\nquando nenhuma seção foi preenchida.",
+                    "type": "string"
+                },
+                "data_inclusao": {
+                    "type": "string"
+                },
+                "deficiencia": {
+                    "description": "Deficiencia é o que o cidadão declarou sobre deficiência (PCD).",
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "escolaridade": {
+                    "type": "string"
+                },
+                "genero": {
+                    "description": "Genero é a identidade de gênero autodeclarada. O sexo da base cadastral\nnão é usado como fallback.",
+                    "type": "string"
+                },
+                "idade": {
+                    "type": "integer"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "nome_social": {
+                    "type": "string"
+                },
+                "profissao": {
+                    "type": "string"
+                },
+                "raca": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.BancoCurriculoItem": {
+            "type": "object",
+            "properties": {
+                "cpf": {
+                    "type": "string"
+                },
+                "data_inclusao": {
+                    "type": "string"
+                },
+                "escolaridade": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "nome_social": {
+                    "type": "string"
+                },
+                "profissao": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.BancoCurriculoListMeta": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "empregabilidade.BancoCurriculoListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.BancoCurriculoItem"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/empregabilidade.BancoCurriculoListMeta"
                 }
             }
         },

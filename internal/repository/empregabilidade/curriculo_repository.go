@@ -22,9 +22,14 @@ func NewCurriculoRepository(db *gorm.DB) *CurriculoRepository {
 // Formação Acadêmica
 
 func (r *CurriculoRepository) CreateFormacao(ctx context.Context, entity *empregabilidade.CurriculoFormacao) (uuid.UUID, error) {
-	result := r.db.WithContext(ctx).Create(entity)
-	if result.Error != nil {
-		return uuid.Nil, fmt.Errorf("erro ao criar formação: %w", result.Error)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(entity).Error; err != nil {
+			return err
+		}
+		return ensureCurriculo(tx, entity.CPF)
+	})
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("erro ao criar formação: %w", err)
 	}
 	return entity.ID, nil
 }
@@ -42,7 +47,7 @@ func (r *CurriculoRepository) GetFormacaoByID(ctx context.Context, id uuid.UUID)
 }
 
 func (r *CurriculoRepository) UpdateFormacao(ctx context.Context, entity *empregabilidade.CurriculoFormacao) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("created_at").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar formação: %w", result.Error)
 	}
@@ -69,9 +74,14 @@ func (r *CurriculoRepository) ListFormacoesByCPF(ctx context.Context, cpf string
 // Idiomas
 
 func (r *CurriculoRepository) CreateIdioma(ctx context.Context, entity *empregabilidade.CurriculoIdioma) (uuid.UUID, error) {
-	result := r.db.WithContext(ctx).Create(entity)
-	if result.Error != nil {
-		return uuid.Nil, fmt.Errorf("erro ao criar idioma: %w", result.Error)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(entity).Error; err != nil {
+			return err
+		}
+		return ensureCurriculo(tx, entity.CPF)
+	})
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("erro ao criar idioma: %w", err)
 	}
 	return entity.ID, nil
 }
@@ -89,7 +99,7 @@ func (r *CurriculoRepository) GetIdiomaByID(ctx context.Context, id uuid.UUID) (
 }
 
 func (r *CurriculoRepository) UpdateIdioma(ctx context.Context, entity *empregabilidade.CurriculoIdioma) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("created_at").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar idioma: %w", result.Error)
 	}
@@ -116,9 +126,14 @@ func (r *CurriculoRepository) ListIdiomasByCPF(ctx context.Context, cpf string) 
 // Cursos Complementares
 
 func (r *CurriculoRepository) CreateCursoComplementar(ctx context.Context, entity *empregabilidade.CurriculoCursoComplementar) (uuid.UUID, error) {
-	result := r.db.WithContext(ctx).Create(entity)
-	if result.Error != nil {
-		return uuid.Nil, fmt.Errorf("erro ao criar curso complementar: %w", result.Error)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(entity).Error; err != nil {
+			return err
+		}
+		return ensureCurriculo(tx, entity.CPF)
+	})
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("erro ao criar curso complementar: %w", err)
 	}
 	return entity.ID, nil
 }
@@ -136,7 +151,7 @@ func (r *CurriculoRepository) GetCursoComplementarByID(ctx context.Context, id u
 }
 
 func (r *CurriculoRepository) UpdateCursoComplementar(ctx context.Context, entity *empregabilidade.CurriculoCursoComplementar) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("created_at").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar curso complementar: %w", result.Error)
 	}
@@ -163,9 +178,14 @@ func (r *CurriculoRepository) ListCursosComplementaresByCPF(ctx context.Context,
 // Experiências
 
 func (r *CurriculoRepository) CreateExperiencia(ctx context.Context, entity *empregabilidade.CurriculoExperiencia) (uuid.UUID, error) {
-	result := r.db.WithContext(ctx).Create(entity)
-	if result.Error != nil {
-		return uuid.Nil, fmt.Errorf("erro ao criar experiência: %w", result.Error)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(entity).Error; err != nil {
+			return err
+		}
+		return ensureCurriculo(tx, entity.CPF)
+	})
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("erro ao criar experiência: %w", err)
 	}
 	return entity.ID, nil
 }
@@ -183,7 +203,7 @@ func (r *CurriculoRepository) GetExperienciaByID(ctx context.Context, id uuid.UU
 }
 
 func (r *CurriculoRepository) UpdateExperiencia(ctx context.Context, entity *empregabilidade.CurriculoExperiencia) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("created_at").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar experiência: %w", result.Error)
 	}
@@ -210,9 +230,14 @@ func (r *CurriculoRepository) ListExperienciasByCPF(ctx context.Context, cpf str
 // Conquistas
 
 func (r *CurriculoRepository) CreateConquista(ctx context.Context, entity *empregabilidade.CurriculoConquista) (uuid.UUID, error) {
-	result := r.db.WithContext(ctx).Create(entity)
-	if result.Error != nil {
-		return uuid.Nil, fmt.Errorf("erro ao criar conquista: %w", result.Error)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(entity).Error; err != nil {
+			return err
+		}
+		return ensureCurriculo(tx, entity.CPF)
+	})
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("erro ao criar conquista: %w", err)
 	}
 	return entity.ID, nil
 }
@@ -230,7 +255,7 @@ func (r *CurriculoRepository) GetConquistaByID(ctx context.Context, id uuid.UUID
 }
 
 func (r *CurriculoRepository) UpdateConquista(ctx context.Context, entity *empregabilidade.CurriculoConquista) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("created_at").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar conquista: %w", result.Error)
 	}
@@ -281,7 +306,7 @@ func (r *CurriculoRepository) ReplaceAllFormacoesByCPF(ctx context.Context, cpf 
 				return fmt.Errorf("erro ao inserir formações: %w", err)
 			}
 		}
-		return nil
+		return ensureCurriculo(tx, cpf)
 	})
 }
 
@@ -309,7 +334,7 @@ func (r *CurriculoRepository) ReplaceAllFormacaoAccordionByCPF(ctx context.Conte
 				return fmt.Errorf("erro ao inserir idiomas: %w", err)
 			}
 		}
-		return nil
+		return ensureCurriculo(tx, cpf)
 	})
 }
 
@@ -326,7 +351,7 @@ func (r *CurriculoRepository) ReplaceAllExperienciasByCPF(ctx context.Context, c
 				return fmt.Errorf("erro ao inserir experiências: %w", err)
 			}
 		}
-		return nil
+		return ensureCurriculo(tx, cpf)
 	})
 }
 
@@ -363,7 +388,7 @@ func (r *CurriculoRepository) ReplaceAllExperienciaProfissionalAccordionByCPF(ct
 		}).Error; err != nil {
 			return fmt.Errorf("erro ao salvar resumo profissional: %w", err)
 		}
-		return nil
+		return ensureCurriculo(tx, cpf)
 	})
 }
 
@@ -458,7 +483,7 @@ func (r *CurriculoRepository) ReplaceAllConquistasByCPF(ctx context.Context, cpf
 				return fmt.Errorf("erro ao inserir conquistas: %w", err)
 			}
 		}
-		return nil
+		return ensureCurriculo(tx, cpf)
 	})
 }
 
@@ -475,7 +500,7 @@ func (r *CurriculoRepository) ReplaceAllIdiomasByCPF(ctx context.Context, cpf st
 				return fmt.Errorf("erro ao inserir idiomas: %w", err)
 			}
 		}
-		return nil
+		return ensureCurriculo(tx, cpf)
 	})
 }
 
@@ -492,16 +517,32 @@ func (r *CurriculoRepository) ReplaceAllCursosComplementaresByCPF(ctx context.Co
 				return fmt.Errorf("erro ao inserir cursos complementares: %w", err)
 			}
 		}
-		return nil
+		return ensureCurriculo(tx, cpf)
 	})
 }
 
 // Situação e Interesses
 
 func (r *CurriculoRepository) UpsertSituacaoInteresses(ctx context.Context, entity *empregabilidade.CurriculoSituacaoInteresses) error {
-	result := r.db.WithContext(ctx).Save(entity)
-	if result.Error != nil {
-		return fmt.Errorf("erro ao salvar situação e interesses: %w", result.Error)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Upsert pela chave, sem tocar em created_at: o Save regravava a coluna
+		// com o zero do Go a cada novo salvamento.
+		if err := tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "cpf"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"id_situacao",
+				"tempo_procurando_emprego",
+				"id_disponibilidade",
+				"ids_tipos_vinculo_preferencia",
+				"updated_at",
+			}),
+		}).Create(entity).Error; err != nil {
+			return err
+		}
+		return ensureCurriculo(tx, entity.CPF)
+	})
+	if err != nil {
+		return fmt.Errorf("erro ao salvar situação e interesses: %w", err)
 	}
 	return nil
 }
