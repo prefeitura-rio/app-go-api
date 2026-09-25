@@ -318,3 +318,147 @@ func backfillDaMigration(t *testing.T) string {
 	require.Contains(t, backfill, "INSERT INTO emp_curriculos")
 	return backfill
 }
+
+func TestBancoCurriculosIntegration_SalvarDeNovoPreservaCreatedAt(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	ctx := context.Background()
+	repo := emprepo.NewCurriculoRepository(tx)
+	const cpf = "99999999907"
+
+	criadoEm := func(tabela string) time.Time {
+		t.Helper()
+		var criado time.Time
+		require.NoError(t, tx.Raw(`SELECT created_at FROM `+tabela+` WHERE cpf = ?`, cpf).Scan(&criado).Error)
+		require.True(t, criado.Year() > 1900, "%s gravou created_at zerado: %v", tabela, criado)
+		return criado
+	}
+
+	t.Run("situação e interesses", func(t *testing.T) {
+		require.NoError(t, repo.UpsertSituacaoInteresses(ctx, &empregabilidade.CurriculoSituacaoInteresses{
+			CPF: cpf, TempoProcurandoEmprego: "UP_TO_6",
+		}))
+		antes := criadoEm("emp_curriculo_situacao_interesses")
+
+		// Segundo salvamento, como o handler monta: entidade nova, CreatedAt zerado.
+		require.NoError(t, repo.UpsertSituacaoInteresses(ctx, &empregabilidade.CurriculoSituacaoInteresses{
+			CPF: cpf, TempoProcurandoEmprego: "OVER_24",
+		}))
+
+		assert.True(t, criadoEm("emp_curriculo_situacao_interesses").Equal(antes))
+		salvo, err := repo.GetSituacaoInteressesByCPF(ctx, cpf)
+		require.NoError(t, err)
+		assert.Equal(t, "OVER_24", salvo.TempoProcurandoEmprego)
+	})
+
+	t.Run("formação", func(t *testing.T) {
+		id, err := repo.CreateFormacao(ctx, &empregabilidade.CurriculoFormacao{
+			CPF: cpf, NomeInstituicao: "Instituição Integração", NomeCurso: "Curso A",
+		})
+		require.NoError(t, err)
+		antes := criadoEm("emp_curriculo_formacoes")
+
+		require.NoError(t, repo.UpdateFormacao(ctx, &empregabilidade.CurriculoFormacao{
+			ID: id, CPF: cpf, NomeInstituicao: "Instituição Integração", NomeCurso: "Curso B",
+		}))
+
+		assert.True(t, criadoEm("emp_curriculo_formacoes").Equal(antes))
+		salva, err := repo.GetFormacaoByID(ctx, id)
+		require.NoError(t, err)
+		assert.Equal(t, "Curso B", salva.NomeCurso)
+	})
+}
+
+func TestBancoCurriculosIntegration_BuscaTrataCuringasComoTexto(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	ctx := context.Background()
+	repo := emprepo.NewCurriculoRepository(tx)
+	const (
+		cpfComPorcento = "99999999908"
+		cpfSemPorcento = "99999999909"
+	)
+
+	for cpf, nome := range map[string]string{
+		cpfComPorcento: "Promo 100% Integração",
+		cpfSemPorcento: "Beatriz Integração",
+	} {
+		require.NoError(t, repo.UpsertSituacaoInteresses(ctx, &empregabilidade.CurriculoSituacaoInteresses{CPF: cpf}))
+		require.NoError(t, tx.Create(&models.CitizenSnapshot{CPF: cpf, Nome: nome, LastSyncedAt: time.Now()}).Error)
+	}
+
+	items, _, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: "%"}, 1, 100)
+	require.NoError(t, err)
+	cpfs := map[string]bool{}
+	for _, item := range items {
+		cpfs[item.CPF] = true
+	}
+	assert.True(t, cpfs[cpfComPorcento], "o nome com %% deve casar")
+	assert.False(t, cpfs[cpfSemPorcento], "%% não pode funcionar como curinga")
+}
+
+func TestBancoCurriculosIntegration_CorrecaoDaDataZerada(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	saoPaulo, err := time.LoadLocation("America/Sao_Paulo")
+	require.NoError(t, err)
+	exec := func(sql string, args ...interface{}) {
+		t.Helper()
+		require.NoError(t, tx.Exec(sql, args...).Error)
+	}
+
+	const (
+		cpfZerado = "99999999910" // salvou situação e interesses duas vezes
+		cpfCerto  = "99999999911" // data de inclusão correta: não pode mudar
+	)
+	// O estado que o Save deixava: seção com created_at no zero do Go.
+	exec(`INSERT INTO emp_curriculo_situacao_interesses (cpf, created_at, updated_at) VALUES (?, '0001-01-01 00:00', '2026-05-20 16:07')`, cpfZerado)
+	exec(`INSERT INTO emp_curriculo_experiencias (cpf, cargo, empresa, created_at, updated_at) VALUES (?, 'Redatora', 'Empresa A', '2026-06-01 09:00', '2026-06-01 09:00')`, cpfZerado)
+	exec(`INSERT INTO emp_curriculos (cpf, created_at) VALUES (?, '0001-01-01 00:00:00-03:06')`, cpfZerado)
+	exec(`INSERT INTO emp_curriculo_experiencias (cpf, cargo, empresa, created_at, updated_at) VALUES (?, 'Contadora', 'Empresa B', '2026-04-01 09:00', '2026-04-01 09:00')`, cpfCerto)
+	exec(`INSERT INTO emp_curriculos (cpf, created_at) VALUES (?, '2026-03-01 08:00:00-03')`, cpfCerto)
+
+	for _, comando := range comandosDaMigration(t, "20260924120000_fix_zeroed_curriculo_created_at.sql") {
+		exec(comando)
+	}
+
+	var secao time.Time
+	require.NoError(t, tx.Raw(`SELECT created_at FROM emp_curriculo_situacao_interesses WHERE cpf = ?`, cpfZerado).Scan(&secao).Error)
+	assert.True(t, secao.Equal(time.Date(2026, 5, 20, 16, 7, 0, 0, time.UTC)), "a seção herda o updated_at: %v", secao)
+
+	datas := map[string]time.Time{}
+	var linhas []struct {
+		CPF       string
+		CreatedAt time.Time
+	}
+	require.NoError(t, tx.Raw(`SELECT cpf, created_at FROM emp_curriculos WHERE cpf IN ?`, []string{cpfZerado, cpfCerto}).Scan(&linhas).Error)
+	for _, l := range linhas {
+		datas[l.CPF] = l.CreatedAt
+	}
+	assert.True(t, datas[cpfZerado].Equal(time.Date(2026, 5, 20, 16, 7, 0, 0, saoPaulo)),
+		"vale a seção mais antiga depois da correção: %v", datas[cpfZerado])
+	assert.True(t, datas[cpfCerto].Equal(time.Date(2026, 3, 1, 8, 0, 0, 0, saoPaulo)),
+		"data correta não muda: %v", datas[cpfCerto])
+}
+
+// comandosDaMigration separa os comandos do Up de uma migration, para testar o
+// SQL exato que vai rodar em produção.
+func comandosDaMigration(t *testing.T, arquivo string) []string {
+	t.Helper()
+	conteudo, err := os.ReadFile(filepath.Join("..", "..", "db", "migrations", arquivo))
+	require.NoError(t, err)
+
+	// Tira os comentários antes de separar: eles podem ter ";".
+	up := strings.Split(string(conteudo), "-- +goose Down")[0]
+	var linhas []string
+	for _, linha := range strings.Split(up, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(linha), "--") {
+			linhas = append(linhas, linha)
+		}
+	}
+	var comandos []string
+	for _, comando := range strings.Split(strings.Join(linhas, "\n"), ";") {
+		if sql := strings.TrimSpace(comando); sql != "" {
+			comandos = append(comandos, sql)
+		}
+	}
+	require.NotEmpty(t, comandos)
+	return comandos
+}

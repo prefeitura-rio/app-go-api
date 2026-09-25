@@ -10,6 +10,8 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 // Formação Acadêmica Tests
@@ -1648,6 +1650,7 @@ func TestCurriculoRepository_UpsertSituacaoInteresses(t *testing.T) {
 
 	repo := NewCurriculoRepository(db)
 	ctx := context.Background()
+	sqlExecutado := capturarSQL(t, db)
 
 	t.Run("upsert success", func(t *testing.T) {
 		situacaoID := uuid.New()
@@ -1660,9 +1663,8 @@ func TestCurriculoRepository_UpsertSituacaoInteresses(t *testing.T) {
 		}
 
 		mock.ExpectBegin()
-		// GORM.Save() with a primary key value performs UPDATE with ON CONFLICT INSERT
-		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_curriculo_situacao_interesses"`)).
-			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_situacao_interesses"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
@@ -1670,6 +1672,11 @@ func TestCurriculoRepository_UpsertSituacaoInteresses(t *testing.T) {
 		err := repo.UpsertSituacaoInteresses(ctx, situacao)
 		assert.NoError(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
+
+		upsert := (*sqlExecutado)[0]
+		assert.Contains(t, upsert, `ON CONFLICT ("cpf") DO UPDATE SET`)
+		// Salvar de novo não pode apagar a data em que a seção foi criada.
+		assert.NotContains(t, upsert, `"created_at"="excluded"."created_at"`)
 	})
 
 	t.Run("upsert error", func(t *testing.T) {
@@ -1686,6 +1693,67 @@ func TestCurriculoRepository_UpsertSituacaoInteresses(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao salvar situação e interesses")
 	})
+}
+
+// Os updates de seção recebem a entidade montada a partir do corpo da
+// requisição, com CreatedAt zerado; o UPDATE não pode levar essa coluna.
+func TestCurriculoRepository_UpdatesPreservamCreatedAt(t *testing.T) {
+	ctx := context.Background()
+	id := uuid.New()
+	cpf := "12345678900"
+
+	casos := []struct {
+		tabela    string
+		atualizar func(r *CurriculoRepository) error
+	}{
+		{"emp_curriculo_formacoes", func(r *CurriculoRepository) error {
+			return r.UpdateFormacao(ctx, &empregabilidade.CurriculoFormacao{ID: id, CPF: cpf})
+		}},
+		{"emp_curriculo_idiomas", func(r *CurriculoRepository) error {
+			return r.UpdateIdioma(ctx, &empregabilidade.CurriculoIdioma{ID: id, CPF: cpf})
+		}},
+		{"emp_curriculo_cursos_complementares", func(r *CurriculoRepository) error {
+			return r.UpdateCursoComplementar(ctx, &empregabilidade.CurriculoCursoComplementar{ID: id, CPF: cpf})
+		}},
+		{"emp_curriculo_experiencias", func(r *CurriculoRepository) error {
+			return r.UpdateExperiencia(ctx, &empregabilidade.CurriculoExperiencia{ID: id, CPF: cpf})
+		}},
+		{"emp_curriculo_conquistas", func(r *CurriculoRepository) error {
+			return r.UpdateConquista(ctx, &empregabilidade.CurriculoConquista{ID: id, CPF: cpf})
+		}},
+	}
+
+	for _, caso := range casos {
+		t.Run(caso.tabela, func(t *testing.T) {
+			db, mock, cleanup := repository.SetupMockDB(t)
+			defer cleanup()
+			sqlExecutado := capturarSQL(t, db)
+
+			mock.ExpectBegin()
+			mock.ExpectExec(regexp.QuoteMeta(`UPDATE "` + caso.tabela + `"`)).
+				WillReturnResult(sqlmock.NewResult(0, 1))
+			mock.ExpectCommit()
+
+			assert.NoError(t, caso.atualizar(NewCurriculoRepository(db)))
+			assert.NoError(t, mock.ExpectationsWereMet())
+			require.Len(t, *sqlExecutado, 1)
+			assert.Contains(t, (*sqlExecutado)[0], `"updated_at"=`)
+			assert.NotContains(t, (*sqlExecutado)[0], `"created_at"`)
+		})
+	}
+}
+
+// capturarSQL guarda o SQL de cada INSERT e UPDATE executado, para os testes
+// olharem colunas que o regexp do sqlmock não consegue excluir.
+func capturarSQL(t *testing.T, db *gorm.DB) *[]string {
+	t.Helper()
+	executados := &[]string{}
+	guardar := func(tx *gorm.DB) {
+		*executados = append(*executados, tx.Statement.SQL.String())
+	}
+	require.NoError(t, db.Callback().Create().After("gorm:create").Register("test:capturar_create", guardar))
+	require.NoError(t, db.Callback().Update().After("gorm:update").Register("test:capturar_update", guardar))
+	return executados
 }
 
 func TestCurriculoRepository_GetSituacaoInteressesByCPF(t *testing.T) {
