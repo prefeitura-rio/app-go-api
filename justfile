@@ -274,3 +274,15 @@ clean:
 help:
     @echo "Available commands:"
     @just --list
+
+# ==============================================================================
+# Code Review
+# ==============================================================================
+
+code-review:
+    @echo "Gerando diff para Code Review..."
+    @git fetch origin
+    @git --no-pager diff --stat origin/main...HEAD
+    @git --no-pager diff origin/main...HEAD > tmp/pr-review.diff
+    @echo ""
+    @echo "Diff completo gerado em tmp/pr-review.diff"

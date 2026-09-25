@@ -48,8 +48,5 @@ scripts/touch_all_courses.sh
 
 # COVERAGE
 coverage.out
-coverage/*
-coverage/test.log
-coverage/test-output.log
-coverage/coverage.html
-coverage/coverage.out
+test_output.txt
+coverage/
