@@ -1178,7 +1178,11 @@ func (h *CurriculoHandler) ReplaceAllItensCurriculoByCPF(c *gin.Context) {
 	}
 
 	if err := h.service.ReplaceAllItensCurriculoByCPF(c.Request.Context(), userCPF, &itensCurriculo); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(
+			c,
+			http.StatusInternalServerError,
+			"Erro ao atualizar itens do currículo",
+		)
 		return
 	}
 
