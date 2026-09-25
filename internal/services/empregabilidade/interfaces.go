@@ -138,6 +138,26 @@ type TermosUsoRepositoryInterface interface {
 	AcceptTerms(ctx context.Context, cpf string) error
 }
 
+type HabilidadeRepositoryInterface interface {
+	CreateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) (int64, error)
+	GetHabilidadeByID(ctx context.Context, id int64) (*empregabilidade.Habilidade, error)
+	UpdateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) error
+	DeleteHabilidade(ctx context.Context, id int64) error
+	ListHabilidades(ctx context.Context, filter empregabilidade.HabilidadeFilter, limit, offset int) ([]*empregabilidade.Habilidade, int64, error)
+
+	CreateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) (int64, error)
+	GetAreaAtuacaoByID(ctx context.Context, id int64) (*empregabilidade.AreaAtuacao, error)
+	UpdateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) error
+	DeleteAreaAtuacao(ctx context.Context, id int64) error
+	ListAreasAtuacao(ctx context.Context, filter empregabilidade.AreaAtuacaoFilter, limit, offset int) ([]*empregabilidade.AreaAtuacao, int64, error)
+
+	// Métodos de Relacionamento (Many-to-Many)
+	AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
+	DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
+	ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error
+	ListAreaAtuacaoHabilidades(ctx context.Context) ([]*empregabilidade.AreaAtuacaoHabilidade, error)
+}
+
 // CurriculoRepositoryInterface defines the interface for Curriculo repository.
 type CurriculoRepositoryInterface interface {
 	CreateFormacao(ctx context.Context, entity *empregabilidade.CurriculoFormacao) (uuid.UUID, error)
@@ -177,11 +197,28 @@ type CurriculoRepositoryInterface interface {
 	ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error
 	ReplaceAllIdiomasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoIdioma) error
 	ReplaceAllCursosComplementaresByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoCursoComplementar) error
+	ReplaceAllItensCurriculoByCPF(ctx context.Context, cpf string, itens *empregabilidade.CurriculoItensReplaceAll) error
 
 	UpsertSituacaoInteresses(ctx context.Context, entity *empregabilidade.CurriculoSituacaoInteresses) error
 	GetSituacaoInteressesByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoSituacaoInteresses, error)
-
 	GetPerfilByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoPerfil, error)
+
+	ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoAreaAtuacaoHabilidade, error)
+	AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx context.Context, entity *empregabilidade.CurriculoAreaAtuacaoHabilidade) error
+	DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, id int64, cpf string) error
+
+	AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error
+	DetachComportamentoAtitudesDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error
+	ListComportamentoAtitudesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error)
+}
+
+// ComportamentoAtitudesRepository defines the contract for repository operations.
+type ComportamentoAtitudesRepositoryInterface interface {
+	CreateComportamentoAtitudes(ctx context.Context, entity *empregabilidade.ComportamentoAtitudes) (int64, error)
+	GetComportamentoAtitudesByID(ctx context.Context, id int64) (*empregabilidade.ComportamentoAtitudes, error)
+	UpdateComportamentoAtitudes(ctx context.Context, entity *empregabilidade.ComportamentoAtitudes) error
+	DeleteComportamentoAtitudes(ctx context.Context, id int64) error
+	ListComportamentoAtitudes(ctx context.Context, filter empregabilidade.ComportamentoAtitudesFilter, limit, offset int) ([]*empregabilidade.ComportamentoAtitudes, int64, error)
 }
 
 // BancoCurriculoRepositoryInterface defines the data access of the banco de currículos.

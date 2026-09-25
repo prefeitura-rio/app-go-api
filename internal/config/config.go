@@ -16,27 +16,27 @@ import (
 
 // AppConfig contém todas as configurações da aplicação
 type AppConfig struct {
-	App         AppSettings
-	Database    DatabaseSettings
-	Server      ServerSettings
-	JWT         JWTSettings
-	Swagger     SwaggerSettings
-	TypeSense   TypeSenseSettings
-	Migrations  MigrationSettings
-	RMI         RMISettings
-	Redis       RedisSettings
-	Tracing     TracingSettings
+	App           AppSettings
+	Database      DatabaseSettings
+	Server        ServerSettings
+	JWT           JWTSettings
+	Swagger       SwaggerSettings
+	TypeSense     TypeSenseSettings
+	Migrations    MigrationSettings
+	RMI           RMISettings
+	Redis         RedisSettings
+	Tracing       TracingSettings
 	OrgaoSync     OrgaoSyncSettings
 	CitizenSync   CitizenSyncSettings
 	ClassReminder ClassReminderSettings
 	DataRelay     DataRelaySettings
 	PrefRio       PrefRioSettings
-	Cerbos      CerbosSettings
-	PropostaMEI PropostaMEIPermissions
-	Cache       CacheSettings
-	Keycloak    KeycloakSettings
-	Enrollment  EnrollmentSettings
-	Heimdall    HeimdallSettings
+	Cerbos        CerbosSettings
+	PropostaMEI   PropostaMEIPermissions
+	Cache         CacheSettings
+	Keycloak      KeycloakSettings
+	Enrollment    EnrollmentSettings
+	Heimdall      HeimdallSettings
 }
 
 // EnrollmentSettings define configurações para inscrições em cursos
@@ -556,7 +556,8 @@ func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 		// Only accept explicit true/false values
 		if lowerVal == "true" || lowerVal == "1" {
 			return true
-		} else if lowerVal == "false" || lowerVal == "0" {
+		}
+		if lowerVal == "false" || lowerVal == "0" {
 			return false
 		}
 		// Invalid boolean value - use default
@@ -567,7 +568,8 @@ func getBool(v *viper.Viper, key string, defaultValue bool) bool {
 		lowerVal := strings.ToLower(strings.TrimSpace(value))
 		if lowerVal == "true" || lowerVal == "1" {
 			return true
-		} else if lowerVal == "false" || lowerVal == "0" {
+		}
+		if lowerVal == "false" || lowerVal == "0" {
 			return false
 		}
 	}

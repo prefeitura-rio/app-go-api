@@ -4,6 +4,7 @@ import (
 	"context"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -1084,6 +1085,122 @@ func TestCurriculoRepository_ListConquistasByCPF(t *testing.T) {
 	})
 }
 
+// Tests Comportamento/atitudes
+
+func TestCurriculoRepository_ListComportamentoAtitudesByCPF(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+	cpf := "12345678901"
+
+	t.Run("success", func(t *testing.T) {
+		rows := sqlmock.NewRows(
+			[]string{"id", "cpf", "id_comportamento_atitudes", "created_at"},
+		).
+			AddRow(1, cpf, 10, time.Now()).
+			AddRow(2, cpf, 20, time.Now())
+
+		mock.ExpectQuery(
+			regexp.QuoteMeta(
+				`SELECT * FROM "emp_curriculo_comportamento_atitudes" WHERE cpf = $1 ORDER BY created_at DESC`,
+			),
+		).
+			WithArgs(cpf).
+			WillReturnRows(rows)
+
+		// Preload("ComportamentoAtitudes")
+		mock.ExpectQuery(
+			regexp.QuoteMeta(
+				`SELECT * FROM "emp_comportamento_atitudes" WHERE "emp_comportamento_atitudes"."id" IN ($1,$2)`,
+			),
+		).
+			WithArgs(int64(10), int64(20)).
+			WillReturnRows(
+				sqlmock.NewRows(
+					[]string{"id", "nome"},
+				).
+					AddRow(10, "Comunicação").
+					AddRow(20, "Proatividade"),
+			)
+
+		entities, err := repo.ListComportamentoAtitudesByCPF(ctx, cpf)
+
+		assert.NoError(t, err)
+		assert.Len(t, entities, 2)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("error", func(t *testing.T) {
+		mock.ExpectQuery(
+			regexp.QuoteMeta(
+				`SELECT * FROM "emp_curriculo_comportamento_atitudes" WHERE cpf = $1 ORDER BY created_at DESC`,
+			),
+		).
+			WithArgs(cpf).
+			WillReturnError(assert.AnError)
+
+		entities, err := repo.ListComportamentoAtitudesByCPF(ctx, cpf)
+
+		assert.Error(t, err)
+		assert.Nil(t, entities)
+		assert.Contains(
+			t,
+			err.Error(),
+			"erro ao listar comportamentos e atitudes do currículo",
+		)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestCurriculoRepository_AddComportamentoAtitudesAoCurriculo(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		entity := &empregabilidade.CurriculoComportamentoAtitudes{
+			CPF:                     "12345678901",
+			IDComportamentoAtitudes: 1,
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_comportamento_atitudes"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+		mock.ExpectCommit()
+
+		err := repo.AddComportamentoAtitudesAoCurriculo(ctx, entity)
+
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("error", func(t *testing.T) {
+		entity := &empregabilidade.CurriculoComportamentoAtitudes{
+			CPF:                     "12345678901",
+			IDComportamentoAtitudes: 1,
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_comportamento_atitudes"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.AddComportamentoAtitudesAoCurriculo(ctx, entity)
+
+		assert.Error(t, err)
+		assert.Contains(
+			t,
+			err.Error(),
+			"erro ao vincular um comportamento/atitude ao currículo",
+		)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
 // ReplaceAll Tests
 
 func TestCurriculoRepository_ReplaceAllFormacoesByCPF(t *testing.T) {
@@ -1640,6 +1757,469 @@ func TestCurriculoRepository_ReplaceAllCursosComplementaresByCPF(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao inserir cursos complementares")
 	})
+}
+
+// Testes Área atuação c/ habilidade
+
+func TestCurriculoRepository_AddAreaAtuacaoHabilidadeAoCurriculoByCPF(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		entity := &empregabilidade.CurriculoAreaAtuacaoHabilidade{
+			CPF:                     "12345678901",
+			IDAreaAtuacaoHabilidade: 10,
+		}
+
+		mock.ExpectBegin()
+
+		mock.ExpectQuery(
+			regexp.QuoteMeta(`INSERT INTO "emp_curriculo_area_atuacao_habilidade"`),
+		).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"id"}).AddRow(1),
+			)
+
+		mock.ExpectCommit()
+
+		err := repo.AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx, entity)
+
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("create error", func(t *testing.T) {
+		entity := &empregabilidade.CurriculoAreaAtuacaoHabilidade{
+			CPF:                     "12345678901",
+			IDAreaAtuacaoHabilidade: 10,
+		}
+
+		mock.ExpectBegin()
+
+		mock.ExpectQuery(
+			regexp.QuoteMeta(`INSERT INTO "emp_curriculo_area_atuacao_habilidade"`),
+		).
+			WillReturnError(assert.AnError)
+
+		mock.ExpectRollback()
+
+		err := repo.AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx, entity)
+
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, assert.AnError)
+		assert.Contains(
+			t,
+			err.Error(),
+			"erro ao vincular área de atuação/habilidade ao currículo",
+		)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestCurriculoRepository_ListAreaAtuacaoHabilidadeDoCurriculoByCPF(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		cpf := "12345678901"
+
+		// Consulta principal:
+		// emp_curriculo_area_atuacao_habilidade
+		mock.ExpectQuery(
+			regexp.QuoteMeta(
+				`SELECT * FROM "emp_curriculo_area_atuacao_habilidade"`,
+			),
+		).
+			WithArgs(cpf).
+			WillReturnRows(
+				sqlmock.NewRows([]string{
+					"id",
+					"cpf",
+					"id_area_atuacao_habilidade",
+				}).
+					AddRow(1, cpf, 10),
+			)
+
+		// Preload AreaAtuacaoHabilidade
+		mock.ExpectQuery(
+			regexp.QuoteMeta(
+				`SELECT * FROM "area_atuacao_habilidade"`,
+			),
+		).
+			WillReturnRows(
+				sqlmock.NewRows([]string{
+					"id",
+					"id_habilidade",
+					"id_area_atuacao",
+				}).
+					AddRow(10, 20, 30),
+			)
+
+		// Preload AreaAtuacaoHabilidade.AreaAtuacao
+		mock.ExpectQuery(
+			regexp.QuoteMeta(
+				`SELECT * FROM "emp_areas_atuacao"`,
+			),
+		).
+			WillReturnRows(
+				sqlmock.NewRows([]string{
+					"id",
+					"nome",
+				}).
+					AddRow(30, "Desenvolvimento de Software"),
+			)
+
+		// Preload AreaAtuacaoHabilidade.Habilidade
+		mock.ExpectQuery(
+			regexp.QuoteMeta(
+				`SELECT * FROM "emp_habilidades"`,
+			),
+		).
+			WillReturnRows(
+				sqlmock.NewRows([]string{
+					"id",
+					"nome",
+				}).
+					AddRow(20, "Go"),
+			)
+
+		entities, err := repo.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(
+			ctx,
+			cpf,
+		)
+
+		assert.NoError(t, err)
+		assert.Len(t, entities, 1)
+		assert.Equal(t, cpf, entities[0].CPF)
+		assert.Equal(
+			t,
+			int64(10),
+			entities[0].IDAreaAtuacaoHabilidade,
+		)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("query error", func(t *testing.T) {
+		cpf := "12345678901"
+
+		mock.ExpectQuery(
+			regexp.QuoteMeta(
+				`SELECT * FROM "emp_curriculo_area_atuacao_habilidade"`,
+			),
+		).
+			WithArgs(cpf).
+			WillReturnError(assert.AnError)
+
+		entities, err := repo.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(
+			ctx,
+			cpf,
+		)
+
+		assert.Error(t, err)
+		assert.Nil(t, entities)
+		assert.ErrorIs(t, err, assert.AnError)
+		assert.Contains(
+			t,
+			err.Error(),
+			"erro ao listar áreas de atuação/habilidades do currículo",
+		)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestCurriculoRepository_DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	id := int64(10)
+	cpf := "12345678901"
+
+	t.Run("delete success", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		mock.ExpectExec(
+			regexp.QuoteMeta(
+				`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`,
+			),
+		).
+			WithArgs(id, cpf).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		mock.ExpectCommit()
+
+		err := repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id, cpf)
+
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("delete error", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		mock.ExpectExec(
+			regexp.QuoteMeta(
+				`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`,
+			),
+		).
+			WithArgs(id, cpf).
+			WillReturnError(assert.AnError)
+
+		mock.ExpectRollback()
+
+		err := repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id, cpf)
+
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, assert.AnError)
+		assert.Contains(
+			t,
+			err.Error(),
+			"erro ao remover área de atuação/habilidade do currículo",
+		)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("delete not found", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		mock.ExpectExec(
+			regexp.QuoteMeta(
+				`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`,
+			),
+		).
+			WithArgs(id, cpf).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		mock.ExpectCommit()
+
+		err := repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id, cpf)
+
+		assert.Error(t, err)
+		assert.Equal(t, "record not found", err.Error())
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+}
+
+// --- TESTES DE SUBSTITUIÇÃO MASSIVA DE ITENS DO CURRÍCULO (TRANSAÇÃO) ---
+
+func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	cpf := "12345678901"
+	areaAtuacaoHabilidadeIDs := []int64{10, 20}
+	comportamentoIDs := []int64{100}
+
+	itensCurriculo := &empregabilidade.CurriculoItensReplaceAll{
+		AreaAtuacaoHabilidadeIDs: areaAtuacaoHabilidadeIDs,
+		ComportamentoAtitudesIDs: comportamentoIDs,
+	}
+
+	// 1. Início da Transação
+	mock.ExpectBegin()
+
+	// 2. Remoção e inserção dos vínculos Área de Atuação/Habilidade
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`).
+		WithArgs(cpf).
+		WillReturnResult(sqlmock.NewResult(0, 2))
+
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_area_atuacao_habilidade"`).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id"}).
+				AddRow(1).
+				AddRow(2),
+		)
+
+	// 3. Remoção e inserção dos Comportamentos/Atitudes
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_comportamento_atitudes"`).
+		WithArgs(cpf).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_comportamento_atitudes"`).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id"}).
+				AddRow(10),
+		)
+
+	// 4. Commit da Transação
+	mock.ExpectCommit()
+
+	err := repo.ReplaceAllItensCurriculoByCPF(ctx, cpf, itensCurriculo)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_NilItens(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	err := repo.ReplaceAllItensCurriculoByCPF(
+		ctx,
+		"12345678901",
+		nil,
+	)
+
+	assert.Error(t, err)
+	assert.Equal(
+		t,
+		"Nenhuma modificação foi solicitada pelo usuário",
+		err.Error(),
+	)
+
+	// Não deve iniciar transação.
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_AreaAtuacaoHabilidadeError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	cpf := "12345678901"
+
+	itensCurriculo := &empregabilidade.CurriculoItensReplaceAll{
+		AreaAtuacaoHabilidadeIDs: []int64{10, 20},
+		ComportamentoAtitudesIDs: []int64{100},
+	}
+
+	mock.ExpectBegin()
+
+	// Falha já na remoção dos vínculos Área/Habilidade.
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`).
+		WithArgs(cpf).
+		WillReturnError(assert.AnError)
+
+	mock.ExpectRollback()
+
+	err := repo.ReplaceAllItensCurriculoByCPF(
+		ctx,
+		cpf,
+		itensCurriculo,
+	)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(
+		t,
+		err.Error(),
+		"erro ao remover áreas de atuação/habilidades do currículo",
+	)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_ComportamentoAtitudesError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	cpf := "12345678901"
+
+	itensCurriculo := &empregabilidade.CurriculoItensReplaceAll{
+		AreaAtuacaoHabilidadeIDs: []int64{10, 20},
+		ComportamentoAtitudesIDs: []int64{100},
+	}
+
+	mock.ExpectBegin()
+
+	// Área/Habilidade processada com sucesso.
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`).
+		WithArgs(cpf).
+		WillReturnResult(sqlmock.NewResult(0, 2))
+
+	mock.ExpectQuery(`INSERT INTO "emp_curriculo_area_atuacao_habilidade"`).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id"}).
+				AddRow(1).
+				AddRow(2),
+		)
+
+	// Falha ao iniciar o processamento de comportamentos/atitudes.
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_comportamento_atitudes"`).
+		WithArgs(cpf).
+		WillReturnError(assert.AnError)
+
+	mock.ExpectRollback()
+
+	err := repo.ReplaceAllItensCurriculoByCPF(
+		ctx,
+		cpf,
+		itensCurriculo,
+	)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(
+		t,
+		err.Error(),
+		"erro ao remover comportamentos/atitudes do currículo",
+	)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_EmptyLists(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	cpf := "12345678901"
+
+	itensCurriculo := &empregabilidade.CurriculoItensReplaceAll{
+		AreaAtuacaoHabilidadeIDs: []int64{},
+		ComportamentoAtitudesIDs: []int64{},
+	}
+
+	mock.ExpectBegin()
+
+	// Remove os vínculos existentes de Área/Habilidade.
+	// Como a lista está vazia, não deve haver INSERT.
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`).
+		WithArgs(cpf).
+		WillReturnResult(sqlmock.NewResult(0, 2))
+
+	// Remove os comportamentos/atitudes existentes.
+	// Como a lista também está vazia, não deve haver INSERT.
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_comportamento_atitudes"`).
+		WithArgs(cpf).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mock.ExpectCommit()
+
+	err := repo.ReplaceAllItensCurriculoByCPF(
+		ctx,
+		cpf,
+		itensCurriculo,
+	)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // Situação e Interesses Tests
