@@ -635,6 +635,17 @@ definitions:
         type: string
     type: object
   empregabilidade.ReplaceAreasHabilidadeRequest:
+    properties:
+      area_ids:
+        example:
+        - 1
+        - 2
+        - 3
+        items:
+          type: integer
+        type: array
+    required:
+    - area_ids
     type: object
   empregabilidade.RespostaInfoComplementar:
     properties:

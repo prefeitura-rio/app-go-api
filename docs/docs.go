@@ -13474,7 +13474,23 @@ const docTemplate = `{
             }
         },
         "empregabilidade.ReplaceAreasHabilidadeRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "area_ids"
+            ],
+            "properties": {
+                "area_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        1,
+                        2,
+                        3
+                    ]
+                }
+            }
         },
         "empregabilidade.RespostaInfoComplementar": {
             "type": "object",

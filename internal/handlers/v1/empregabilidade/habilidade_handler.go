@@ -34,7 +34,7 @@ type UpdateAreaAtuacaoRequest struct {
 }
 
 type ReplaceAreasHabilidadeRequest struct {
-	AreaIDs []int64 `json:"area_ids" binding:"required" example:"[1, 2, 3]"`
+	AreaIDs []int64 `json:"area_ids" binding:"required" example:"1,2,3"`
 }
 
 // Estrutura do Handler
