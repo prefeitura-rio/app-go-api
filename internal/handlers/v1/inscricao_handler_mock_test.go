@@ -261,12 +261,14 @@ func TestInscricaoHandler_Create_Success(t *testing.T) {
 	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
 
 	inscricaoID := uuid.New()
+	origem := models.OrigemInscricaoPortalCidadao
 	mockService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
 		Run(func(args mock.Arguments) {
 			inscricao := args.Get(1).(*models.Inscricao)
 			inscricao.ID = inscricaoID
 			inscricao.Status = models.StatusInscricaoPending
 			inscricao.EnrolledAt = time.Now()
+			inscricao.OrigemInscricao = &origem
 		}).
 		Return(nil)
 
@@ -283,6 +285,7 @@ func TestInscricaoHandler_Create_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	assert.Contains(t, w.Body.String(), "success")
+	assert.Contains(t, w.Body.String(), "portal_cidadao")
 	mockService.AssertExpectations(t)
 }
 
