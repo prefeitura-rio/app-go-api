@@ -11,9 +11,13 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
 	// Embute a base de fusos (zoneinfo) no binário, para que
 	// time.LoadLocation funcione mesmo em imagens sem o pacote tzdata (ex.: alpine).
 	_ "time/tzdata"
+
+	// IMPORTANTE: Import anonimo para carregar a documentação do Swagger gerada no diretório docs/
+	_ "github.com/prefeitura-rio/app-go-api/docs"
 
 	"github.com/redis/go-redis/v9"
 

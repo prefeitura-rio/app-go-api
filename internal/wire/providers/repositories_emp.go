@@ -100,3 +100,13 @@ func ProvideEmpZonaRepository(db *gorm.DB) *empRepository.ZonaRepository {
 func ProvideEmpCandidaturaBloqueioRepository(db *gorm.DB) *empRepository.CandidaturaBloqueioRepository {
 	return empRepository.NewCandidaturaBloqueioRepository(db)
 }
+
+// ProvideEmpHabilidadeRepository creates empregabilidade HabilidadeRepository
+func ProvideEmpHabilidadeRepository(db *gorm.DB) *empRepository.HabilidadeRepository {
+	return empRepository.NewHabilidadeRepository(db)
+}
+
+// ProvideEmpComportamentoAtitudesRepository creates empregabilidade ComportamentoAtitudesRepository
+func ProvideEmpComportamentoAtitudesRepository(db *gorm.DB) *empRepository.ComportamentoAtitudesRepository {
+	return empRepository.NewComportamentoAtitudesRepository(db)
+}
