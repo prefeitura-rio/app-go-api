@@ -430,6 +430,10 @@ func (r *CurriculoRepository) ReplaceAllItensCurriculoByCPF(
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureCurriculo(tx, cpf); err != nil {
+			return err
+		}
+
 		// 1. Processar Áreas de Atuação/Habilidades
 		err := replaceCurriculoItemsSync(
 			tx,
@@ -588,24 +592,30 @@ func (r *CurriculoRepository) ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx cont
 
 // AddAreaAtuacaoHabilidadeAoCurriculo vincula uma combinação de área de atuação/habilidade ao candidato sem permitir duplicidade.
 func (r *CurriculoRepository) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx context.Context, entity *empregabilidade.CurriculoAreaAtuacaoHabilidade) error {
-	result := r.db.WithContext(ctx).
-		Clauses(clause.OnConflict{
-			Columns: []clause.Column{
-				{Name: "cpf"},
-				{Name: "id_area_atuacao_habilidade"},
-			},
-			DoNothing: true,
-		}).
-		Create(entity)
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureCurriculo(tx, entity.CPF); err != nil {
+			return err
+		}
 
-	if result.Error != nil {
-		return fmt.Errorf(
-			"erro ao vincular área de atuação/habilidade ao currículo: %w",
-			result.Error,
-		)
-	}
+		result := tx.
+			Clauses(clause.OnConflict{
+				Columns: []clause.Column{
+					{Name: "cpf"},
+					{Name: "id_area_atuacao_habilidade"},
+				},
+				DoNothing: true,
+			}).
+			Create(entity)
 
-	return nil
+		if result.Error != nil {
+			return fmt.Errorf(
+				"erro ao vincular área de atuação/habilidade ao currículo: %w",
+				result.Error,
+			)
+		}
+
+		return nil
+	})
 }
 
 // DetachAreaAtuacaoHabilidadeDoCurriculo remove apenas o vínculo
@@ -649,17 +659,30 @@ func (r *CurriculoRepository) ListComportamentoAtitudesByCPF(ctx context.Context
 
 // AddComportamentoAtitudesAoCurriculo vincula um comportamento/atitide ao candidato sem permitir duplicidade
 func (r *CurriculoRepository) AddComportamentoAtitudesAoCurriculo(ctx context.Context, entity *empregabilidade.CurriculoComportamentoAtitudes) error {
-	result := r.db.WithContext(ctx).
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "cpf"}, {Name: "id_comportamento_atitudes"}},
-			DoNothing: true,
-		}).
-		Create(entity)
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureCurriculo(tx, entity.CPF); err != nil {
+			return err
+		}
 
-	if result.Error != nil {
-		return fmt.Errorf("erro ao vincular um comportamento/atitude ao currículo: %w", result.Error)
-	}
-	return nil
+		result := tx.
+			Clauses(clause.OnConflict{
+				Columns: []clause.Column{
+					{Name: "cpf"},
+					{Name: "id_comportamento_atitudes"},
+				},
+				DoNothing: true,
+			}).
+			Create(entity)
+
+		if result.Error != nil {
+			return fmt.Errorf(
+				"erro ao vincular um comportamento/atitude ao currículo: %w",
+				result.Error,
+			)
+		}
+
+		return nil
+	})
 }
 
 // DetachComportamentoAtitudesDoCurriculo remove apenas o vínculo com o currículo (preserva a tabela mestre)

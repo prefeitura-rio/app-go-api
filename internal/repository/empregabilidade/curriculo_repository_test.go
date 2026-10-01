@@ -1168,6 +1168,8 @@ func TestCurriculoRepository_AddComportamentoAtitudesAoCurriculo(t *testing.T) {
 		}
 
 		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_comportamento_atitudes"`)).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 		mock.ExpectCommit()
@@ -1185,8 +1187,13 @@ func TestCurriculoRepository_AddComportamentoAtitudesAoCurriculo(t *testing.T) {
 		}
 
 		mock.ExpectBegin()
+
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
 		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_curriculo_comportamento_atitudes"`)).
 			WillReturnError(assert.AnError)
+
 		mock.ExpectRollback()
 
 		err := repo.AddComportamentoAtitudesAoCurriculo(ctx, entity)
@@ -1198,6 +1205,24 @@ func TestCurriculoRepository_AddComportamentoAtitudesAoCurriculo(t *testing.T) {
 			"erro ao vincular um comportamento/atitude ao currículo",
 		)
 		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("ensure curriculo error", func(t *testing.T) {
+
+		entity := &empregabilidade.CurriculoComportamentoAtitudes{
+			CPF:                     "12345678901",
+			IDComportamentoAtitudes: 1,
+		}
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+		err := repo.AddComportamentoAtitudesAoCurriculo(ctx, entity)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, assert.AnError)
+		assert.Contains(t, err.Error(), "erro ao registrar currículo")
+		assert.NoError(t, mock.ExpectationsWereMet())
+
 	})
 }
 
@@ -1775,6 +1800,8 @@ func TestCurriculoRepository_AddAreaAtuacaoHabilidadeAoCurriculoByCPF(t *testing
 		}
 
 		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
 		mock.ExpectQuery(
 			regexp.QuoteMeta(`INSERT INTO "emp_curriculo_area_atuacao_habilidade"`),
@@ -1798,6 +1825,8 @@ func TestCurriculoRepository_AddAreaAtuacaoHabilidadeAoCurriculoByCPF(t *testing
 		}
 
 		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
 		mock.ExpectQuery(
 			regexp.QuoteMeta(`INSERT INTO "emp_curriculo_area_atuacao_habilidade"`),
@@ -1816,6 +1845,27 @@ func TestCurriculoRepository_AddAreaAtuacaoHabilidadeAoCurriculoByCPF(t *testing
 			"erro ao vincular área de atuação/habilidade ao currículo",
 		)
 
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("ensure curriculo error", func(t *testing.T) {
+		entity := &empregabilidade.CurriculoAreaAtuacaoHabilidade{
+			CPF:                     "12345678901",
+			IDAreaAtuacaoHabilidade: 10,
+		}
+
+		mock.ExpectBegin()
+
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+			WillReturnError(assert.AnError)
+
+		mock.ExpectRollback()
+
+		err := repo.AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx, entity)
+
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, assert.AnError)
+		assert.Contains(t, err.Error(), "erro ao registrar currículo")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
@@ -2033,6 +2083,8 @@ func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_Success(t *testing.T)
 
 	// 1. Início da Transação
 	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	// 2. Remoção e inserção dos vínculos Área de Atuação/Habilidade
 	mock.ExpectExec(`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`).
@@ -2105,6 +2157,8 @@ func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_AreaAtuacaoHabilidade
 	}
 
 	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	// Falha já na remoção dos vínculos Área/Habilidade.
 	mock.ExpectExec(`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`).
@@ -2145,6 +2199,8 @@ func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_ComportamentoAtitudes
 	}
 
 	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	// Área/Habilidade processada com sucesso.
 	mock.ExpectExec(`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`).
@@ -2197,6 +2253,8 @@ func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_EmptyLists(t *testing
 	}
 
 	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	// Remove os vínculos existentes de Área/Habilidade.
 	// Como a lista está vazia, não deve haver INSERT.
@@ -2219,6 +2277,39 @@ func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_EmptyLists(t *testing
 	)
 
 	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurriculoRepository_ReplaceAllItensCurriculoByCPF_EnsureCurriculoError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+
+	cpf := "12345678901"
+
+	itensCurriculo := &empregabilidade.CurriculoItensReplaceAll{
+		AreaAtuacaoHabilidadeIDs: []int64{10},
+		ComportamentoAtitudesIDs: []int64{100},
+	}
+
+	mock.ExpectBegin()
+
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "emp_curriculos"`)).
+		WillReturnError(assert.AnError)
+
+	mock.ExpectRollback()
+
+	err := repo.ReplaceAllItensCurriculoByCPF(
+		ctx,
+		cpf,
+		itensCurriculo,
+	)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Contains(t, err.Error(), "erro ao registrar currículo")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 

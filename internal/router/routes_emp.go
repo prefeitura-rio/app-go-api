@@ -50,6 +50,11 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		}, nil
 	}
 
+	catalogoAuth := rbacMiddleware(
+		cfg.App.RBACEnabled,
+		middlewares.EmpregabilidadeCatalogoAuthorization(),
+	)
+
 	// vagaAuth também protege o grupo /candidaturas mais abaixo nesta função.
 	vagaAuth := rbacMiddleware(cfg.App.RBACEnabled, middlewares.VagaAuthorization())
 	vagaOrgaoInjector := rbacMiddleware(cfg.App.RBACEnabled, middlewares.VagaOrgaoInjector())
@@ -144,22 +149,22 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	{
 		// CRUD Habilidades
 		empHabilidades.GET("", app.EmpHabilidadeHandler.ListHabilidades)
-		empHabilidades.POST("", app.EmpHabilidadeHandler.CreateHabilidade)
+		empHabilidades.POST("", catalogoAuth, app.EmpHabilidadeHandler.CreateHabilidade)
 		empHabilidades.GET("/:id", app.EmpHabilidadeHandler.GetHabilidadeByID)
-		empHabilidades.PUT("/:id", app.EmpHabilidadeHandler.UpdateHabilidade)
-		empHabilidades.DELETE("/:id", app.EmpHabilidadeHandler.DeleteHabilidade)
+		empHabilidades.PUT("/:id", catalogoAuth, app.EmpHabilidadeHandler.UpdateHabilidade)
+		empHabilidades.DELETE("/:id", catalogoAuth, app.EmpHabilidadeHandler.DeleteHabilidade)
 
 		// CRUD Áreas de Atuação
-		empHabilidades.POST("/areas-atuacao", app.EmpHabilidadeHandler.CreateAreaAtuacao)
+		empHabilidades.POST("/areas-atuacao", catalogoAuth, app.EmpHabilidadeHandler.CreateAreaAtuacao)
 		empHabilidades.GET("/areas-atuacao/:id", app.EmpHabilidadeHandler.GetAreaAtuacaoByID)
-		empHabilidades.PUT("/areas-atuacao/:id", app.EmpHabilidadeHandler.UpdateAreaAtuacao)
-		empHabilidades.DELETE("/areas-atuacao/:id", app.EmpHabilidadeHandler.DeleteAreaAtuacao)
+		empHabilidades.PUT("/areas-atuacao/:id", catalogoAuth, app.EmpHabilidadeHandler.UpdateAreaAtuacao)
+		empHabilidades.DELETE("/areas-atuacao/:id", catalogoAuth, app.EmpHabilidadeHandler.DeleteAreaAtuacao)
 		empHabilidades.GET("/areas-atuacao", app.EmpHabilidadeHandler.ListAreasAtuacao)
 
 		// Relacionamentos: Habilidade <-> Área de Atuação
-		empHabilidades.POST("/:id/areas-atuacao/:areaId", app.EmpHabilidadeHandler.AttachAreaAtuacao)
-		empHabilidades.DELETE("/:id/areas-atuacao/:areaId", app.EmpHabilidadeHandler.DetachAreaAtuacao)
-		empHabilidades.PUT("/:id/areas-atuacao", app.EmpHabilidadeHandler.ReplaceAreasAtuacao)
+		empHabilidades.POST("/:id/areas-atuacao/:areaId", catalogoAuth, app.EmpHabilidadeHandler.AttachAreaAtuacao)
+		empHabilidades.DELETE("/:id/areas-atuacao/:areaId", catalogoAuth, app.EmpHabilidadeHandler.DetachAreaAtuacao)
+		empHabilidades.PUT("/:id/areas-atuacao", catalogoAuth, app.EmpHabilidadeHandler.ReplaceAreasAtuacao)
 		empHabilidades.GET("/areas-atuacao-habilidades", app.EmpHabilidadeHandler.ListAreaAtuacaoHabilidades)
 	}
 
@@ -167,11 +172,10 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	{
 		// CRUD Comportamentos e Atitudes
 		empComportamentosAtitudes.GET("", app.EmpComportamentoAtitudesHandler.ListComportamentoAtitudes)
-		empComportamentosAtitudes.POST("", app.EmpComportamentoAtitudesHandler.CreateComportamentoAtitudes)
+		empComportamentosAtitudes.POST("", catalogoAuth, app.EmpComportamentoAtitudesHandler.CreateComportamentoAtitudes)
 		empComportamentosAtitudes.GET("/:id", app.EmpComportamentoAtitudesHandler.GetComportamentoAtitudesByID)
-		empComportamentosAtitudes.PUT("/:id", app.EmpComportamentoAtitudesHandler.UpdateComportamentoAtitudes)
-		empComportamentosAtitudes.DELETE("/:id", app.EmpComportamentoAtitudesHandler.DeleteComportamentoAtitudes)
-
+		empComportamentosAtitudes.PUT("/:id", catalogoAuth, app.EmpComportamentoAtitudesHandler.UpdateComportamentoAtitudes)
+		empComportamentosAtitudes.DELETE("/:id", catalogoAuth, app.EmpComportamentoAtitudesHandler.DeleteComportamentoAtitudes)
 	}
 
 	// -----------------------------------------------------------------

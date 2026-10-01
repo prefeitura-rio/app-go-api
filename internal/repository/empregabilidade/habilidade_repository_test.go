@@ -469,6 +469,51 @@ func TestHabilidadeRepository_ListAreasAtuacao_Success(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestHabilidadeRepository_ListAreasAtuacao_HabilidadeIDFilter_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+	ctx := context.Background()
+
+	filter := empregabilidade.AreaAtuacaoFilter{
+		HabilidadeID: 1,
+	}
+
+	// 1. Contagem total filtrada pelo ID da habilidade
+	mock.ExpectQuery(regexp.QuoteMeta(
+		`SELECT count(*) FROM "emp_areas_atuacao" JOIN area_atuacao_habilidade aah ON aah.id_area_atuacao = emp_areas_atuacao.id WHERE aah.id_habilidade = $1`,
+	)).
+		WithArgs(filter.HabilidadeID).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"count"}).AddRow(1),
+		)
+
+	// 2. Busca das áreas filtradas pelo ID da habilidade
+	mock.ExpectQuery(regexp.QuoteMeta(
+		`SELECT "emp_areas_atuacao"."id","emp_areas_atuacao"."nome","emp_areas_atuacao"."created_at","emp_areas_atuacao"."updated_at" FROM "emp_areas_atuacao" JOIN area_atuacao_habilidade aah ON aah.id_area_atuacao = emp_areas_atuacao.id WHERE aah.id_habilidade = $1 ORDER BY emp_areas_atuacao.nome ASC LIMIT $2`,
+	)).
+		WithArgs(filter.HabilidadeID, 10).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id", "nome"}).
+				AddRow(1, "Confecção de Calçados"),
+		)
+
+	// 3. Preload da relação com habilidades
+	mock.ExpectQuery(`SELECT \* FROM "area_atuacao_habilidade"`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id_habilidade", "id_area_atuacao"}),
+		)
+
+	result, total, err := repo.ListAreasAtuacao(ctx, filter, 10, 0)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	assert.Len(t, result, 1)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // --- TESTES DE VÍNCULO E DESVÍNCULO de Áreas de Atuação (MANY-TO-MANY) ---
 
 func TestHabilidadeRepository_AttachAreaAtuacao_Success(t *testing.T) {
