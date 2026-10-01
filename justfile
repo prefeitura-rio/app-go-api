@@ -173,7 +173,7 @@ docker-run:
     fi
 
     @echo "Running Docker container..."
-    @docker run --rm -p 8080:8080 \
+    @docker run --rm -p 3002:8080 \
         --name $DB_NAME \
         --network app-go-api_backend \
         --env-file ./.env \
