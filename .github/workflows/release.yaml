@@ -5,7 +5,63 @@ on:
     types: [published]
 
 jobs:
+  # Bloqueia o deploy enquanto produção não tiver, no Heimdall, o que este
+  # release precisa e staging já tem: mappings das rotas novas, as actions
+  # delas nos papéis que existem em produção, e papéis que o código passou a
+  # usar. Gera um link para a tela de promoção já preenchida e espera a
+  # aprovação de um superadmin.
+  heimdall-check:
+    name: Heimdall config check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Install swag
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          GOBIN="$RUNNER_TEMP/bin" go install github.com/swaggo/swag/cmd/swag@latest
+          echo "$RUNNER_TEMP/bin" >> $GITHUB_PATH
+
+      - name: Generate the API spec of this release and of the previous one
+        id: specs
+        run: |
+          BASE_REF=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          echo "base-ref=$BASE_REF" >> "$GITHUB_OUTPUT"
+          swag init -g cmd/server/main.go -o "$RUNNER_TEMP/head-docs" --outputTypes json
+          if [ -n "$BASE_REF" ]; then
+            git worktree add "$RUNNER_TEMP/base" "$BASE_REF"
+            (cd "$RUNNER_TEMP/base" && swag init -g cmd/server/main.go -o "$RUNNER_TEMP/base-docs" --outputTypes json)
+          fi
+
+      - name: Check Heimdall config needed by this release
+        uses: prefeitura-rio/heimdall/.github/actions/release-check@main
+        with:
+          app: go-api
+          base-ref: ${{ steps.specs.outputs.base-ref }}
+          head-spec: ${{ runner.temp }}/head-docs/swagger.json
+          base-spec: ${{ runner.temp }}/base-docs/swagger.json
+          route-prefix: /go
+          role-paths: |
+            *.go
+            :(exclude)*_test.go
+            :(exclude)docs/*
+          staging-token: ${{ secrets.HEIMDALL_STAGING_READONLY_TOKEN }}
+          production-token: ${{ secrets.HEIMDALL_PRODUCTION_READONLY_TOKEN }}
+          enforce: ${{ vars.HEIMDALL_RELEASE_CHECK != 'off' }}
+
   build-and-deploy:
+    needs: heimdall-check
     runs-on: ubuntu-latest
     environment: production
     permissions:
