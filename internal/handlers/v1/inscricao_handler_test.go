@@ -386,10 +386,14 @@ func TestInscricaoHandler_UpdateIndividualStatus_InvalidCourseID(t *testing.T) {
 
 // mockInscricaoService is a mock implementation of InscricaoServiceInterface for testing
 type mockInscricaoService struct {
-	createManualErr error
+	createManualErr  error
+	createManualHook func(*models.Inscricao)
 }
 
 func (m *mockInscricaoService) CreateManual(ctx context.Context, inscricao *models.Inscricao) error {
+	if m.createManualHook != nil {
+		m.createManualHook(inscricao)
+	}
 	return m.createManualErr
 }
 
@@ -480,8 +484,13 @@ func TestInscricaoHandler_CreateManual_ServiceError(t *testing.T) {
 // Test CreateManual endpoint with success
 func TestInscricaoHandler_CreateManual_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	origem := models.OrigemInscricaoSecretaria
 	mockService := &mockInscricaoService{
-		createManualErr: nil, // No error = success
+		createManualErr: nil,
+		createManualHook: func(inscricao *models.Inscricao) {
+			inscricao.ID = uuid.New()
+			inscricao.OrigemInscricao = &origem
+		},
 	}
 
 	h := v1.NewInscricaoHandler(mockService, nil, nil)
@@ -497,6 +506,7 @@ func TestInscricaoHandler_CreateManual_Success(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 	assert.Contains(t, w.Body.String(), "success")
 	assert.Contains(t, w.Body.String(), "Inscrição manual criada com sucesso")
+	assert.Contains(t, w.Body.String(), "secretaria")
 }
 
 // Helper error types for testing

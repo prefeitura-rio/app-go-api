@@ -244,7 +244,7 @@ func (m *MockCursoRepository) UpdateStatus(ctx context.Context, id int, status m
 	return args.Error(0)
 }
 
-// Test Create with service success
+// Test Create with service success — citizen path (no origem_inscricao in response)
 func TestInscricaoHandler_Create_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := new(MockInscricaoService)
@@ -283,6 +283,52 @@ func TestInscricaoHandler_Create_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	assert.Contains(t, w.Body.String(), "success")
+	assert.NotContains(t, w.Body.String(), "origem_inscricao")
+	mockService.AssertExpectations(t)
+}
+
+// Test Create — admin path (origem_inscricao = secretaria in response)
+func TestInscricaoHandler_Create_Admin_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockService := new(MockInscricaoService)
+	mockJobService := new(MockJobService)
+	mockCursoRepo := new(MockCursoRepository)
+
+	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_role", "ADMIN")
+		c.Next()
+	})
+	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
+
+	inscricaoID := uuid.New()
+	origem := models.OrigemInscricaoSecretaria
+	mockService.On("CreateByAdmin", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
+		Run(func(args mock.Arguments) {
+			inscricao := args.Get(1).(*models.Inscricao)
+			inscricao.ID = inscricaoID
+			inscricao.Status = models.StatusInscricaoPending
+			inscricao.EnrolledAt = time.Now()
+			inscricao.OrigemInscricao = &origem
+		}).
+		Return(nil)
+
+	reqBody := map[string]interface{}{
+		"cpf":  "99988877766",
+		"name": "Test Admin",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Contains(t, w.Body.String(), "success")
+	assert.Contains(t, w.Body.String(), "secretaria")
 	mockService.AssertExpectations(t)
 }
 
