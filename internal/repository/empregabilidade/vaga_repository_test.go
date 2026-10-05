@@ -1436,6 +1436,278 @@ func TestVagaRepository_UpdateWithAssociations_CreateEtapasError(t *testing.T) {
 	assert.Contains(t, err.Error(), "erro ao criar etapas")
 }
 
+// TestVagaRepository_UpdateWithAssociations_Etapas_PreservesExistingUUID
+// garante que salvar a vaga reenviando etapas com o mesmo UUID atualiza
+// titulo/descricao/ordem in-place e NÃO regenera o UUID — preservando
+// id_etapa_atual das candidaturas.
+func TestVagaRepository_UpdateWithAssociations_Etapas_PreservesExistingUUID(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+	etapaID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  vagaID,
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		Etapas: []empregabilidade.Etapa{
+			{ID: etapaID, Titulo: "Análise do currículo", Descricao: "Triagem", Ordem: 2},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(etapaID))
+	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`UPDATE "emp_etapas" SET`).
+		WithArgs(
+			vaga.Etapas[0].Titulo,
+			vaga.Etapas[0].Descricao,
+			vaga.Etapas[0].Ordem,
+			sqlmock.AnyArg(), // updated_at
+			etapaID,
+			vagaID,
+		).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+	assert.Equal(t, etapaID, vaga.Etapas[0].ID,
+		"UUID de etapa existente nunca deve ser regenerado")
+}
+
+// TestVagaRepository_UpdateWithAssociations_Etapas_MixExistingAndNew
+// adicionar etapa nova não reseta quem já estava em outra etapa: existente
+// atualiza in-place; nova é inserida.
+func TestVagaRepository_UpdateWithAssociations_Etapas_MixExistingAndNew(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+	existingEtapaID := uuid.New()
+	generatedEtapaID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  vagaID,
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		Etapas: []empregabilidade.Etapa{
+			{ID: existingEtapaID, Titulo: "Candidatura recebida", Ordem: 1},
+			{Titulo: "Entrevista", Ordem: 2}, // ID == uuid.Nil
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(existingEtapaID))
+	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`UPDATE "emp_etapas" SET`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`INSERT INTO "emp_etapas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(generatedEtapaID))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+	assert.Equal(t, existingEtapaID, vaga.Etapas[0].ID,
+		"UUID existente deve ser preservado")
+	assert.NotEqual(t, uuid.Nil, vaga.Etapas[1].ID,
+		"nova etapa deve receber um UUID gerado")
+}
+
+// TestVagaRepository_UpdateWithAssociations_Etapas_RemovesMissing_ClearsOnlyThatEtapa
+// remover uma etapa desvincula somente as candidaturas que estavam nela
+// (id_etapa_atual NOT IN etapas preservadas) e então apaga a etapa.
+func TestVagaRepository_UpdateWithAssociations_Etapas_RemovesMissing_ClearsOnlyThatEtapa(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+	keptEtapaID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  vagaID,
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		Etapas: []empregabilidade.Etapa{
+			{ID: keptEtapaID, Titulo: "Candidatura recebida", Ordem: 1},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(keptEtapaID))
+	// Clear só candidaturas cuja etapa NÃO está no payload preservado
+	mock.ExpectExec(`UPDATE "emp_candidaturas".*id NOT IN`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE "emp_etapas" SET`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+	assert.Equal(t, keptEtapaID, vaga.Etapas[0].ID)
+}
+
+// TestVagaRepository_UpdateWithAssociations_Etapas_EphemeralUUIDInsertsNew
+// UUID gerado no front e inexistente no banco deve virar INSERT (não UPDATE
+// silencioso com 0 rows).
+func TestVagaRepository_UpdateWithAssociations_Etapas_EphemeralUUIDInsertsNew(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+	ephemeralID := uuid.New()
+	generatedID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  vagaID,
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		Etapas: []empregabilidade.Etapa{
+			{ID: ephemeralID, Titulo: "Nova etapa", Ordem: 1},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery(`INSERT INTO "emp_etapas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(generatedID))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+	assert.NotEqual(t, uuid.Nil, vaga.Etapas[0].ID)
+	assert.NotEqual(t, ephemeralID, vaga.Etapas[0].ID,
+		"UUID efêmero do frontend deve ser substituído pelo UUID gerado pelo banco")
+}
+
+// TestVagaRepository_UpdateWithAssociations_Etapas_NilDoesNotTouchEtapas
+// campo etapas ausente (nil) não altera etapas nem candidaturas.
+func TestVagaRepository_UpdateWithAssociations_Etapas_NilDoesNotTouchEtapas(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  uuid.New(),
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		Etapas:              nil,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// TestVagaRepository_UpdateWithAssociations_UpdateEtapaError garante que falha
+// ao atualizar etapa existente propaga erro com contexto e faz rollback.
+func TestVagaRepository_UpdateWithAssociations_UpdateEtapaError(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	etapaID := uuid.New()
+	vaga := &empregabilidade.Vaga{
+		ID:                  uuid.New(),
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		Etapas: []empregabilidade.Etapa{
+			{ID: etapaID, Titulo: "Etapa", Ordem: 1},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(etapaID))
+	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`UPDATE "emp_etapas" SET`).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao atualizar etapa")
+}
+
 func TestVagaRepository_UpdateWithAssociations_DeleteInformacoesError(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
