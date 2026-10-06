@@ -187,6 +187,8 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	}
 	inscricao.EnrolledAt = time.Now()
 	inscricao.UpdatedAt = time.Now()
+	origem := models.OrigemInscricaoPortalCidadao
+	inscricao.OrigemInscricao = &origem
 
 	// Create enrollment
 	if err := s.repo.Create(ctx, inscricao); err != nil {
@@ -279,6 +281,8 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 	}
 	inscricao.EnrolledAt = time.Now()
 	inscricao.UpdatedAt = time.Now()
+	origemAdmin := models.OrigemInscricaoSecretaria
+	inscricao.OrigemInscricao = &origemAdmin
 
 	if err := s.repo.Create(ctx, inscricao); err != nil {
 		return err
@@ -360,6 +364,8 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 	}
 	inscricao.EnrolledAt = time.Now()
 	inscricao.UpdatedAt = time.Now()
+	origemManual := models.OrigemInscricaoSecretaria
+	inscricao.OrigemInscricao = &origemManual
 
 	if err := s.repo.Create(ctx, inscricao); err != nil {
 		return err
