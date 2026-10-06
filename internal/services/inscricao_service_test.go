@@ -301,6 +301,9 @@ func TestInscricaoService_Create(t *testing.T) {
 				if inscricao.Phone != "1234567890" {
 					t.Errorf("Expected phone from fetcher, got %s", inscricao.Phone)
 				}
+				if inscricao.OrigemInscricao == nil || *inscricao.OrigemInscricao != models.OrigemInscricaoPortalCidadao {
+					t.Errorf("Expected origem portal_cidadao, got %v", inscricao.OrigemInscricao)
+				}
 				return nil
 			},
 			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
@@ -1415,6 +1418,9 @@ func TestInscricaoService_CreateByAdmin(t *testing.T) {
 		if created.Status != models.StatusInscricaoApproved {
 			t.Errorf("Expected status approved, got %s", created.Status)
 		}
+		if created.OrigemInscricao == nil || *created.OrigemInscricao != models.OrigemInscricaoSecretaria {
+			t.Errorf("Expected origem secretaria, got %v", created.OrigemInscricao)
+		}
 	})
 
 	t.Run("CreateByAdmin sets status pending when auto_approve is false", func(t *testing.T) {
@@ -1442,6 +1448,9 @@ func TestInscricaoService_CreateByAdmin(t *testing.T) {
 		}
 		if created.Status != models.StatusInscricaoPending {
 			t.Errorf("Expected status pending, got %s", created.Status)
+		}
+		if created.OrigemInscricao == nil || *created.OrigemInscricao != models.OrigemInscricaoSecretaria {
+			t.Errorf("Expected origem secretaria, got %v", created.OrigemInscricao)
 		}
 	})
 
@@ -1495,6 +1504,9 @@ func TestInscricaoService_CreateByAdmin(t *testing.T) {
 		if created.Name != "Nome Secretaria" {
 			t.Errorf("Expected provided name preserved, got %s", created.Name)
 		}
+		if created.OrigemInscricao == nil || *created.OrigemInscricao != models.OrigemInscricaoSecretaria {
+			t.Errorf("Expected origem secretaria, got %v", created.OrigemInscricao)
+		}
 	})
 
 	t.Run("CreateByAdmin fills missing name from RMI snapshot", func(t *testing.T) {
@@ -1527,6 +1539,9 @@ func TestInscricaoService_CreateByAdmin(t *testing.T) {
 		}
 		if created.Name != "Nome RMI" {
 			t.Errorf("Expected name filled from RMI snapshot, got %s", created.Name)
+		}
+		if created.OrigemInscricao == nil || *created.OrigemInscricao != models.OrigemInscricaoSecretaria {
+			t.Errorf("Expected origem secretaria, got %v", created.OrigemInscricao)
 		}
 	})
 
@@ -1691,6 +1706,9 @@ func TestInscricaoService_CreateByAdmin(t *testing.T) {
 		}
 		if created.Phone != "" {
 			t.Errorf("Expected empty phone (no backfill from RMI), got %s", created.Phone)
+		}
+		if created.OrigemInscricao == nil || *created.OrigemInscricao != models.OrigemInscricaoSecretaria {
+			t.Errorf("Expected origem secretaria, got %v", created.OrigemInscricao)
 		}
 	})
 
@@ -4191,4 +4209,135 @@ func TestNewInscricaoServiceWithInterface(t *testing.T) {
 	if service == nil {
 		t.Error("NewInscricaoServiceWithInterface() returned nil")
 	}
+}
+
+// TestInscricaoService_OrigemInscricao tests that all three creation flows set origem_inscricao correctly.
+func TestInscricaoService_OrigemInscricao(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Create seta origem portal_cidadao", func(t *testing.T) {
+		var created *models.Inscricao
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				created = inscricao
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoOpened), nil, nil, false, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.Create(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1, Name: "Cidadão"})
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if created.OrigemInscricao == nil {
+			t.Fatal("Expected origem_inscricao to be set, got nil")
+		}
+		if *created.OrigemInscricao != models.OrigemInscricaoPortalCidadao {
+			t.Errorf("Expected origem %q, got %q", models.OrigemInscricaoPortalCidadao, *created.OrigemInscricao)
+		}
+	})
+
+	t.Run("CreateByAdmin seta origem secretaria", func(t *testing.T) {
+		var created *models.Inscricao
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				created = inscricao
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateByAdmin(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1, Name: "Admin"})
+		if err != nil {
+			t.Fatalf("CreateByAdmin failed: %v", err)
+		}
+		if created.OrigemInscricao == nil {
+			t.Fatal("Expected origem_inscricao to be set, got nil")
+		}
+		if *created.OrigemInscricao != models.OrigemInscricaoSecretaria {
+			t.Errorf("Expected origem %q, got %q", models.OrigemInscricaoSecretaria, *created.OrigemInscricao)
+		}
+	})
+
+	t.Run("CreateManual seta origem secretaria", func(t *testing.T) {
+		var created *models.Inscricao
+		inscricaoRepo := &MockInscricaoRepository{
+			ExistsByCPFAndCursoFunc: func(ctx context.Context, cpf string, cursoID int) (bool, error) {
+				return false, nil
+			},
+			CreateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				created = inscricao
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{
+			ValidateForEnrollmentFunc: func(ctx context.Context, cursoID int) (string, *time.Time, *time.Time, bool, error) {
+				return string(models.StatusCursoClosed), nil, nil, false, nil
+			},
+		}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		err := svc.CreateManual(ctx, &models.Inscricao{CPF: "12345678900", CursoID: 1, Name: "Manual"})
+		if err != nil {
+			t.Fatalf("CreateManual failed: %v", err)
+		}
+		if created.OrigemInscricao == nil {
+			t.Fatal("Expected origem_inscricao to be set, got nil")
+		}
+		if *created.OrigemInscricao != models.OrigemInscricaoSecretaria {
+			t.Errorf("Expected origem %q, got %q", models.OrigemInscricaoSecretaria, *created.OrigemInscricao)
+		}
+	})
+
+	t.Run("UpdateInscricao nao altera origem_inscricao", func(t *testing.T) {
+		inscricaoID := uuid.New()
+		origemOriginal := models.OrigemInscricaoPortalCidadao
+		var updated *models.Inscricao
+
+		inscricaoRepo := &MockInscricaoRepository{
+			GetByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
+				return &models.Inscricao{
+					ID:              inscricaoID,
+					CursoID:         1,
+					Name:            "Nome Original",
+					OrigemInscricao: &origemOriginal,
+				}, nil
+			},
+			UpdateFunc: func(ctx context.Context, inscricao *models.Inscricao) error {
+				updated = inscricao
+				return nil
+			},
+		}
+		cursoRepo := &MockCursoRepository{}
+
+		svc := services.NewInscricaoServiceWithInterface(inscricaoRepo, cursoRepo, nil, nil, nil, &config.AppConfig{})
+
+		novoNome := "Nome Atualizado"
+		err := svc.UpdateInscricao(ctx, inscricaoID, 1, &models.InscricaoUpdateRequest{Name: &novoNome})
+		if err != nil {
+			t.Fatalf("UpdateInscricao failed: %v", err)
+		}
+		if updated.OrigemInscricao == nil || *updated.OrigemInscricao != models.OrigemInscricaoPortalCidadao {
+			t.Errorf("Expected origem_inscricao to remain %q after update, got %v", models.OrigemInscricaoPortalCidadao, updated.OrigemInscricao)
+		}
+	})
 }

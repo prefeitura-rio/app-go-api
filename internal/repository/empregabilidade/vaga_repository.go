@@ -121,28 +121,8 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 		}
 
 		if entity.Etapas != nil {
-			// Clear id_etapa_atual from all candidaturas of this vaga before deleting the steps.
-			// We must clear all statuses (not only active ones) because the FK has no ON DELETE SET NULL.
-			if err := tx.Model(&empregabilidade.Candidatura{}).
-				Where("id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)", entity.ID).
-				Update("id_etapa_atual", nil).Error; err != nil {
-				return fmt.Errorf("erro ao desvincular etapas das candidaturas: %w", err)
-			}
-
-			if err := tx.Where("id_vaga = ?", entity.ID).Delete(&empregabilidade.Etapa{}).Error; err != nil {
-				return fmt.Errorf("erro ao remover etapas existentes: %w", err)
-			}
-
-			for i := range entity.Etapas {
-				entity.Etapas[i].ID = uuid.Nil
-				entity.Etapas[i].IDVaga = entity.ID
-				entity.Etapas[i].Vaga = nil
-			}
-
-			if len(entity.Etapas) > 0 {
-				if err := tx.Create(&entity.Etapas).Error; err != nil {
-					return fmt.Errorf("erro ao criar etapas: %w", err)
-				}
+			if err := syncEtapas(tx, entity.ID, entity.Etapas); err != nil {
+				return err
 			}
 		}
 
@@ -176,6 +156,101 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 
 		return nil
 	})
+}
+
+// syncEtapas reconcilia as etapas de uma vaga pelo UUID em vez de deletar e
+// recriar tudo: etapas cujo UUID existe de fato no banco são atualizadas
+// in-place (preservando id_etapa_atual das candidaturas); etapas ausentes do
+// payload têm id_etapa_atual setado para null apenas nas candidaturas daquela
+// etapa e então são removidas (a FK não tem ON DELETE SET NULL); etapas com
+// UUID == uuid.Nil ou UUID efêmero gerado pelo frontend (não encontrado no
+// banco) são inseridas como novas.
+func syncEtapas(tx *gorm.DB, vagaID uuid.UUID, etapas []empregabilidade.Etapa) error {
+	payloadIDs := make([]uuid.UUID, 0, len(etapas))
+	for i := range etapas {
+		if etapas[i].ID != uuid.Nil {
+			payloadIDs = append(payloadIDs, etapas[i].ID)
+		}
+	}
+
+	existentesNoBanco := make(map[uuid.UUID]bool)
+	if len(payloadIDs) > 0 {
+		var idsConfirmados []uuid.UUID
+		if err := tx.Model(&empregabilidade.Etapa{}).
+			Where("id_vaga = ? AND id IN ?", vagaID, payloadIDs).
+			Pluck("id", &idsConfirmados).Error; err != nil {
+			return fmt.Errorf("erro ao verificar etapas: %w", err)
+		}
+		for _, id := range idsConfirmados {
+			existentesNoBanco[id] = true
+		}
+	}
+
+	existentesIDs := make([]uuid.UUID, 0, len(existentesNoBanco))
+	for id := range existentesNoBanco {
+		existentesIDs = append(existentesIDs, id)
+	}
+
+	// Desvincula candidaturas somente das etapas que serão removidas.
+	clearQuery := tx.Model(&empregabilidade.Candidatura{})
+	if len(existentesIDs) > 0 {
+		clearQuery = clearQuery.Where(
+			"id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ? AND id NOT IN ?)",
+			vagaID, existentesIDs,
+		)
+	} else {
+		clearQuery = clearQuery.Where(
+			"id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)",
+			vagaID,
+		)
+	}
+	if err := clearQuery.Update("id_etapa_atual", nil).Error; err != nil {
+		return fmt.Errorf("erro ao desvincular etapas das candidaturas: %w", err)
+	}
+
+	deleteQuery := tx.Where("id_vaga = ?", vagaID)
+	if len(existentesIDs) > 0 {
+		deleteQuery = deleteQuery.Where("id NOT IN ?", existentesIDs)
+	}
+	if err := deleteQuery.Delete(&empregabilidade.Etapa{}).Error; err != nil {
+		return fmt.Errorf("erro ao remover etapas existentes: %w", err)
+	}
+
+	var novos []empregabilidade.Etapa
+	for i := range etapas {
+		etapas[i].IDVaga = vagaID
+		etapas[i].Vaga = nil
+
+		if etapas[i].ID == uuid.Nil || !existentesNoBanco[etapas[i].ID] {
+			itemNovo := etapas[i]
+			itemNovo.ID = uuid.Nil
+			novos = append(novos, itemNovo)
+			continue
+		}
+
+		if err := tx.Model(&empregabilidade.Etapa{}).
+			Where("id = ? AND id_vaga = ?", etapas[i].ID, vagaID).
+			Select("titulo", "descricao", "ordem").
+			Updates(&etapas[i]).Error; err != nil {
+			return fmt.Errorf("erro ao atualizar etapa: %w", err)
+		}
+	}
+
+	if len(novos) > 0 {
+		if err := tx.Create(&novos).Error; err != nil {
+			return fmt.Errorf("erro ao criar etapas: %w", err)
+		}
+
+		novoIdx := 0
+		for i := range etapas {
+			if etapas[i].ID == uuid.Nil || !existentesNoBanco[etapas[i].ID] {
+				etapas[i].ID = novos[novoIdx].ID
+				novoIdx++
+			}
+		}
+	}
+
+	return nil
 }
 
 // syncInformacoesComplementares reconcilia as informações complementares de uma vaga
