@@ -168,9 +168,32 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 	// Set the course ID from URL
 	inscricao.CursoID = cursoID
 
-	var createErr error
 	if middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:cursos:casa_civil") {
-		createErr = h.service.CreateByAdmin(c.Request.Context(), &inscricao)
+		if err := h.service.CreateByAdmin(c.Request.Context(), &inscricao); err != nil {
+			if err.Error() == "CPF já inscrito neste curso" {
+				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+				return
+			}
+			var ruleErr *services.EnrollmentRuleError
+			if errors.As(err, &ruleErr) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusCreated, gin.H{
+			"success": true,
+			"data": gin.H{
+				"id":               inscricao.ID,
+				"course_id":        inscricao.CursoID,
+				"status":           inscricao.Status,
+				"origem_inscricao": inscricao.OrigemInscricao,
+				"enrolled_unit":    inscricao.EnrolledUnit,
+				"enrolled_at":      inscricao.EnrolledAt,
+			},
+			"message": "Inscrição criada com sucesso",
+		})
 	} else {
 		cpf := middlewares.GetUserCPF(c)
 		if cpf == "" {
@@ -178,37 +201,34 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 			return
 		}
 		inscricao.CPF = cpf
-		createErr = h.service.Create(c.Request.Context(), &inscricao)
-	}
-
-	if createErr != nil {
-		if createErr.Error() == "CPF já inscrito neste curso" {
-			c.JSON(http.StatusConflict, gin.H{"error": createErr.Error()})
+		if err := h.service.Create(c.Request.Context(), &inscricao); err != nil {
+			if err.Error() == "CPF já inscrito neste curso" {
+				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+				return
+			}
+			// Business rules (course not open, window closed, turma closed) are the
+			// citizen's problem to fix, not a server fault — answer 400 and keep the
+			// message verbatim so the portal can show it.
+			var ruleErr *services.EnrollmentRuleError
+			if errors.As(err, &ruleErr) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + err.Error()})
 			return
 		}
-		// Business rules (course not open, window closed, turma closed) are the
-		// citizen's problem to fix, not a server fault — answer 400 and keep the
-		// message verbatim so the portal can show it.
-		var ruleErr *services.EnrollmentRuleError
-		if errors.As(createErr, &ruleErr) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": createErr.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + createErr.Error()})
-		return
+		c.JSON(http.StatusCreated, gin.H{
+			"success": true,
+			"data": gin.H{
+				"id":            inscricao.ID,
+				"course_id":     inscricao.CursoID,
+				"status":        inscricao.Status,
+				"enrolled_unit": inscricao.EnrolledUnit,
+				"enrolled_at":   inscricao.EnrolledAt,
+			},
+			"message": "Inscrição criada com sucesso",
+		})
 	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"data": gin.H{
-			"id":            inscricao.ID,
-			"course_id":     inscricao.CursoID,
-			"status":        inscricao.Status,
-			"enrolled_unit": inscricao.EnrolledUnit,
-			"enrolled_at":   inscricao.EnrolledAt,
-		},
-		"message": "Inscrição criada com sucesso",
-	})
 }
 
 // @Summary      Listar inscrições de um curso
@@ -667,18 +687,19 @@ func (h *InscricaoHandler) CreateManual(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": gin.H{
-			"id":            inscricao.ID,
-			"course_id":     inscricao.CursoID,
-			"cpf":           inscricao.CPF,
-			"name":          inscricao.Name,
-			"email":         inscricao.Email,
-			"phone":         inscricao.Phone,
-			"age":           inscricao.Age,
-			"address":       inscricao.Address,
-			"neighborhood":  inscricao.Neighborhood,
-			"status":        inscricao.Status,
-			"enrolled_unit": inscricao.EnrolledUnit,
-			"enrolled_at":   inscricao.EnrolledAt,
+			"id":               inscricao.ID,
+			"course_id":        inscricao.CursoID,
+			"cpf":              inscricao.CPF,
+			"name":             inscricao.Name,
+			"email":            inscricao.Email,
+			"phone":            inscricao.Phone,
+			"age":              inscricao.Age,
+			"address":          inscricao.Address,
+			"neighborhood":     inscricao.Neighborhood,
+			"status":           inscricao.Status,
+			"origem_inscricao": inscricao.OrigemInscricao,
+			"enrolled_unit":    inscricao.EnrolledUnit,
+			"enrolled_at":      inscricao.EnrolledAt,
 		},
 		"message": "Inscrição manual criada com sucesso",
 	})

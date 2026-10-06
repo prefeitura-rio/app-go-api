@@ -20,6 +20,13 @@ const (
 	StatusInscricaoConcluded StatusInscricao = "concluded"
 )
 
+type OrigemInscricao string
+
+const (
+	OrigemInscricaoPortalCidadao OrigemInscricao = "portal_cidadao"
+	OrigemInscricaoSecretaria    OrigemInscricao = "secretaria"
+)
+
 type Inscricao struct {
 	ID      uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	CursoID int       `json:"course_id" gorm:"column:curso_id;not null"`
@@ -33,16 +40,17 @@ type Inscricao struct {
 	Address      string `json:"address,omitempty" gorm:"type:varchar(20000);column:address" example:"Rua das Flores, 123"` // Endereço completo
 	Neighborhood string `json:"neighborhood,omitempty" gorm:"type:varchar(20000);column:neighborhood" example:"Centro"`    // Bairro
 
-	Status           StatusInscricao `json:"status" gorm:"type:status_inscricao_enum;default:'pending'"`
-	CustomFieldsData datatypes.JSON  `json:"custom_fields" gorm:"type:jsonb;column:custom_fields_data" swaggertype:"object"`
-	AdminNotes       string          `json:"admin_notes,omitempty" gorm:"type:text;column:admin_notes"`
-	Reason           string          `json:"reason,omitempty" gorm:"type:text"`
-	CertificateURL   string          `json:"certificate_url,omitempty" gorm:"type:varchar(20000);column:certificate_url"`
-	ScheduleID       *uuid.UUID      `json:"schedule_id" gorm:"type:uuid;column:schedule_id"`
-	EnrolledUnit     *EnrolledUnit   `json:"enrolled_unit,omitempty" gorm:"type:jsonb;column:enrolled_unit"`
-	EnrolledAt       time.Time       `json:"enrolled_at" gorm:"column:enrolled_at;autoCreateTime"`
-	UpdatedAt        time.Time       `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	ConcludedAt      *time.Time      `json:"concluded_at,omitempty" gorm:"column:concluded_at"`
+	Status           StatusInscricao  `json:"status" gorm:"type:status_inscricao_enum;default:'pending'"`
+	CustomFieldsData datatypes.JSON   `json:"custom_fields" gorm:"type:jsonb;column:custom_fields_data" swaggertype:"object"`
+	AdminNotes       string           `json:"admin_notes,omitempty" gorm:"type:text;column:admin_notes"`
+	Reason           string           `json:"reason,omitempty" gorm:"type:text"`
+	OrigemInscricao  *OrigemInscricao `json:"origem_inscricao,omitempty" gorm:"type:varchar(64);column:origem_inscricao"`
+	CertificateURL   string           `json:"certificate_url,omitempty" gorm:"type:varchar(20000);column:certificate_url"`
+	ScheduleID       *uuid.UUID       `json:"schedule_id" gorm:"type:uuid;column:schedule_id"`
+	EnrolledUnit     *EnrolledUnit    `json:"enrolled_unit,omitempty" gorm:"type:jsonb;column:enrolled_unit"`
+	EnrolledAt       time.Time        `json:"enrolled_at" gorm:"column:enrolled_at;autoCreateTime"`
+	UpdatedAt        time.Time        `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	ConcludedAt      *time.Time       `json:"concluded_at,omitempty" gorm:"column:concluded_at"`
 
 	// Relacionamentos
 	Curso *Curso `json:"curso,omitempty" gorm:"foreignKey:CursoID"`
