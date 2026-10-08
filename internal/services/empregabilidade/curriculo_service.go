@@ -2,17 +2,18 @@ package empregabilidade
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
-	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
 
 type CurriculoService struct {
 	repo CurriculoRepositoryInterface
 }
 
-func NewCurriculoService(repo *repository.CurriculoRepository) *CurriculoService {
+func NewCurriculoService(repo CurriculoRepositoryInterface) *CurriculoService {
 	return &CurriculoService{repo: repo}
 }
 
@@ -20,7 +21,7 @@ func NewCurriculoServiceWithInterface(repo CurriculoRepositoryInterface) *Curric
 	return &CurriculoService{repo: repo}
 }
 
-// Formação Acadêmica
+// --- Formação Acadêmica ---
 
 func (s *CurriculoService) CreateFormacao(ctx context.Context, entity *empregabilidade.CurriculoFormacao) (uuid.UUID, error) {
 	if err := entity.Validate(); err != nil {
@@ -45,10 +46,10 @@ func (s *CurriculoService) DeleteFormacao(ctx context.Context, id uuid.UUID) err
 }
 
 func (s *CurriculoService) ListFormacoesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoFormacao, error) {
-	return s.repo.ListFormacoesByCPF(ctx, cpf)
+	return s.repo.ListFormacoesByCPF(ctx, strings.TrimSpace(cpf))
 }
 
-// Idiomas
+// --- Idiomas ---
 
 func (s *CurriculoService) CreateIdioma(ctx context.Context, entity *empregabilidade.CurriculoIdioma) (uuid.UUID, error) {
 	return s.repo.CreateIdioma(ctx, entity)
@@ -67,10 +68,10 @@ func (s *CurriculoService) DeleteIdioma(ctx context.Context, id uuid.UUID) error
 }
 
 func (s *CurriculoService) ListIdiomasByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoIdioma, error) {
-	return s.repo.ListIdiomasByCPF(ctx, cpf)
+	return s.repo.ListIdiomasByCPF(ctx, strings.TrimSpace(cpf))
 }
 
-// Cursos Complementares
+// --- Cursos Complementares ---
 
 func (s *CurriculoService) CreateCursoComplementar(ctx context.Context, entity *empregabilidade.CurriculoCursoComplementar) (uuid.UUID, error) {
 	return s.repo.CreateCursoComplementar(ctx, entity)
@@ -89,10 +90,10 @@ func (s *CurriculoService) DeleteCursoComplementar(ctx context.Context, id uuid.
 }
 
 func (s *CurriculoService) ListCursosComplementaresByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoCursoComplementar, error) {
-	return s.repo.ListCursosComplementaresByCPF(ctx, cpf)
+	return s.repo.ListCursosComplementaresByCPF(ctx, strings.TrimSpace(cpf))
 }
 
-// Experiências
+// --- Experiências ---
 
 func (s *CurriculoService) CreateExperiencia(ctx context.Context, entity *empregabilidade.CurriculoExperiencia) (uuid.UUID, error) {
 	return s.repo.CreateExperiencia(ctx, entity)
@@ -111,10 +112,10 @@ func (s *CurriculoService) DeleteExperiencia(ctx context.Context, id uuid.UUID) 
 }
 
 func (s *CurriculoService) ListExperienciasByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoExperiencia, error) {
-	return s.repo.ListExperienciasByCPF(ctx, cpf)
+	return s.repo.ListExperienciasByCPF(ctx, strings.TrimSpace(cpf))
 }
 
-// Conquistas
+// --- Conquistas ---
 
 func (s *CurriculoService) CreateConquista(ctx context.Context, entity *empregabilidade.CurriculoConquista) (uuid.UUID, error) {
 	return s.repo.CreateConquista(ctx, entity)
@@ -133,58 +134,143 @@ func (s *CurriculoService) DeleteConquista(ctx context.Context, id uuid.UUID) er
 }
 
 func (s *CurriculoService) ListConquistasByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoConquista, error) {
-	return s.repo.ListConquistasByCPF(ctx, cpf)
+	return s.repo.ListConquistasByCPF(ctx, strings.TrimSpace(cpf))
 }
 
-// ReplaceAll methods (bulk section save)
+// --- Áreas atuação c/ Habilidade ---
+
+// ListAreaAtuacaoHabilidadeByCPF lista áreas de atuação/habilidade do currículo do candidato.
+func (s *CurriculoService) ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoAreaAtuacaoHabilidade, error) {
+	return s.repo.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(
+		ctx,
+		strings.TrimSpace(cpf),
+	)
+}
+
+// AddAreaAtuacaoHabilidadeAoCurriculo vincula uma combinação de área de atuação/habilidade do currículo do candidato.
+func (s *CurriculoService) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx context.Context, vinculo *empregabilidade.CurriculoAreaAtuacaoHabilidade) error {
+	return s.repo.AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx, vinculo)
+}
+
+// DetachAreaAtuacaoHabilidadeDoCurriculo desvincula uma combinação de área de atuação/habilidade do currículo do candidato.
+func (s *CurriculoService) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(
+	ctx context.Context,
+	id int64,
+	cpf string,
+) error {
+	return s.repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id, cpf)
+}
+
+// --- Comportamentos e Atitudes ---
+
+// AddComportamentoAtitudesAoCurriculo vincula um comportamento/atitude ao currículo (CPF)
+func (s *CurriculoService) AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error {
+	return s.repo.AddComportamentoAtitudesAoCurriculo(ctx, vinculo)
+}
+
+// ReplaceAllItensCurriculoByCPF substitui os itens do currículo do candidato.
+func (s *CurriculoService) ReplaceAllItensCurriculoByCPF(ctx context.Context, cpf string, itensCurriculo *empregabilidade.CurriculoItensReplaceAll) error {
+	cleanCPF := strings.TrimSpace(cpf)
+
+	if cleanCPF == "" {
+		return errors.New("CPF é obrigatório")
+	}
+
+	if itensCurriculo == nil {
+		return errors.New("nenhuma modificação foi solicitada pelo usuário")
+	}
+
+	return s.repo.ReplaceAllItensCurriculoByCPF(
+		ctx,
+		cleanCPF,
+		itensCurriculo,
+	)
+}
+
+// DetachComportamentoAtitudesDoCurriculo remove o vínculo de um comportamento/atitude do currículo (CPF)
+func (s *CurriculoService) DetachComportamentoAtitudesDoCurriculo(
+	ctx context.Context,
+	vinculo *empregabilidade.CurriculoComportamentoAtitudes,
+) error {
+	return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, vinculo)
+}
+
+// ListComportamentoAtitudesPorCPF busca todos os comportamentos/atitudes associados a um CPF
+func (s *CurriculoService) ListComportamentoAtitudesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
+	return s.repo.ListComportamentoAtitudesByCPF(ctx, cpf)
+}
+
+// --- Métodos de Substituição em Lote (Bulk Save) ---
 
 func (s *CurriculoService) ReplaceAllFormacoesByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoFormacao) error {
-	return s.repo.ReplaceAllFormacoesByCPF(ctx, cpf, items)
+	for _, item := range items {
+		if err := item.Validate(); err != nil {
+			return err
+		}
+	}
+	return s.repo.ReplaceAllFormacoesByCPF(ctx, strings.TrimSpace(cpf), items)
 }
 
 func (s *CurriculoService) ReplaceAllFormacaoAccordionByCPF(ctx context.Context, cpf string, formacoes []*empregabilidade.CurriculoFormacao, idiomas []*empregabilidade.CurriculoIdioma) error {
-	return s.repo.ReplaceAllFormacaoAccordionByCPF(ctx, cpf, formacoes, idiomas)
+	for _, formacao := range formacoes {
+		if err := formacao.Validate(); err != nil {
+			return err
+		}
+	}
+	return s.repo.ReplaceAllFormacaoAccordionByCPF(ctx, strings.TrimSpace(cpf), formacoes, idiomas)
 }
 
 func (s *CurriculoService) ReplaceAllExperienciasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoExperiencia) error {
-	return s.repo.ReplaceAllExperienciasByCPF(ctx, cpf, items)
+	return s.repo.ReplaceAllExperienciasByCPF(ctx, strings.TrimSpace(cpf), items)
 }
 
 func (s *CurriculoService) ReplaceAllExperienciaProfissionalAccordionByCPF(ctx context.Context, cpf string, experiencias []*empregabilidade.CurriculoExperiencia, conquistas []*empregabilidade.CurriculoConquista, resumoProfissional string) error {
-	return s.repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, cpf, experiencias, conquistas, resumoProfissional)
+	return s.repo.ReplaceAllExperienciaProfissionalAccordionByCPF(ctx, strings.TrimSpace(cpf), experiencias, conquistas, strings.TrimSpace(resumoProfissional))
 }
 
 func (s *CurriculoService) ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error {
-	return s.repo.ReplaceAllConquistasByCPF(ctx, cpf, items)
+	return s.repo.ReplaceAllConquistasByCPF(ctx, strings.TrimSpace(cpf), items)
 }
 
 func (s *CurriculoService) ReplaceAllIdiomasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoIdioma) error {
-	return s.repo.ReplaceAllIdiomasByCPF(ctx, cpf, items)
+	return s.repo.ReplaceAllIdiomasByCPF(ctx, strings.TrimSpace(cpf), items)
 }
 
 func (s *CurriculoService) ReplaceAllCursosComplementaresByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoCursoComplementar) error {
-	return s.repo.ReplaceAllCursosComplementaresByCPF(ctx, cpf, items)
+	return s.repo.ReplaceAllCursosComplementaresByCPF(ctx, strings.TrimSpace(cpf), items)
 }
 
-// Situação e Interesses
+// --- Situação e Interesses ---
 
 func (s *CurriculoService) UpsertSituacaoInteresses(ctx context.Context, entity *empregabilidade.CurriculoSituacaoInteresses) error {
 	return s.repo.UpsertSituacaoInteresses(ctx, entity)
 }
 
 func (s *CurriculoService) GetSituacaoInteressesByCPF(ctx context.Context, cpf string) (*empregabilidade.CurriculoSituacaoInteresses, error) {
-	return s.repo.GetSituacaoInteressesByCPF(ctx, cpf)
+	return s.repo.GetSituacaoInteressesByCPF(ctx, strings.TrimSpace(cpf))
 }
 
-// Currículo Completo
+// --- Currículo Completo ---
 
 func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string) (*empregabilidade.CurriculoCompleto, error) {
+	cpf = strings.TrimSpace(cpf)
+
 	formacoes, err := s.repo.ListFormacoesByCPF(ctx, cpf)
 	if err != nil {
 		return nil, err
 	}
 
 	idiomas, err := s.repo.ListIdiomasByCPF(ctx, cpf)
+	if err != nil {
+		return nil, err
+	}
+
+	comportamentos_atitudes, err := s.repo.ListComportamentoAtitudesByCPF(ctx, cpf)
+	if err != nil {
+		return nil, err
+	}
+
+	area_atuacao_habilidade, err := s.repo.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, cpf)
 	if err != nil {
 		return nil, err
 	}
@@ -220,12 +306,14 @@ func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string)
 	}
 
 	return &empregabilidade.CurriculoCompleto{
-		Formacoes:            formacoes,
-		Idiomas:              idiomas,
-		CursosComplementares: cursos,
-		Experiencias:         experiencias,
-		Conquistas:           conquistas,
-		SituacaoInteresses:   situacao,
-		ResumoProfissional:   resumoProfissional,
+		Formacoes:             formacoes,
+		Idiomas:               idiomas,
+		ComportamentoAtitudes: comportamentos_atitudes,
+		AreaAtuacaoHabilidade: area_atuacao_habilidade,
+		CursosComplementares:  cursos,
+		Experiencias:          experiencias,
+		Conquistas:            conquistas,
+		SituacaoInteresses:    situacao,
+		ResumoProfissional:    resumoProfissional,
 	}, nil
 }
