@@ -120,7 +120,13 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 			if len(cdUAs) == 0 {
 				return nil, nil
 			}
-			return app.OrgaoSnapshotRepo.GetOrgaoIDsByCdUAs(ctx, cdUAs)
+			// Snapshot orgao_ids cover legacy resources; cd_uas cover secretarias
+			// that OrgaoSyncWorker has not snapshotted yet (no curso/emprego/MEI).
+			snapshotIDs, err := app.OrgaoSnapshotRepo.GetOrgaoIDsByCdUAs(ctx, cdUAs)
+			if err != nil {
+				return nil, err
+			}
+			return mergeSecretariaOrgaoIDs(snapshotIDs, cdUAs), nil
 		}
 
 		if cfg.App.RBACEnabled {
