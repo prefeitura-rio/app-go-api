@@ -96,7 +96,7 @@ func GetVagaOrgaoParceiroIDs(c *gin.Context) []string {
 	return nil
 }
 
-// VagaOrgaoInjector injects allowed orgao IDs for write operations (POST).
+// VagaOrgaoInjector injects allowed orgao IDs for write operations (POST/PUT).
 // Requires emp admin bypass or an editor role with secretaria/orgao scope.
 func VagaOrgaoInjector() gin.HandlerFunc {
 	return func(c *gin.Context) {
