@@ -6010,7 +6010,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "CNPJ da empresa (com ou sem formatação)",
+                        "description": "CNPJ da empresa (apenas dígitos, 14 caracteres)",
                         "name": "cnpj",
                         "in": "path",
                         "required": true
