@@ -147,12 +147,12 @@ func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) 
 
 	entity.Status = existing.Status
 
-	// O órgão parceiro define o escopo de autorização da vaga e nunca é
-	// reatribuído por um Update: preserva sempre o valor existente para evitar
-	// que um editor mova a vaga para fora da sua secretaria/órgão via body.
-	entity.IDOrgaoParceiro = existing.IDOrgaoParceiro
-
-	// Preserve required FK fields when not provided in the request body
+	// Preserve required FK fields when not provided in the request body.
+	// id_orgao_parceiro preenchido no body é persistido; vazio mantém o atual.
+	// A restrição de escopo (editor só nas próprias secretarias) fica no handler.
+	if entity.IDOrgaoParceiro == "" {
+		entity.IDOrgaoParceiro = existing.IDOrgaoParceiro
+	}
 	if entity.IDContratante == "" {
 		entity.IDContratante = existing.IDContratante
 	}
