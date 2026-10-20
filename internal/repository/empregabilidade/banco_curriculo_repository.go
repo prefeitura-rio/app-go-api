@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -55,6 +56,14 @@ func (r *CurriculoRepository) ListBancoCurriculos(ctx context.Context, filter em
 			args = append(args, "%"+digitos+"%")
 		}
 		where = " WHERE (" + strings.Join(condicoes, " OR ") + ")"
+	}
+	if condicao, argsFiltro := condicaoFiltroCandidato(filter.Candidato, "c.cpf"); condicao != "" {
+		if where == "" {
+			where = " WHERE " + condicao
+		} else {
+			where += " AND " + condicao
+		}
+		args = append(args, argsFiltro...)
 	}
 
 	var total int64
@@ -117,6 +126,82 @@ func (r *CurriculoRepository) GetUltimaAtualizacao(ctx context.Context, cpf stri
 	}
 	quando := atualizado.Time
 	return &quando, nil
+}
+
+// ListCandidaturasByCPF lista o histórico de candidaturas do cidadão, da mais
+// recente para a mais antiga, com o que a ficha mostra de cada vaga. Vagas
+// excluídas continuam aparecendo, porque a candidatura aconteceu.
+func (r *CurriculoRepository) ListCandidaturasByCPF(ctx context.Context, cpf string, filter empregabilidade.BancoCurriculoCandidaturaFilter, page, pageSize int) ([]*empregabilidade.Candidatura, int64, error) {
+	filtrar := func() *gorm.DB {
+		// A candidatura criada pelo backoffice grava o CPF como veio no corpo da
+		// requisição, então pode estar com máscara.
+		db := r.db.WithContext(ctx).Model(&empregabilidade.Candidatura{}).
+			Where("emp_candidaturas.cpf IN ?", []string{cpf, cpfComMascara(cpf)})
+		if search := strings.TrimSpace(filter.Search); search != "" {
+			db = db.Joins("JOIN emp_vagas v ON v.id = emp_candidaturas.id_vaga").
+				Where("unaccent(v.titulo) ILIKE unaccent(?)", "%"+escaparLike(search)+"%")
+		}
+		return db
+	}
+
+	var total int64
+	if err := filtrar().Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar candidaturas: %w", err)
+	}
+
+	candidaturas := []*empregabilidade.Candidatura{}
+	if total == 0 {
+		return candidaturas, 0, nil
+	}
+
+	err := filtrar().
+		// O snapshot do currículo e as respostas não entram no histórico.
+		Select("emp_candidaturas.id, emp_candidaturas.cpf, emp_candidaturas.id_vaga, emp_candidaturas.status, emp_candidaturas.origem, emp_candidaturas.created_at").
+		Preload("Vaga", func(db *gorm.DB) *gorm.DB { return db.Unscoped() }).
+		Preload("Vaga.Contratante").
+		Preload("Vaga.RegimeContratacao").
+		Preload("Vaga.ModeloTrabalho").
+		Preload("Vaga.OrgaoParceiro").
+		Preload("Vaga.TiposPCD").
+		Order("emp_candidaturas.created_at DESC, emp_candidaturas.id ASC").
+		Limit(pageSize).
+		Offset((page - 1) * pageSize).
+		Find(&candidaturas).Error
+	if err != nil {
+		return nil, 0, fmt.Errorf("erro ao listar candidaturas: %w", err)
+	}
+
+	return candidaturas, total, nil
+}
+
+// VagasComCandidatura diz em quais das vagas o CPF já tem candidatura ativa,
+// aceitando o CPF gravado com ou sem máscara.
+func (r *CurriculoRepository) VagasComCandidatura(ctx context.Context, cpf string, idsVagas []uuid.UUID) (map[uuid.UUID]bool, error) {
+	encontradas := make(map[uuid.UUID]bool, len(idsVagas))
+	if len(idsVagas) == 0 {
+		return encontradas, nil
+	}
+
+	var ids []uuid.UUID
+	err := r.db.WithContext(ctx).Model(&empregabilidade.Candidatura{}).
+		Where("cpf IN ? AND id_vaga IN ?", []string{cpf, cpfComMascara(cpf)}, idsVagas).
+		Distinct().
+		Pluck("id_vaga", &ids).Error
+	if err != nil {
+		return nil, fmt.Errorf("erro ao verificar candidaturas existentes: %w", err)
+	}
+	for _, id := range ids {
+		encontradas[id] = true
+	}
+	return encontradas, nil
+}
+
+// cpfComMascara formata os 11 dígitos do CPF como 000.000.000-00.
+func cpfComMascara(cpf string) string {
+	if len(cpf) != 11 {
+		return cpf
+	}
+	return cpf[:3] + "." + cpf[3:6] + "." + cpf[6:9] + "-" + cpf[9:]
 }
 
 // ensureCurriculo registra o currículo raiz na primeira escrita do cidadão.

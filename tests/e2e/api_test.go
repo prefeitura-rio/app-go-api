@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -202,18 +203,28 @@ func TestSwaggerDocumentation(t *testing.T) {
 }
 
 // TestBancoCurriculosRequiresAuthorization checks that the banco de currículos
-// stays closed without credentials on a running environment. Its authorization
-// does not depend on RBAC_ENABLED, so this holds in every environment.
+// — listing (with the advanced filters), ficha, histórico de candidaturas and
+// associação a vagas — stays closed without credentials on a running
+// environment. Its authorization does not depend on RBAC_ENABLED, so this holds
+// in every environment.
 func TestBancoCurriculosRequiresAuthorization(t *testing.T) {
 	baseURL := getBaseURL(t)
 	client := &http.Client{Timeout: 10 * time.Second}
 
-	for _, endpoint := range []string{
-		"/api/v1/empregabilidade/banco-curriculos",
-		"/api/v1/empregabilidade/banco-curriculos/11111111111",
+	for _, endpoint := range []struct{ method, path string }{
+		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos"},
+		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos?pcd=sim&genero=Mulher%20cisg%C3%AAnero"},
+		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos/11111111111"},
+		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos/11111111111/candidaturas"},
+		{http.MethodPost, "/api/v1/empregabilidade/banco-curriculos/11111111111/associacoes"},
 	} {
-		t.Run(endpoint, func(t *testing.T) {
-			resp, err := client.Get(baseURL + endpoint)
+		t.Run(endpoint.method+" "+endpoint.path, func(t *testing.T) {
+			req, err := http.NewRequest(endpoint.method, baseURL+endpoint.path, strings.NewReader(`{"ids_vagas":[]}`))
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := client.Do(req)
 			if err != nil {
 				t.Fatalf("Request failed: %v", err)
 			}
@@ -228,8 +239,9 @@ func TestBancoCurriculosRequiresAuthorization(t *testing.T) {
 
 // TestBancoCurriculosFichaContract checks the running API publishes the ficha
 // contract the admin consumes: the citizen data (e-mail, raça, PCD), the last
-// update date required by the perfil detalhado card and the situação e
-// interesses section of the resume. It guards against changing
+// update date required by the perfil detalhado card, the situação e
+// interesses section of the resume, the histórico de candidaturas and the
+// associação a vagas. It guards against changing
 // the model without regenerating the Swagger docs, which is what the frontend
 // client is generated from.
 func TestBancoCurriculosFichaContract(t *testing.T) {
@@ -273,6 +285,16 @@ func TestBancoCurriculosFichaContract(t *testing.T) {
 		}},
 		{"empregabilidade.SituacaoAtual", []string{"descricao"}},
 		{"empregabilidade.Disponibilidade", []string{"descricao"}},
+		// Histórico de candidaturas da ficha.
+		{"empregabilidade.BancoCurriculoCandidaturaListResponse", []string{"data", "meta"}},
+		{"empregabilidade.BancoCurriculoCandidatura", []string{"id", "status", "data_candidatura", "origem", "vaga"}},
+		// Associação a vagas: resultado por vaga e o 422 com o que falta no currículo.
+		{"empregabilidade.AssociarVagasRequest", []string{"ids_vagas"}},
+		{"empregabilidade.AssociarVagasResponse", []string{"resultados"}},
+		{"empregabilidade.AssociacaoVaga", []string{"id_vaga", "titulo", "resultado", "motivos", "id_candidatura"}},
+		{"empregabilidade.AssociacaoRecusadaResponse", []string{"error", "pendencias"}},
+		// A lista de candidatos da vaga mostra a origem da candidatura.
+		{"empregabilidade.Candidatura", []string{"origem"}},
 	}
 
 	for _, item := range contrato {
@@ -296,4 +318,56 @@ func getBaseURL(t *testing.T) string {
 		t.Skip("TEST_BASE_URL not set, skipping E2E test")
 	}
 	return baseURL
+}
+
+// TestCandidatosFiltroAvancadoContract checks the running API publishes the
+// advanced candidate filters, the same on the banco de currículos listing and
+// on the candidates of a vaga, which the admin sends as query parameters.
+func TestCandidatosFiltroAvancadoContract(t *testing.T) {
+	baseURL := getBaseURL(t)
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Get(baseURL + "/docs/doc.json")
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var spec struct {
+		Paths map[string]map[string]struct {
+			Parameters []struct {
+				Name string `json:"name"`
+				In   string `json:"in"`
+			} `json:"parameters"`
+		} `json:"paths"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
+		t.Fatalf("Failed to decode OpenAPI spec: %v", err)
+	}
+
+	filtros := []string{
+		"genero", "idade_min", "idade_max", "tempo_experiencia", "experiencia_carteira",
+		"escolaridade", "id_idioma", "id_nivel_idioma", "bairro", "pcd",
+	}
+	for _, path := range []string{
+		"/api/v1/empregabilidade/banco-curriculos",
+		"/api/v1/empregabilidade/candidaturas",
+	} {
+		operation, ok := spec.Paths[path]["get"]
+		if !ok {
+			t.Errorf("OpenAPI spec missing GET %s", path)
+			continue
+		}
+		publicados := map[string]bool{}
+		for _, p := range operation.Parameters {
+			if p.In == "query" {
+				publicados[p.Name] = true
+			}
+		}
+		for _, filtro := range filtros {
+			if !publicados[filtro] {
+				t.Errorf("GET %s missing query parameter %s", path, filtro)
+			}
+		}
+	}
 }

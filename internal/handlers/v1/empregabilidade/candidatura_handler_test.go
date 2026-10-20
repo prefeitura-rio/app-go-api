@@ -1253,3 +1253,53 @@ func TestCandidaturaHandler_Create_ServiceError_EdgeCase(t *testing.T) {
 		t.Error("expected error status")
 	}
 }
+
+// A origem é decidida pela API: o corpo da requisição não consegue se passar
+// por uma associação do banco de currículos.
+func TestCandidaturaHandler_Create_DefineOrigem(t *testing.T) {
+	cases := []struct {
+		name    string
+		usuario string
+		admin   bool
+		body    string
+		origem  empmodels.OrigemCandidatura
+	}{
+		{
+			name:    "cidadão pelo app",
+			usuario: "12345678900",
+			body:    `{"id_vaga":"` + validUUID + `","origem":"banco_curriculos","associado_por_cpf":"99999999999"}`,
+			origem:  empmodels.OrigemCandidaturaPortalCidadao,
+		},
+		{
+			name:    "admin cadastrando na vaga",
+			usuario: "admin-user",
+			admin:   true,
+			body:    `{"cpf":"12345678900","id_vaga":"` + validUUID + `","origem":"banco_curriculos","associado_por_cpf":"99999999999"}`,
+			origem:  empmodels.OrigemCandidaturaSecretaria,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			vagaRepo := &mockVagaForCandidaturaH{entity: &empmodels.Vaga{ID: uuid.MustParse(validUUID), Status: empmodels.StatusVagaPublicadoAtivo}}
+			r := setupCandidaturaRouter(&mockCandidaturaRepoH{}, vagaRepo, tc.usuario, tc.admin)
+			req := httptest.NewRequest(http.MethodPost, "/candidaturas", bodyOf(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			if w.Code != http.StatusCreated {
+				t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+			}
+			var criada empmodels.Candidatura
+			if err := json.Unmarshal(w.Body.Bytes(), &criada); err != nil {
+				t.Fatal(err)
+			}
+			if criada.Origem == nil || *criada.Origem != tc.origem {
+				t.Errorf("origem = %v, want %s", criada.Origem, tc.origem)
+			}
+			if criada.AssociadoPorCPF != nil {
+				t.Errorf("associado_por_cpf deveria ficar vazio, veio %q", *criada.AssociadoPorCPF)
+			}
+		})
+	}
+}

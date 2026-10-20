@@ -63,6 +63,30 @@ func (s *BancoCurriculoService) List(ctx context.Context, filter empregabilidade
 	return s.repo.ListBancoCurriculos(ctx, filter, page, pageSize)
 }
 
+// ListCandidaturas retorna o histórico de candidaturas do cidadão. O status da
+// vaga já sai considerando a data limite, como na listagem de vagas.
+func (s *BancoCurriculoService) ListCandidaturas(ctx context.Context, cpf string, filter empregabilidade.BancoCurriculoCandidaturaFilter, page, pageSize int) ([]*empregabilidade.BancoCurriculoCandidatura, int64, error) {
+	candidaturas, total, err := s.repo.ListCandidaturasByCPF(ctx, cpf, filter, page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	historico := make([]*empregabilidade.BancoCurriculoCandidatura, 0, len(candidaturas))
+	for _, c := range candidaturas {
+		if c.Vaga != nil {
+			c.Vaga.UpdateStatusBasedOnExpiration()
+		}
+		historico = append(historico, &empregabilidade.BancoCurriculoCandidatura{
+			ID:              c.ID,
+			Status:          c.Status,
+			DataCandidatura: c.CreatedAt,
+			Origem:          c.Origem,
+			Vaga:            c.Vaga,
+		})
+	}
+	return historico, total, nil
+}
+
 // GetDetalhe retorna a ficha do currículo, ou nil se o CPF não tem currículo.
 func (s *BancoCurriculoService) GetDetalhe(ctx context.Context, cpf string) (*empregabilidade.BancoCurriculoDetalhe, error) {
 	raiz, err := s.repo.GetCurriculoByCPF(ctx, cpf)
@@ -111,26 +135,32 @@ func (s *BancoCurriculoService) GetDetalhe(ctx context.Context, cpf string) (*em
 	return detalhe, nil
 }
 
-// carregarCadastro busca os dados pessoais do cidadão e os atualiza no RMI quando
-// estão ausentes ou desatualizados. Falhas não impedem a ficha: sem cadastro, os
-// campos pessoais saem como não informados.
+// carregarCadastro busca os dados pessoais do cidadão. Falhas não impedem a
+// ficha: sem cadastro, os campos pessoais saem como não informados.
 func (s *BancoCurriculoService) carregarCadastro(ctx context.Context, cpf string) *models.CitizenSnapshot {
-	cadastro, err := s.citizenSnapshotRepo.GetByCPF(ctx, cpf)
+	return carregarCadastroCidadao(ctx, s.citizenSnapshotRepo, s.citizenDataFetcher, cpf)
+}
+
+// carregarCadastroCidadao busca os dados pessoais do cidadão e os atualiza no
+// RMI quando estão ausentes ou desatualizados. Falhas só ficam no log e
+// devolvem o que houver (ou nil).
+func carregarCadastroCidadao(ctx context.Context, repo CitizenSnapshotRepoForCandidaturaInterface, fetcher CitizenDataFetcherForCandidaturaInterface, cpf string) *models.CitizenSnapshot {
+	cadastro, err := repo.GetByCPF(ctx, cpf)
 	if err != nil {
-		log.Printf("[BancoCurriculoService] Failed to get citizen snapshot: %v", err)
+		log.Printf("[BancoCurriculos] Failed to get citizen snapshot: %v", err)
 		cadastro = nil
 	}
 
-	if s.citizenDataFetcher == nil {
+	if fetcher == nil {
 		return cadastro
 	}
-	if cadastro != nil && time.Since(cadastro.LastSyncedAt) < s.citizenDataFetcher.StaleThreshold() {
+	if cadastro != nil && time.Since(cadastro.LastSyncedAt) < fetcher.StaleThreshold() {
 		return cadastro
 	}
 
-	atualizado, err := s.citizenDataFetcher.SyncCitizenOnDemand(ctx, cpf)
+	atualizado, err := fetcher.SyncCitizenOnDemand(ctx, cpf)
 	if err != nil {
-		log.Printf("[BancoCurriculoService] On-demand citizen sync failed: %v", err)
+		log.Printf("[BancoCurriculos] On-demand citizen sync failed: %v", err)
 		return cadastro
 	}
 	if atualizado != nil {

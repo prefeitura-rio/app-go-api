@@ -25,6 +25,12 @@ type fakeBancoRepo struct {
 	atualizacao       *time.Time
 	atualizacaoErr    error
 	gotCPFAtualizacao string
+
+	candidaturas      []*empregabilidade.Candidatura
+	candidaturasTotal int64
+	candidaturasErr   error
+	gotHistoricoCPF   string
+	gotHistorico      empregabilidade.BancoCurriculoCandidaturaFilter
 }
 
 func (f *fakeBancoRepo) ListBancoCurriculos(_ context.Context, filter empregabilidade.BancoCurriculoFilter, page, pageSize int) ([]*empregabilidade.BancoCurriculoItem, int64, error) {
@@ -39,6 +45,11 @@ func (f *fakeBancoRepo) GetCurriculoByCPF(_ context.Context, _ string) (*emprega
 func (f *fakeBancoRepo) GetUltimaAtualizacao(_ context.Context, cpf string) (*time.Time, error) {
 	f.gotCPFAtualizacao = cpf
 	return f.atualizacao, f.atualizacaoErr
+}
+
+func (f *fakeBancoRepo) ListCandidaturasByCPF(_ context.Context, cpf string, filter empregabilidade.BancoCurriculoCandidaturaFilter, page, pageSize int) ([]*empregabilidade.Candidatura, int64, error) {
+	f.gotHistoricoCPF, f.gotHistorico, f.gotPage, f.gotSize = cpf, filter, page, pageSize
+	return f.candidaturas, f.candidaturasTotal, f.candidaturasErr
 }
 
 type fakeBancoCurriculoCompleto struct {
@@ -452,4 +463,52 @@ func TestBancoCurriculoService_GetDetalhe_Erros(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, d)
 	})
+}
+
+func TestBancoCurriculoService_ListCandidaturas_MontaHistorico(t *testing.T) {
+	passado := time.Now().Add(-24 * time.Hour)
+	futuro := time.Now().Add(24 * time.Hour)
+	criada := time.Date(2026, 9, 10, 14, 0, 0, 0, time.UTC)
+	repo := &fakeBancoRepo{
+		candidaturas: []*empregabilidade.Candidatura{
+			{
+				Status:    empregabilidade.StatusCandidaturaAprovada,
+				CreatedAt: criada,
+				Vaga:      &empregabilidade.Vaga{Titulo: "Expirada", Status: empregabilidade.StatusVagaPublicadoAtivo, DataLimite: &passado},
+			},
+			{
+				Status: empregabilidade.StatusCandidaturaEnviada,
+				Vaga:   &empregabilidade.Vaga{Titulo: "Aberta", Status: empregabilidade.StatusVagaPublicadoAtivo, DataLimite: &futuro},
+			},
+			{Status: empregabilidade.StatusCandidaturaReprovada},
+		},
+		candidaturasTotal: 13,
+	}
+	svc := services.NewBancoCurriculoService(repo, &fakeBancoCurriculoCompleto{}, &fakeBancoSnapshotRepo{})
+
+	historico, total, err := svc.ListCandidaturas(context.Background(), bancoCPF, empregabilidade.BancoCurriculoCandidaturaFilter{Search: "aux"}, 2, 10)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(13), total)
+	assert.Equal(t, bancoCPF, repo.gotHistoricoCPF)
+	assert.Equal(t, "aux", repo.gotHistorico.Search)
+	assert.Equal(t, 2, repo.gotPage)
+	assert.Equal(t, 10, repo.gotSize)
+	require.Len(t, historico, 3)
+
+	assert.Equal(t, empregabilidade.StatusCandidaturaAprovada, historico[0].Status)
+	assert.True(t, criada.Equal(historico[0].DataCandidatura))
+	assert.Equal(t, empregabilidade.StatusVagaPublicadoExpirado, historico[0].Vaga.Status, "vaga vencida sai como expirada")
+	assert.Equal(t, empregabilidade.StatusVagaPublicadoAtivo, historico[1].Vaga.Status)
+	assert.Nil(t, historico[2].Vaga, "candidatura sem vaga carregada não quebra")
+}
+
+func TestBancoCurriculoService_ListCandidaturas_Erro(t *testing.T) {
+	repo := &fakeBancoRepo{candidaturasErr: errors.New("db")}
+	svc := services.NewBancoCurriculoService(repo, &fakeBancoCurriculoCompleto{}, &fakeBancoSnapshotRepo{})
+
+	historico, _, err := svc.ListCandidaturas(context.Background(), bancoCPF, empregabilidade.BancoCurriculoCandidaturaFilter{}, 1, 10)
+
+	require.Error(t, err)
+	assert.Nil(t, historico)
 }

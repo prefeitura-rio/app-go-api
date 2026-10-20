@@ -352,3 +352,26 @@ func TestCandidaturaService_SetEmailNotifier(t *testing.T) {
 		}
 	})
 }
+
+// A associação pelo banco de currículos cria a candidatura sem o e-mail de
+// "candidatura enviada": a pessoa não se candidatou.
+func TestCandidaturaService_CreateSemNotificacao(t *testing.T) {
+	vagaID := uuid.New()
+	vagaRepo := NewMockVagaRepo()
+	vagaRepo.vagas[vagaID] = &empregabilidade.Vaga{ID: vagaID, Status: empregabilidade.StatusVagaPublicadoAtivo}
+	repo := NewMockCandidaturaRepo()
+	svc := newSvcWithDisabledEmail(repo, vagaRepo)
+	mock := newMockEmpEmailNotifier()
+	svc.SetEmailNotifier(mock)
+
+	id, err := svc.CreateSemNotificacao(context.Background(), &empregabilidade.Candidatura{CPF: "33333333333", IDVaga: vagaID})
+	if err != nil {
+		t.Fatalf("CreateSemNotificacao failed: %v", err)
+	}
+	if id == uuid.Nil {
+		t.Fatal("expected candidatura to be created")
+	}
+	if mock.waitForCall("candidatura.enviada", 200*time.Millisecond) {
+		t.Error("CreateSemNotificacao must not send the candidatura enviada email")
+	}
+}

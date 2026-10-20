@@ -2045,6 +2045,87 @@ const docTemplate = `{
                         "description": "Busca parcial por nome, nome social ou CPF",
                         "name": "search",
                         "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "Gêneros autodeclarados (repetível ou separado por vírgula)",
+                        "name": "genero",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Idade mínima",
+                        "name": "idade_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Idade máxima",
+                        "name": "idade_max",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "sem_experiencia",
+                            "ate_2_anos",
+                            "2_a_4_anos",
+                            "4_a_6_anos",
+                            "6_a_8_anos",
+                            "8_a_10_anos",
+                            "mais_de_10_anos"
+                        ],
+                        "type": "string",
+                        "description": "Soma das experiências",
+                        "name": "tempo_experiencia",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "sim",
+                            "6_meses"
+                        ],
+                        "type": "string",
+                        "description": "Experiência comprovada em carteira",
+                        "name": "experiencia_carteira",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Escolaridade do cadastro (exata)",
+                        "name": "escolaridade",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Idioma do currículo",
+                        "name": "id_idioma",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Nível mínimo do idioma (exige id_idioma)",
+                        "name": "id_nivel_idioma",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bairro do cadastro",
+                        "name": "bairro",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "sim",
+                            "nao"
+                        ],
+                        "type": "string",
+                        "description": "Pessoa com deficiência",
+                        "name": "pcd",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2052,6 +2133,15 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/empregabilidade.BancoCurriculoListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
@@ -2121,6 +2211,163 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/banco-curriculos/{cpf}/associacoes": {
+            "post": {
+                "description": "Associa o candidato do banco de currículos a uma ou mais vagas, criando a candidatura em cada uma. Valem as regras da candidatura do app: currículo mínimo e termos aceitos (422 quando faltam), vaga recebendo candidaturas e requisitos da vaga. O resultado vem por vaga. Exige acesso ao banco de currículos (admin ou go:curriculos:*) e, fora os admins totais, go:empregabilidade:admin ou editor de empregabilidade; editores só associam a vagas da própria secretaria. O candidato não recebe o e-mail de candidatura enviada.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-banco-curriculos"
+                ],
+                "summary": "Associar candidato a vagas",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do cidadão, com ou sem máscara",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Vagas a associar (até 50)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.AssociarVagasRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.AssociarVagasResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.AssociacaoRecusadaResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/banco-curriculos/{cpf}/candidaturas": {
+            "get": {
+                "description": "Lista as vagas a que o cidadão se candidatou ou foi associado, da candidatura mais recente para a mais antiga. O status da vaga considera a data limite. Exige admin ou role go:curriculos:admin / go:curriculos:editor.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-banco-curriculos"
+                ],
+                "summary": "Histórico de candidaturas do currículo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do cidadão, com ou sem máscara",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10, máximo: 100)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Busca parcial pelo título da vaga",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.BancoCurriculoCandidaturaListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2307,6 +2554,87 @@ const docTemplate = `{
                         "description": "Filtrar por ID da etapa atual",
                         "name": "etapa_id",
                         "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "Gêneros autodeclarados (repetível ou separado por vírgula)",
+                        "name": "genero",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Idade mínima",
+                        "name": "idade_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Idade máxima",
+                        "name": "idade_max",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "sem_experiencia",
+                            "ate_2_anos",
+                            "2_a_4_anos",
+                            "4_a_6_anos",
+                            "6_a_8_anos",
+                            "8_a_10_anos",
+                            "mais_de_10_anos"
+                        ],
+                        "type": "string",
+                        "description": "Soma das experiências",
+                        "name": "tempo_experiencia",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "sim",
+                            "6_meses"
+                        ],
+                        "type": "string",
+                        "description": "Experiência comprovada em carteira",
+                        "name": "experiencia_carteira",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Escolaridade do cadastro (exata)",
+                        "name": "escolaridade",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Idioma do currículo",
+                        "name": "id_idioma",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Nível mínimo do idioma (exige id_idioma)",
+                        "name": "id_nivel_idioma",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bairro do cadastro",
+                        "name": "bairro",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "sim",
+                            "nao"
+                        ],
+                        "type": "string",
+                        "description": "Pessoa com deficiência",
+                        "name": "pcd",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2315,6 +2643,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
@@ -12584,6 +12921,121 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.AssociacaoRecusadaResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "pendencias": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "empregabilidade.AssociacaoVaga": {
+            "type": "object",
+            "properties": {
+                "id_candidatura": {
+                    "type": "string"
+                },
+                "id_vaga": {
+                    "type": "string"
+                },
+                "motivos": {
+                    "description": "Motivos explica por que a associação não aconteceu (requisitos não\natendidos, vaga indisponível etc.).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "resultado": {
+                    "$ref": "#/definitions/empregabilidade.ResultadoAssociacao"
+                },
+                "titulo": {
+                    "type": "string"
+                }
+            }
+        },
+        "empregabilidade.AssociarVagasRequest": {
+            "type": "object",
+            "required": [
+                "ids_vagas"
+            ],
+            "properties": {
+                "ids_vagas": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "empregabilidade.AssociarVagasResponse": {
+            "type": "object",
+            "properties": {
+                "resultados": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.AssociacaoVaga"
+                    }
+                }
+            }
+        },
+        "empregabilidade.BancoCurriculoCandidatura": {
+            "type": "object",
+            "properties": {
+                "data_candidatura": {
+                    "description": "DataCandidatura é quando a candidatura foi criada.",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "origem": {
+                    "description": "Origem é por onde a candidatura entrou; nula nas candidaturas antigas.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.OrigemCandidatura"
+                        }
+                    ]
+                },
+                "status": {
+                    "description": "Status é a situação do candidato na vaga.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.StatusCandidatura"
+                        }
+                    ]
+                },
+                "vaga": {
+                    "description": "Vaga traz o status já considerando a data limite (publicado_expirado).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.Vaga"
+                        }
+                    ]
+                }
+            }
+        },
+        "empregabilidade.BancoCurriculoCandidaturaListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.BancoCurriculoCandidatura"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/empregabilidade.BancoCurriculoListMeta"
+                }
+            }
+        },
         "empregabilidade.BancoCurriculoDetalhe": {
             "type": "object",
             "properties": {
@@ -12725,6 +13177,9 @@ const docTemplate = `{
         "empregabilidade.Candidatura": {
             "type": "object",
             "properties": {
+                "associado_por_cpf": {
+                    "type": "string"
+                },
                 "cpf": {
                     "type": "string"
                 },
@@ -12755,6 +13210,14 @@ const docTemplate = `{
                 },
                 "nome": {
                     "type": "string"
+                },
+                "origem": {
+                    "description": "Origem e AssociadoPorCPF são definidos pela API, nunca pelo corpo da requisição.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.OrigemCandidatura"
+                        }
+                    ]
                 },
                 "personal_info": {
                     "description": "Computed field (not stored in DB) - populated from CitizenSnapshot",
@@ -13456,6 +13919,19 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.OrigemCandidatura": {
+            "type": "string",
+            "enum": [
+                "portal_cidadao",
+                "secretaria",
+                "banco_curriculos"
+            ],
+            "x-enum-varnames": [
+                "OrigemCandidaturaPortalCidadao",
+                "OrigemCandidaturaSecretaria",
+                "OrigemCandidaturaBancoCurriculos"
+            ]
+        },
         "empregabilidade.RegimeContratacao": {
             "type": "object",
             "properties": {
@@ -13505,6 +13981,25 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "empregabilidade.ResultadoAssociacao": {
+            "type": "string",
+            "enum": [
+                "associado",
+                "ja_participa",
+                "vaga_indisponivel",
+                "fora_do_escopo",
+                "nao_elegivel",
+                "erro"
+            ],
+            "x-enum-varnames": [
+                "AssociacaoRealizada",
+                "AssociacaoJaParticipa",
+                "AssociacaoVagaIndisponivel",
+                "AssociacaoForaDoEscopo",
+                "AssociacaoNaoElegivel",
+                "AssociacaoErro"
+            ]
         },
         "empregabilidade.SituacaoAtual": {
             "type": "object",
@@ -14520,6 +15015,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Centro"
                 },
+                "origem_inscricao": {
+                    "$ref": "#/definitions/models.OrigemInscricao"
+                },
                 "personal_info": {
                     "description": "Computed field (not stored in DB) - populated from CitizenSnapshot",
                     "allOf": [
@@ -14944,6 +15442,17 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "models.OrigemInscricao": {
+            "type": "string",
+            "enum": [
+                "portal_cidadao",
+                "secretaria"
+            ],
+            "x-enum-varnames": [
+                "OrigemInscricaoPortalCidadao",
+                "OrigemInscricaoSecretaria"
+            ]
         },
         "models.PropostaMEI": {
             "type": "object",

@@ -67,9 +67,15 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// A origem é sempre decidida aqui, nunca pelo corpo da requisição.
+	entity.AssociadoPorCPF = nil
 	if (middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:empregabilidade:admin")) && entity.CPF != "" {
 		// Admin criando candidatura para outro usuário — usa CPF do body, sem sobrescrever nome/email
+		origem := empregabilidade.OrigemCandidaturaSecretaria
+		entity.Origem = &origem
 	} else {
+		origem := empregabilidade.OrigemCandidaturaPortalCidadao
+		entity.Origem = &origem
 		cpf := middlewares.GetUserCPF(c)
 		if cpf == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "CPF não encontrado no token de autenticação"})
@@ -105,7 +111,18 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 // @Param        status    query     string  false  "Filtrar por status"
 // @Param        search    query     string  false  "Busca parcial por CPF, nome ou email"
 // @Param        etapa_id  query     string  false  "Filtrar por ID da etapa atual"
+// @Param        genero               query  []string  false  "Gêneros autodeclarados (repetível ou separado por vírgula)"  collectionFormat(multi)
+// @Param        idade_min            query  int       false  "Idade mínima"
+// @Param        idade_max            query  int       false  "Idade máxima"
+// @Param        tempo_experiencia    query  string    false  "Soma das experiências"  Enums(sem_experiencia, ate_2_anos, 2_a_4_anos, 4_a_6_anos, 6_a_8_anos, 8_a_10_anos, mais_de_10_anos)
+// @Param        experiencia_carteira query  string    false  "Experiência comprovada em carteira"  Enums(sim, 6_meses)
+// @Param        escolaridade         query  string    false  "Escolaridade do cadastro (exata)"
+// @Param        id_idioma            query  string    false  "Idioma do currículo"
+// @Param        id_nivel_idioma      query  string    false  "Nível mínimo do idioma (exige id_idioma)"
+// @Param        bairro               query  string    false  "Bairro do cadastro"
+// @Param        pcd                  query  string    false  "Pessoa com deficiência"  Enums(sim, nao)
 // @Success      200       {object}  map[string]interface{}
+// @Failure      400       {object}  map[string]string
 // @Failure      403       {object}  map[string]string
 // @Failure      500       {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas [get]
@@ -120,10 +137,17 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 		pageSize = 10
 	}
 
+	candidato, err := lerFiltroCandidato(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	filter := empregabilidade.CandidaturaFilter{
-		Status: c.Query("status"),
-		CPF:    c.Query("cpf"),
-		Search: c.Query("search"),
+		Status:    c.Query("status"),
+		CPF:       c.Query("cpf"),
+		Search:    c.Query("search"),
+		Candidato: candidato,
 	}
 
 	if raw := c.Query("vagaId"); raw != "" {

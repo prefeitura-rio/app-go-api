@@ -120,6 +120,9 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	bancoCurriculos := emp.Group("/banco-curriculos", middlewares.BancoCurriculosAuthorization())
 	bancoCurriculos.GET("", app.EmpBancoCurriculoHandler.List)
 	bancoCurriculos.GET("/:cpf", app.EmpBancoCurriculoHandler.GetByCPF)
+	bancoCurriculos.GET("/:cpf/candidaturas", app.EmpBancoCurriculoHandler.ListCandidaturas)
+	// Associar exige, além do acesso ao banco (grupo), um perfil de empregabilidade.
+	bancoCurriculos.POST("/:cpf/associacoes", middlewares.BancoCurriculosAssociacaoAuthorization(), app.EmpAssociacaoCandidatoHandler.Associar)
 
 	// Onboarding
 	empOnboarding := emp.Group("/onboarding")

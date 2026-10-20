@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -461,4 +462,143 @@ func comandosDaMigration(t *testing.T, arquivo string) []string {
 	}
 	require.NotEmpty(t, comandos)
 	return comandos
+}
+
+func TestBancoCurriculosIntegration_HistoricoDeCandidaturas(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	ctx := context.Background()
+	repo := emprepo.NewCurriculoRepository(tx)
+
+	const (
+		cpfCandidato = "98765432100"
+		cpfOutro     = "12345678909"
+	)
+
+	var regime empregabilidade.RegimeContratacao
+	require.NoError(t, tx.First(&regime).Error)
+	var modelo empregabilidade.ModeloTrabalho
+	require.NoError(t, tx.First(&modelo).Error)
+	empresa := &empregabilidade.Empresa{CNPJ: "11222333000181", NomeFantasia: "SMPD Integração"}
+	require.NoError(t, tx.Create(empresa).Error)
+
+	novaVaga := func(titulo string) *empregabilidade.Vaga {
+		t.Helper()
+		vaga := &empregabilidade.Vaga{
+			Titulo:              titulo,
+			Descricao:           "Descrição da vaga",
+			IDContratante:       empresa.CNPJ,
+			IDRegimeContratacao: regime.ID,
+			IDModeloTrabalho:    modelo.ID,
+			Status:              empregabilidade.StatusVagaPublicadoAtivo,
+		}
+		require.NoError(t, tx.Create(vaga).Error)
+		return vaga
+	}
+	novaCandidatura := func(cpf string, vaga *empregabilidade.Vaga, criada time.Time) *empregabilidade.Candidatura {
+		t.Helper()
+		candidatura := &empregabilidade.Candidatura{
+			CPF:       cpf,
+			IDVaga:    vaga.ID,
+			Status:    empregabilidade.StatusCandidaturaEnviada,
+			CreatedAt: criada,
+		}
+		require.NoError(t, tx.Create(candidatura).Error)
+		return candidatura
+	}
+
+	base := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
+	escritorio := novaVaga("Auxiliar de escritório Integração")
+	administracao := novaVaga("Auxiliar de administração Integração")
+	excluida := novaVaga("Recepcionista Integração")
+	cancelada := novaVaga("Motorista Integração")
+
+	maisAntiga := novaCandidatura(cpfCandidato, escritorio, base)
+	origem := empregabilidade.OrigemCandidaturaBancoCurriculos
+	operador := "22222222222"
+	require.NoError(t, tx.Model(maisAntiga).Updates(map[string]interface{}{"origem": origem, "associado_por_cpf": operador}).Error)
+	// O backoffice grava o CPF como veio na requisição, às vezes com máscara.
+	comMascara := novaCandidatura("987.654.321-00", administracao, base.Add(time.Hour))
+	daVagaExcluida := novaCandidatura(cpfCandidato, excluida, base.Add(2*time.Hour))
+	desfeita := novaCandidatura(cpfCandidato, cancelada, base.Add(3*time.Hour))
+	novaCandidatura(cpfOutro, escritorio, base.Add(4*time.Hour))
+
+	require.NoError(t, tx.Delete(excluida).Error)
+	require.NoError(t, tx.Delete(desfeita).Error)
+
+	t.Run("lista as candidaturas do CPF, da mais recente para a mais antiga", func(t *testing.T) {
+		historico, total, err := repo.ListCandidaturasByCPF(ctx, cpfCandidato, empregabilidade.BancoCurriculoCandidaturaFilter{}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(3), total, "ignora a candidatura excluída e a de outro CPF")
+		require.Len(t, historico, 3)
+		assert.Equal(t, daVagaExcluida.ID, historico[0].ID)
+		assert.Equal(t, comMascara.ID, historico[1].ID)
+		assert.Equal(t, maisAntiga.ID, historico[2].ID)
+	})
+
+	t.Run("carrega a vaga com contratante, regime e modelo, mesmo excluída", func(t *testing.T) {
+		historico, _, err := repo.ListCandidaturasByCPF(ctx, cpfCandidato, empregabilidade.BancoCurriculoCandidaturaFilter{}, 1, 10)
+		require.NoError(t, err)
+		require.Len(t, historico, 3)
+
+		require.NotNil(t, historico[0].Vaga)
+		assert.Equal(t, "Recepcionista Integração", historico[0].Vaga.Titulo)
+
+		vaga := historico[2].Vaga
+		require.NotNil(t, vaga)
+		assert.Equal(t, escritorio.ID, vaga.ID)
+		require.NotNil(t, vaga.Contratante)
+		assert.Equal(t, "SMPD Integração", vaga.Contratante.NomeFantasia)
+		require.NotNil(t, vaga.RegimeContratacao)
+		assert.Equal(t, regime.Descricao, vaga.RegimeContratacao.Descricao)
+		require.NotNil(t, vaga.ModeloTrabalho)
+		assert.Equal(t, modelo.Descricao, vaga.ModeloTrabalho.Descricao)
+		assert.Nil(t, historico[2].CurriculoSnapshot, "o snapshot do currículo não entra no histórico")
+	})
+
+	t.Run("traz a origem da candidatura", func(t *testing.T) {
+		historico, _, err := repo.ListCandidaturasByCPF(ctx, cpfCandidato, empregabilidade.BancoCurriculoCandidaturaFilter{}, 1, 10)
+		require.NoError(t, err)
+		require.Len(t, historico, 3)
+		require.NotNil(t, historico[2].Origem)
+		assert.Equal(t, empregabilidade.OrigemCandidaturaBancoCurriculos, *historico[2].Origem)
+		assert.Nil(t, historico[1].Origem, "candidatura antiga fica sem origem")
+	})
+
+	t.Run("diz em quais vagas o CPF já participa, com ou sem máscara e sem as excluídas", func(t *testing.T) {
+		outraVaga := novaVaga("Vaga sem candidatura Integração")
+		participa, err := repo.VagasComCandidatura(ctx, cpfCandidato, []uuid.UUID{escritorio.ID, administracao.ID, cancelada.ID, outraVaga.ID})
+		require.NoError(t, err)
+		assert.True(t, participa[escritorio.ID])
+		assert.True(t, participa[administracao.ID], "candidatura gravada com máscara")
+		assert.False(t, participa[cancelada.ID], "candidatura excluída não conta")
+		assert.False(t, participa[outraVaga.ID])
+
+		vazio, err := repo.VagasComCandidatura(ctx, cpfCandidato, nil)
+		require.NoError(t, err)
+		assert.Empty(t, vazio)
+	})
+
+	t.Run("busca pelo título da vaga ignorando acento", func(t *testing.T) {
+		historico, total, err := repo.ListCandidaturasByCPF(ctx, cpfCandidato, empregabilidade.BancoCurriculoCandidaturaFilter{Search: "escritorio integracao"}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, historico, 1)
+		assert.Equal(t, maisAntiga.ID, historico[0].ID)
+	})
+
+	t.Run("pagina", func(t *testing.T) {
+		historico, total, err := repo.ListCandidaturasByCPF(ctx, cpfCandidato, empregabilidade.BancoCurriculoCandidaturaFilter{}, 2, 2)
+		require.NoError(t, err)
+		assert.Equal(t, int64(3), total)
+		require.Len(t, historico, 1)
+		assert.Equal(t, maisAntiga.ID, historico[0].ID)
+	})
+
+	t.Run("CPF sem candidatura devolve lista vazia", func(t *testing.T) {
+		historico, total, err := repo.ListCandidaturasByCPF(ctx, "11111111111", empregabilidade.BancoCurriculoCandidaturaFilter{}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), total)
+		assert.NotNil(t, historico)
+		assert.Empty(t, historico)
+	})
 }

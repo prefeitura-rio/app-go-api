@@ -80,6 +80,12 @@ func ProvideEmpBancoCurriculoHandler(service *empServices.BancoCurriculoService)
 	return empHandlers.NewBancoCurriculoHandler(service)
 }
 
+// ProvideEmpAssociacaoCandidatoHandler creates the handler that associates
+// candidates from the banco de currículos to vagas.
+func ProvideEmpAssociacaoCandidatoHandler(service *empServices.AssociacaoCandidatoService) *empHandlers.AssociacaoCandidatoHandler {
+	return empHandlers.NewAssociacaoCandidatoHandler(service)
+}
+
 // ProvideEmpOnboardingHandler creates empregabilidade OnboardingHandler
 func ProvideEmpOnboardingHandler(service *empServices.OnboardingService) *empHandlers.OnboardingHandler {
 	return empHandlers.NewOnboardingHandler(service)
