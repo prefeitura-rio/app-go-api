@@ -110,6 +110,7 @@ type ApplicationContainer struct {
 	EmpZonaService                *empServices.ZonaService
 	EmpCandidaturaBloqueioService *empServices.CandidaturaBloqueioService
 	EmpBancoCurriculoService      *empServices.BancoCurriculoService
+	EmpAssociacaoCandidatoService *empServices.AssociacaoCandidatoService
 	EmpCNPJConsultaService        *empServices.CNPJConsultaService
 
 	// Core Handlers
@@ -148,6 +149,7 @@ type ApplicationContainer struct {
 	EmpZonaHandler                  *empHandlers.ZonaHandler
 	EmpCandidaturaBloqueioHandler   *empHandlers.CandidaturaBloqueioHandler
 	EmpBancoCurriculoHandler        *empHandlers.BancoCurriculoHandler
+	EmpAssociacaoCandidatoHandler   *empHandlers.AssociacaoCandidatoHandler
 }
 
 // CategoriaContainer holds wired components for Categorias proof-of-concept
@@ -258,6 +260,7 @@ var EmpServiceSet = wire.NewSet(
 	providers.ProvideEmpHabilidadeService,
 	providers.ProvideEmpComportamentoAtitudesService,
 	providers.ProvideEmpBancoCurriculoService,
+	providers.ProvideEmpAssociacaoCandidatoService,
 )
 
 var CoreHandlerSet = wire.NewSet(
@@ -297,6 +300,7 @@ var EmpHandlerSet = wire.NewSet(
 	providers.ProvideEmpZonaHandler,
 	providers.ProvideEmpCandidaturaBloqueioHandler,
 	providers.ProvideEmpBancoCurriculoHandler,
+	providers.ProvideEmpAssociacaoCandidatoHandler,
 )
 
 // Legacy set kept for backward compatibility with the Categorias POC

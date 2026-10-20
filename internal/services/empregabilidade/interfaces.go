@@ -226,6 +226,7 @@ type BancoCurriculoRepositoryInterface interface {
 	ListBancoCurriculos(ctx context.Context, filter empregabilidade.BancoCurriculoFilter, page, pageSize int) ([]*empregabilidade.BancoCurriculoItem, int64, error)
 	GetCurriculoByCPF(ctx context.Context, cpf string) (*empregabilidade.Curriculo, error)
 	GetUltimaAtualizacao(ctx context.Context, cpf string) (*time.Time, error)
+	ListCandidaturasByCPF(ctx context.Context, cpf string, filter empregabilidade.BancoCurriculoCandidaturaFilter, page, pageSize int) ([]*empregabilidade.Candidatura, int64, error)
 }
 
 // CurriculoCompletoGetterInterface is satisfied by CurriculoService.

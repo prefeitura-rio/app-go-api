@@ -88,6 +88,25 @@ func ProvideEmpBancoCurriculoService(
 	return empServices.NewBancoCurriculoService(curriculoRepo, curriculoService, citizenSnapshotRepo)
 }
 
+// ProvideEmpAssociacaoCandidatoService creates the service that associates
+// candidates from the banco de currículos to vagas.
+func ProvideEmpAssociacaoCandidatoService(
+	curriculoRepo *empRepository.CurriculoRepository,
+	curriculoService *empServices.CurriculoService,
+	termosUsoService *empServices.TermosUsoService,
+	vagaRepo *empRepository.VagaRepository,
+	candidaturaService *empServices.CandidaturaService,
+	escolaridadeService *empServices.EscolaridadeService,
+	idiomaService *empServices.IdiomaService,
+	nivelIdiomaService *empServices.NivelIdiomaService,
+	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
+) *empServices.AssociacaoCandidatoService {
+	return empServices.NewAssociacaoCandidatoService(
+		curriculoRepo, curriculoService, curriculoRepo, termosUsoService, vagaRepo,
+		candidaturaService, escolaridadeService, idiomaService, nivelIdiomaService, citizenSnapshotRepo,
+	)
+}
+
 // ProvideEmpCandidaturaService creates empregabilidade CandidaturaService.
 // citizenSnapshotRepo and citizenDataFetcher are passed from the core domain.
 // citizenDataFetcher may be nil when citizen sync is disabled.

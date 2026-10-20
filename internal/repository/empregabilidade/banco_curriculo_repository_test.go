@@ -395,3 +395,74 @@ func TestCurriculoRepository_GetUltimaAtualizacao(t *testing.T) {
 		assert.Contains(t, err.Error(), "erro ao buscar última atualização do currículo")
 	})
 }
+
+// O histórico completo, com as vagas, é coberto pelo teste de integração; aqui
+// ficam a busca pelos dois formatos de CPF e os atalhos sem banco de verdade.
+func TestCurriculoRepository_ListCandidaturasByCPF(t *testing.T) {
+	ctx := context.Background()
+	countSQL := regexp.QuoteMeta(`SELECT count(*) FROM "emp_candidaturas" WHERE emp_candidaturas.cpf IN ($1,$2) AND "emp_candidaturas"."deleted_at" IS NULL`)
+
+	t.Run("sem candidatura não busca as vagas", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		mock.ExpectQuery(countSQL).
+			WithArgs("11111111111", "111.111.111-11").
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+		historico, total, err := repo.ListCandidaturasByCPF(ctx, "11111111111", empregabilidade.BancoCurriculoCandidaturaFilter{}, 1, 10)
+
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), total)
+		assert.NotNil(t, historico)
+		assert.Empty(t, historico)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("busca pelo título da vaga", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		mock.ExpectQuery(`JOIN emp_vagas v ON v\.id = emp_candidaturas\.id_vaga WHERE emp_candidaturas\.cpf IN \(\$1,\$2\) AND unaccent\(v\.titulo\) ILIKE unaccent\(\$3\)`).
+			WithArgs("11111111111", "111.111.111-11", `%100\%%`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+		_, _, err := repo.ListCandidaturasByCPF(ctx, "11111111111", empregabilidade.BancoCurriculoCandidaturaFilter{Search: " 100% "}, 1, 10)
+
+		require.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("erro ao contar", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		mock.ExpectQuery(countSQL).WillReturnError(sql.ErrConnDone)
+
+		historico, _, err := repo.ListCandidaturasByCPF(ctx, "11111111111", empregabilidade.BancoCurriculoCandidaturaFilter{}, 1, 10)
+
+		require.Error(t, err)
+		assert.Nil(t, historico)
+		assert.Contains(t, err.Error(), "erro ao contar candidaturas")
+	})
+
+	t.Run("erro ao listar", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		mock.ExpectQuery(countSQL).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+		mock.ExpectQuery(`ORDER BY emp_candidaturas\.created_at DESC, emp_candidaturas\.id ASC LIMIT \$3 OFFSET \$4`).
+			WithArgs("11111111111", "111.111.111-11", 10, 10).
+			WillReturnError(sql.ErrConnDone)
+
+		historico, _, err := repo.ListCandidaturasByCPF(ctx, "11111111111", empregabilidade.BancoCurriculoCandidaturaFilter{}, 2, 10)
+
+		require.Error(t, err)
+		assert.Nil(t, historico)
+		assert.Contains(t, err.Error(), "erro ao listar candidaturas")
+	})
+}

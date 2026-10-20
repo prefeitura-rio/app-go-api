@@ -89,6 +89,9 @@ func (r *CandidaturaRepository) List(ctx context.Context, filter empregabilidade
 			searchTerm := fmt.Sprintf("%%%s%%", filter.Search)
 			db = db.Where("cpf ILIKE ? OR nome ILIKE ? OR email ILIKE ?", searchTerm, searchTerm, searchTerm)
 		}
+		if condicao, args := condicaoFiltroCandidato(filter.Candidato, cpfDigitosCandidatura); condicao != "" {
+			db = db.Where(condicao, args...)
+		}
 		return db
 	}
 
@@ -250,6 +253,9 @@ func (r *CandidaturaRepository) CountByStatus(ctx context.Context, filter empreg
 	if filter.Search != "" {
 		searchTerm := fmt.Sprintf("%%%s%%", filter.Search)
 		db = db.Where("cpf ILIKE ? OR nome ILIKE ? OR email ILIKE ?", searchTerm, searchTerm, searchTerm)
+	}
+	if condicao, args := condicaoFiltroCandidato(filter.Candidato, cpfDigitosCandidatura); condicao != "" {
+		db = db.Where(condicao, args...)
 	}
 	// Status filter is intentionally ignored to count all statuses
 

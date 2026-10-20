@@ -132,6 +132,18 @@ func (s *CandidaturaService) SetEmailNotifier(notifier services.EmailNotifier) {
 }
 
 func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade.Candidatura) (uuid.UUID, error) {
+	return s.criar(ctx, entity, true)
+}
+
+// CreateSemNotificacao registra a candidatura sem enviar o e-mail de
+// "candidatura enviada". É o caminho da associação feita pelo banco de
+// currículos: a pessoa não se candidatou, e o aviso próprio da associação
+// ainda vai ser criado.
+func (s *CandidaturaService) CreateSemNotificacao(ctx context.Context, entity *empregabilidade.Candidatura) (uuid.UUID, error) {
+	return s.criar(ctx, entity, false)
+}
+
+func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.Candidatura, notificar bool) (uuid.UUID, error) {
 	vaga, err := s.vagaRepo.GetByID(ctx, entity.IDVaga)
 	if err != nil {
 		return uuid.Nil, err
@@ -185,6 +197,10 @@ func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade
 	// email — SendCandidaturaEnviadaEmail reads candidatura.Vaga for company/órgão.
 	entity.ID = id
 	entity.Vaga = vaga
+
+	if !notificar {
+		return id, nil
+	}
 
 	candidaturaForEmail := *entity
 	go func() {
