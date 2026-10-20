@@ -788,8 +788,8 @@ func TestVagaService_Update_Success(t *testing.T) {
 	})
 }
 
-func TestVagaService_Update_PreservesOrgaoParceiro(t *testing.T) {
-	t.Run("Update ignora reatribuição de órgão via body", func(t *testing.T) {
+func TestVagaService_Update_PersistsOrgaoParceiroWhenProvided(t *testing.T) {
+	t.Run("Update persiste id_orgao_parceiro do body quando preenchido", func(t *testing.T) {
 		mockVagaRepo := NewMockVagaRepoForService()
 		mockEmpresaRepo := NewMockEmpresaRepoForService()
 		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
@@ -799,22 +799,51 @@ func TestVagaService_Update_PreservesOrgaoParceiro(t *testing.T) {
 			ID:              vagaID,
 			Titulo:          "Desenvolvedor Go",
 			Status:          empregabilidade.StatusVagaEmEdicao,
-			IDOrgaoParceiro: "orgao-original",
+			IDOrgaoParceiro: "1000",
 		}
 
-		// Um editor tenta mover a vaga para outro órgão pelo corpo do PUT.
 		updated := &empregabilidade.Vaga{
 			ID:              vagaID,
 			Titulo:          "Desenvolvedor Go Senior",
-			IDOrgaoParceiro: "orgao-invasor",
+			IDOrgaoParceiro: "5000",
 		}
 
 		if err := service.Update(context.Background(), updated); err != nil {
 			t.Fatalf("Expected successful update, got error: %v", err)
 		}
 
-		if got := mockVagaRepo.vagas[vagaID].IDOrgaoParceiro; got != "orgao-original" {
-			t.Errorf("Expected orgao parceiro preserved as orgao-original, got %s", got)
+		if got := mockVagaRepo.vagas[vagaID].IDOrgaoParceiro; got != "5000" {
+			t.Errorf("Expected orgao parceiro persisted as 5000, got %s", got)
+		}
+	})
+}
+
+func TestVagaService_Update_PreservesOrgaoParceiroWhenEmpty(t *testing.T) {
+	t.Run("Update preserva id_orgao_parceiro quando body vem vazio", func(t *testing.T) {
+		mockVagaRepo := NewMockVagaRepoForService()
+		mockEmpresaRepo := NewMockEmpresaRepoForService()
+		service := services.NewVagaServiceWithInterfaces(mockVagaRepo, mockEmpresaRepo, nil)
+
+		vagaID := uuid.New()
+		mockVagaRepo.vagas[vagaID] = &empregabilidade.Vaga{
+			ID:              vagaID,
+			Titulo:          "Desenvolvedor Go",
+			Status:          empregabilidade.StatusVagaEmEdicao,
+			IDOrgaoParceiro: "1000",
+		}
+
+		updated := &empregabilidade.Vaga{
+			ID:     vagaID,
+			Titulo: "Desenvolvedor Go Senior",
+			// IDOrgaoParceiro omitido / vazio
+		}
+
+		if err := service.Update(context.Background(), updated); err != nil {
+			t.Fatalf("Expected successful update, got error: %v", err)
+		}
+
+		if got := mockVagaRepo.vagas[vagaID].IDOrgaoParceiro; got != "1000" {
+			t.Errorf("Expected orgao parceiro preserved as 1000, got %s", got)
 		}
 	})
 }

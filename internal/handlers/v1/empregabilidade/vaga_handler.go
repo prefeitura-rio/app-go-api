@@ -235,6 +235,7 @@ func (h *VagaHandler) GetByID(c *gin.Context) {
 // @Param        request  body      empregabilidade.Vaga  true  "Dados da vaga"
 // @Success      200      {object}  empregabilidade.Vaga
 // @Failure      400      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas/{id} [put]
 func (h *VagaHandler) Update(c *gin.Context) {
@@ -270,6 +271,16 @@ func (h *VagaHandler) Update(c *gin.Context) {
 	if err := c.ShouldBindJSON(&entity); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Mesma lista do Create (VagaOrgaoInjector): admin / emp:admin sem restrição;
+	// editor só nas secretarias/cd_ua dele. Campo vazio não troca o órgão.
+	if entity.IDOrgaoParceiro != "" {
+		allowedOrgaos := middlewares.GetVagaAllowedOrgaos(c)
+		if allowedOrgaos != nil && !containsString(allowedOrgaos, entity.IDOrgaoParceiro) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Você não tem permissão para atribuir esta vaga a este órgão parceiro"})
+			return
+		}
 	}
 
 	entity.ID = id

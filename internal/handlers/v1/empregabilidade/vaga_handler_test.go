@@ -45,8 +45,15 @@ func (m *mockVagaRepoH) Update(_ context.Context, _ *empmodels.Vaga) error {
 	return m.err
 }
 
-func (m *mockVagaRepoH) UpdateWithAssociations(_ context.Context, _ *empmodels.Vaga) error {
-	return m.err
+func (m *mockVagaRepoH) UpdateWithAssociations(_ context.Context, entity *empmodels.Vaga) error {
+	if m.err != nil {
+		return m.err
+	}
+	if m.entity != nil && entity != nil {
+		m.entity.Titulo = entity.Titulo
+		m.entity.IDOrgaoParceiro = entity.IDOrgaoParceiro
+	}
+	return nil
 }
 
 func (m *mockVagaRepoH) Delete(_ context.Context, _ uuid.UUID) error {
@@ -1844,6 +1851,7 @@ func setupVagaRouterWithAllowedOrgaos(vagaRepo services.VagaRepoInterface, empre
 	svc := services.NewVagaServiceWithInterfaces(vagaRepo, empresaRepo, candidaturaRepo)
 	h := handlers.NewVagaHandler(svc)
 	r.POST("/vagas", h.Create)
+	r.PUT("/vagas/:id", h.Update)
 	return r
 }
 
@@ -1892,6 +1900,111 @@ func TestVagaHandler_Create_Admin_NoRestriction_Success(t *testing.T) {
 
 	if w.Code != http.StatusCreated {
 		t.Errorf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestVagaHandler_Update_PersistsOrgaoParceiro_Success(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{
+		entity: &empmodels.Vaga{
+			ID:              id,
+			Titulo:          "Dev Backend",
+			Status:          empmodels.StatusVagaEmEdicao,
+			IDOrgaoParceiro: "1000",
+		},
+	}
+	r := setupVagaRouterWithAllowedOrgaos(vagaRepo, &mockEmpresaRepoForVaga{}, []string{"1000", "5000"})
+
+	body := bodyOf(`{"titulo":"Dev Backend","id_orgao_parceiro":"5000"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if got := vagaRepo.entity.IDOrgaoParceiro; got != "5000" {
+		t.Errorf("expected id_orgao_parceiro persisted as 5000, got %s", got)
+	}
+}
+
+func TestVagaHandler_Update_EmptyOrgaoParceiro_PreservesExisting(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{
+		entity: &empmodels.Vaga{
+			ID:              id,
+			Titulo:          "Dev Backend",
+			Status:          empmodels.StatusVagaEmEdicao,
+			IDOrgaoParceiro: "1000",
+		},
+	}
+	r := setupVagaRouterWithAllowedOrgaos(vagaRepo, &mockEmpresaRepoForVaga{}, []string{"1000", "5000"})
+
+	body := bodyOf(`{"titulo":"Dev Backend Atualizado"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if got := vagaRepo.entity.IDOrgaoParceiro; got != "1000" {
+		t.Errorf("expected id_orgao_parceiro preserved as 1000, got %s", got)
+	}
+}
+
+func TestVagaHandler_Update_ForbiddenOrgao_Forbidden(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{
+		entity: &empmodels.Vaga{
+			ID:              id,
+			Titulo:          "Dev Backend",
+			Status:          empmodels.StatusVagaEmEdicao,
+			IDOrgaoParceiro: "1000",
+		},
+	}
+	r := setupVagaRouterWithAllowedOrgaos(vagaRepo, &mockEmpresaRepoForVaga{}, []string{"1000", "5000"})
+
+	body := bodyOf(`{"titulo":"Dev Backend","id_orgao_parceiro":"9999"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+	if got := vagaRepo.entity.IDOrgaoParceiro; got != "1000" {
+		t.Errorf("expected vaga unchanged with id_orgao_parceiro 1000, got %s", got)
+	}
+}
+
+func TestVagaHandler_Update_Admin_AnyOrgao_Success(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	vagaRepo := &mockVagaRepoH{
+		entity: &empmodels.Vaga{
+			ID:              id,
+			Titulo:          "Dev Backend",
+			Status:          empmodels.StatusVagaEmEdicao,
+			IDOrgaoParceiro: "1000",
+		},
+	}
+	// nil = sem restrição (admin / go:empregabilidade:admin)
+	r := setupVagaRouterWithAllowedOrgaos(vagaRepo, &mockEmpresaRepoForVaga{}, nil)
+
+	body := bodyOf(`{"titulo":"Dev Backend","id_orgao_parceiro":"any-orgao"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if got := vagaRepo.entity.IDOrgaoParceiro; got != "any-orgao" {
+		t.Errorf("expected id_orgao_parceiro persisted as any-orgao, got %s", got)
 	}
 }
 
