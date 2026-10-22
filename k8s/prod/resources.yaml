@@ -18,7 +18,6 @@ spec:
         istio:
           virtualService:
             name: go-virtual-service
-            namespace: istio-system
             routes:
               - primary
       analysis:
