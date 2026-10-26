@@ -8,7 +8,7 @@ RUN go install github.com/pressly/goose/v3/cmd/goose@v3.23.0 && \
     swag init -g cmd/server/main.go && \
     CGO_ENABLED=0 go build -o api ./cmd/server
 
-FROM alpine:3.21
+FROM alpine:3.24
 WORKDIR /app
 COPY --from=builder /app/api .
 COPY --from=builder /go/bin/goose /usr/local/bin/goose
