@@ -3404,6 +3404,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "409": {
+                        "description": "Nome já cadastrado",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Erro ao criar comportamento/atitude",
                         "schema": {
@@ -3505,6 +3511,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Dados inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Nome já cadastrado",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -6963,6 +6975,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "409": {
+                        "description": "Nome já cadastrado",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Erro ao criar habilidade",
                         "schema": {
@@ -7060,6 +7078,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Dados inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Nome já cadastrado",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -7194,6 +7218,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Dados inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Nome já cadastrado",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -7344,6 +7374,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Dados inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Nome já cadastrado",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -9889,6 +9925,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
