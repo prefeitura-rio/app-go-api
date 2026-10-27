@@ -134,6 +134,8 @@ func (h *CurriculoHandler) CreateFormacao(c *gin.Context) {
 // @Param        id   path      string  true  "ID da formação"
 // @Success      200  {object}  empregabilidade.CurriculoFormacao
 // @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/curriculo/formacoes/{id} [get]
@@ -152,6 +154,10 @@ func (h *CurriculoHandler) GetFormacaoByID(c *gin.Context) {
 
 	if entity == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Formação não encontrada"})
+		return
+	}
+
+	if !requireOwnership(c, entity.CPF) {
 		return
 	}
 
@@ -314,6 +320,8 @@ func (h *CurriculoHandler) CreateIdioma(c *gin.Context) {
 // @Param        id   path      string  true  "ID do idioma"
 // @Success      200  {object}  empregabilidade.CurriculoIdioma
 // @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/curriculo/idiomas/{id} [get]
@@ -332,6 +340,10 @@ func (h *CurriculoHandler) GetIdiomaByID(c *gin.Context) {
 
 	if entity == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Idioma não encontrado"})
+		return
+	}
+
+	if !requireOwnership(c, entity.CPF) {
 		return
 	}
 
@@ -494,6 +506,8 @@ func (h *CurriculoHandler) CreateCursoComplementar(c *gin.Context) {
 // @Param        id   path      string  true  "ID do curso complementar"
 // @Success      200  {object}  empregabilidade.CurriculoCursoComplementar
 // @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/curriculo/cursos-complementares/{id} [get]
@@ -512,6 +526,10 @@ func (h *CurriculoHandler) GetCursoComplementarByID(c *gin.Context) {
 
 	if entity == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Curso complementar não encontrado"})
+		return
+	}
+
+	if !requireOwnership(c, entity.CPF) {
 		return
 	}
 
@@ -674,6 +692,8 @@ func (h *CurriculoHandler) CreateExperiencia(c *gin.Context) {
 // @Param        id   path      string  true  "ID da experiência"
 // @Success      200  {object}  empregabilidade.CurriculoExperiencia
 // @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/curriculo/experiencias/{id} [get]
@@ -692,6 +712,10 @@ func (h *CurriculoHandler) GetExperienciaByID(c *gin.Context) {
 
 	if entity == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Experiência não encontrada"})
+		return
+	}
+
+	if !requireOwnership(c, entity.CPF) {
 		return
 	}
 
@@ -854,6 +878,8 @@ func (h *CurriculoHandler) CreateConquista(c *gin.Context) {
 // @Param        id   path      string  true  "ID da conquista"
 // @Success      200  {object}  empregabilidade.CurriculoConquista
 // @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/curriculo/conquistas/{id} [get]
@@ -872,6 +898,10 @@ func (h *CurriculoHandler) GetConquistaByID(c *gin.Context) {
 
 	if entity == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Conquista não encontrada"})
+		return
+	}
+
+	if !requireOwnership(c, entity.CPF) {
 		return
 	}
 
