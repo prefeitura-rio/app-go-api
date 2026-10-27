@@ -53,6 +53,9 @@ func (r *HabilidadeRepository) UpdateHabilidade(ctx context.Context, entity *emp
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar habilidade: %w", result.Error)
 	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
 	return nil
 }
 
@@ -61,6 +64,9 @@ func (r *HabilidadeRepository) DeleteHabilidade(ctx context.Context, id int64) e
 	result := r.db.WithContext(ctx).Delete(&empregabilidade.Habilidade{}, "id = ?", id)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao excluir habilidade: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 	return nil
 }
@@ -206,6 +212,9 @@ func (r *HabilidadeRepository) UpdateAreaAtuacao(ctx context.Context, entity *em
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar área de atuação: %w", result.Error)
 	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
 	return nil
 }
 
@@ -214,6 +223,9 @@ func (r *HabilidadeRepository) DeleteAreaAtuacao(ctx context.Context, id int64) 
 	result := r.db.WithContext(ctx).Delete(&empregabilidade.AreaAtuacao{}, "id = ?", id)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao excluir uma área de atuação: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 	return nil
 }

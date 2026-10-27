@@ -128,6 +128,7 @@ func (h *HabilidadeHandler) GetHabilidadeByID(c *gin.Context) {
 // @Param        request  body      UpdateHabilidadeRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      404      {object}  response.ErrorResponse "Habilidade não encontrada"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar habilidade"
 // @Security     BearerAuth
@@ -152,7 +153,7 @@ func (h *HabilidadeHandler) UpdateHabilidade(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.UpdateHabilidade(c.Request.Context(), entity); err != nil {
-		respondCatalogoError(c, err, "Erro ao atualizar habilidade")
+		respondCatalogoMutationError(c, err, "Habilidade não encontrada", "Erro ao atualizar habilidade")
 		return
 	}
 
@@ -167,6 +168,7 @@ func (h *HabilidadeHandler) UpdateHabilidade(c *gin.Context) {
 // @Param        id   path      int  true  "ID da Habilidade" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
+// @Failure      404  {object}  response.ErrorResponse "Habilidade não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir habilidade"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/{id} [delete]
@@ -179,7 +181,7 @@ func (h *HabilidadeHandler) DeleteHabilidade(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.DeleteHabilidade(c.Request.Context(), id); err != nil {
-		respondCatalogoError(c, err, "Erro ao excluir habilidade")
+		respondCatalogoMutationError(c, err, "Habilidade não encontrada", "Erro ao excluir habilidade")
 		return
 	}
 
@@ -410,6 +412,7 @@ func (h *HabilidadeHandler) GetAreaAtuacaoByID(c *gin.Context) {
 // @Param        request  body      UpdateAreaAtuacaoRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      404      {object}  response.ErrorResponse "Área de atuação não encontrada"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar área de atuação"
 // @Security     BearerAuth
@@ -434,7 +437,7 @@ func (h *HabilidadeHandler) UpdateAreaAtuacao(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.UpdateAreaAtuacao(c.Request.Context(), entity); err != nil {
-		respondCatalogoError(c, err, "Erro ao atualizar área de atuação")
+		respondCatalogoMutationError(c, err, "Área de atuação não encontrada", "Erro ao atualizar área de atuação")
 		return
 	}
 
@@ -449,6 +452,7 @@ func (h *HabilidadeHandler) UpdateAreaAtuacao(c *gin.Context) {
 // @Param        id   path      int  true  "ID da Área de Atuação" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
+// @Failure      404  {object}  response.ErrorResponse "Área de atuação não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir área de atuação"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id} [delete]
@@ -461,7 +465,7 @@ func (h *HabilidadeHandler) DeleteAreaAtuacao(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.DeleteAreaAtuacao(c.Request.Context(), id); err != nil {
-		respondCatalogoError(c, err, "Erro ao excluir área de atuação")
+		respondCatalogoMutationError(c, err, "Área de atuação não encontrada", "Erro ao excluir área de atuação")
 		return
 	}
 
