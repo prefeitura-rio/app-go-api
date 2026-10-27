@@ -52,6 +52,9 @@ func (r *ComportamentoAtitudesRepository) UpdateComportamentoAtitudes(ctx contex
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar comportamento e atitude: %w", result.Error)
 	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
 	return nil
 }
 
@@ -60,6 +63,9 @@ func (r *ComportamentoAtitudesRepository) DeleteComportamentoAtitudes(ctx contex
 	result := r.db.WithContext(ctx).Delete(&empregabilidade.ComportamentoAtitudes{}, "id = ?", id)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao excluir comportamento e atitude: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 	return nil
 }
