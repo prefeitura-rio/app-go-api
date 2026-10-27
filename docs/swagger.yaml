@@ -4384,6 +4384,10 @@ paths:
           description: Dados inválidos
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Nome já cadastrado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "500":
           description: Erro ao criar comportamento/atitude
           schema:
@@ -4481,6 +4485,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Nome já cadastrado
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "500":
@@ -6751,6 +6759,10 @@ paths:
           description: Dados inválidos
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Nome já cadastrado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "500":
           description: Erro ao criar habilidade
           schema:
@@ -6847,6 +6859,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Nome já cadastrado
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "500":
@@ -7031,6 +7047,10 @@ paths:
           description: Dados inválidos
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Nome já cadastrado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "500":
           description: Erro ao criar área de atuação
           schema:
@@ -7147,6 +7167,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Nome já cadastrado
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "500":
@@ -8697,6 +8721,12 @@ paths:
             $ref: '#/definitions/empregabilidade.Vaga'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
           schema:
             additionalProperties:
               type: string
