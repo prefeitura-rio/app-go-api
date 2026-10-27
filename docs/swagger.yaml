@@ -4418,6 +4418,10 @@ paths:
           description: ID inválido
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Comportamento/atitude não encontrado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "500":
           description: Erro ao excluir comportamento/atitude
           schema:
@@ -4485,6 +4489,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Comportamento/atitude não encontrado
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "409":
@@ -6793,6 +6801,10 @@ paths:
           description: ID inválido
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Habilidade não encontrada
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "500":
           description: Erro ao excluir habilidade
           schema:
@@ -6859,6 +6871,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Habilidade não encontrada
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "409":
@@ -7101,6 +7117,10 @@ paths:
           description: ID inválido
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Área de atuação não encontrada
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "500":
           description: Erro ao excluir área de atuação
           schema:
@@ -7167,6 +7187,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Área de atuação não encontrada
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "409":
