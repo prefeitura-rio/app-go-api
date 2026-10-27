@@ -265,9 +265,13 @@ Todos os PRs para `main` passam por quality gates automáticos:
 
 - ✅ Linting deve passar sem warnings
 - ✅ Todos os testes devem passar com race detection
-- ✅ Cobertura de código não pode diminuir
+- ✅ Cobertura de código não pode diminuir (tolerância 0.1% vs baseline em `gh-pages`)
 - ✅ Sem vulnerabilidades CRITICAL ou HIGH
 - ✅ Dockerfile deve seguir best practices
+
+### Observabilidade
+
+Tracing OpenTelemetry (OTLP/gRPC → SigNoz). Variáveis: `TRACING_*` em `.env.example`. Detalhes em [`docs/observability.md`](docs/observability.md).
 
 ### Troubleshooting CI/CD
 

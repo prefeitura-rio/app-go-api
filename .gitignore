@@ -11,7 +11,7 @@
 # Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Output of the go coverage tool / local test binaries
 *.out
 
 # Dependency directories (remove the comment below to include it)
@@ -46,7 +46,7 @@ scripts/touch_all_courses.sh
 # VSCODE
 .vscode/
 
-# COVERAGE
-coverage.out
-test_output.txt
+# Test / coverage artifacts (local; CI uses ephemeral coverage.out in the job workspace)
+coverage*.out
 coverage/
+test_output*.txt
