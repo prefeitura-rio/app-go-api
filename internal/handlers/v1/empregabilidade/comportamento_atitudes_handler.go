@@ -120,6 +120,7 @@ func (h *ComportamentoAtitudesHandler) GetComportamentoAtitudesByID(c *gin.Conte
 // @Param        request  body      UpdateComportamentoAtitudesRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      404      {object}  response.ErrorResponse "Comportamento/atitude não encontrado"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar comportamento/atitude"
 // @Security     BearerAuth
@@ -144,7 +145,7 @@ func (h *ComportamentoAtitudesHandler) UpdateComportamentoAtitudes(c *gin.Contex
 	}
 
 	if err := h.comportamentoAtitudesService.UpdateComportamentoAtitudes(c.Request.Context(), entity); err != nil {
-		respondCatalogoError(c, err, "Erro ao atualizar comportamento/atitude")
+		respondCatalogoMutationError(c, err, "Comportamento/atitude não encontrado", "Erro ao atualizar comportamento/atitude")
 		return
 	}
 
@@ -159,6 +160,7 @@ func (h *ComportamentoAtitudesHandler) UpdateComportamentoAtitudes(c *gin.Contex
 // @Param        id   path      int  true  "ID do Comportamento/Atitude" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
+// @Failure      404  {object}  response.ErrorResponse "Comportamento/atitude não encontrado"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir comportamento/atitude"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/comportamentos-atitudes/{id} [delete]
@@ -171,7 +173,7 @@ func (h *ComportamentoAtitudesHandler) DeleteComportamentoAtitudes(c *gin.Contex
 	}
 
 	if err := h.comportamentoAtitudesService.DeleteComportamentoAtitudes(c.Request.Context(), id); err != nil {
-		respondCatalogoError(c, err, "Erro ao excluir comportamento/atitude")
+		respondCatalogoMutationError(c, err, "Comportamento/atitude não encontrado", "Erro ao excluir comportamento/atitude")
 		return
 	}
 

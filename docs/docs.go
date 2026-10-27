@@ -3515,6 +3515,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "404": {
+                        "description": "Comportamento/atitude não encontrado",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "409": {
                         "description": "Nome já cadastrado",
                         "schema": {
@@ -3562,6 +3568,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "ID inválido",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Comportamento/atitude não encontrado",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -7222,6 +7234,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "404": {
+                        "description": "Área de atuação não encontrada",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "409": {
                         "description": "Nome já cadastrado",
                         "schema": {
@@ -7269,6 +7287,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "ID inválido",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Área de atuação não encontrada",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -7378,6 +7402,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "404": {
+                        "description": "Habilidade não encontrada",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "409": {
                         "description": "Nome já cadastrado",
                         "schema": {
@@ -7425,6 +7455,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "ID inválido",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Habilidade não encontrada",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
