@@ -62,6 +62,7 @@ func NewHabilidadeHandler(hService *service.HabilidadeService, cService *service
 // @Param        request  body      CreateHabilidadeRequest  true  "Dados da habilidade"
 // @Success      201      {object}  map[string]int64
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao criar habilidade"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades [post]
@@ -78,7 +79,7 @@ func (h *HabilidadeHandler) CreateHabilidade(c *gin.Context) {
 
 	id, err := h.habilidadeService.CreateHabilidade(c.Request.Context(), entity)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao criar habilidade")
+		respondCatalogoError(c, err, "Erro ao criar habilidade")
 		return
 	}
 
@@ -127,6 +128,8 @@ func (h *HabilidadeHandler) GetHabilidadeByID(c *gin.Context) {
 // @Param        request  body      UpdateHabilidadeRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      404      {object}  response.ErrorResponse "Habilidade não encontrada"
+// @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar habilidade"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/{id} [put]
@@ -150,7 +153,7 @@ func (h *HabilidadeHandler) UpdateHabilidade(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.UpdateHabilidade(c.Request.Context(), entity); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao atualizar habilidade")
+		respondCatalogoMutationError(c, err, "Habilidade não encontrada", "Erro ao atualizar habilidade")
 		return
 	}
 
@@ -165,6 +168,7 @@ func (h *HabilidadeHandler) UpdateHabilidade(c *gin.Context) {
 // @Param        id   path      int  true  "ID da Habilidade" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
+// @Failure      404  {object}  response.ErrorResponse "Habilidade não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir habilidade"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/{id} [delete]
@@ -177,7 +181,7 @@ func (h *HabilidadeHandler) DeleteHabilidade(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.DeleteHabilidade(c.Request.Context(), id); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao excluir habilidade")
+		respondCatalogoMutationError(c, err, "Habilidade não encontrada", "Erro ao excluir habilidade")
 		return
 	}
 
@@ -238,19 +242,19 @@ func (h *HabilidadeHandler) ListHabilidades(c *gin.Context) {
 // @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao/{areaId} [post]
 func (h *HabilidadeHandler) AttachAreaAtuacao(c *gin.Context) {
 	habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
+	if err != nil || habilidadeID <= 0 {
 		response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
 		return
 	}
 
 	areaID, err := strconv.ParseInt(c.Param("areaId"), 10, 64)
-	if err != nil {
+	if err != nil || areaID <= 0 {
 		response.Error(c, http.StatusBadRequest, "ID de área de atuação inválido")
 		return
 	}
 
 	if err := h.habilidadeService.AttachAreaAtuacao(c.Request.Context(), habilidadeID, areaID); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao vincular área de atuação")
+		respondCatalogoError(c, err, "Erro ao vincular área de atuação")
 		return
 	}
 
@@ -271,19 +275,19 @@ func (h *HabilidadeHandler) AttachAreaAtuacao(c *gin.Context) {
 // @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao/{areaId} [delete]
 func (h *HabilidadeHandler) DetachAreaAtuacao(c *gin.Context) {
 	habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
+	if err != nil || habilidadeID <= 0 {
 		response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
 		return
 	}
 
 	areaID, err := strconv.ParseInt(c.Param("areaId"), 10, 64)
-	if err != nil {
+	if err != nil || areaID <= 0 {
 		response.Error(c, http.StatusBadRequest, "ID de área de atuação inválido")
 		return
 	}
 
 	if err := h.habilidadeService.DetachAreaAtuacao(c.Request.Context(), habilidadeID, areaID); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao desvincular área de atuação")
+		respondCatalogoError(c, err, "Erro ao desvincular área de atuação")
 		return
 	}
 
@@ -310,7 +314,7 @@ func (h *HabilidadeHandler) DetachAreaAtuacao(c *gin.Context) {
 // @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao [put]
 func (h *HabilidadeHandler) ReplaceAreasAtuacao(c *gin.Context) {
 	habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
+	if err != nil || habilidadeID <= 0 {
 		response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
 		return
 	}
@@ -322,7 +326,7 @@ func (h *HabilidadeHandler) ReplaceAreasAtuacao(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.ReplaceAreasAtuacao(c.Request.Context(), habilidadeID, req.AreaIDs); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao substituir áreas de atuação")
+		respondCatalogoError(c, err, "Erro ao substituir áreas de atuação")
 		return
 	}
 
@@ -342,6 +346,7 @@ func (h *HabilidadeHandler) ReplaceAreasAtuacao(c *gin.Context) {
 // @Param        request  body      CreateAreaAtuacaoRequest  true  "Dados da área de atuação"
 // @Success      201      {object}  map[string]int64
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao criar área de atuação"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/areas-atuacao [post]
@@ -358,7 +363,7 @@ func (h *HabilidadeHandler) CreateAreaAtuacao(c *gin.Context) {
 
 	id, err := h.habilidadeService.CreateAreaAtuacao(c.Request.Context(), entity)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao criar área de atuação")
+		respondCatalogoError(c, err, "Erro ao criar área de atuação")
 		return
 	}
 
@@ -407,6 +412,8 @@ func (h *HabilidadeHandler) GetAreaAtuacaoByID(c *gin.Context) {
 // @Param        request  body      UpdateAreaAtuacaoRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      404      {object}  response.ErrorResponse "Área de atuação não encontrada"
+// @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar área de atuação"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id} [put]
@@ -430,7 +437,7 @@ func (h *HabilidadeHandler) UpdateAreaAtuacao(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.UpdateAreaAtuacao(c.Request.Context(), entity); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao atualizar área de atuação")
+		respondCatalogoMutationError(c, err, "Área de atuação não encontrada", "Erro ao atualizar área de atuação")
 		return
 	}
 
@@ -445,6 +452,7 @@ func (h *HabilidadeHandler) UpdateAreaAtuacao(c *gin.Context) {
 // @Param        id   path      int  true  "ID da Área de Atuação" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
+// @Failure      404  {object}  response.ErrorResponse "Área de atuação não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir área de atuação"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id} [delete]
@@ -457,7 +465,7 @@ func (h *HabilidadeHandler) DeleteAreaAtuacao(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.DeleteAreaAtuacao(c.Request.Context(), id); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao excluir área de atuação")
+		respondCatalogoMutationError(c, err, "Área de atuação não encontrada", "Erro ao excluir área de atuação")
 		return
 	}
 
