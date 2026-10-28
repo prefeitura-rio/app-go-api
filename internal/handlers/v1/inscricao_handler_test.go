@@ -12,6 +12,7 @@ import (
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -444,7 +445,7 @@ func TestInscricaoHandler_CreateManual_ConflictError(t *testing.T) {
 		createManualErr: assert.AnError,
 	}
 	// Override error message to simulate conflict
-	mockService.createManualErr = &conflictError{msg: "CPF já inscrito neste curso"}
+	mockService.createManualErr = services.ErrCPFJaInscrito
 
 	h := v1.NewInscricaoHandler(mockService, nil, nil)
 	r := gin.New()

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
@@ -33,6 +34,16 @@ func NewEnrollmentRuleError(msg string) error {
 func enrollmentRuleErrorf(format string, args ...any) error {
 	return &EnrollmentRuleError{msg: fmt.Sprintf(format, args...)}
 }
+
+// Erros de domínio das inscrições. As mensagens são as mesmas de antes da
+// tipagem, que o portal já mostra ao cidadão.
+var (
+	ErrCPFJaInscrito             = apperrors.Conflict("CPF já inscrito neste curso")
+	ErrInscricaoNaoEncontrada    = apperrors.NotFound("inscrição não encontrada")
+	ErrInscricaoDeOutroCurso     = apperrors.Invalid("inscrição não pertence ao curso especificado")
+	ErrCertificadoStatusInvalido = apperrors.Invalid("certificado só pode ser atribuído a inscrições aprovadas ou concluídas")
+	ErrCursoNaoEncontrado        = apperrors.NotFound("curso não encontrado")
+)
 
 // CitizenDataFetcher interface for fetching citizen data
 type CitizenDataFetcher interface {
@@ -124,7 +135,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		return fmt.Errorf("erro ao verificar inscrição existente: %w", err)
 	}
 	if exists {
-		return fmt.Errorf("CPF já inscrito neste curso")
+		return ErrCPFJaInscrito
 	}
 
 	// Validate schedule_id if provided
@@ -135,7 +146,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 			return fmt.Errorf("erro ao verificar curso para validação de schedule: %w", err)
 		}
 		if curso == nil {
-			return fmt.Errorf("curso não encontrado")
+			return ErrCursoNaoEncontrado
 		}
 
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, true); err != nil {
@@ -230,7 +241,7 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 		return fmt.Errorf("erro ao verificar inscrição existente: %w", err)
 	}
 	if exists {
-		return fmt.Errorf("CPF já inscrito neste curso")
+		return ErrCPFJaInscrito
 	}
 
 	if inscricao.ScheduleID != nil {
@@ -239,7 +250,7 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 			return fmt.Errorf("erro ao verificar curso para validação de schedule: %w", err)
 		}
 		if curso == nil {
-			return fmt.Errorf("curso não encontrado")
+			return ErrCursoNaoEncontrado
 		}
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, false); err != nil {
 			return err
@@ -325,7 +336,7 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 		return fmt.Errorf("erro ao verificar inscrição existente: %w", err)
 	}
 	if exists {
-		return fmt.Errorf("CPF já inscrito neste curso")
+		return ErrCPFJaInscrito
 	}
 
 	// Validate schedule_id if provided
@@ -335,7 +346,7 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 			return fmt.Errorf("erro ao verificar curso para validação de schedule: %w", err)
 		}
 		if curso == nil {
-			return fmt.Errorf("curso não encontrado")
+			return ErrCursoNaoEncontrado
 		}
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, false); err != nil {
 			return err
@@ -408,7 +419,7 @@ func (s *InscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UU
 		return fmt.Errorf("erro ao verificar inscrição: %w", err)
 	}
 	if inscricao == nil {
-		return fmt.Errorf("inscrição não encontrada")
+		return ErrInscricaoNaoEncontrada
 	}
 
 	// Store old status for email decision
@@ -538,7 +549,7 @@ func (s *InscricaoService) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("erro ao verificar inscrição: %w", err)
 	}
 	if inscricao == nil {
-		return fmt.Errorf("inscrição não encontrada")
+		return ErrInscricaoNaoEncontrada
 	}
 
 	return s.repo.Delete(ctx, id)
@@ -555,15 +566,15 @@ func (s *InscricaoService) UpdateCertificate(ctx context.Context, cursoID int, i
 		return fmt.Errorf("erro ao verificar inscrição: %w", err)
 	}
 	if inscricao == nil {
-		return fmt.Errorf("inscrição não encontrada")
+		return ErrInscricaoNaoEncontrada
 	}
 	if inscricao.CursoID != cursoID {
-		return fmt.Errorf("inscrição não pertence ao curso especificado")
+		return ErrInscricaoDeOutroCurso
 	}
 
 	// Only allow certificate for approved or concluded enrollments
 	if inscricao.Status != models.StatusInscricaoApproved && inscricao.Status != models.StatusInscricaoConcluded {
-		return fmt.Errorf("certificado só pode ser atribuído a inscrições aprovadas ou concluídas")
+		return ErrCertificadoStatusInvalido
 	}
 
 	// Update certificate URL
@@ -577,12 +588,12 @@ func (s *InscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cu
 		return fmt.Errorf("erro ao verificar inscrição: %w", err)
 	}
 	if inscricao == nil {
-		return fmt.Errorf("inscrição não encontrada")
+		return ErrInscricaoNaoEncontrada
 	}
 
 	// Validar que a inscrição pertence ao curso especificado
 	if inscricao.CursoID != cursoID {
-		return fmt.Errorf("inscrição não pertence ao curso especificado")
+		return ErrInscricaoDeOutroCurso
 	}
 
 	// Atualizar apenas os campos permitidos
@@ -796,7 +807,7 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		return nil, fmt.Errorf("erro ao buscar inscrição: %w", err)
 	}
 	if inscricao == nil {
-		return nil, fmt.Errorf("inscrição não encontrada")
+		return nil, ErrInscricaoNaoEncontrada
 	}
 
 	// Validate that the enrollment belongs to the user

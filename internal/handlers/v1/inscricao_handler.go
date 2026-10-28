@@ -171,16 +171,7 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 
 	if middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:cursos:casa_civil") {
 		if err := h.service.CreateByAdmin(c.Request.Context(), &inscricao); err != nil {
-			if err.Error() == "CPF já inscrito neste curso" {
-				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-				return
-			}
-			var ruleErr *services.EnrollmentRuleError
-			if errors.As(err, &ruleErr) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			response.FromError(c, err, "Erro ao criar inscrição")
+			respondCreateInscricaoError(c, err)
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{
@@ -203,19 +194,7 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 		}
 		inscricao.CPF = cpf
 		if err := h.service.Create(c.Request.Context(), &inscricao); err != nil {
-			if err.Error() == "CPF já inscrito neste curso" {
-				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-				return
-			}
-			// Business rules (course not open, window closed, turma closed) are the
-			// citizen's problem to fix, not a server fault — answer 400 and keep the
-			// message verbatim so the portal can show it.
-			var ruleErr *services.EnrollmentRuleError
-			if errors.As(err, &ruleErr) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			response.FromError(c, err, "Erro ao criar inscrição")
+			respondCreateInscricaoError(c, err)
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{
@@ -352,7 +331,7 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("erro ao buscar inscrição: %w", err).Error()})
+		response.FromError(c, err, "Erro ao buscar inscrição")
 		return
 	}
 	if existing == nil {
@@ -378,7 +357,7 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateInscricao(c.Request.Context(), existing.ID, cursoID, &updateData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.FromError(c, err, "Erro ao atualizar inscrição")
 		return
 	}
 
@@ -473,10 +452,6 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateStatus(c.Request.Context(), enrollmentID, request.Status, request.Reason, request.AdminNotes); err != nil {
-		if err.Error() == "inscrição não encontrada" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
 		response.FromError(c, err, "Erro ao atualizar status")
 		return
 	}
@@ -583,18 +558,6 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateCertificate(c.Request.Context(), cursoID, enrollmentID, request.CertificateURL); err != nil {
-		if err.Error() == "inscrição não encontrada" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "inscrição não pertence ao curso especificado" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "certificado só pode ser atribuído a inscrições aprovadas ou concluídas" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
 		response.FromError(c, err, "Erro ao atualizar certificado")
 		return
 	}
@@ -631,7 +594,7 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 
 	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("erro ao verificar inscrição: %w", err).Error()})
+		response.FromError(c, err, "Erro ao verificar inscrição")
 		return
 	}
 	if existing == nil {
@@ -684,11 +647,7 @@ func (h *InscricaoHandler) CreateManual(c *gin.Context) {
 	inscricao.CursoID = cursoID
 
 	if err := h.service.CreateManual(c.Request.Context(), &inscricao); err != nil {
-		if err.Error() == "CPF já inscrito neste curso" {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-			return
-		}
-		response.FromError(c, err, "Erro ao criar inscrição")
+		respondCreateInscricaoError(c, err)
 		return
 	}
 
@@ -995,4 +954,18 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 		"data":    inscricao,
 		"message": "Turma alterada com sucesso",
 	})
+}
+
+// respondCreateInscricaoError responde as falhas de criação de inscrição.
+// Regras de negócio (curso fechado, período encerrado, turma sem vagas) são do
+// cidadão resolver, não falha do servidor: 400 com a mensagem como veio, para o
+// portal mostrar. Duplicidade (409), curso inexistente (404) e os demais erros
+// seguem response.FromError.
+func respondCreateInscricaoError(c *gin.Context, err error) {
+	var ruleErr *services.EnrollmentRuleError
+	if errors.As(err, &ruleErr) {
+		response.Error(c, http.StatusBadRequest, ruleErr.Error())
+		return
+	}
+	response.FromError(c, err, "Erro ao criar inscrição")
 }
