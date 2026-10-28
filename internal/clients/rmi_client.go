@@ -11,6 +11,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/sony/gobreaker"
+
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 )
 
@@ -24,19 +26,41 @@ const (
 	maxLegalEntities = 1000 // Safety limit to prevent infinite loops
 )
 
-// RMIClient handles communication with the RMI API
+// RMIClient handles communication with the RMI API.
+// Requests go through a circuit breaker and are retried on transient failures;
+// GetCPFSecretarias results are cached per CPF for a short TTL.
 type RMIClient struct {
-	baseURL    string
-	httpClient *http.Client
+	baseURL         string
+	httpClient      *http.Client
+	name            string
+	retryBaseDelay  time.Duration
+	retryMaxDelay   time.Duration
+	breaker         *gobreaker.CircuitBreaker
+	secretariaCache *secretariaCache
 }
 
 // NewRMIClient creates a new RMI API client with the specified timeout per request
-func NewRMIClient(baseURL string, timeout time.Duration) *RMIClient {
+func NewRMIClient(baseURL string, timeout time.Duration, opts ...RMIClientOption) *RMIClient {
+	o := defaultRMIClientOptions()
+	for _, opt := range opts {
+		opt(&o)
+	}
+
+	rmiCircuitState.WithLabelValues(o.name).Set(circuitStateValue(gobreaker.StateClosed))
+	rmiCircuitRejectionsTotal.WithLabelValues(o.name)
+	rmiSecretariaCacheTotal.WithLabelValues(o.name, "hit")
+	rmiSecretariaCacheTotal.WithLabelValues(o.name, "miss")
+
 	return &RMIClient{
 		baseURL: baseURL,
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
+		name:            o.name,
+		retryBaseDelay:  o.retryBaseDelay,
+		retryMaxDelay:   o.retryMaxDelay,
+		breaker:         newRMICircuitBreaker(o),
+		secretariaCache: newSecretariaCache(o.secretariaCacheTTL, defaultSecretariaCacheEntries),
 	}
 }
 
@@ -89,7 +113,7 @@ func (c *RMIClient) fetchPage(ctx context.Context, authToken string, cpf string,
 	req.Header.Set("Authorization", authToken)
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, models.PaginationResponse{}, fmt.Errorf("failed to execute request: %w", err)
 	}
@@ -131,7 +155,7 @@ func (c *RMIClient) GetOrgao(ctx context.Context, orgaoID string) (*models.Orgao
 
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
@@ -183,7 +207,7 @@ func (c *RMIClient) GetCNPJOwnerInfo(ctx context.Context, serviceToken string, c
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceToken))
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute legal entity request: %w", err)
 	}
@@ -234,7 +258,7 @@ func (c *RMIClient) GetCNPJOwnerInfo(ctx context.Context, serviceToken string, c
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceToken))
 	req.Header.Set("Accept", "application/json")
 
-	resp, err = c.httpClient.Do(req)
+	resp, err = c.do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute citizen request: %w", err)
 	}
@@ -292,7 +316,7 @@ func (c *RMIClient) GetCitizenByCPF(ctx context.Context, serviceToken string, cp
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceToken))
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute citizen request: %w", err)
 	}
@@ -342,7 +366,7 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceToken))
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute legal entity request: %w", err)
 	}
@@ -377,11 +401,27 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 // Endpoint: GET /cpf-secretaria/{cpf}
 // Requires service account authentication token.
 // Returns an empty slice when the CPF has no secretaria mappings.
+// Successful results (including "no mapping") are cached per CPF; errors are not.
 func (c *RMIClient) GetCPFSecretarias(ctx context.Context, serviceToken string, cpf string) ([]string, error) {
 	if c.baseURL == "" {
 		return nil, fmt.Errorf("RMI base URL not configured")
 	}
 
+	if cdUAs, ok := c.secretariaCache.get(cpf); ok {
+		rmiSecretariaCacheTotal.WithLabelValues(c.name, "hit").Inc()
+		return cdUAs, nil
+	}
+	rmiSecretariaCacheTotal.WithLabelValues(c.name, "miss").Inc()
+
+	cdUAs, err := c.fetchCPFSecretarias(ctx, serviceToken, cpf)
+	if err != nil {
+		return nil, err
+	}
+	c.secretariaCache.set(cpf, cdUAs)
+	return cdUAs, nil
+}
+
+func (c *RMIClient) fetchCPFSecretarias(ctx context.Context, serviceToken string, cpf string) ([]string, error) {
 	url := fmt.Sprintf("%s/v1/cpf-secretaria/%s", c.baseURL, cpf)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -392,7 +432,7 @@ func (c *RMIClient) GetCPFSecretarias(ctx context.Context, serviceToken string, 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceToken))
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}

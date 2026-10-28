@@ -52,6 +52,7 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
+	registerMetricsRoute(r)
 
 	// r.GET("/docs/*any", middlewares.DynamicSwaggerHandler())
 	// r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
