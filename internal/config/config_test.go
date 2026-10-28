@@ -880,6 +880,58 @@ func TestLoad_DurationSettings(t *testing.T) {
 	assert.Equal(t, 1*time.Hour, config.Cache.LegalEntitiesTTL)
 }
 
+func TestLoad_RMIResilienceSettings(t *testing.T) {
+	envVars := []string{
+		"RMI_SECRETARIA_CACHE_TTL",
+		"RMI_CIRCUIT_BREAKER_FAILURE_THRESHOLD",
+		"RMI_CIRCUIT_BREAKER_OPEN_TIMEOUT",
+		"DB_HOST", "DB_PORT",
+		"SERVER_HOST", "SERVER_PORT",
+	}
+	originalEnv := make(map[string]string)
+	for _, key := range envVars {
+		originalEnv[key] = os.Getenv(key)
+		os.Unsetenv(key)
+	}
+	reset := func() {
+		instance = nil
+		once = sync.Once{}
+		v = nil
+	}
+	defer func() {
+		for key, value := range originalEnv {
+			if value == "" {
+				os.Unsetenv(key)
+			} else {
+				os.Setenv(key, value)
+			}
+		}
+		reset()
+	}()
+
+	os.Setenv("DB_HOST", "localhost")
+	os.Setenv("DB_PORT", "5432")
+	os.Setenv("SERVER_HOST", "0.0.0.0")
+	os.Setenv("SERVER_PORT", "8080")
+
+	reset()
+	defaults, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, 2*time.Minute, defaults.RMI.SecretariaCacheTTL)
+	assert.Equal(t, 5, defaults.RMI.CircuitBreakerFailureThreshold)
+	assert.Equal(t, 30*time.Second, defaults.RMI.CircuitBreakerOpenTimeout)
+
+	os.Setenv("RMI_SECRETARIA_CACHE_TTL", "4m")
+	os.Setenv("RMI_CIRCUIT_BREAKER_FAILURE_THRESHOLD", "3")
+	os.Setenv("RMI_CIRCUIT_BREAKER_OPEN_TIMEOUT", "10s")
+	reset()
+	custom, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, 4*time.Minute, custom.RMI.SecretariaCacheTTL)
+	assert.Equal(t, 3, custom.RMI.CircuitBreakerFailureThreshold)
+	assert.Equal(t, 10*time.Second, custom.RMI.CircuitBreakerOpenTimeout)
+}
+
 func TestLoad_BooleanSettings(t *testing.T) {
 	// Reset environment
 	originalEnv := make(map[string]string)

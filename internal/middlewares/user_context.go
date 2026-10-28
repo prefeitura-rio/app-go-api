@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -293,9 +294,24 @@ func GetUserOrgaoID(c *gin.Context) string {
 // based on the CPF-Secretaria mappings stored in app-rmi.
 type SecretariaOrgaoResolver func(ctx context.Context, cpf string) ([]string, error)
 
+func isReadOnlyMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return true
+	default:
+		return false
+	}
+}
+
 // ExtractSecretariaOrgaoIDs is a middleware that resolves the user's secretaria orgao_ids
 // and sets them in the Gin context. Must run after ExtractUserContext (requires CPF).
-// If resolution fails, the middleware sets an empty array (fail-closed → user sees nothing).
+// If resolution fails (e.g. app-rmi unavailable):
+//   - read requests (GET/HEAD/OPTIONS) are fail-open: the key is not set, so the
+//     request is handled as for a user without secretaria mapping (citizens keep
+//     seeing the public course/vaga lists);
+//   - write requests are fail-closed: the key is set to an empty array, so any
+//     secretaria-scoped write is denied.
+//
 // If CPF is missing, the middleware is a no-op (fail-open).
 func ExtractSecretariaOrgaoIDs(resolver SecretariaOrgaoResolver) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -307,6 +323,12 @@ func ExtractSecretariaOrgaoIDs(resolver SecretariaOrgaoResolver) gin.HandlerFunc
 
 		orgaoIDs, err := resolver(c.Request.Context(), cpf)
 		if err != nil {
+			if isReadOnlyMethod(c.Request.Method) {
+				log.Printf("[SecretariaMiddleware] resolver falhou em %s %s; leitura segue sem escopo de secretaria (fail-open)", c.Request.Method, c.FullPath())
+				c.Next()
+				return
+			}
+			log.Printf("[SecretariaMiddleware] resolver falhou em %s %s; escrita sem escopo de secretaria (fail-closed)", c.Request.Method, c.FullPath())
 			c.Set(UserSecretariaOrgaoIDsKey, []string{})
 			c.Next()
 			return

@@ -103,26 +103,93 @@ func TestExtractSecretariaOrgaoIDs_EmptyList(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"len":0`)
 }
 
-func TestExtractSecretariaOrgaoIDs_ResolverError_FailClosed(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.Use(injectCPF("12345678900"))
-	r.Use(middlewares.ExtractSecretariaOrgaoIDs(func(ctx context.Context, cpf string) ([]string, error) {
+func TestExtractSecretariaOrgaoIDs_ResolverError_ReadFailOpen(t *testing.T) {
+	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodOptions} {
+		t.Run(method, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			r := gin.New()
+			r.Use(injectCPF("12345678900"))
+			r.Use(middlewares.ExtractSecretariaOrgaoIDs(func(ctx context.Context, cpf string) ([]string, error) {
+				return nil, errors.New("app-rmi unavailable")
+			}))
+			var keySet bool
+			r.Handle(method, "/test", func(c *gin.Context) {
+				_, keySet = c.Get(middlewares.UserSecretariaOrgaoIDsKey)
+				c.Status(http.StatusOK)
+			})
+
+			req := httptest.NewRequest(method, "/test", nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			// fail-open on reads: the secretaria key is NOT set, so the request is
+			// handled as if the user had no secretaria mapping (full public lists).
+			assert.False(t, keySet, "secretaria key must not be set on read when the resolver fails")
+		})
+	}
+}
+
+func TestExtractSecretariaOrgaoIDs_ResolverError_WriteFailClosed(t *testing.T) {
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+		t.Run(method, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			r := gin.New()
+			r.Use(injectCPF("12345678900"))
+			r.Use(middlewares.ExtractSecretariaOrgaoIDs(func(ctx context.Context, cpf string) ([]string, error) {
+				return nil, errors.New("app-rmi unavailable")
+			}))
+			r.Handle(method, "/test", func(c *gin.Context) {
+				ids := middlewares.GetUserSecretariaOrgaoIDs(c)
+				c.JSON(http.StatusOK, gin.H{"is_nil": ids == nil, "len": len(ids)})
+			})
+
+			req := httptest.NewRequest(method, "/test", nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			// fail-closed on writes: key IS set to an empty slice, not nil — no scope.
+			assert.Contains(t, w.Body.String(), `"is_nil":false`)
+			assert.Contains(t, w.Body.String(), `"len":0`)
+		})
+	}
+}
+
+func TestExtractSecretariaOrgaoIDs_ResolverError_EditorWriteForbidden(t *testing.T) {
+	failing := func(ctx context.Context, cpf string) ([]string, error) {
 		return nil, errors.New("app-rmi unavailable")
-	}))
-	r.GET("/test", func(c *gin.Context) {
-		ids := middlewares.GetUserSecretariaOrgaoIDs(c)
-		c.JSON(http.StatusOK, gin.H{"is_nil": ids == nil, "len": len(ids)})
-	})
+	}
+	tests := []struct {
+		name  string
+		role  string
+		path  string
+		guard gin.HandlerFunc
+	}{
+		{"cursos editor draft", "go:cursos:editor", "/courses/draft", middlewares.CourseDraftAuthorization()},
+		{"cursos editor update", "go:cursos:editor", "/courses/1", middlewares.CourseAuthorization()},
+		{"vagas editor create", "go:empregabilidade:editor", "/vagas", middlewares.VagaOrgaoInjector()},
+		{"vagas editor update", "go:empregabilidade:editor", "/vagas/1", middlewares.VagaAuthorization()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			r := gin.New()
+			r.Use(injectCPF("12345678900"))
+			r.Use(func(c *gin.Context) {
+				c.Set(middlewares.UserRolesKey, []string{tt.role})
+				c.Next()
+			})
+			r.Use(middlewares.ExtractSecretariaOrgaoIDs(failing))
+			r.POST(tt.path, tt.guard, func(c *gin.Context) { c.Status(http.StatusCreated) })
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+			req := httptest.NewRequest(http.MethodPost, tt.path, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	// fail-closed: key IS set to empty slice, not nil — user sees nothing
-	assert.Contains(t, w.Body.String(), `"is_nil":false`)
-	assert.Contains(t, w.Body.String(), `"len":0`)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
 }
 
 func TestExtractSecretariaOrgaoIDs_CPFPassedToResolver(t *testing.T) {
