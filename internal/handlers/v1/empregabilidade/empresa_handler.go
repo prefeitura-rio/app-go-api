@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -207,7 +208,8 @@ func (h *EmpresaHandler) ConsultaCNPJ(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "CNPJ inválido: deve conter 14 dígitos"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[EmpresaHandler] ConsultaCNPJ failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao consultar CNPJ"})
 		return
 	}
 

@@ -34,6 +34,7 @@ type mockCurriculoRepoH struct {
 	conquista               *empmodels.CurriculoConquista
 	situacao                *empmodels.CurriculoSituacaoInteresses
 	err                     error
+	writeErr                error // returned by Update*/Delete* when err is nil
 	mock.Mock
 }
 
@@ -51,11 +52,17 @@ func (m *mockCurriculoRepoH) GetFormacaoByID(_ context.Context, _ uuid.UUID) (*e
 }
 
 func (m *mockCurriculoRepoH) UpdateFormacao(_ context.Context, _ *empmodels.CurriculoFormacao) error {
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	return m.writeErr
 }
 
 func (m *mockCurriculoRepoH) DeleteFormacao(_ context.Context, _ uuid.UUID) error {
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	return m.writeErr
 }
 
 func (m *mockCurriculoRepoH) ListFormacoesByCPF(_ context.Context, _ string) ([]*empmodels.CurriculoFormacao, error) {
@@ -82,11 +89,17 @@ func (m *mockCurriculoRepoH) GetIdiomaByID(_ context.Context, _ uuid.UUID) (*emp
 }
 
 func (m *mockCurriculoRepoH) UpdateIdioma(_ context.Context, _ *empmodels.CurriculoIdioma) error {
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	return m.writeErr
 }
 
 func (m *mockCurriculoRepoH) DeleteIdioma(_ context.Context, _ uuid.UUID) error {
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	return m.writeErr
 }
 
 func (m *mockCurriculoRepoH) ListIdiomasByCPF(_ context.Context, _ string) ([]*empmodels.CurriculoIdioma, error) {
@@ -110,11 +123,17 @@ func (m *mockCurriculoRepoH) GetCursoComplementarByID(_ context.Context, _ uuid.
 }
 
 func (m *mockCurriculoRepoH) UpdateCursoComplementar(_ context.Context, _ *empmodels.CurriculoCursoComplementar) error {
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	return m.writeErr
 }
 
 func (m *mockCurriculoRepoH) DeleteCursoComplementar(_ context.Context, _ uuid.UUID) error {
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	return m.writeErr
 }
 
 func (m *mockCurriculoRepoH) ListCursosComplementaresByCPF(_ context.Context, _ string) ([]*empmodels.CurriculoCursoComplementar, error) {
@@ -138,11 +157,17 @@ func (m *mockCurriculoRepoH) GetExperienciaByID(_ context.Context, _ uuid.UUID) 
 }
 
 func (m *mockCurriculoRepoH) UpdateExperiencia(_ context.Context, _ *empmodels.CurriculoExperiencia) error {
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	return m.writeErr
 }
 
 func (m *mockCurriculoRepoH) DeleteExperiencia(_ context.Context, _ uuid.UUID) error {
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	return m.writeErr
 }
 
 func (m *mockCurriculoRepoH) ListExperienciasByCPF(_ context.Context, _ string) ([]*empmodels.CurriculoExperiencia, error) {
@@ -166,11 +191,17 @@ func (m *mockCurriculoRepoH) GetConquistaByID(_ context.Context, _ uuid.UUID) (*
 }
 
 func (m *mockCurriculoRepoH) UpdateConquista(_ context.Context, _ *empmodels.CurriculoConquista) error {
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	return m.writeErr
 }
 
 func (m *mockCurriculoRepoH) DeleteConquista(_ context.Context, _ uuid.UUID) error {
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	return m.writeErr
 }
 
 func (m *mockCurriculoRepoH) ListConquistasByCPF(_ context.Context, _ string) ([]*empmodels.CurriculoConquista, error) {

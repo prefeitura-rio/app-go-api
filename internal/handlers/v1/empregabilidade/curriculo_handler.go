@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -83,7 +84,8 @@ func (h *CurriculoHandler) GetCurriculoCompleto(c *gin.Context) {
 
 	curriculo, err := h.service.GetCurriculoCompleto(c.Request.Context(), cpf)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] GetCurriculoCompleto failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar currículo"})
 		return
 	}
 
@@ -119,7 +121,8 @@ func (h *CurriculoHandler) CreateFormacao(c *gin.Context) {
 
 	id, err := h.service.CreateFormacao(c.Request.Context(), &entity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] CreateFormacao failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar formação"})
 		return
 	}
 
@@ -148,7 +151,8 @@ func (h *CurriculoHandler) GetFormacaoByID(c *gin.Context) {
 
 	entity, err := h.service.GetFormacaoByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] GetFormacaoByID failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar formação"})
 		return
 	}
 
@@ -186,7 +190,8 @@ func (h *CurriculoHandler) UpdateFormacao(c *gin.Context) {
 
 	existing, err := h.service.GetFormacaoByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpdateFormacao failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar formação"})
 		return
 	}
 	if existing == nil {
@@ -206,7 +211,8 @@ func (h *CurriculoHandler) UpdateFormacao(c *gin.Context) {
 	entity.ID = id
 	entity.CPF = existing.CPF
 	if err := h.service.UpdateFormacao(c.Request.Context(), &entity); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpdateFormacao failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar formação"})
 		return
 	}
 
@@ -233,7 +239,8 @@ func (h *CurriculoHandler) DeleteFormacao(c *gin.Context) {
 
 	existing, err := h.service.GetFormacaoByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] DeleteFormacao failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar formação"})
 		return
 	}
 	if existing == nil {
@@ -245,7 +252,8 @@ func (h *CurriculoHandler) DeleteFormacao(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteFormacao(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] DeleteFormacao failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir formação"})
 		return
 	}
 
@@ -269,7 +277,8 @@ func (h *CurriculoHandler) ListFormacoesByCPF(c *gin.Context) {
 
 	entities, err := h.service.ListFormacoesByCPF(c.Request.Context(), cpf)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] ListFormacoesByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar formações"})
 		return
 	}
 
@@ -305,7 +314,8 @@ func (h *CurriculoHandler) CreateIdioma(c *gin.Context) {
 
 	id, err := h.service.CreateIdioma(c.Request.Context(), &entity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] CreateIdioma failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar idioma"})
 		return
 	}
 
@@ -334,7 +344,8 @@ func (h *CurriculoHandler) GetIdiomaByID(c *gin.Context) {
 
 	entity, err := h.service.GetIdiomaByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] GetIdiomaByID failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar idioma"})
 		return
 	}
 
@@ -372,7 +383,8 @@ func (h *CurriculoHandler) UpdateIdioma(c *gin.Context) {
 
 	existing, err := h.service.GetIdiomaByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpdateIdioma failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar idioma"})
 		return
 	}
 	if existing == nil {
@@ -392,7 +404,8 @@ func (h *CurriculoHandler) UpdateIdioma(c *gin.Context) {
 	entity.ID = id
 	entity.CPF = existing.CPF
 	if err := h.service.UpdateIdioma(c.Request.Context(), &entity); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpdateIdioma failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar idioma"})
 		return
 	}
 
@@ -419,7 +432,8 @@ func (h *CurriculoHandler) DeleteIdioma(c *gin.Context) {
 
 	existing, err := h.service.GetIdiomaByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] DeleteIdioma failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar idioma"})
 		return
 	}
 	if existing == nil {
@@ -431,7 +445,8 @@ func (h *CurriculoHandler) DeleteIdioma(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteIdioma(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] DeleteIdioma failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir idioma"})
 		return
 	}
 
@@ -455,7 +470,8 @@ func (h *CurriculoHandler) ListIdiomasByCPF(c *gin.Context) {
 
 	entities, err := h.service.ListIdiomasByCPF(c.Request.Context(), cpf)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] ListIdiomasByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar idiomas"})
 		return
 	}
 
@@ -491,7 +507,8 @@ func (h *CurriculoHandler) CreateCursoComplementar(c *gin.Context) {
 
 	id, err := h.service.CreateCursoComplementar(c.Request.Context(), &entity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] CreateCursoComplementar failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar curso complementar"})
 		return
 	}
 
@@ -520,7 +537,8 @@ func (h *CurriculoHandler) GetCursoComplementarByID(c *gin.Context) {
 
 	entity, err := h.service.GetCursoComplementarByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] GetCursoComplementarByID failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso complementar"})
 		return
 	}
 
@@ -558,7 +576,8 @@ func (h *CurriculoHandler) UpdateCursoComplementar(c *gin.Context) {
 
 	existing, err := h.service.GetCursoComplementarByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpdateCursoComplementar failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso complementar"})
 		return
 	}
 	if existing == nil {
@@ -578,7 +597,8 @@ func (h *CurriculoHandler) UpdateCursoComplementar(c *gin.Context) {
 	entity.ID = id
 	entity.CPF = existing.CPF
 	if err := h.service.UpdateCursoComplementar(c.Request.Context(), &entity); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpdateCursoComplementar failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar curso complementar"})
 		return
 	}
 
@@ -605,7 +625,8 @@ func (h *CurriculoHandler) DeleteCursoComplementar(c *gin.Context) {
 
 	existing, err := h.service.GetCursoComplementarByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] DeleteCursoComplementar failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso complementar"})
 		return
 	}
 	if existing == nil {
@@ -617,7 +638,8 @@ func (h *CurriculoHandler) DeleteCursoComplementar(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteCursoComplementar(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] DeleteCursoComplementar failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir curso complementar"})
 		return
 	}
 
@@ -641,7 +663,8 @@ func (h *CurriculoHandler) ListCursosComplementaresByCPF(c *gin.Context) {
 
 	entities, err := h.service.ListCursosComplementaresByCPF(c.Request.Context(), cpf)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] ListCursosComplementaresByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos complementares"})
 		return
 	}
 
@@ -677,7 +700,8 @@ func (h *CurriculoHandler) CreateExperiencia(c *gin.Context) {
 
 	id, err := h.service.CreateExperiencia(c.Request.Context(), &entity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] CreateExperiencia failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar experiência"})
 		return
 	}
 
@@ -706,7 +730,8 @@ func (h *CurriculoHandler) GetExperienciaByID(c *gin.Context) {
 
 	entity, err := h.service.GetExperienciaByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] GetExperienciaByID failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar experiência"})
 		return
 	}
 
@@ -744,7 +769,8 @@ func (h *CurriculoHandler) UpdateExperiencia(c *gin.Context) {
 
 	existing, err := h.service.GetExperienciaByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpdateExperiencia failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar experiência"})
 		return
 	}
 	if existing == nil {
@@ -764,7 +790,8 @@ func (h *CurriculoHandler) UpdateExperiencia(c *gin.Context) {
 	entity.ID = id
 	entity.CPF = existing.CPF
 	if err := h.service.UpdateExperiencia(c.Request.Context(), &entity); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpdateExperiencia failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar experiência"})
 		return
 	}
 
@@ -791,7 +818,8 @@ func (h *CurriculoHandler) DeleteExperiencia(c *gin.Context) {
 
 	existing, err := h.service.GetExperienciaByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] DeleteExperiencia failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar experiência"})
 		return
 	}
 	if existing == nil {
@@ -803,7 +831,8 @@ func (h *CurriculoHandler) DeleteExperiencia(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteExperiencia(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] DeleteExperiencia failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir experiência"})
 		return
 	}
 
@@ -827,7 +856,8 @@ func (h *CurriculoHandler) ListExperienciasByCPF(c *gin.Context) {
 
 	entities, err := h.service.ListExperienciasByCPF(c.Request.Context(), cpf)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] ListExperienciasByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar experiências"})
 		return
 	}
 
@@ -863,7 +893,8 @@ func (h *CurriculoHandler) CreateConquista(c *gin.Context) {
 
 	id, err := h.service.CreateConquista(c.Request.Context(), &entity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] CreateConquista failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar conquista"})
 		return
 	}
 
@@ -892,7 +923,8 @@ func (h *CurriculoHandler) GetConquistaByID(c *gin.Context) {
 
 	entity, err := h.service.GetConquistaByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] GetConquistaByID failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar conquista"})
 		return
 	}
 
@@ -930,7 +962,8 @@ func (h *CurriculoHandler) UpdateConquista(c *gin.Context) {
 
 	existing, err := h.service.GetConquistaByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpdateConquista failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar conquista"})
 		return
 	}
 	if existing == nil {
@@ -950,7 +983,8 @@ func (h *CurriculoHandler) UpdateConquista(c *gin.Context) {
 	entity.ID = id
 	entity.CPF = existing.CPF
 	if err := h.service.UpdateConquista(c.Request.Context(), &entity); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpdateConquista failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar conquista"})
 		return
 	}
 
@@ -977,7 +1011,8 @@ func (h *CurriculoHandler) DeleteConquista(c *gin.Context) {
 
 	existing, err := h.service.GetConquistaByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] DeleteConquista failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar conquista"})
 		return
 	}
 	if existing == nil {
@@ -989,7 +1024,8 @@ func (h *CurriculoHandler) DeleteConquista(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteConquista(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] DeleteConquista failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir conquista"})
 		return
 	}
 
@@ -1013,7 +1049,8 @@ func (h *CurriculoHandler) ListConquistasByCPF(c *gin.Context) {
 
 	entities, err := h.service.ListConquistasByCPF(c.Request.Context(), cpf)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] ListConquistasByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar conquistas"})
 		return
 	}
 
@@ -1047,7 +1084,8 @@ func (h *CurriculoHandler) ReplaceAllFormacoesByCPF(c *gin.Context) {
 	}
 
 	if err := h.service.ReplaceAllFormacaoAccordionByCPF(c.Request.Context(), cpf, req.Formacoes, req.Idiomas); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] ReplaceAllFormacoesByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar formações e idiomas"})
 		return
 	}
 
@@ -1079,7 +1117,8 @@ func (h *CurriculoHandler) ReplaceAllExperienciasByCPF(c *gin.Context) {
 	}
 
 	if err := h.service.ReplaceAllExperienciaProfissionalAccordionByCPF(c.Request.Context(), cpf, req.Experiencias, req.Conquistas, req.ResumoProfissional); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] ReplaceAllExperienciasByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar experiências e conquistas"})
 		return
 	}
 
@@ -1111,7 +1150,8 @@ func (h *CurriculoHandler) ReplaceAllConquistasByCPF(c *gin.Context) {
 	}
 
 	if err := h.service.ReplaceAllConquistasByCPF(c.Request.Context(), cpf, items); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] ReplaceAllConquistasByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar conquistas"})
 		return
 	}
 
@@ -1143,7 +1183,8 @@ func (h *CurriculoHandler) ReplaceAllIdiomasByCPF(c *gin.Context) {
 	}
 
 	if err := h.service.ReplaceAllIdiomasByCPF(c.Request.Context(), cpf, items); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] ReplaceAllIdiomasByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar idiomas"})
 		return
 	}
 
@@ -1175,7 +1216,8 @@ func (h *CurriculoHandler) ReplaceAllCursosComplementaresByCPF(c *gin.Context) {
 	}
 
 	if err := h.service.ReplaceAllCursosComplementaresByCPF(c.Request.Context(), cpf, items); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] ReplaceAllCursosComplementaresByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar cursos complementares"})
 		return
 	}
 
@@ -1247,7 +1289,8 @@ func (h *CurriculoHandler) UpsertSituacaoInteresses(c *gin.Context) {
 	entity.CPF = userCPF
 
 	if err := h.service.UpsertSituacaoInteresses(c.Request.Context(), &entity); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] UpsertSituacaoInteresses failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar situação e interesses"})
 		return
 	}
 
@@ -1272,7 +1315,8 @@ func (h *CurriculoHandler) GetSituacaoInteressesByCPF(c *gin.Context) {
 
 	entity, err := h.service.GetSituacaoInteressesByCPF(c.Request.Context(), cpf)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CurriculoHandler] GetSituacaoInteressesByCPF failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar situação e interesses"})
 		return
 	}
 
