@@ -12,9 +12,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
 // Mock PropostaMEI Service
@@ -231,7 +233,7 @@ func TestPropostaMEIHandler_Create_MissingAuth(t *testing.T) {
 
 func TestPropostaMEIHandler_Create_CNPJOwnershipError(t *testing.T) {
 	mockService := &MockPropostaMEIService{
-		createError: errors.New("o CNPJ 12345678000190 não pertence ao seu CPF"),
+		createError: apperrors.Forbidden("o CNPJ 12345678000190 não pertence ao seu CPF"),
 	}
 
 	router := setupRouter(mockService)
@@ -255,7 +257,7 @@ func TestPropostaMEIHandler_Create_CNPJOwnershipError(t *testing.T) {
 
 func TestPropostaMEIHandler_Create_CNAEMismatchError(t *testing.T) {
 	mockService := &MockPropostaMEIService{
-		createError: errors.New("o CNPJ 12345678000190 não possui CNAE compatível com esta oportunidade"),
+		createError: apperrors.Forbidden("o CNPJ 12345678000190 não possui CNAE compatível com esta oportunidade"),
 	}
 
 	router := setupRouter(mockService)
@@ -279,7 +281,7 @@ func TestPropostaMEIHandler_Create_CNAEMismatchError(t *testing.T) {
 
 func TestPropostaMEIHandler_Create_OpportunityNotFound(t *testing.T) {
 	mockService := &MockPropostaMEIService{
-		createError: errors.New("oportunidade não encontrada"),
+		createError: services.ErrOportunidadeNaoEncontrada,
 	}
 
 	router := setupRouter(mockService)
@@ -303,7 +305,7 @@ func TestPropostaMEIHandler_Create_OpportunityNotFound(t *testing.T) {
 
 func TestPropostaMEIHandler_Create_RMIServiceUnavailable(t *testing.T) {
 	mockService := &MockPropostaMEIService{
-		createError: errors.New("não foi possível validar seus CNPJs no momento"),
+		createError: apperrors.Unavailable("não foi possível validar seus CNPJs no momento"),
 	}
 
 	router := setupRouter(mockService)
@@ -787,7 +789,7 @@ func TestPropostaMEIHandler_Update_UpdateServiceError(t *testing.T) {
 			ID:           propostaID,
 			MEIEmpresaID: "12345678000190",
 		},
-		updateError: errors.New("update service error"),
+		updateError: apperrors.Invalid("update service error"),
 	}
 	router := setupRouter(mockService)
 
