@@ -1536,19 +1536,16 @@ func TestStartJob_MultipleJobsParallel(t *testing.T) {
 	// Wait until every job has left the pending state (unknown type -> failed)
 	// and the processor has released all of them, instead of a fixed sleep.
 	assert.Eventually(t, func() bool {
-		processor.mu.RLock()
-		activeCount := len(processor.activeJobs)
-		processor.mu.RUnlock()
-		if activeCount != 0 {
-			return false
-		}
 		for _, jobID := range jobIDs {
 			job, err := jobService.GetByID(context.Background(), jobID)
 			if err != nil || job == nil || job.Status == models.JobStatusPending {
 				return false
 			}
 		}
-		return true
+		processor.mu.RLock()
+		activeCount := len(processor.activeJobs)
+		processor.mu.RUnlock()
+		return activeCount == 0
 	}, 5*time.Second, 10*time.Millisecond)
 
 	// Verify all jobs completed
