@@ -1604,7 +1604,8 @@ func TestCurriculoHandler_ReplaceAllItensCurriculoByCPF_ServiceError(t *testing.
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao atualizar itens do currículo")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
+	assert.NotContains(t, w.Body.String(), "erro ao substituir itens")
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -294,7 +294,7 @@ func TestEmpregoHandler_Delete_GetByIDError(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar emprego")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // Test Delete - Delete service error
@@ -310,7 +310,7 @@ func TestEmpregoHandler_Delete_DeleteError(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao excluir emprego")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // Test Delete - Invalid ID
@@ -409,7 +409,7 @@ func TestEmpregoHandler_GetByID_ServiceError(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar emprego")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // Test List - Service error
@@ -424,7 +424,7 @@ func TestEmpregoHandler_List_ServiceError(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao listar empregos")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // Test List - empresa_id filter

@@ -120,7 +120,7 @@ func TestJobHandler_GetStatus_ServiceError(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar job")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 func TestNewJobHandler(t *testing.T) {

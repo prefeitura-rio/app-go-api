@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"context"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"log"
 	"net/http"
 	"strconv"
@@ -60,7 +61,7 @@ func (h *BancoCurriculoHandler) List(c *gin.Context) {
 
 	candidato, err := lerFiltroCandidato(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

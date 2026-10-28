@@ -205,7 +205,7 @@ func TestPropostaMEIHandler_List_ServiceError(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao listar propostas")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // ===================================
@@ -275,7 +275,7 @@ func TestPropostaMEIHandler_ListByMEIEmpresa_ServiceError(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao listar propostas")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // ===================================
@@ -300,7 +300,7 @@ func TestPropostaMEIHandler_GetByID_ServiceError(t *testing.T) {
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Contains(t, response["error"], "Erro ao buscar proposta")
+	assert.Contains(t, response["error"], "Erro interno do servidor")
 }
 
 // Test GetByID - verify it returns proposta when authorized
@@ -322,7 +322,7 @@ func TestPropostaMEIHandler_GetByID_ServiceInternalError(t *testing.T) {
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Contains(t, response["error"], "Erro ao buscar proposta")
+	assert.Contains(t, response["error"], "Erro interno do servidor")
 }
 
 // Test List with all filters combined

@@ -744,7 +744,7 @@ func TestPropostaMEIHandler_Update_GetByIDError(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if !strings.Contains(response["error"].(string), "Erro ao buscar proposta") {
+	if !strings.Contains(response["error"].(string), "Erro interno do servidor") {
 		t.Errorf("Unexpected error message: %v", response["error"])
 	}
 }
@@ -968,7 +968,7 @@ func TestPropostaMEIHandler_UpdateStatusBulk_ServiceError(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if !strings.Contains(response["error"].(string), "Erro ao atualizar status") {
+	if !strings.Contains(response["error"].(string), "Erro interno do servidor") {
 		t.Errorf("Unexpected error message: %v", response["error"])
 	}
 }
@@ -1087,7 +1087,7 @@ func TestPropostaMEIHandler_Delete_GetByIDError(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if !strings.Contains(response["error"].(string), "Erro ao buscar proposta") {
+	if !strings.Contains(response["error"].(string), "Erro interno do servidor") {
 		t.Errorf("Unexpected error message: %v", response["error"])
 	}
 }
@@ -1145,7 +1145,7 @@ func TestPropostaMEIHandler_Delete_ServiceError(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if !strings.Contains(response["error"].(string), "Erro ao excluir proposta") {
+	if !strings.Contains(response["error"].(string), "Erro interno do servidor") {
 		t.Errorf("Unexpected error message: %v", response["error"])
 	}
 }

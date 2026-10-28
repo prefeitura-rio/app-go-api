@@ -1,7 +1,12 @@
 package response
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
 
@@ -35,6 +40,42 @@ func Error(c *gin.Context, statusCode int, message string) {
 	c.JSON(statusCode, ErrorResponse{
 		Error: message,
 	})
+}
+
+// ErrorWithField is the additive JSON shape used when a DB constraint maps to a field.
+type ErrorWithField struct {
+	Error string `json:"error" example:"Mensagem de erro aqui"`
+	Field string `json:"field,omitempty" example:"email"`
+}
+
+// RespondError logs the full error (with trace_id when available) and writes a
+// stable client-facing JSON body via apperrors.Map. Never exposes internal details.
+func RespondError(c *gin.Context, err error) {
+	if err == nil {
+		return
+	}
+
+	traceID := ""
+	if span := trace.SpanFromContext(c.Request.Context()); span != nil {
+		sc := span.SpanContext()
+		if sc.IsValid() {
+			traceID = sc.TraceID().String()
+		}
+	}
+
+	method, path := "", ""
+	if c.Request != nil {
+		method = c.Request.Method
+		path = c.Request.URL.Path
+	}
+	log.Printf("request error method=%s path=%s trace_id=%s err=%v", method, path, traceID, err)
+
+	status, message, field := apperrors.Map(err)
+	if field != "" {
+		c.JSON(status, ErrorWithField{Error: message, Field: field})
+		return
+	}
+	Error(c, status, message)
 }
 
 // Success envia uma resposta JSON padronizada para mensagens de sucesso.

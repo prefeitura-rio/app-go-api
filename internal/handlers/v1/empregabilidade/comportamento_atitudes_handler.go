@@ -71,7 +71,7 @@ func (h *ComportamentoAtitudesHandler) CreateComportamentoAtitudes(c *gin.Contex
 
 	id, err := h.comportamentoAtitudesService.CreateComportamentoAtitudes(c.Request.Context(), entity)
 	if err != nil {
-		respondCatalogoError(c, err, "Erro ao criar comportamento/atitude")
+		response.RespondError(c, err)
 		return
 	}
 
@@ -145,7 +145,7 @@ func (h *ComportamentoAtitudesHandler) UpdateComportamentoAtitudes(c *gin.Contex
 	}
 
 	if err := h.comportamentoAtitudesService.UpdateComportamentoAtitudes(c.Request.Context(), entity); err != nil {
-		respondCatalogoMutationError(c, err, "Comportamento/atitude não encontrado", "Erro ao atualizar comportamento/atitude")
+		respondCatalogoMutationError(c, err, "Comportamento/atitude não encontrado")
 		return
 	}
 
@@ -173,7 +173,7 @@ func (h *ComportamentoAtitudesHandler) DeleteComportamentoAtitudes(c *gin.Contex
 	}
 
 	if err := h.comportamentoAtitudesService.DeleteComportamentoAtitudes(c.Request.Context(), id); err != nil {
-		respondCatalogoMutationError(c, err, "Comportamento/atitude não encontrado", "Erro ao excluir comportamento/atitude")
+		respondCatalogoMutationError(c, err, "Comportamento/atitude não encontrado")
 		return
 	}
 

@@ -478,7 +478,7 @@ func TestInscricaoHandler_CreateManual_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao criar inscrição")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // Test CreateManual endpoint with success

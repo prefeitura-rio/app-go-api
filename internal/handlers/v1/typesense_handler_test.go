@@ -274,7 +274,7 @@ func TestTypesenseHandler_SearchCursos_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar cursos")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // Test SearchCursos with valid parameters and success
@@ -392,7 +392,7 @@ func TestTypesenseHandler_SearchEmpregos_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar empregos")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // Test SearchEmpregos with success
@@ -516,7 +516,7 @@ func TestTypesenseHandler_SearchDocuments_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar documentos")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // Test SearchDocuments with success
@@ -658,7 +658,7 @@ func TestTypesenseHandler_SearchMultiCollection_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao realizar busca em múltiplas coleções")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // Test SearchMultiCollection with success

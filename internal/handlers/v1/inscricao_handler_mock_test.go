@@ -1416,7 +1416,7 @@ func TestInscricaoHandler_Import_JobCreationError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao criar job")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 	mockJobService.AssertExpectations(t)
 }
 
@@ -1732,7 +1732,7 @@ func TestInscricaoHandler_ChangeSchedule_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao trocar de turma")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 	mockService.AssertExpectations(t)
 }
 
@@ -1895,7 +1895,7 @@ func TestInscricaoHandler_UpdateCertificate_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao atualizar certificado")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 	mockService.AssertExpectations(t)
 }
 
@@ -2130,7 +2130,7 @@ func TestInscricaoHandler_PopulateRemainingVacancies_DatabaseError(t *testing.T)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao calcular vagas restantes")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 	mockService.AssertExpectations(t)
 	mockCursoRepo.AssertExpectations(t)
 }

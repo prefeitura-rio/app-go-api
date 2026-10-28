@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
@@ -582,7 +583,7 @@ func TestCourseHandler_Create_ValidationError(t *testing.T) {
 		Titulo: "Test",
 	}
 
-	mockService.On("Create", mock.Anything, mock.Anything).Return(0, errors.New("erro de validação: título muito curto"))
+	mockService.On("Create", mock.Anything, mock.Anything).Return(0, apperrors.Validation("título muito curto"))
 
 	body, _ := json.Marshal(curso)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses", bytes.NewReader(body))
@@ -1498,7 +1499,7 @@ func TestCourseHandler_CalculateRemainingVacancies_RepositoryError(t *testing.T)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao calcular vagas restantes")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 
 	mockService.AssertExpectations(t)
 	mockRepo.AssertExpectations(t)
@@ -1524,7 +1525,7 @@ func TestCourseHandler_ListDrafts_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao listar rascunhos")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 
 	mockService.AssertExpectations(t)
 }
@@ -1566,7 +1567,7 @@ func TestCourseHandler_ListDrafts_CalculateVacanciesError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao calcular vagas restantes")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 
 	mockService.AssertExpectations(t)
 	mockRepo.AssertExpectations(t)
@@ -1680,7 +1681,7 @@ func TestCourseHandler_List_CalculateVacanciesError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao calcular vagas restantes")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 
 	mockService.AssertExpectations(t)
 	mockRepo.AssertExpectations(t)
@@ -1706,7 +1707,7 @@ func TestCourseHandler_ListByUser_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao listar cursos do usuário")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 
 	mockService.AssertExpectations(t)
 }
@@ -1748,7 +1749,7 @@ func TestCourseHandler_ListByUser_CalculateVacanciesError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao calcular vagas restantes")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 
 	mockService.AssertExpectations(t)
 	mockRepo.AssertExpectations(t)
@@ -1776,7 +1777,7 @@ func TestCourseHandler_Update_GetByIDError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar curso")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 
 	mockService.AssertExpectations(t)
 }
@@ -1800,7 +1801,7 @@ func TestCourseHandler_Update_ValidationError(t *testing.T) {
 	}
 
 	mockService.On("GetByID", mock.Anything, 1).Return(existingCurso, nil)
-	mockService.On("Update", mock.Anything, mock.Anything).Return(errors.New("erro de validação: campo inválido"))
+	mockService.On("Update", mock.Anything, mock.Anything).Return(apperrors.Validation("campo inválido"))
 
 	body := []byte(`{"titulo":"New"}`)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1", bytes.NewReader(body))
@@ -1835,7 +1836,7 @@ func TestCourseHandler_Delete_GetByIDError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao excluir curso")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 
 	mockService.AssertExpectations(t)
 }
@@ -2911,7 +2912,7 @@ func TestCourseHandler_CreateDraft_ValidationError(t *testing.T) {
 		Titulo: "D",
 	}
 
-	mockService.On("Create", mock.Anything, mock.Anything).Return(0, errors.New("erro de validação: título muito curto"))
+	mockService.On("Create", mock.Anything, mock.Anything).Return(0, apperrors.Validation("título muito curto"))
 
 	body, _ := json.Marshal(curso)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/draft", bytes.NewReader(body))
@@ -2958,7 +2959,7 @@ func TestCourseHandler_SendToReview(t *testing.T) {
 
 	t.Run("conflict_invalid_state", func(t *testing.T) {
 		mockService, _, h := setupTransitionHandler()
-		mockService.On("SendToReview", mock.Anything, 1).Return(errors.New("curso não está em estado válido"))
+		mockService.On("SendToReview", mock.Anything, 1).Return(apperrors.Conflict("curso não está em estado válido"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
 		w := httptest.NewRecorder()
@@ -2969,7 +2970,7 @@ func TestCourseHandler_SendToReview(t *testing.T) {
 
 	t.Run("not_found", func(t *testing.T) {
 		mockService, _, h := setupTransitionHandler()
-		mockService.On("SendToReview", mock.Anything, 1).Return(errors.New("curso não encontrado"))
+		mockService.On("SendToReview", mock.Anything, 1).Return(apperrors.NotFound("curso não encontrado"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
 		w := httptest.NewRecorder()
@@ -2980,7 +2981,7 @@ func TestCourseHandler_SendToReview(t *testing.T) {
 
 	t.Run("bad_request_incomplete_course", func(t *testing.T) {
 		mockService, _, h := setupTransitionHandler()
-		mockService.On("SendToReview", mock.Anything, 1).Return(errors.New("curso incompleto para envio de revisão: modalidade inválida"))
+		mockService.On("SendToReview", mock.Anything, 1).Return(apperrors.Validation("curso incompleto para envio de revisão: modalidade inválida"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/send-to-review", h.SendToReview)
 		w := httptest.NewRecorder()
@@ -3004,7 +3005,7 @@ func TestCourseHandler_Approve(t *testing.T) {
 
 	t.Run("conflict", func(t *testing.T) {
 		mockService, _, h := setupTransitionHandler()
-		mockService.On("Approve", mock.Anything, 2).Return(errors.New("curso não está em estado válido para aprovação"))
+		mockService.On("Approve", mock.Anything, 2).Return(apperrors.Conflict("curso não está em estado válido para aprovação"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/approve", h.Approve)
 		w := httptest.NewRecorder()
@@ -3028,7 +3029,7 @@ func TestCourseHandler_RequestChanges(t *testing.T) {
 
 	t.Run("conflict", func(t *testing.T) {
 		mockService, _, h := setupTransitionHandler()
-		mockService.On("RequestChanges", mock.Anything, 4).Return(errors.New("curso não está em estado válido para solicitação de edição"))
+		mockService.On("RequestChanges", mock.Anything, 4).Return(apperrors.Conflict("curso não está em estado válido para solicitação de edição"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/request-changes", h.RequestChanges)
 		w := httptest.NewRecorder()
@@ -3336,7 +3337,7 @@ func TestCourseHandler_RequestDeletion(t *testing.T) {
 
 	t.Run("not_found", func(t *testing.T) {
 		mockService, _, h := setupTransitionHandler()
-		mockService.On("RequestDeletion", mock.Anything, 5).Return(errors.New("curso não encontrado"))
+		mockService.On("RequestDeletion", mock.Anything, 5).Return(apperrors.NotFound("curso não encontrado"))
 		r := gin.New()
 		r.PUT("/courses/:courseId/request-deletion", h.RequestDeletion)
 		w := httptest.NewRecorder()

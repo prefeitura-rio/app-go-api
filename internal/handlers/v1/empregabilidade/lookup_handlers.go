@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"net/http"
 	"strconv"
 
@@ -8,13 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
-	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
-
-func handleLookupError(c *gin.Context, err error) {
-	dbErr := utils.ParseDatabaseError(err)
-	c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
-}
 
 // ModeloTrabalhoHandler
 
@@ -39,13 +34,13 @@ func NewModeloTrabalhoHandler(service *services.ModeloTrabalhoService) *ModeloTr
 func (h *ModeloTrabalhoHandler) Create(c *gin.Context) {
 	var entity empregabilidade.ModeloTrabalho
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -74,7 +69,7 @@ func (h *ModeloTrabalhoHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -99,7 +94,7 @@ func (h *ModeloTrabalhoHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -131,13 +126,13 @@ func (h *ModeloTrabalhoHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.ModeloTrabalho
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -161,7 +156,7 @@ func (h *ModeloTrabalhoHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -191,13 +186,13 @@ func NewTipoPCDHandler(service *services.TipoPCDService) *TipoPCDHandler {
 func (h *TipoPCDHandler) Create(c *gin.Context) {
 	var entity empregabilidade.TipoPCD
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -226,7 +221,7 @@ func (h *TipoPCDHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -251,7 +246,7 @@ func (h *TipoPCDHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -283,13 +278,13 @@ func (h *TipoPCDHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.TipoPCD
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -313,7 +308,7 @@ func (h *TipoPCDHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -343,13 +338,13 @@ func NewIdiomaHandler(service *services.IdiomaService) *IdiomaHandler {
 func (h *IdiomaHandler) Create(c *gin.Context) {
 	var entity empregabilidade.Idioma
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -378,7 +373,7 @@ func (h *IdiomaHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -403,7 +398,7 @@ func (h *IdiomaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -435,13 +430,13 @@ func (h *IdiomaHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.Idioma
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -465,7 +460,7 @@ func (h *IdiomaHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -495,13 +490,13 @@ func NewNivelIdiomaHandler(service *services.NivelIdiomaService) *NivelIdiomaHan
 func (h *NivelIdiomaHandler) Create(c *gin.Context) {
 	var entity empregabilidade.NivelIdioma
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -530,7 +525,7 @@ func (h *NivelIdiomaHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -555,7 +550,7 @@ func (h *NivelIdiomaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -587,13 +582,13 @@ func (h *NivelIdiomaHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.NivelIdioma
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -617,7 +612,7 @@ func (h *NivelIdiomaHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -647,13 +642,13 @@ func NewEscolaridadeHandler(service *services.EscolaridadeService) *Escolaridade
 func (h *EscolaridadeHandler) Create(c *gin.Context) {
 	var entity empregabilidade.Escolaridade
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -682,7 +677,7 @@ func (h *EscolaridadeHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -707,7 +702,7 @@ func (h *EscolaridadeHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -739,13 +734,13 @@ func (h *EscolaridadeHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.Escolaridade
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -769,7 +764,7 @@ func (h *EscolaridadeHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -799,13 +794,13 @@ func NewTipoConquistaHandler(service *services.TipoConquistaService) *TipoConqui
 func (h *TipoConquistaHandler) Create(c *gin.Context) {
 	var entity empregabilidade.TipoConquista
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -834,7 +829,7 @@ func (h *TipoConquistaHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -859,7 +854,7 @@ func (h *TipoConquistaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -891,13 +886,13 @@ func (h *TipoConquistaHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.TipoConquista
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -921,7 +916,7 @@ func (h *TipoConquistaHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -951,13 +946,13 @@ func NewSituacaoAtualHandler(service *services.SituacaoAtualService) *SituacaoAt
 func (h *SituacaoAtualHandler) Create(c *gin.Context) {
 	var entity empregabilidade.SituacaoAtual
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -986,7 +981,7 @@ func (h *SituacaoAtualHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1011,7 +1006,7 @@ func (h *SituacaoAtualHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1043,13 +1038,13 @@ func (h *SituacaoAtualHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.SituacaoAtual
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1073,7 +1068,7 @@ func (h *SituacaoAtualHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1103,13 +1098,13 @@ func NewDisponibilidadeHandler(service *services.DisponibilidadeService) *Dispon
 func (h *DisponibilidadeHandler) Create(c *gin.Context) {
 	var entity empregabilidade.Disponibilidade
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1138,7 +1133,7 @@ func (h *DisponibilidadeHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1163,7 +1158,7 @@ func (h *DisponibilidadeHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1195,13 +1190,13 @@ func (h *DisponibilidadeHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.Disponibilidade
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1225,7 +1220,7 @@ func (h *DisponibilidadeHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1255,13 +1250,13 @@ func NewZonaHandler(service *services.ZonaService) *ZonaHandler {
 func (h *ZonaHandler) Create(c *gin.Context) {
 	var entity empregabilidade.Zona
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1290,7 +1285,7 @@ func (h *ZonaHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1315,7 +1310,7 @@ func (h *ZonaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1347,13 +1342,13 @@ func (h *ZonaHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.Zona
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -1377,7 +1372,7 @@ func (h *ZonaHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 

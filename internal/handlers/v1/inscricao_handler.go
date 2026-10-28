@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -161,7 +162,7 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 
 	var inscricao models.Inscricao
 	if err := c.ShouldBindJSON(&inscricao); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -171,15 +172,15 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 	if middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:cursos:casa_civil") {
 		if err := h.service.CreateByAdmin(c.Request.Context(), &inscricao); err != nil {
 			if err.Error() == "CPF já inscrito neste curso" {
-				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+				response.Error(c, http.StatusConflict, err.Error())
 				return
 			}
 			var ruleErr *services.EnrollmentRuleError
 			if errors.As(err, &ruleErr) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				response.Error(c, http.StatusBadRequest, err.Error())
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + err.Error()})
+			response.RespondError(c, err)
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{
@@ -203,7 +204,7 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 		inscricao.CPF = cpf
 		if err := h.service.Create(c.Request.Context(), &inscricao); err != nil {
 			if err.Error() == "CPF já inscrito neste curso" {
-				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+				response.Error(c, http.StatusConflict, err.Error())
 				return
 			}
 			// Business rules (course not open, window closed, turma closed) are the
@@ -211,10 +212,10 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 			// message verbatim so the portal can show it.
 			var ruleErr *services.EnrollmentRuleError
 			if errors.As(err, &ruleErr) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				response.Error(c, http.StatusBadRequest, err.Error())
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + err.Error()})
+			response.RespondError(c, err)
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{
@@ -275,13 +276,13 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 
 	inscricoes, total, err := h.service.GetByCursoID(c.Request.Context(), cursoID, filter, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar inscrições: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
 	// Calculate remaining vacancies for all enrollments in a single batched query
 	if err := h.populateRemainingVacanciesForEnrollments(c, inscricoes); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -294,7 +295,7 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 	if !selfAccess {
 		summary, err = h.service.GetSummaryByCursoID(c.Request.Context(), cursoID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao obter resumo: " + err.Error()})
+			response.RespondError(c, err)
 			return
 		}
 	}
@@ -344,14 +345,14 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 
 	var updateData models.InscricaoUpdateRequest
 	if err := c.ShouldBindJSON(&updateData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
 	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("erro ao buscar inscrição: %w", err).Error()})
+		response.RespondError(c, err)
 		return
 	}
 	if existing == nil {
@@ -377,7 +378,7 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateInscricao(c.Request.Context(), existing.ID, cursoID, &updateData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -405,7 +406,7 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 
 	var request models.EnrollmentStatusUpdateRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -417,7 +418,7 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 		request.AdminNotes,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar status: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -467,16 +468,16 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
 	if err := h.service.UpdateStatus(c.Request.Context(), enrollmentID, request.Status, request.Reason, request.AdminNotes); err != nil {
 		if err.Error() == "inscrição não encontrada" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			response.Error(c, http.StatusNotFound, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar status: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -519,7 +520,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 
 	inscricao, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar inscrição: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -535,7 +536,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 
 	// Calculate remaining vacancies for enrolled_unit schedules
 	if err := h.populateRemainingVacanciesForEnrollment(c, inscricao); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -577,24 +578,24 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 
 	var request models.CertificateUpdateRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
 	if err := h.service.UpdateCertificate(c.Request.Context(), cursoID, enrollmentID, request.CertificateURL); err != nil {
 		if err.Error() == "inscrição não encontrada" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			response.Error(c, http.StatusNotFound, err.Error())
 			return
 		}
 		if err.Error() == "inscrição não pertence ao curso especificado" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			response.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
 		if err.Error() == "certificado só pode ser atribuído a inscrições aprovadas ou concluídas" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			response.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar certificado: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -630,7 +631,7 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 
 	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("erro ao verificar inscrição: %w", err).Error()})
+		response.RespondError(c, err)
 		return
 	}
 	if existing == nil {
@@ -644,7 +645,7 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), enrollmentID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir inscrição: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -675,7 +676,7 @@ func (h *InscricaoHandler) CreateManual(c *gin.Context) {
 
 	var inscricao models.Inscricao
 	if err := c.ShouldBindJSON(&inscricao); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -684,10 +685,10 @@ func (h *InscricaoHandler) CreateManual(c *gin.Context) {
 
 	if err := h.service.CreateManual(c.Request.Context(), &inscricao); err != nil {
 		if err.Error() == "CPF já inscrito neste curso" {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			response.Error(c, http.StatusConflict, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -733,7 +734,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 	// Get uploaded file
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo não fornecido ou inválido: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Arquivo não fornecido ou inválido: "+err.Error())
 		return
 	}
 	defer func() {
@@ -761,7 +762,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 	// Create temporary file
 	tempFile, err := os.CreateTemp("", "enrollment-import-*"+ext)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar arquivo temporário: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 	defer func() {
@@ -775,7 +776,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
 			fmt.Printf("Error removing temp file: %v\n", removeErr)
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar arquivo: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -790,7 +791,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
 			fmt.Printf("Error removing temp file: %v\n", removeErr)
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar metadata do job: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -804,7 +805,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
 			fmt.Printf("Error removing temp file: %v\n", removeErr)
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar job: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -886,13 +887,13 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 
 	inscricoes, total, err := h.service.ListByCPF(c.Request.Context(), cpf, filter, offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar inscrições do usuário: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
 	// Calculate remaining vacancies for all enrollments in a single batched query
 	if err := h.populateRemainingVacanciesForEnrollments(c, inscricoes); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -967,7 +968,7 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 
 	var request models.ScheduleChangeRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -984,7 +985,7 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 		case strings.Contains(errMsg, "não há vagas"):
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao trocar de turma: " + errMsg})
+			response.RespondError(c, err)
 		}
 		return
 	}

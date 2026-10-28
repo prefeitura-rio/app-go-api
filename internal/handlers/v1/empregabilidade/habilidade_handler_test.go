@@ -341,7 +341,7 @@ func TestDetachAreaAtuacao_InternalServerError(t *testing.T) {
 	assert.Contains(
 		t,
 		w.Body.String(),
-		"Erro ao desvincular área de atuação",
+		"Erro interno do servidor",
 	)
 }
 
@@ -388,7 +388,7 @@ func TestUpdateHabilidade(t *testing.T) {
 			body:       `{"nome":"Go Avançado"}`,
 			repoErr:    errors.New("erro ao atualizar habilidade"),
 			wantStatus: http.StatusInternalServerError,
-			wantBody:   "Erro ao atualizar habilidade",
+			wantBody:   "Erro interno do servidor",
 		},
 	}
 
@@ -435,7 +435,7 @@ func TestDeleteHabilidade(t *testing.T) {
 			id:         "10",
 			repoErr:    errors.New("erro ao excluir habilidade"),
 			wantStatus: http.StatusInternalServerError,
-			wantBody:   "Erro ao excluir habilidade",
+			wantBody:   "Erro interno do servidor",
 		},
 	}
 
@@ -753,7 +753,7 @@ func TestAttachAreaAtuacao_InternalServerError(t *testing.T) {
 	assert.Contains(
 		t,
 		w.Body.String(),
-		"Erro ao vincular área de atuação",
+		"Erro interno do servidor",
 	)
 }
 

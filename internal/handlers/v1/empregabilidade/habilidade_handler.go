@@ -79,7 +79,7 @@ func (h *HabilidadeHandler) CreateHabilidade(c *gin.Context) {
 
 	id, err := h.habilidadeService.CreateHabilidade(c.Request.Context(), entity)
 	if err != nil {
-		respondCatalogoError(c, err, "Erro ao criar habilidade")
+		response.RespondError(c, err)
 		return
 	}
 
@@ -153,7 +153,7 @@ func (h *HabilidadeHandler) UpdateHabilidade(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.UpdateHabilidade(c.Request.Context(), entity); err != nil {
-		respondCatalogoMutationError(c, err, "Habilidade não encontrada", "Erro ao atualizar habilidade")
+		respondCatalogoMutationError(c, err, "Habilidade não encontrada")
 		return
 	}
 
@@ -181,7 +181,7 @@ func (h *HabilidadeHandler) DeleteHabilidade(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.DeleteHabilidade(c.Request.Context(), id); err != nil {
-		respondCatalogoMutationError(c, err, "Habilidade não encontrada", "Erro ao excluir habilidade")
+		respondCatalogoMutationError(c, err, "Habilidade não encontrada")
 		return
 	}
 
@@ -254,7 +254,7 @@ func (h *HabilidadeHandler) AttachAreaAtuacao(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.AttachAreaAtuacao(c.Request.Context(), habilidadeID, areaID); err != nil {
-		respondCatalogoError(c, err, "Erro ao vincular área de atuação")
+		response.RespondError(c, err)
 		return
 	}
 
@@ -287,7 +287,7 @@ func (h *HabilidadeHandler) DetachAreaAtuacao(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.DetachAreaAtuacao(c.Request.Context(), habilidadeID, areaID); err != nil {
-		respondCatalogoError(c, err, "Erro ao desvincular área de atuação")
+		response.RespondError(c, err)
 		return
 	}
 
@@ -326,7 +326,7 @@ func (h *HabilidadeHandler) ReplaceAreasAtuacao(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.ReplaceAreasAtuacao(c.Request.Context(), habilidadeID, req.AreaIDs); err != nil {
-		respondCatalogoError(c, err, "Erro ao substituir áreas de atuação")
+		response.RespondError(c, err)
 		return
 	}
 
@@ -363,7 +363,7 @@ func (h *HabilidadeHandler) CreateAreaAtuacao(c *gin.Context) {
 
 	id, err := h.habilidadeService.CreateAreaAtuacao(c.Request.Context(), entity)
 	if err != nil {
-		respondCatalogoError(c, err, "Erro ao criar área de atuação")
+		response.RespondError(c, err)
 		return
 	}
 
@@ -437,7 +437,7 @@ func (h *HabilidadeHandler) UpdateAreaAtuacao(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.UpdateAreaAtuacao(c.Request.Context(), entity); err != nil {
-		respondCatalogoMutationError(c, err, "Área de atuação não encontrada", "Erro ao atualizar área de atuação")
+		respondCatalogoMutationError(c, err, "Área de atuação não encontrada")
 		return
 	}
 
@@ -465,7 +465,7 @@ func (h *HabilidadeHandler) DeleteAreaAtuacao(c *gin.Context) {
 	}
 
 	if err := h.habilidadeService.DeleteAreaAtuacao(c.Request.Context(), id); err != nil {
-		respondCatalogoMutationError(c, err, "Área de atuação não encontrada", "Erro ao excluir área de atuação")
+		respondCatalogoMutationError(c, err, "Área de atuação não encontrada")
 		return
 	}
 

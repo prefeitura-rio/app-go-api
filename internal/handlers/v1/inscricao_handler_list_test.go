@@ -214,7 +214,7 @@ func TestInscricaoHandler_List_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao listar inscrições")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // Test List when summary service returns error
@@ -234,7 +234,7 @@ func TestInscricaoHandler_List_SummaryError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao obter resumo")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 // ===================================
@@ -331,7 +331,7 @@ func TestInscricaoHandler_ListByUser_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao listar inscrições do usuário")
+	assert.Contains(t, w.Body.String(), "Erro interno do servidor")
 }
 
 func TestInscricaoHandler_List_SelfAccess_KeepsSearchAndSkipsSummary(t *testing.T) {

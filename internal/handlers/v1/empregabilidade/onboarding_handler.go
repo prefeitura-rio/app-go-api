@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -42,7 +43,7 @@ func (h *OnboardingHandler) IsFirstLogin(c *gin.Context) {
 
 	isFirstLogin, err := h.service.IsFirstLogin(c.Request.Context(), cpf)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -74,7 +75,7 @@ func (h *OnboardingHandler) MarkFirstLoginCompleted(c *gin.Context) {
 	}
 
 	if err := h.service.MarkFirstLoginCompleted(c.Request.Context(), cpf); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.RespondError(c, err)
 		return
 	}
 
