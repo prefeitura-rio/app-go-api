@@ -2,6 +2,7 @@ package v1_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -53,6 +54,8 @@ var (
 	statusAuthAdmin        = statusAuthCaller{role: "ADMIN", roles: []string{"go:admin"}, cpf: statusAuthOtherCPF}
 	statusAuthCasaCivil    = statusAuthCaller{role: "USER", roles: []string{"go:cursos:casa_civil"}, cpf: statusAuthOtherCPF}
 	statusAuthEditor       = statusAuthCaller{role: "USER", roles: []string{"go:cursos:editor"}, cpf: statusAuthOtherCPF}
+	statusAuthEditorOwner  = statusAuthCaller{role: "USER", roles: []string{"go:cursos:editor"}, cpf: statusAuthOwnerCPF}
+	statusAuthAdminOwner   = statusAuthCaller{role: "ADMIN", roles: []string{"go:admin"}, cpf: statusAuthOwnerCPF}
 )
 
 // TestInscricaoHandler_UpdateIndividualStatus_Authorization covers DEV-14: on
@@ -123,6 +126,36 @@ func TestInscricaoHandler_UpdateIndividualStatus_Authorization(t *testing.T) {
 			caller:   statusAuthCaller{role: "USER", roles: []string{"go:vagas:editor"}, cpf: statusAuthOwnerCPF},
 			body:     map[string]interface{}{"status": "approved"},
 			wantCode: http.StatusForbidden,
+		},
+		{
+			name:     "editor who owns the enrollment cannot approve it",
+			caller:   statusAuthEditorOwner,
+			body:     map[string]interface{}{"status": "approved", "admin_notes": "x"},
+			wantCode: http.StatusForbidden,
+		},
+		{
+			name:     "editor who owns the enrollment cannot conclude it",
+			caller:   statusAuthEditorOwner,
+			body:     map[string]interface{}{"status": "concluded"},
+			wantCode: http.StatusForbidden,
+		},
+		{
+			name:       "editor who owns the enrollment may cancel it and admin_notes is dropped",
+			caller:     statusAuthEditorOwner,
+			body:       map[string]interface{}{"status": "cancelled", "admin_notes": "x"},
+			wantCode:   http.StatusOK,
+			wantCall:   true,
+			wantStatus: models.StatusInscricaoCancelled,
+			wantNotes:  "",
+		},
+		{
+			name:       "admin who owns the enrollment keeps full access",
+			caller:     statusAuthAdminOwner,
+			body:       map[string]interface{}{"status": "approved", "admin_notes": "revisado"},
+			wantCode:   http.StatusOK,
+			wantCall:   true,
+			wantStatus: models.StatusInscricaoApproved,
+			wantNotes:  "revisado",
 		},
 		{
 			name:       "admin approves with admin_notes",
@@ -280,6 +313,8 @@ func TestInscricaoHandler_UpdateCertificate_Authorization(t *testing.T) {
 		{name: "admin sets certificate", caller: statusAuthAdmin, wantCode: http.StatusOK, wantCall: true},
 		{name: "casa_civil sets certificate", caller: statusAuthCasaCivil, wantCode: http.StatusOK, wantCall: true},
 		{name: "editor sets certificate", caller: statusAuthEditor, wantCode: http.StatusOK, wantCall: true},
+		{name: "editor who owns the enrollment cannot set own certificate", caller: statusAuthEditorOwner, wantCode: http.StatusForbidden},
+		{name: "admin who owns the enrollment sets certificate", caller: statusAuthAdminOwner, wantCode: http.StatusOK, wantCall: true},
 	}
 
 	for _, tt := range tests {
@@ -294,6 +329,11 @@ func TestInscricaoHandler_UpdateCertificate_Authorization(t *testing.T) {
 
 			enrollmentID := uuid.New()
 			certificateURL := "https://example.com/certificates/cert.pdf"
+			mockService.On("GetByID", mock.Anything, enrollmentID).Return(&models.Inscricao{
+				ID:      enrollmentID,
+				CursoID: 1,
+				CPF:     statusAuthOwnerCPF,
+			}, nil).Maybe()
 			if tt.wantCall {
 				mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, certificateURL).Return(nil).Once()
 			}
@@ -309,6 +349,143 @@ func TestInscricaoHandler_UpdateCertificate_Authorization(t *testing.T) {
 			if tt.wantCall {
 				mockService.AssertExpectations(t)
 			} else {
+				mockService.AssertNotCalled(t, "UpdateCertificate",
+					mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			}
+		})
+	}
+}
+
+// TestInscricaoHandler_EnrollmentRoutes_EditorOwnerWithRBAC wires the real
+// CourseEnrollmentSingleAccess middleware (RBAC_ENABLED=true) in front of the
+// handlers. The middleware lets the enrollment owner through before the orgao
+// check, so an editor of another orgao who owns the enrollment must still be
+// held to the owner rules by the handler.
+func TestInscricaoHandler_EnrollmentRoutes_EditorOwnerWithRBAC(t *testing.T) {
+	const courseOrgao = "orgao-a"
+
+	editorOtherOrgaoOwner := statusAuthCaller{role: "USER", roles: []string{"go:cursos:editor"}, cpf: statusAuthOwnerCPF}
+	editorOtherOrgao := statusAuthCaller{role: "USER", roles: []string{"go:cursos:editor"}, cpf: statusAuthOtherCPF}
+	editorSameOrgao := statusAuthCaller{role: "USER", roles: []string{"go:cursos:editor"}, cpf: statusAuthOtherCPF}
+
+	tests := []struct {
+		name       string
+		caller     statusAuthCaller
+		groups     []string
+		path       string
+		body       map[string]interface{}
+		wantCode   int
+		wantUpdate string
+	}{
+		{
+			name:     "editor of another orgao who owns the enrollment cannot approve it",
+			caller:   editorOtherOrgaoOwner,
+			groups:   []string{"go:orgao:orgao-b"},
+			path:     "/status",
+			body:     map[string]interface{}{"status": "approved", "admin_notes": "x"},
+			wantCode: http.StatusForbidden,
+		},
+		{
+			name:     "editor of another orgao who owns the enrollment cannot set the certificate",
+			caller:   editorOtherOrgaoOwner,
+			groups:   []string{"go:orgao:orgao-b"},
+			path:     "/certificate",
+			body:     map[string]interface{}{"certificate_url": "https://example.com/cert.pdf"},
+			wantCode: http.StatusForbidden,
+		},
+		{
+			name:       "editor of another orgao who owns the enrollment may cancel it",
+			caller:     editorOtherOrgaoOwner,
+			groups:     []string{"go:orgao:orgao-b"},
+			path:       "/status",
+			body:       map[string]interface{}{"status": "cancelled", "admin_notes": "x"},
+			wantCode:   http.StatusOK,
+			wantUpdate: "status",
+		},
+		{
+			name:     "editor of another orgao is refused by the middleware",
+			caller:   editorOtherOrgao,
+			groups:   []string{"go:orgao:orgao-b"},
+			path:     "/status",
+			body:     map[string]interface{}{"status": "approved"},
+			wantCode: http.StatusForbidden,
+		},
+		{
+			name:       "editor of the course orgao approves",
+			caller:     editorSameOrgao,
+			groups:     []string{"go:orgao:" + courseOrgao},
+			path:       "/status",
+			body:       map[string]interface{}{"status": "approved", "admin_notes": "ok"},
+			wantCode:   http.StatusOK,
+			wantUpdate: "status",
+		},
+		{
+			name:       "editor of the course orgao sets the certificate",
+			caller:     editorSameOrgao,
+			groups:     []string{"go:orgao:" + courseOrgao},
+			path:       "/certificate",
+			body:       map[string]interface{}{"certificate_url": "https://example.com/cert.pdf"},
+			wantCode:   http.StatusOK,
+			wantUpdate: "certificate",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			mockService := new(MockInscricaoService)
+			handler := v1.NewInscricaoHandler(mockService, new(MockJobService), new(MockCursoRepository))
+
+			courseLoader := func(_ context.Context, _ int) (string, bool, error) {
+				return courseOrgao, true, nil
+			}
+			cpfLoader := func(_ context.Context, _ uuid.UUID) (string, bool, error) {
+				return statusAuthOwnerCPF, true, nil
+			}
+			access := middlewares.CourseEnrollmentSingleAccess(courseLoader, cpfLoader)
+
+			r := gin.New()
+			r.Use(tt.caller.middleware(), func(c *gin.Context) {
+				c.Set(middlewares.UserGroupsKey, tt.groups)
+				c.Next()
+			})
+			r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/status", access, handler.UpdateIndividualStatus)
+			r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", access, handler.UpdateCertificate)
+
+			enrollmentID := uuid.New()
+			mockService.On("GetByID", mock.Anything, enrollmentID).Return(&models.Inscricao{
+				ID:      enrollmentID,
+				CursoID: 1,
+				CPF:     statusAuthOwnerCPF,
+			}, nil).Maybe()
+			switch tt.wantUpdate {
+			case "status":
+				mockService.On("UpdateStatus", mock.Anything, enrollmentID, mock.Anything, mock.Anything, mock.Anything).
+					Return(nil).Once()
+			case "certificate":
+				mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).Return(nil).Once()
+			}
+
+			body, _ := json.Marshal(tt.body)
+			req := httptest.NewRequest(http.MethodPut,
+				"/api/v1/courses/1/enrollments/"+enrollmentID.String()+tt.path, bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantCode, w.Code, w.Body.String())
+			switch tt.wantUpdate {
+			case "status":
+				mockService.AssertExpectations(t)
+				if tt.caller.cpf == statusAuthOwnerCPF {
+					mockService.AssertCalled(t, "UpdateStatus", mock.Anything, enrollmentID,
+						models.StatusInscricaoCancelled, "", "")
+				}
+			case "certificate":
+				mockService.AssertExpectations(t)
+			default:
+				mockService.AssertNotCalled(t, "UpdateStatus",
+					mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 				mockService.AssertNotCalled(t, "UpdateCertificate",
 					mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			}

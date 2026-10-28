@@ -1881,7 +1881,7 @@ const docTemplate = `{
         },
         "/api/v1/courses/{courseId}/enrollments/{enrollmentId}/certificate": {
             "put": {
-                "description": "Adiciona ou atualiza a URL do certificado de uma inscrição",
+                "description": "Adiciona ou atualiza a URL do certificado de uma inscrição (somente admin, casa civil e editor de cursos)",
                 "consumes": [
                     "application/json"
                 ],
@@ -1953,7 +1953,7 @@ const docTemplate = `{
         },
         "/api/v1/courses/{courseId}/enrollments/{enrollmentId}/status": {
             "put": {
-                "description": "Atualiza o status de uma inscrição específica",
+                "description": "Atualiza o status de uma inscrição específica. Admin, casa civil e editor de cursos alteram qualquer status e admin_notes; o cidadão dono da inscrição só pode cancelá-la (status cancelled) e admin_notes enviado por ele é descartado.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1998,6 +1998,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }

@@ -40,9 +40,26 @@ func NewInscricaoHandler(service services.InscricaoServiceInterface, jobService 
 // casa civil or cursos editor). With RBAC_ENABLED=true the route middleware
 // additionally restricts editors to courses of their own orgao.
 func isEnrollmentStaff(c *gin.Context) bool {
-	return middlewares.IsAdmin(c) ||
-		middlewares.HasRole(c, "go:cursos:casa_civil") ||
-		middlewares.HasRole(c, "go:cursos:editor")
+	return isEnrollmentAdmin(c) || middlewares.HasRole(c, "go:cursos:editor")
+}
+
+func isEnrollmentAdmin(c *gin.Context) bool {
+	return middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:cursos:casa_civil")
+}
+
+// isEnrollmentStaffFor reports whether the caller acts as staff on an
+// enrollment of enrollmentCPF. An editor who owns the enrollment is held to the
+// owner rules: CourseEnrollmentSingleAccess lets the owner through before the
+// orgao check, so the editor scope is never verified for their own enrollment.
+func isEnrollmentStaffFor(c *gin.Context, enrollmentCPF string) bool {
+	if isEnrollmentAdmin(c) {
+		return true
+	}
+	if !middlewares.HasRole(c, "go:cursos:editor") {
+		return false
+	}
+	userCPF := middlewares.GetUserCPF(c)
+	return userCPF == "" || userCPF != enrollmentCPF
 }
 
 // populateRemainingVacanciesForEnrollment calculates remaining vacancies for a single enrollment's enrolled_unit
@@ -499,7 +516,7 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 	// só pode cancelá-la. admin_notes é campo administrativo interno e é
 	// descartado (como no PUT da inscrição). A checagem fica no handler para
 	// valer também com RBAC_ENABLED=false, quando enrollmentSingleAccess não roda.
-	if !isEnrollmentStaff(c) {
+	if !isEnrollmentStaffFor(c, existing.CPF) {
 		userCPF := middlewares.GetUserCPF(c)
 		if userCPF == "" || existing.CPF != userCPF {
 			c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
@@ -619,6 +636,21 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 	if !isEnrollmentStaff(c) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
 		return
+	}
+	if !isEnrollmentAdmin(c) {
+		existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar inscrição"})
+			return
+		}
+		if existing == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "inscrição não encontrada"})
+			return
+		}
+		if !isEnrollmentStaffFor(c, existing.CPF) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
+			return
+		}
 	}
 
 	var request models.CertificateUpdateRequest
