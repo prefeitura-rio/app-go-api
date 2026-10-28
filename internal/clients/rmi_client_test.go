@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -1284,4 +1285,64 @@ func TestGetCPFSecretarias(t *testing.T) {
 			t.Errorf("Expected CPF in path, got: %s", requestPath)
 		}
 	})
+}
+
+// Dados sintéticos: o corpo de erro simula um RMI que devolve dados do cidadão.
+const syntheticRMIErrorBody = `{"error":"falha","cpf":"12345678900","nome":"Fulano de Teste"}`
+
+func TestGetCPFSecretarias_ErrorStatus_OmitsResponseBody(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+	}{
+		{"500 sem novas tentativas", http.StatusInternalServerError},
+		{"503 depois das novas tentativas", http.StatusServiceUnavailable},
+		{"400 do RMI", http.StatusBadRequest},
+		{"403 do RMI", http.StatusForbidden},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(syntheticRMIErrorBody))
+			}))
+			defer srv.Close()
+
+			client := NewRMIClient(srv.URL, 5*time.Second,
+				WithName(uniqueClientName(t, "secretaria-body-")),
+				WithRetryBackoff(time.Millisecond, 2*time.Millisecond))
+			_, err := client.GetCPFSecretarias(context.Background(), "token", "12345678900")
+			if err == nil {
+				t.Fatal("Expected error for non-200 status")
+			}
+
+			want := fmt.Sprintf("RMI API returned status %d", tt.status)
+			if err.Error() != want {
+				t.Errorf("Expected error %q, got %q", want, err.Error())
+			}
+			for _, leaked := range []string{"Fulano", "12345678900", "falha"} {
+				if strings.Contains(err.Error(), leaked) {
+					t.Errorf("Error message leaks response body content %q: %q", leaked, err.Error())
+				}
+			}
+		})
+	}
+}
+
+func TestGetOrgao_ErrorStatus_KeepsResponseBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("orgao indisponivel"))
+	}))
+	defer srv.Close()
+
+	client := NewRMIClient(srv.URL, 5*time.Second, WithName(uniqueClientName(t, "orgao-body-")))
+	_, err := client.GetOrgao(context.Background(), "ORG1")
+	if err == nil {
+		t.Fatal("Expected error for non-200 status")
+	}
+	if want := "RMI API returned status 500: orgao indisponivel"; err.Error() != want {
+		t.Errorf("Expected error %q, got %q", want, err.Error())
+	}
 }
