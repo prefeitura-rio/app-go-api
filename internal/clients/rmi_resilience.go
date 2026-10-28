@@ -138,7 +138,8 @@ func defaultRMIClientOptions() rmiClientOptions {
 
 func newRMICircuitBreaker(o rmiClientOptions) *gobreaker.CircuitBreaker {
 	threshold := o.breakerThreshold
-	return gobreaker.NewCircuitBreaker(gobreaker.Settings{
+	var cb *gobreaker.CircuitBreaker
+	cb = gobreaker.NewCircuitBreaker(gobreaker.Settings{
 		Name:        o.name,
 		MaxRequests: 1,
 		Interval:    defaultBreakerInterval,
@@ -147,8 +148,13 @@ func newRMICircuitBreaker(o rmiClientOptions) *gobreaker.CircuitBreaker {
 			return counts.ConsecutiveFailures >= threshold
 		},
 		IsSuccessful: func(err error) bool {
-			// A caller giving up (client disconnect) says nothing about RMI health.
-			return err == nil || errors.Is(err, context.Canceled)
+			if err == nil {
+				return true
+			}
+			// A caller giving up (client disconnect) says nothing about RMI health:
+			// it does not count against a closed circuit, but a cancelled half-open
+			// probe is not proof of recovery, so it keeps the circuit open.
+			return errors.Is(err, context.Canceled) && cb.State() == gobreaker.StateClosed
 		},
 		OnStateChange: func(name string, from, to gobreaker.State) {
 			rmiCircuitState.WithLabelValues(name).Set(circuitStateValue(to))
@@ -156,6 +162,7 @@ func newRMICircuitBreaker(o rmiClientOptions) *gobreaker.CircuitBreaker {
 			log.Printf("[RMIClient] circuit breaker %q: %s -> %s", name, from, to)
 		},
 	})
+	return cb
 }
 
 func circuitStateValue(s gobreaker.State) float64 {

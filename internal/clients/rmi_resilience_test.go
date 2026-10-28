@@ -357,3 +357,40 @@ func TestRMIClient_MetricsExposedByPromHandler(t *testing.T) {
 		assert.Contains(t, body, metric)
 	}
 }
+
+func TestRMIClient_CircuitBreaker_CancelledHalfOpenProbeDoesNotClose(t *testing.T) {
+	var healthy atomic.Bool
+	release := make(chan struct{})
+	srv, _ := newCountingServer(t, func(_ int32, w http.ResponseWriter, r *http.Request) {
+		if !healthy.Load() {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	t.Cleanup(func() { close(release) })
+	name := uniqueClientName(t, "cb-cancel-")
+	client := NewRMIClient(srv.URL, 5*time.Second, WithName(name), fastRetry, WithCircuitBreaker(1, 50*time.Millisecond))
+
+	_, err := client.GetOrgao(context.Background(), "1000")
+	require.Error(t, err)
+	require.Equal(t, float64(2), testutil.ToFloat64(rmiCircuitState.WithLabelValues(name)))
+
+	healthy.Store(true)
+	time.Sleep(80 * time.Millisecond)
+
+	cancelCtx, cancelProbe := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		cancelProbe()
+	}()
+	_, err = client.GetOrgao(cancelCtx, "1000")
+	require.Error(t, err)
+
+	assert.NotEqual(t, float64(0), testutil.ToFloat64(rmiCircuitState.WithLabelValues(name)),
+		"a probe cancelled by the caller must not close the circuit")
+}

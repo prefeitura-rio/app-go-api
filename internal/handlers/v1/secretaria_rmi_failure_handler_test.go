@@ -100,7 +100,6 @@ func setupCourseRouterRMIDown(svc *MockCursoService, heimdallRoles ...string) *g
 	})
 	r.Use(middlewares.ExtractSecretariaOrgaoIDs(failingSecretariaResolver))
 	h := v1.NewCourseHandler(svc, nil, nil)
-	r.GET("/api/v1/courses", h.List)
 	r.POST("/api/v1/courses", middlewares.CourseAuthorization(), middlewares.CourseOrgaoInjector(), h.Create)
 	r.POST("/api/v1/courses/draft", middlewares.CourseAuthorization(), middlewares.CourseDraftAuthorization(), h.CreateDraft)
 	return r
@@ -114,13 +113,26 @@ func TestCourseHandler_RMIDown_List_FailOpen_NoSecretariaFilter(t *testing.T) {
 		return !restricted && !empty
 	}), mock.Anything, mock.Anything).Return([]*models.Curso{{ID: 7, Titulo: "Curso Aberto"}}, 1, nil)
 
-	router := setupCourseRouterRMIDown(svc)
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "USER")
+		c.Set(middlewares.UserCPFKey, "12345678900")
+		c.Next()
+	})
+	router.Use(middlewares.ExtractSecretariaOrgaoIDs(failingSecretariaResolver))
+	var secretariaKeySet bool
+	router.GET("/api/v1/courses", func(c *gin.Context) {
+		_, secretariaKeySet = c.Get(middlewares.UserSecretariaOrgaoIDsKey)
+		c.Next()
+	}, v1.NewCourseHandler(svc, nil, nil).List)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/courses", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	assert.False(t, secretariaKeySet, "RMI down must not set the secretaria key on a course read")
 	assert.Contains(t, w.Body.String(), "Curso Aberto")
 	svc.AssertExpectations(t)
 }
