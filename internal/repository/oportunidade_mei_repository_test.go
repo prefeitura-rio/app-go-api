@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql/driver"
 	"regexp"
 	"testing"
 
@@ -239,6 +240,97 @@ func TestOportunidadeMEIRepository_List(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 2, total)
 		assert.Len(t, oportunidades, 2)
+	})
+}
+
+func TestOportunidadeMEIRepository_List_EffectiveStatusFilter(t *testing.T) {
+	ctx := context.Background()
+
+	activeCond := `WHERE (((status IN ($1,$2) AND data_expiracao >= $3) OR (status = $4 AND data_expiracao IS NULL))) AND "oportunidades_mei"."deleted_at" IS NULL`
+	expiredCond := `WHERE (((status IN ($1,$2) AND data_expiracao < $3) OR (status = $4 AND data_expiracao IS NULL))) AND "oportunidades_mei"."deleted_at" IS NULL`
+	draftCond := `WHERE status = $1 AND "oportunidades_mei"."deleted_at" IS NULL`
+
+	tests := []struct {
+		name       string
+		status     interface{}
+		where      string
+		statusArgs []interface{}
+		usesNow    bool
+	}{
+		{"active counts expired with future date and excludes overdue active", models.StatusOportunidadeActive, activeCond,
+			[]interface{}{"active", "expired", "active"}, true},
+		{"expired counts overdue active and excludes expired with future date", models.StatusOportunidadeExpired, expiredCond,
+			[]interface{}{"active", "expired", "expired"}, true},
+		{"draft filters by stored status only", models.StatusOportunidadeDraft, draftCond,
+			[]interface{}{models.StatusOportunidadeDraft}, false},
+		{"status given as plain string is also handled", "expired", expiredCond,
+			[]interface{}{"active", "expired", "expired"}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, cleanup := SetupMockDB(t)
+			defer cleanup()
+			repo := NewOportunidadeMEIRepository(db)
+
+			args := []driver.Value{}
+			if tt.usesNow {
+				args = append(args, tt.statusArgs[0], tt.statusArgs[1], sqlmock.AnyArg(), tt.statusArgs[2])
+			} else {
+				args = append(args, tt.statusArgs[0])
+			}
+
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "oportunidades_mei" ` + tt.where)).
+				WithArgs(args...).
+				WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(57))
+
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "oportunidades_mei" `+tt.where) + `.*ORDER BY created_at DESC LIMIT \$\d+ OFFSET \$\d+`).
+				WithArgs(append(args, 1, 20)...).
+				WillReturnRows(sqlmock.NewRows([]string{"id", "status"}).AddRow(1, "active"))
+
+			filters := map[string]interface{}{"status": tt.status}
+			oportunidades, total, err := repo.List(ctx, filters, "", 1, 20)
+			assert.NoError(t, err)
+			assert.Equal(t, 57, total, "total must be the real COUNT, not the page size")
+			assert.Len(t, oportunidades, 1)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+
+	t.Run("status condition stays grouped when combined with other filters", func(t *testing.T) {
+		db, mock, cleanup := SetupMockDB(t)
+		defer cleanup()
+		repo := NewOportunidadeMEIRepository(db)
+
+		// The OR inside the status condition must not leak out of its parentheses,
+		// otherwise orgao_id/titulo would not restrict the overdue/expired branch.
+		grouped := `\(\(\(status IN \(\$\d+,\$\d+\) AND data_expiracao < \$\d+\) OR \(status = \$\d+ AND data_expiracao IS NULL\)\)\)`
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "oportunidades_mei" WHERE .*` + grouped + `.*AND .*unaccent\(titulo\) ILIKE unaccent\(\$\d+\)`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
+		mock.ExpectQuery(`SELECT \* FROM "oportunidades_mei" WHERE .*` + grouped).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+		filters := map[string]interface{}{
+			"status":   models.StatusOportunidadeExpired,
+			"orgao_id": "SECONSERVA",
+		}
+		_, total, err := repo.List(ctx, filters, "jardim", 10, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, total)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("count error is returned", func(t *testing.T) {
+		db, mock, cleanup := SetupMockDB(t)
+		defer cleanup()
+		repo := NewOportunidadeMEIRepository(db)
+
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "oportunidades_mei"`)).
+			WillReturnError(assert.AnError)
+
+		_, _, err := repo.List(ctx, map[string]interface{}{"status": models.StatusOportunidadeDraft}, "", 10, 0)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao contar oportunidades MEI")
 	})
 }
 
