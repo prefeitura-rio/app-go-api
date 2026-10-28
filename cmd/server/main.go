@@ -27,6 +27,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/observability"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/router"
+	"github.com/prefeitura-rio/app-go-api/internal/wire/providers"
 	"github.com/prefeitura-rio/app-go-api/internal/workers"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -93,7 +94,7 @@ func main() {
 	if cfg.OrgaoSync.Enabled {
 		log.Println("Initializing orgao sync worker...")
 
-		rmiClient := clients.NewRMIClient(cfg.RMI.BaseURL, 30*time.Second)
+		rmiClient := clients.NewRMIClient(cfg.RMI.BaseURL, 30*time.Second, providers.RMIClientOptions(cfg, "orgao_sync")...)
 		workerRedis := redis.NewClient(&redis.Options{
 			Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
 			Password: cfg.Redis.Password,
