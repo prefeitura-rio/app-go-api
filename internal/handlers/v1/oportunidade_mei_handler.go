@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -33,13 +34,13 @@ func NewOportunidadeMEIHandler(service services.OportunidadeMEIServiceInterface)
 func (h *OportunidadeMEIHandler) Create(c *gin.Context) {
 	var oportunidade models.OportunidadeMEI
 	if err := c.ShouldBindJSON(&oportunidade); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &oportunidade, false)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -60,13 +61,13 @@ func (h *OportunidadeMEIHandler) Create(c *gin.Context) {
 func (h *OportunidadeMEIHandler) CreateDraft(c *gin.Context) {
 	var oportunidade models.OportunidadeMEI
 	if err := c.ShouldBindJSON(&oportunidade); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &oportunidade, true)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -94,7 +95,7 @@ func (h *OportunidadeMEIHandler) GetByID(c *gin.Context) {
 
 	oportunidade, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar oportunidade: " + err.Error()})
+		response.RespondError(c, err, "Erro ao buscar oportunidade")
 		return
 	}
 
@@ -126,13 +127,13 @@ func (h *OportunidadeMEIHandler) Update(c *gin.Context) {
 
 	var oportunidade models.OportunidadeMEI
 	if err := c.ShouldBindJSON(&oportunidade); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
 	oportunidade.ID = id
 	if err := h.service.Update(c.Request.Context(), &oportunidade); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -156,7 +157,7 @@ func (h *OportunidadeMEIHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir oportunidade: " + err.Error()})
+		response.RespondError(c, err, "Erro ao excluir oportunidade")
 		return
 	}
 
@@ -181,13 +182,13 @@ func (h *OportunidadeMEIHandler) Publish(c *gin.Context) {
 	}
 
 	if err := h.service.Publish(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	oportunidade, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar oportunidade: " + err.Error()})
+		response.RespondError(c, err, "Erro ao buscar oportunidade")
 		return
 	}
 
@@ -253,7 +254,7 @@ func (h *OportunidadeMEIHandler) List(c *gin.Context) {
 	oportunidades, total, err = h.service.List(c.Request.Context(), filters, titulo, page, pageSize)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar oportunidades: " + err.Error()})
+		response.RespondError(c, err, "Erro ao listar oportunidades")
 		return
 	}
 
@@ -294,7 +295,7 @@ func (h *OportunidadeMEIHandler) ListDrafts(c *gin.Context) {
 
 	oportunidades, total, err := h.service.ListDrafts(c.Request.Context(), orgaoID, titulo, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar rascunhos: " + err.Error()})
+		response.RespondError(c, err, "Erro ao listar rascunhos")
 		return
 	}
 

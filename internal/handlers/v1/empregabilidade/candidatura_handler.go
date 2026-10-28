@@ -3,44 +3,15 @@ package empregabilidade
 import (
 	"net/http"
 	"strconv"
-	"strings"
+
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
-	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
-
-func handleCandidaturaError(c *gin.Context, err error) {
-	msg := err.Error()
-
-	switch {
-	case strings.Contains(msg, "não encontrada"):
-		c.JSON(http.StatusNotFound, gin.H{"error": msg})
-		return
-	case strings.Contains(msg, "já existe"), strings.Contains(msg, "já se candidatou"):
-		c.JSON(http.StatusConflict, gin.H{"error": msg})
-		return
-	case strings.Contains(msg, "transição de status inválida"),
-		strings.Contains(msg, "não pode ser aprovada"),
-		strings.Contains(msg, "não pode ser reprovada"),
-		strings.Contains(msg, "mesma etapa"):
-		c.JSON(http.StatusConflict, gin.H{"error": msg})
-		return
-	case strings.Contains(msg, "expirada"),
-		strings.Contains(msg, "não está ativa"),
-		strings.Contains(msg, "status inválido"),
-		strings.Contains(msg, "etapa não pertence"),
-		strings.Contains(msg, "lista de CPFs não pode ser vazia"):
-		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
-		return
-	}
-
-	dbErr := utils.ParseDatabaseError(err)
-	c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
-}
 
 type CandidaturaHandler struct {
 	service *services.CandidaturaService
@@ -63,7 +34,7 @@ func NewCandidaturaHandler(service *services.CandidaturaService) *CandidaturaHan
 func (h *CandidaturaHandler) Create(c *gin.Context) {
 	var entity empregabilidade.Candidatura
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -92,7 +63,7 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -139,7 +110,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 
 	candidato, err := lerFiltroCandidato(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -170,7 +141,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -178,7 +149,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 	resumoFilter.Status = ""
 	resumo, err := h.service.CountByStatus(c.Request.Context(), resumoFilter)
 	if err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -260,7 +231,7 @@ func (h *CandidaturaHandler) ListByCPF(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -268,7 +239,7 @@ func (h *CandidaturaHandler) ListByCPF(c *gin.Context) {
 	resumoFilter.Status = ""
 	resumo, err := h.service.CountByStatus(c.Request.Context(), resumoFilter)
 	if err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -305,7 +276,7 @@ func (h *CandidaturaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -344,7 +315,7 @@ func (h *CandidaturaHandler) Update(c *gin.Context) {
 
 	existing, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 	if existing == nil {
@@ -358,14 +329,14 @@ func (h *CandidaturaHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.Candidatura
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -390,7 +361,7 @@ func (h *CandidaturaHandler) Delete(c *gin.Context) {
 
 	existing, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 	if existing == nil {
@@ -403,7 +374,7 @@ func (h *CandidaturaHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -434,12 +405,12 @@ func (h *CandidaturaHandler) UpdateStatus(c *gin.Context) {
 
 	var request UpdateStatusRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if err := h.service.UpdateStatus(c.Request.Context(), id, request.Status); err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -463,7 +434,7 @@ func (h *CandidaturaHandler) Approve(c *gin.Context) {
 	}
 
 	if err := h.service.Approve(c.Request.Context(), id); err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -487,7 +458,7 @@ func (h *CandidaturaHandler) Reject(c *gin.Context) {
 	}
 
 	if err := h.service.Reject(c.Request.Context(), id); err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -513,13 +484,13 @@ type BulkUpdateStatusRequest struct {
 func (h *CandidaturaHandler) BulkUpdateStatus(c *gin.Context) {
 	var request BulkUpdateStatusRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	result, err := h.service.BulkUpdateStatus(c.Request.Context(), request.VagaID, request.CPFs, request.Status)
 	if err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -549,13 +520,13 @@ type BulkUpdateEtapaRequest struct {
 func (h *CandidaturaHandler) BulkUpdateEtapa(c *gin.Context) {
 	var request BulkUpdateEtapaRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	result, err := h.service.BulkUpdateEtapa(c.Request.Context(), request.VagaID, request.CPFs, request.EtapaID)
 	if err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -589,12 +560,12 @@ func (h *CandidaturaHandler) UpdateEtapa(c *gin.Context) {
 
 	var request UpdateEtapaRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if err := h.service.UpdateEtapa(c.Request.Context(), id, request.EtapaID); err != nil {
-		handleCandidaturaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 

@@ -4,17 +4,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
-	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
-
-func handleCandidaturaBloqueioError(c *gin.Context, err error) {
-	dbErr := utils.ParseDatabaseError(err)
-	c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
-}
 
 type CandidaturaBloqueioHandler struct {
 	service *services.CandidaturaBloqueioService
@@ -37,13 +33,13 @@ func NewCandidaturaBloqueioHandler(service *services.CandidaturaBloqueioService)
 func (h *CandidaturaBloqueioHandler) Create(c *gin.Context) {
 	var entity empregabilidade.CandidaturaBloqueio
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleCandidaturaBloqueioError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -88,7 +84,7 @@ func (h *CandidaturaBloqueioHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		handleCandidaturaBloqueioError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 

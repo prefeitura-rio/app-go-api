@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
-	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 func containsString(slice []string, item string) bool {
@@ -41,28 +41,6 @@ func parseCSVParam(param string) []string {
 	return result
 }
 
-func handleVagaError(c *gin.Context, err error) {
-	msg := err.Error()
-
-	// Primeiro verifica erros de domínio conhecidos
-	switch {
-	case strings.Contains(msg, "não encontrada"):
-		c.JSON(http.StatusNotFound, gin.H{"error": msg})
-		return
-	case strings.Contains(msg, "não está em estado"):
-		c.JSON(http.StatusConflict, gin.H{"error": msg})
-		return
-	case strings.Contains(msg, "contratante não encontrada"),
-		strings.Contains(msg, "deve ser um número inteiro positivo"):
-		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
-		return
-	}
-
-	// Para outros erros, usa ParseDatabaseError para normalizar
-	dbErr := utils.ParseDatabaseError(err)
-	c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
-}
-
 type VagaHandler struct {
 	service *services.VagaService
 }
@@ -85,7 +63,7 @@ func NewVagaHandler(service *services.VagaService) *VagaHandler {
 func (h *VagaHandler) Create(c *gin.Context) {
 	var entity empregabilidade.Vaga
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -97,7 +75,7 @@ func (h *VagaHandler) Create(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -181,7 +159,7 @@ func (h *VagaHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -214,7 +192,7 @@ func (h *VagaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -247,7 +225,7 @@ func (h *VagaHandler) Update(c *gin.Context) {
 
 	existing, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 	if existing == nil {
@@ -269,7 +247,7 @@ func (h *VagaHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.Vaga
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -286,13 +264,13 @@ func (h *VagaHandler) Update(c *gin.Context) {
 	entity.ID = id
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
 	updated, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -316,7 +294,7 @@ func (h *VagaHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -342,7 +320,7 @@ func (h *VagaHandler) SendToDraft(c *gin.Context) {
 	}
 
 	if err := h.service.SendToDraft(c.Request.Context(), id); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -368,7 +346,7 @@ func (h *VagaHandler) SendToApproval(c *gin.Context) {
 	}
 
 	if err := h.service.SendToApproval(c.Request.Context(), id); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -394,7 +372,7 @@ func (h *VagaHandler) Publish(c *gin.Context) {
 	}
 
 	if err := h.service.Publish(c.Request.Context(), id); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -425,12 +403,12 @@ func (h *VagaHandler) UpdateTiposPCD(c *gin.Context) {
 
 	var request UpdateTiposPCDRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if err := h.service.UpdateTiposPCD(c.Request.Context(), id, request.TiposPCDIDs); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -461,12 +439,12 @@ func (h *VagaHandler) UpdateZonas(c *gin.Context) {
 
 	var request UpdateZonasRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if err := h.service.UpdateZonas(c.Request.Context(), id, request.ZonaIDs); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -497,7 +475,7 @@ func (h *VagaHandler) UpdateIdiomasRequisito(c *gin.Context) {
 
 	var request UpdateIdiomasRequisitoRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -506,7 +484,7 @@ func (h *VagaHandler) UpdateIdiomasRequisito(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateIdiomasRequisito(c.Request.Context(), id, request.Requisitos); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -532,7 +510,7 @@ func (h *VagaHandler) Freeze(c *gin.Context) {
 	}
 
 	if err := h.service.FreezeVaga(c.Request.Context(), id); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -558,7 +536,7 @@ func (h *VagaHandler) Unfreeze(c *gin.Context) {
 	}
 
 	if err := h.service.UnfreezeVaga(c.Request.Context(), id); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -584,7 +562,7 @@ func (h *VagaHandler) Discontinue(c *gin.Context) {
 	}
 
 	if err := h.service.DiscontinueVaga(c.Request.Context(), id); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -610,7 +588,7 @@ func (h *VagaHandler) Reactivate(c *gin.Context) {
 	}
 
 	if err := h.service.ReactivateVaga(c.Request.Context(), id); err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -679,7 +657,7 @@ func (h *VagaHandler) PublicList(c *gin.Context) {
 
 	entities, total, err := h.service.ListPublic(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -708,7 +686,7 @@ func (h *VagaHandler) PublicGetBySlug(c *gin.Context) {
 
 	entity, err := h.service.GetBySlug(c.Request.Context(), vagaSlug)
 	if err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -749,7 +727,7 @@ func (h *VagaHandler) PublicGetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleVagaError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 

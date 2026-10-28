@@ -11,6 +11,7 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/authorization"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -60,7 +61,7 @@ func (h *PropostaMEIHandler) Create(c *gin.Context) {
 
 	var proposta models.PropostaMEI
 	if err := c.ShouldBindJSON(&proposta); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -80,18 +81,18 @@ func (h *PropostaMEIHandler) Create(c *gin.Context) {
 		if strings.Contains(err.Error(), "não pertence ao seu CPF") ||
 			strings.Contains(err.Error(), "não possui CNAE compatível") ||
 			strings.Contains(err.Error(), "Nenhum CNPJ encontrado") {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			response.Error(c, http.StatusForbidden, err.Error())
 			return
 		}
 		if strings.Contains(err.Error(), "não encontrada") {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			response.Error(c, http.StatusNotFound, err.Error())
 			return
 		}
 		if strings.Contains(err.Error(), "validar seus CNPJs") {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			response.Error(c, http.StatusServiceUnavailable, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -122,7 +123,7 @@ func (h *PropostaMEIHandler) GetByID(c *gin.Context) {
 	// Get proposal from database to check ownership
 	proposta, err := h.service.GetByID(c.Request.Context(), propostaID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar proposta: " + err.Error()})
+		response.RespondError(c, err, "Erro ao buscar proposta")
 		return
 	}
 
@@ -178,7 +179,7 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 	// Get proposal from database to check ownership
 	proposta, err := h.service.GetByID(c.Request.Context(), propostaID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar proposta: " + err.Error()})
+		response.RespondError(c, err, "Erro ao buscar proposta")
 		return
 	}
 
@@ -208,16 +209,16 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
 	if err := h.service.UpdateProposta(c.Request.Context(), propostaID, oportunidadeID, req.ValorProposta, req.PrazoExecucao, req.AceitaCustosIntegrais); err != nil {
 		if err.Error() == "proposta não encontrada" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			response.Error(c, http.StatusNotFound, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -245,7 +246,7 @@ func (h *PropostaMEIHandler) UpdateStatusBulk(c *gin.Context) {
 
 	var request models.PropostaStatusUpdateRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -255,7 +256,7 @@ func (h *PropostaMEIHandler) UpdateStatusBulk(c *gin.Context) {
 		request.Status,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar status: " + err.Error()})
+		response.RespondError(c, err, "Erro ao atualizar status")
 		return
 	}
 
@@ -296,7 +297,7 @@ func (h *PropostaMEIHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -314,7 +315,7 @@ func (h *PropostaMEIHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateStatusCidadao(c.Request.Context(), propostaID, status); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -344,7 +345,7 @@ func (h *PropostaMEIHandler) Delete(c *gin.Context) {
 	// Get proposal from database to check ownership
 	proposta, err := h.service.GetByID(c.Request.Context(), propostaID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar proposta: " + err.Error()})
+		response.RespondError(c, err, "Erro ao buscar proposta")
 		return
 	}
 
@@ -369,7 +370,7 @@ func (h *PropostaMEIHandler) Delete(c *gin.Context) {
 
 	// Proceed with deletion
 	if err := h.service.Delete(c.Request.Context(), propostaID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir proposta: " + err.Error()})
+		response.RespondError(c, err, "Erro ao excluir proposta")
 		return
 	}
 
@@ -412,7 +413,7 @@ func (h *PropostaMEIHandler) List(c *gin.Context) {
 
 	propostas, total, err := h.service.ListByOportunidade(c.Request.Context(), oportunidadeID, nomeEmpresa, cnpj, status, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar propostas: " + err.Error()})
+		response.RespondError(c, err, "Erro ao listar propostas")
 		return
 	}
 
@@ -457,7 +458,7 @@ func (h *PropostaMEIHandler) ListByMEIEmpresa(c *gin.Context) {
 
 	propostas, total, err := h.service.ListByMEIEmpresa(c.Request.Context(), meiEmpresaID, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar propostas: " + err.Error()})
+		response.RespondError(c, err, "Erro ao listar propostas")
 		return
 	}
 
