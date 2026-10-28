@@ -240,6 +240,11 @@ func registerEmpCurriculoRoutes(emp *gin.RouterGroup, app *wire.ApplicationConta
 
 	c.PUT("/situacao-interesses", app.EmpCurriculoHandler.UpsertSituacaoInteresses)
 	c.GET("/:cpf/situacao-interesses", app.EmpCurriculoHandler.GetSituacaoInteressesByCPF)
+
+	// Card do banco de currículos no app: o cidadão ativa ou desativa o próprio
+	// currículo no banco consultado pelos recrutadores.
+	c.GET("/:cpf/banco-curriculos", app.EmpParticipacaoBancoHandler.Get)
+	c.PUT("/:cpf/banco-curriculos", app.EmpParticipacaoBancoHandler.Atualizar)
 }
 
 // registerCurriculoSection registers CRUD + list-by-CPF + replace-all routes for one curriculo sub-resource.

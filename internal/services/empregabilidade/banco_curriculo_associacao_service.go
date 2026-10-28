@@ -29,13 +29,6 @@ func (e *CandidatoNaoAssociavelError) Error() string {
 
 func (e *CandidatoNaoAssociavelError) Unwrap() error { return ErrCandidatoNaoAssociavel }
 
-// situacoesProcurandoEmprego são as situações atuais (seed de
-// emp_situacoes_atual) em que o app exige o tempo procurando emprego.
-var situacoesProcurandoEmprego = map[string]bool{
-	"Desempregado(a)":           true,
-	"Buscando primeiro emprego": true,
-}
-
 // CandidaturaCreatorInterface cria a candidatura pelo fluxo normal (snapshot do
 // currículo, sync do cadastro), sem o e-mail de "candidatura enviada".
 type CandidaturaCreatorInterface interface {
@@ -259,34 +252,14 @@ func (s *AssociacaoCandidatoService) associarVaga(
 	return resultado
 }
 
-// validarCurriculoMinimo aplica o mínimo que o app exige para se candidatar:
-// situação atual (com o tempo procurando emprego, para quem está sem trabalho)
-// e termos de uso aceitos. A escolaridade, também exigida pelo app, vem do
-// cadastro (RMI) e fica de fora para a associação não depender dele.
+// validarCurriculoMinimo aplica o mínimo que o app exige para se candidatar
+// (pendenciasCurriculoMinimo).
 func (s *AssociacaoCandidatoService) validarCurriculoMinimo(ctx context.Context, cpf string, curriculo *empregabilidade.CurriculoCompleto) error {
-	var pendencias []string
-
-	var situacao *empregabilidade.CurriculoSituacaoInteresses
-	if curriculo != nil {
-		situacao = curriculo.SituacaoInteresses
-	}
-	switch {
-	case situacao == nil || situacao.IDSituacao == nil:
-		pendencias = append(pendencias, "Situação atual não informada")
-	case situacao.Situacao != nil && situacoesProcurandoEmprego[situacao.Situacao.Descricao] &&
-		strings.TrimSpace(situacao.TempoProcurandoEmprego) == "":
-		pendencias = append(pendencias, "Tempo procurando emprego não informado")
-	}
-
 	aceitos, err := s.termos.HasAcceptedTerms(ctx, cpf)
 	if err != nil {
 		return fmt.Errorf("erro ao verificar termos de uso: %w", err)
 	}
-	if !aceitos {
-		pendencias = append(pendencias, "Termos de uso não aceitos")
-	}
-
-	if len(pendencias) > 0 {
+	if pendencias := pendenciasCurriculoMinimo(curriculo, aceitos); len(pendencias) > 0 {
 		return &CandidatoNaoAssociavelError{Pendencias: pendencias}
 	}
 	return nil
