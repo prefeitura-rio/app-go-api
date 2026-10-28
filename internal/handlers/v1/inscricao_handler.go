@@ -36,6 +36,15 @@ func NewInscricaoHandler(service services.InscricaoServiceInterface, jobService 
 	}
 }
 
+// isEnrollmentStaff reports whether the caller is course staff (admin,
+// casa civil or cursos editor). With RBAC_ENABLED=true the route middleware
+// additionally restricts editors to courses of their own orgao.
+func isEnrollmentStaff(c *gin.Context) bool {
+	return middlewares.IsAdmin(c) ||
+		middlewares.HasRole(c, "go:cursos:casa_civil") ||
+		middlewares.HasRole(c, "go:cursos:editor")
+}
+
 // populateRemainingVacanciesForEnrollment calculates remaining vacancies for a single enrollment's enrolled_unit
 func (h *InscricaoHandler) populateRemainingVacanciesForEnrollment(c *gin.Context, inscricao *models.Inscricao) error {
 	if inscricao.EnrolledUnit == nil || len(inscricao.EnrolledUnit.Schedules) == 0 {
@@ -435,7 +444,7 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 }
 
 // @Summary      Atualizar status de inscrição individual
-// @Description  Atualiza o status de uma inscrição específica
+// @Description  Atualiza o status de uma inscrição específica. Admin, casa civil e editor de cursos alteram qualquer status e admin_notes; o cidadão dono da inscrição só pode cancelá-la (status cancelled) e admin_notes enviado por ele é descartado.
 // @Tags         inscricoes
 // @Accept       json
 // @Produce      json
@@ -444,11 +453,12 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 // @Param        request      body      object  true  "Dados para atualização: {\"status\": \"approved\", \"reason\": \"...\", \"admin_notes\": \"...\"}"
 // @Success      200          {object}  object
 // @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId}/status [put]
 func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
-	_, err := strconv.Atoi(c.Param("courseId"))
+	courseID, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
 		return
@@ -469,6 +479,37 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
+	}
+
+	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar inscrição"})
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "inscrição não encontrada"})
+		return
+	}
+	if existing.CursoID != courseID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "inscrição não pertence ao curso especificado"})
+		return
+	}
+
+	// Fora da equipe do curso, só o cidadão dono da inscrição chega aqui, e ele
+	// só pode cancelá-la. admin_notes é campo administrativo interno e é
+	// descartado (como no PUT da inscrição). A checagem fica no handler para
+	// valer também com RBAC_ENABLED=false, quando enrollmentSingleAccess não roda.
+	if !isEnrollmentStaff(c) {
+		userCPF := middlewares.GetUserCPF(c)
+		if userCPF == "" || existing.CPF != userCPF {
+			c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
+			return
+		}
+		if request.Status != models.StatusInscricaoCancelled {
+			c.JSON(http.StatusForbidden, gin.H{"error": "o cidadão só pode cancelar a própria inscrição"})
+			return
+		}
+		request.AdminNotes = ""
 	}
 
 	if err := h.service.UpdateStatus(c.Request.Context(), enrollmentID, request.Status, request.Reason, request.AdminNotes); err != nil {
@@ -549,7 +590,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 }
 
 // @Summary      Atualizar certificado de inscrição
-// @Description  Adiciona ou atualiza a URL do certificado de uma inscrição
+// @Description  Adiciona ou atualiza a URL do certificado de uma inscrição (somente admin, casa civil e editor de cursos)
 // @Tags         inscricoes
 // @Accept       json
 // @Produce      json
@@ -572,6 +613,11 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 	enrollmentID, err := uuid.Parse(c.Param("enrollmentId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da inscrição inválido"})
+		return
+	}
+
+	if !isEnrollmentStaff(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
 		return
 	}
 
