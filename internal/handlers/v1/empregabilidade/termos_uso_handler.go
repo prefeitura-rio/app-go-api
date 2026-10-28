@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -50,7 +51,8 @@ func (h *TermosUsoHandler) HasAcceptedTerms(c *gin.Context) {
 
 	hasAccepted, err := h.service.HasAcceptedTerms(c.Request.Context(), cpf)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[TermosUsoHandler] HasAcceptedTerms failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao verificar aceite dos termos de uso"})
 		return
 	}
 
@@ -73,7 +75,8 @@ func (h *TermosUsoHandler) AcceptTerms(c *gin.Context) {
 	cpf := c.Param("cpf")
 
 	if err := h.service.AcceptTerms(c.Request.Context(), cpf); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[TermosUsoHandler] AcceptTerms failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao registrar aceite dos termos de uso"})
 		return
 	}
 
@@ -98,7 +101,8 @@ func (h *TermosUsoHandler) GetDetails(c *gin.Context) {
 
 	termos, err := h.service.GetByCPF(c.Request.Context(), cpf)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[TermosUsoHandler] GetDetails failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar termos de uso"})
 		return
 	}
 
