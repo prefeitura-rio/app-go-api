@@ -54,6 +54,7 @@ func NewComportamentoAtitudesHandler(caService *service.ComportamentoAtitudesSer
 // @Param        request  body      CreateComportamentoAtitudesRequest  true  "Dados do comportamento/atitude"
 // @Success      201      {object}  map[string]int64
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao criar comportamento/atitude"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/comportamentos-atitudes [post]
@@ -70,7 +71,7 @@ func (h *ComportamentoAtitudesHandler) CreateComportamentoAtitudes(c *gin.Contex
 
 	id, err := h.comportamentoAtitudesService.CreateComportamentoAtitudes(c.Request.Context(), entity)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao criar comportamento/atitude")
+		respondCatalogoError(c, err, "Erro ao criar comportamento/atitude")
 		return
 	}
 
@@ -119,6 +120,8 @@ func (h *ComportamentoAtitudesHandler) GetComportamentoAtitudesByID(c *gin.Conte
 // @Param        request  body      UpdateComportamentoAtitudesRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      404      {object}  response.ErrorResponse "Comportamento/atitude não encontrado"
+// @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar comportamento/atitude"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/comportamentos-atitudes/{id} [put]
@@ -142,7 +145,7 @@ func (h *ComportamentoAtitudesHandler) UpdateComportamentoAtitudes(c *gin.Contex
 	}
 
 	if err := h.comportamentoAtitudesService.UpdateComportamentoAtitudes(c.Request.Context(), entity); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao atualizar comportamento/atitude")
+		respondCatalogoMutationError(c, err, "Comportamento/atitude não encontrado", "Erro ao atualizar comportamento/atitude")
 		return
 	}
 
@@ -157,6 +160,7 @@ func (h *ComportamentoAtitudesHandler) UpdateComportamentoAtitudes(c *gin.Contex
 // @Param        id   path      int  true  "ID do Comportamento/Atitude" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
+// @Failure      404  {object}  response.ErrorResponse "Comportamento/atitude não encontrado"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir comportamento/atitude"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/comportamentos-atitudes/{id} [delete]
@@ -169,7 +173,7 @@ func (h *ComportamentoAtitudesHandler) DeleteComportamentoAtitudes(c *gin.Contex
 	}
 
 	if err := h.comportamentoAtitudesService.DeleteComportamentoAtitudes(c.Request.Context(), id); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao excluir comportamento/atitude")
+		respondCatalogoMutationError(c, err, "Comportamento/atitude não encontrado", "Erro ao excluir comportamento/atitude")
 		return
 	}
 

@@ -115,7 +115,10 @@ type MigrationSettings struct {
 
 // RMISettings define configurações da API RMI (para validação de CNPJs/CNAEs)
 type RMISettings struct {
-	BaseURL string
+	BaseURL                        string
+	SecretariaCacheTTL             time.Duration // TTL do cache de secretarias por CPF (limitado a 1-5 min no cliente)
+	CircuitBreakerFailureThreshold int           // falhas consecutivas que abrem o circuito
+	CircuitBreakerOpenTimeout      time.Duration // tempo com o circuito aberto antes de testar o RMI de novo
 }
 
 // DataRelaySettings define configurações da API Data Relay (para envio de emails)
@@ -409,7 +412,10 @@ func Load() (*AppConfig, error) {
 			Run: getBool(v, "RUN_MIGRATIONS", false),
 		},
 		RMI: RMISettings{
-			BaseURL: getEnv(v, "RMI_BASE_URL", ""),
+			BaseURL:                        getEnv(v, "RMI_BASE_URL", ""),
+			SecretariaCacheTTL:             getDuration(v, "RMI_SECRETARIA_CACHE_TTL", 2*time.Minute),
+			CircuitBreakerFailureThreshold: getInt(v, "RMI_CIRCUIT_BREAKER_FAILURE_THRESHOLD", 5),
+			CircuitBreakerOpenTimeout:      getDuration(v, "RMI_CIRCUIT_BREAKER_OPEN_TIMEOUT", 30*time.Second),
 		},
 		Redis: RedisSettings{
 			Host:         getEnv(v, "REDIS_HOST", "localhost"),

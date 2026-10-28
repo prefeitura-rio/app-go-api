@@ -348,3 +348,47 @@ func TestComportamentoAtitudesRepository_List_FindDatabaseError(t *testing.T) {
 	assert.Contains(t, err.Error(), "erro ao listar comportamentos e atitudes")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+// DEV-11: UPDATE/DELETE que não afetam nenhuma linha (id inexistente) devem
+// devolver gorm.ErrRecordNotFound para o handler responder 404.
+func TestComportamentoAtitudesRepository_UpdateDelete_NoRowsAffected_ReturnsNotFound(t *testing.T) {
+	tests := []struct {
+		name  string
+		query string
+		call  func(ctx context.Context, repo *repoEmpregabilidade.ComportamentoAtitudesRepository) error
+	}{
+		{
+			name:  "UpdateComportamentoAtitudes",
+			query: `UPDATE "emp_comportamento_atitudes"`,
+			call: func(ctx context.Context, repo *repoEmpregabilidade.ComportamentoAtitudesRepository) error {
+				return repo.UpdateComportamentoAtitudes(ctx, &empregabilidade.ComportamentoAtitudes{ID: 999999, Nome: "X", UpdatedAt: time.Now()})
+			},
+		},
+		{
+			name:  "DeleteComportamentoAtitudes",
+			query: `DELETE FROM "emp_comportamento_atitudes"`,
+			call: func(ctx context.Context, repo *repoEmpregabilidade.ComportamentoAtitudesRepository) error {
+				return repo.DeleteComportamentoAtitudes(ctx, 999999)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, cleanup := repository.SetupMockDB(t)
+			defer cleanup()
+
+			repo := repoEmpregabilidade.NewComportamentoAtitudesRepository(db)
+
+			mock.ExpectBegin()
+			mock.ExpectExec(tt.query).
+				WillReturnResult(sqlmock.NewResult(0, 0))
+			mock.ExpectCommit()
+
+			err := tt.call(context.Background(), repo)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}

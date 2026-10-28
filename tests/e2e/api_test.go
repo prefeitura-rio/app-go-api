@@ -127,15 +127,10 @@ func TestCORSHeaders(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	// Check CORS headers
+	// Wildcard must never be returned; origins are allowlisted via CORS_ALLOWED_ORIGINS
 	allowOrigin := resp.Header.Get("Access-Control-Allow-Origin")
-	if allowOrigin != "*" && allowOrigin != "https://example.com" {
-		t.Errorf("Expected CORS Allow-Origin header, got: %s", allowOrigin)
-	}
-
-	allowMethods := resp.Header.Get("Access-Control-Allow-Methods")
-	if allowMethods == "" {
-		t.Error("Expected CORS Allow-Methods header")
+	if allowOrigin == "*" {
+		t.Errorf("Wildcard CORS Allow-Origin must not be returned, got: %s", allowOrigin)
 	}
 }
 

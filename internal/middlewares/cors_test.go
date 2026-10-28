@@ -9,17 +9,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCORS_Preflight(t *testing.T) {
+func newCorsRouter(allowed []string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-
 	router := gin.New()
-	router.Use(CorsMiddleware())
-
+	router.Use(CorsMiddlewareWithOrigins(allowed))
 	router.GET("/test", func(c *gin.Context) {
-		c.String(http.StatusOK, "OK")
+		c.String(http.StatusOK, "Response")
 	})
+	return router
+}
 
-	// Test preflight request
+func TestCORS_Preflight_AllowedOrigin(t *testing.T) {
+	router := newCorsRouter([]string{"https://example.com"})
+
 	req := httptest.NewRequest("OPTIONS", "/test", nil)
 	req.Header.Set("Origin", "https://example.com")
 	req.Header.Set("Access-Control-Request-Method", "GET")
@@ -29,23 +31,15 @@ func TestCORS_Preflight(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
-	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "https://example.com", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"))
 	assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "GET")
 	assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "POST")
-	assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "PUT")
-	assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "DELETE")
 	assert.NotEmpty(t, w.Header().Get("Access-Control-Allow-Headers"))
 }
 
-func TestCORS_ActualRequest(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	router := gin.New()
-	router.Use(CorsMiddleware())
-
-	router.GET("/test", func(c *gin.Context) {
-		c.String(http.StatusOK, "Response")
-	})
+func TestCORS_ActualRequest_AllowedOrigin(t *testing.T) {
+	router := newCorsRouter([]string{"https://example.com"})
 
 	req := httptest.NewRequest("GET", "/test", nil)
 	req.Header.Set("Origin", "https://example.com")
@@ -54,28 +48,80 @@ func TestCORS_ActualRequest(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "https://example.com", w.Header().Get("Access-Control-Allow-Origin"))
 	assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"))
 	assert.Equal(t, "Response", w.Body.String())
 }
 
-func TestCORS_NoOriginHeader(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	router := gin.New()
-	router.Use(CorsMiddleware())
-
-	router.GET("/test", func(c *gin.Context) {
-		c.String(http.StatusOK, "Response")
-	})
+func TestCORS_DeniedOrigin(t *testing.T) {
+	router := newCorsRouter([]string{"https://example.com"})
 
 	req := httptest.NewRequest("GET", "/test", nil)
-	// No Origin header
+	req.Header.Set("Origin", "https://evil.com")
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Empty(t, w.Header().Get("Access-Control-Allow-Credentials"))
+}
+
+func TestCORS_Preflight_DeniedOrigin(t *testing.T) {
+	router := newCorsRouter([]string{"https://example.com"})
+
+	req := httptest.NewRequest("OPTIONS", "/test", nil)
+	req.Header.Set("Origin", "https://evil.com")
+	req.Header.Set("Access-Control-Request-Method", "GET")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Empty(t, w.Header().Get("Access-Control-Allow-Credentials"))
+}
+
+func TestCORS_NoOriginHeader(t *testing.T) {
+	router := newCorsRouter([]string{"https://example.com"})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
 	assert.Equal(t, "Response", w.Body.String())
+}
+
+func TestCORS_DefaultEmptyAllowlist(t *testing.T) {
+	t.Setenv(CorsAllowedOriginsEnv, "")
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(CorsMiddleware())
+	router.GET("/test", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Origin", "https://example.com")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
+}
+
+func TestCORS_EnvAllowlist(t *testing.T) {
+	t.Setenv(CorsAllowedOriginsEnv, " https://a.com/ , https://b.com,*")
+	assert.Equal(t, []string{"https://a.com", "https://b.com"}, ParseAllowedOrigins("https://a.com/ , https://b.com,*"))
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(CorsMiddleware())
+	router.GET("/test", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Origin", "https://b.com")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, "https://b.com", w.Header().Get("Access-Control-Allow-Origin"))
 }

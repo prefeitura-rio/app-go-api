@@ -1024,3 +1024,61 @@ func TestHabilidadeRepository_DeleteAreaAtuacao_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "erro ao excluir uma área de atuação")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+// DEV-11: UPDATE/DELETE que não afetam nenhuma linha (id inexistente) devem
+// devolver gorm.ErrRecordNotFound para o handler responder 404.
+func TestHabilidadeRepository_UpdateDelete_NoRowsAffected_ReturnsNotFound(t *testing.T) {
+	tests := []struct {
+		name  string
+		query string
+		call  func(ctx context.Context, repo *repoEmpregabilidade.HabilidadeRepository) error
+	}{
+		{
+			name:  "UpdateHabilidade",
+			query: `UPDATE "emp_habilidades"`,
+			call: func(ctx context.Context, repo *repoEmpregabilidade.HabilidadeRepository) error {
+				return repo.UpdateHabilidade(ctx, &empregabilidade.Habilidade{ID: 999999, Nome: "X", UpdatedAt: time.Now()})
+			},
+		},
+		{
+			name:  "DeleteHabilidade",
+			query: `DELETE FROM "emp_habilidades"`,
+			call: func(ctx context.Context, repo *repoEmpregabilidade.HabilidadeRepository) error {
+				return repo.DeleteHabilidade(ctx, 999999)
+			},
+		},
+		{
+			name:  "UpdateAreaAtuacao",
+			query: `UPDATE "emp_areas_atuacao"`,
+			call: func(ctx context.Context, repo *repoEmpregabilidade.HabilidadeRepository) error {
+				return repo.UpdateAreaAtuacao(ctx, &empregabilidade.AreaAtuacao{ID: 999999, Nome: "X", UpdatedAt: time.Now()})
+			},
+		},
+		{
+			name:  "DeleteAreaAtuacao",
+			query: `DELETE FROM "emp_areas_atuacao"`,
+			call: func(ctx context.Context, repo *repoEmpregabilidade.HabilidadeRepository) error {
+				return repo.DeleteAreaAtuacao(ctx, 999999)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, cleanup := repository.SetupMockDB(t)
+			defer cleanup()
+
+			repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+
+			mock.ExpectBegin()
+			mock.ExpectExec(regexp.QuoteMeta(tt.query)).
+				WillReturnResult(sqlmock.NewResult(0, 0))
+			mock.ExpectCommit()
+
+			err := tt.call(context.Background(), repo)
+			require.Error(t, err)
+			assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}

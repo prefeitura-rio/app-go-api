@@ -56,7 +56,7 @@ app-go-api/
 │   │   └── empregabilidade/ # Employability-specific services
 │   ├── utils/               # Shared utilities
 │   └── workers/             # Background workers (orgao sync, citizen sync)
-├── docs/                    # Auto-generated Swagger docs (do not edit by hand)
+├── docs/                    # Swagger (auto-generated: docs.go, swagger.*) + handwritten docs (e.g. observability.md)
 ├── k8s/
 │   ├── staging/             # Argo Rollout (blue-green) + Services
 │   └── prod/                # Argo Rollout (canary) + AnalysisTemplate + Services
@@ -117,39 +117,7 @@ app-go-api/
 
 ### Development Workflow
 
-1. Create feature branch from `main`:
-   ```bash
-   git -C /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api checkout main
-   git -C /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api pull origin main
-   git -C /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api checkout -b feat/your-feature
-   ```
-
-2. Write tests first (TDD — test file before production file):
-   ```bash
-   # Create test file
-   touch /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api/internal/handlers/v1/your_handler_test.go
-   # Write failing test, then confirm it fails:
-   cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api && go test -v -run TestYourHandler ./internal/handlers/v1/...
-   ```
-
-3. Implement feature to make tests pass:
-   ```bash
-   cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api && go test -v -run TestYourHandler ./internal/handlers/v1/...
-   ```
-
-4. Run all quality checks:
-   ```bash
-   cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api && just ci
-   ```
-
-5. Create PR to `main`:
-   ```bash
-   cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api
-   git add .
-   git commit -m "feat: add feature X with TDD"
-   git push origin feat/your-feature
-   gh pr create --base main --title "feat: add feature X"
-   ```
+High-level git/PR steps are in `README.md`. For agents: branch from `main`, write the failing test first, implement, then `just ci` before opening the PR.
 
 ### Code Quality Standards
 
@@ -249,113 +217,18 @@ func TestSomeService_Method(t *testing.T) {
 
 **Integration tests** (repository layer only) are gated by the `RUN_REPOSITORY_INTEGRATION=1` environment variable and require `DATABASE_URL`. They are never run in CI PRs — only locally:
 ```bash
-cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api
 RUN_REPOSITORY_INTEGRATION=1 DATABASE_URL="postgres://..." go test ./internal/repository/...
 ```
 
-## GitOps Workflow
+## GitOps / CI (agent notes)
 
-### Branch Strategy
+Branch strategy, PR quality gate, staging blue-green, and production canary are documented in `README.md` and live under `.github/workflows/`. Agent-specific details:
 
-```
-feature/* → main → GitHub Release
-```
-
-- **`main` branch** — Deploy automático para staging a cada push; produção via GitHub Release.
-
-Features são desenvolvidas em branches criadas a partir de `main`, PR direto para `main`. Merge em `main` dispara `deploy-staging.yaml` automaticamente (blue-green em staging). GitHub Release dispara deploy para produção (canary).
-
-### CI/CD Pipelines
-
-#### PR Quality Gate (`pr-quality-gate.yaml`)
-
-Triggered on PRs to `main`. Runs in parallel:
-
-1. **Lint** (`lint` job):
-   - `golangci-lint` with 10-minute timeout
-   - Hadolint for Dockerfile best practices (warning threshold)
-
-2. **Security Scan** (`security-scan` job):
-   - Trivy filesystem scan for CRITICAL and HIGH CVEs
-   - Results uploaded to GitHub Security tab as SARIF
-
-3. **Unit Tests** (`test` job):
-   - Spins up Redis 7 service container
-   - Runs `go test -v -race -coverprofile=coverage.out ./...`
-   - Retries up to 3 times (race conditions can cause flakiness)
-   - Skips integration tests (no DATABASE_URL set)
-   - Extracts coverage, downloads baseline from `gh-pages` branch
-   - Fails if coverage drops more than 0.1% below baseline
-   - Posts coverage summary to PR as a comment
-
-4. **Docker Build** (`build` job, depends on all above):
-   - Generates Swagger docs (`swag init`)
-   - Builds Docker image for `linux/amd64`
-   - Scans the built image with Trivy
-
-5. **Summary** (`summary` job):
-   - Posts a quality gate table as a PR comment (created or updated on re-push)
-   - Fails the workflow if any check failed
-
-**Requirements for merge**: All 4 jobs must pass.
-
-#### Staging Deployment (`deploy-staging.yaml`)
-
-Triggered on push to `main`. Full deployment to staging with smoke tests:
-
-1. Detects if only `k8s/` files changed (skips build if yes)
-2. Generates Swagger docs and builds/pushes image with tags `latest` and `<commit-sha>`
-3. Patches the ArgoCD Application `go` (namespace: `argocd`) image override via `kubectl patch`
-4. Waits for ArgoCD to sync and the Argo Rollout to update the preview pod
-5. Port-forwards to `go-preview` service, runs smoke tests against `/health`
-6. On success: promotes the blue-green rollout (`kubectl argo rollouts promote go -n go`)
-7. On failure: aborts the rollout (`kubectl argo rollouts abort go -n go`)
-8. Sends Discord notification
-
-#### Release / Production Deployment (`release.yaml`)
-
-Triggered on GitHub Release (published). Deploys to production via canary:
-
-1. Builds image with tags `v1.2.3`, `1.2.3`, and `latest-release`
-2. Patches the production ArgoCD Application image override
-3. Waits for the Argo Rollout to begin with the new image
-4. Monitors rollout status (up to 45 minutes) until `Healthy`, `Degraded`, or `Aborted`
-5. On `Aborted` (failed Prometheus analysis): logs analysis run details
-6. Sends Discord notification
-
-**Canary Steps (production)**:
-```
-10% → 2m pause → 20% → 3m pause → 40% → 5m pause → 60% → 5m pause → 80% → 5m pause → 100%
-```
-Prometheus analysis starts at step 2 (after 10% traffic). Analysis uses NaN-safe queries on `istio_requests_total` metrics.
-
-#### Coverage Baseline (`coverage-baseline.yaml`)
-
-Triggered on push to `main`. Runs tests with coverage and pushes the coverage percentage to the `gh-pages` branch as `coverage-baseline.txt`. This file is fetched by the PR quality gate to compute the delta.
-
-### Environment Configuration
-
-**Staging**:
-- Cluster: GKE cluster `application` (zone: `us-central1`, GCP project configured via `GCP_PROJECT_ID` Actions variable)
-- Namespace: `go`
-- ArgoCD application name: `go` (namespace: `argocd`)
-- Rollout strategy: Blue-green (active: `go`, preview: `go-preview`)
-- Secrets: Infisical-managed `go-secrets` SecretRef (auto-reload enabled)
-
-**Production**:
-- Same cluster, same namespace `go`, same ArgoCD app `go`
-- Rollout strategy: Canary with Istio VirtualService (`go-virtual-service` in `istio-system`)
-- Analysis template: `go-success-rate`
-- Canary service: `go-canary`
-
-### Required GitHub Secrets / Variables
-
-| Name | Type | Purpose |
-|---|---|---|
-| `GCP_CREDENTIALS_JSON` | Secret | GCP service account for GKE access |
-| `GCP_PROJECT_ID` | Variable | GCP project ID |
-| `DISCORD_WEBHOOK_URL` | Secret | Discord notification webhook (optional) |
-| `GITHUB_TOKEN` | Auto | Image push to GHCR, PR comments |
+- Coverage baseline lives on `gh-pages` as `coverage-baseline.txt`; PRs fail if coverage drops more than 0.1%.
+- Staging: namespace `go`, ArgoCD app `go`, blue-green (`go` / `go-preview`), Infisical `go-secrets`.
+- Production: same namespace/app; canary via Istio VirtualService `go-virtual-service` with analysis template `go-success-rate`.
+- Canary steps: `10% → 2m → 20% → 3m → 40% → 5m → 60% → 5m → 80% → 5m → 100%` (Prometheus analysis from step 2; NaN-safe queries on `istio_requests_total`).
+- Secrets/vars: `GCP_CREDENTIALS_JSON`, `GCP_PROJECT_ID`, optional `DISCORD_WEBHOOK_URL`, auto `GITHUB_TOKEN`.
 
 ## Working with the Codebase
 
@@ -405,7 +278,6 @@ echo 'direnv hook fish | source' >> ~/.config/fish/config.fish
 #### Activating the Environment
 
 ```bash
-cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api
 direnv allow   # one-time approval; re-run after flake.nix changes
 ```
 
@@ -464,25 +336,7 @@ direnv reload
 
 ### Running Locally
 
-```bash
-# Set up development tools (golangci-lint, swag, goose)
-just setup
-
-# Copy and edit environment variables
-cp .env.example .env
-
-# Start dependencies
-docker-compose up -d  # Starts PostgreSQL and Redis
-
-# Run database migrations
-just migrate-up
-
-# Run with hot reload (requires `air`)
-just dev
-
-# Or build and run
-just run
-```
+See `README.md` for setup (`just setup`, `.env`, `docker-compose`, `just migrate-up`, `just dev` / `just run`).
 
 ### Environment Variables Reference
 
@@ -523,30 +377,16 @@ Key variables (see `.env.example` for the full list):
 
 ### Running Tests
 
+Prefer `just test`, `just test-coverage`, `just test-pkg <pkg>`, and `just test-e2e` (see `README.md` / `justfile`). Coverage HTML is written under `coverage/` (gitignored).
+
 ```bash
-cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api
-
-# Run all unit tests with race detection (matches CI)
-just test
-
-# Run with coverage report (HTML)
-just test-coverage
-# Open coverage/coverage.html in a browser
-
-# Run a specific package
-just test-pkg internal/handlers/v1
-
-# Run a specific test by name
+# Named unit test
 go test -v -race -run TestCourseHandler_Create_Success ./internal/handlers/v1/...
 
-# Run integration tests (requires a real database)
+# Repository integration (local only; never in CI PRs)
 DATABASE_URL="postgres://postgres:postgres@localhost:5432/app_db?sslmode=disable" \
   RUN_REPOSITORY_INTEGRATION=1 \
   go test -v ./internal/repository/...
-
-# Run E2E health check
-just test-e2e                         # Against http://localhost:8080
-just test-e2e http://custom-url:8080  # Against a custom URL
 ```
 
 ### Common Development Tasks
@@ -591,7 +431,6 @@ func TestFeatureHandler_GetByID_Success(t *testing.T) {
 **Step 2 — Confirm the test fails**
 
 ```bash
-cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api
 go test -v -run TestFeatureHandler_GetByID_Success ./internal/handlers/v1/...
 ```
 
@@ -636,12 +475,11 @@ Swagger annotations live as comments above handler functions. After adding or mo
 just swagger
 ```
 
-The generated `docs/` directory is committed to the repository. It must be regenerated before building the Docker image (the CI does this automatically).
+Swagger outputs (`docs/docs.go`, `docs/swagger.json`, `docs/swagger.yaml`) are committed and must be regenerated before building the Docker image (CI does this automatically). Handwritten docs under `docs/` (e.g. `observability.md`) are edited normally.
 
 #### Updating Dependencies
 
 ```bash
-cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api
 just deps-update   # go get -u ./... && go mod tidy
 just test          # Verify nothing breaks
 ```
@@ -688,7 +526,6 @@ kubectl get application go -n argocd -o jsonpath='{.status.health.status}'
 
 **Check recent CI runs**:
 ```bash
-cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api
 gh run list --limit 10
 gh run view <run-id> --log
 ```
@@ -721,8 +558,8 @@ gh pr checks <pr-number>
 - Not running tests with `-race` flag (masks data races)
 - Ignoring or suppressing errors instead of returning them
 - Not calling `c.Abort()` after `c.JSON(...)` in middleware that should stop the chain
-- Committing changes to `docs/` without regenerating with `swag init` (stale docs)
-- Editing `docs/*.go` by hand (they are auto-generated)
+- Committing stale Swagger outputs without regenerating with `swag init` / `just swagger`
+- Editing `docs/docs.go` / `docs/swagger.*` by hand (they are auto-generated)
 - Adding new fields to GORM models without a corresponding migration
 - Forgetting to register a new route in `internal/router/router.go`
 - Hardcoding environment-specific values (URLs, ports, timeouts) in application code
@@ -732,30 +569,11 @@ gh pr checks <pr-number>
 
 ## Troubleshooting CI/CD
 
-**Linting failure**:
-```bash
-cd /Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-go-api
-just lint-fix  # Auto-fix where possible
-just lint      # Check remaining issues
-```
+For lint, coverage, security, and local test failures, see `README.md` (§ Troubleshooting CI/CD). Cluster/ops notes:
 
-**Coverage decrease**:
+**Test race flakes**:
 ```bash
-just test-coverage
-# Open coverage/coverage.html to see uncovered lines
-# Add tests for uncovered code paths
-```
-
-**Security scan failure**:
-```bash
-just security-scan       # Run Trivy locally
-just deps-update         # Update dependencies to patched versions
-```
-
-**Test failures (race conditions)**:
-```bash
-go test -race -count=3 ./internal/...  # Run 3 times to reproduce
-# Look for shared state or missing mutex in workers/caches
+go test -race -count=3 ./internal/...
 ```
 
 **Rollout stuck in staging**:
@@ -763,25 +581,22 @@ go test -race -count=3 ./internal/...  # Run 3 times to reproduce
 kubectl argo rollouts get rollout go -n go
 kubectl get pods -n go
 kubectl describe pod <pod-name> -n go
-# Common causes: probe failure, image pull error, resource limits
 ```
 
 **ArgoCD not syncing**:
 ```bash
 kubectl get application go -n argocd -o yaml
-# Check spec.source.path, repoURL, sync policy
 ```
 
 **Canary analysis NaN in production**:
-The Prometheus queries in the `go-success-rate` AnalysisTemplate use `> 0` filters on the denominator and `failureLimit: 5` to tolerate gaps when traffic is too low to produce metrics.
+The `go-success-rate` AnalysisTemplate uses `> 0` filters on the denominator and `failureLimit: 5` to tolerate low-traffic gaps.
 
 ## Resources
 
 - **Coverage Baseline**: `gh-pages` branch → `coverage-baseline.txt`
 - **CI/CD Workflows**: `.github/workflows/`
 - **API Documentation**: `/docs/swagger/index.html` when running locally, or at the deployed `/docs/` path
-- **Environment Variables**: `.env.example` — all supported variables with defaults
+- **Environment Variables**: `.env.example`
 - **Migration Files**: `internal/db/migrations/`
-- **Golden Standard Reference**: `/Users/gabriel-milan/GIT_REPOS/prefeitura-rio/app-rmi`
-- **Workspace-Level Patterns**: `/Users/gabriel-milan/GIT_REPOS/prefeitura-rio/AGENTS.md`
-- **OpenTelemetry Configuration**: `OTEL_CONFIGURATION.md` in the repository root
+- **OpenTelemetry**: `docs/observability.md`
+- **Golden Standard Reference**: sibling repo `app-rmi`
