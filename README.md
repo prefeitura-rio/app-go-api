@@ -1,5 +1,8 @@
 # API Go - Plataforma de Cursos e Empregos
 
+[![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/prefeitura-rio/app-go-api/gh-pages/coverage-badge.json)](https://prefeitura-rio.github.io/app-go-api/coverage/)
+[![docs](https://img.shields.io/badge/API-Swagger-85EA2D?logo=swagger)](https://prefeitura-rio.github.io/app-go-api/swagger/)
+
 Uma API RESTful desenvolvida em Go para gerenciar cursos e oportunidades de emprego.
 
 ## Estrutura do Banco de Dados
