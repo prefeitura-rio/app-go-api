@@ -133,3 +133,23 @@ func TestInscricaoHandler_Create_ErrorMapping(t *testing.T) {
 		})
 	}
 }
+
+func TestInscricaoHandler_ChangeSchedule_UnexpectedError_DoesNotLeak(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	id := uuid.New()
+	svc := new(MockInscricaoService)
+	svc.On("ChangeSchedule", mock.Anything, id, "12345678901", mock.Anything).Return(nil, inscricaoDBLeak)
+
+	h := v1.NewInscricaoHandler(svc, nil, nil)
+	r := gin.New()
+	r.PUT("/enrollments/:enrollmentId/schedule", func(c *gin.Context) {
+		c.Set(middlewares.UserCPFKey, "12345678901")
+		h.ChangeSchedule(c)
+	})
+
+	w := doInscricaoReq(r, http.MethodPut, "/enrollments/"+id.String()+"/schedule", `{"enrolled_unit":{"id":"`+uuid.New().String()+`"}}`)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, w.Body.String())
+	assert.JSONEq(t, `{"error":"Erro ao trocar de turma"}`, w.Body.String())
+	assertNoInscricaoLeak(t, w.Body.String())
+}

@@ -944,7 +944,7 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 		case strings.Contains(errMsg, "não há vagas"):
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao trocar de turma: " + errMsg})
+			response.FromError(c, err, "Erro ao trocar de turma")
 		}
 		return
 	}
