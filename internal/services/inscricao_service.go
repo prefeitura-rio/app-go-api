@@ -462,7 +462,7 @@ func (s *InscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UU
 func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
 	// Validate at least one ID provided
 	if len(inscricaoIDs) == 0 {
-		return 0, fmt.Errorf("nenhuma inscrição selecionada")
+		return 0, apperrors.Invalid("nenhuma inscrição selecionada")
 	}
 
 	// Collect enrollment data for emails before update

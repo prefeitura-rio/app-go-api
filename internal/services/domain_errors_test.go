@@ -102,6 +102,11 @@ func TestInscricaoService_DomainErrors(t *testing.T) {
 		svc := services.NewInscricaoServiceWithInterface(missing, openCursoRepo(), nil, nil, nil, cfg)
 		assertDomainErr(t, svc.Delete(ctx, uuid.New()), apperrors.KindNotFound, "inscrição não encontrada")
 	})
+	t.Run("UpdateMultipleStatus sem seleção é Invalid", func(t *testing.T) {
+		svc := services.NewInscricaoServiceWithInterface(missing, openCursoRepo(), nil, nil, nil, cfg)
+		_, err := svc.UpdateMultipleStatus(ctx, nil, models.StatusInscricaoApproved, "", "")
+		assertDomainErr(t, err, apperrors.KindInvalid, "nenhuma inscrição selecionada")
+	})
 	t.Run("falha de banco segue sem tipo", func(t *testing.T) {
 		dbFail := &MockInscricaoRepository{
 			GetByIDFunc: func(context.Context, uuid.UUID) (*models.Inscricao, error) { return nil, errors.New("conn reset") },
