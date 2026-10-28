@@ -369,6 +369,13 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// admin_notes é campo administrativo interno: o cidadão dono da inscrição
+	// não pode defini-lo nem alterá-lo (mass assignment). O valor é descartado
+	// em vez de recusado para não quebrar clientes que reenviam o objeto inteiro.
+	if !isAdmin {
+		updateData.AdminNotes = nil
+	}
+
 	if err := h.service.UpdateInscricao(c.Request.Context(), existing.ID, cursoID, &updateData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
