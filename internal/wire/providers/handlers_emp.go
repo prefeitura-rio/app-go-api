@@ -75,6 +75,12 @@ func ProvideEmpCurriculoHandler(service *empServices.CurriculoService) *empHandl
 	return empHandlers.NewCurriculoHandler(service)
 }
 
+// ProvideEmpParticipacaoBancoHandler creates the handler behind the citizen's
+// banco de currículos toggle in the app.
+func ProvideEmpParticipacaoBancoHandler(service *empServices.ParticipacaoBancoService) *empHandlers.ParticipacaoBancoHandler {
+	return empHandlers.NewParticipacaoBancoHandler(service)
+}
+
 // ProvideEmpBancoCurriculoHandler creates empregabilidade BancoCurriculoHandler
 func ProvideEmpBancoCurriculoHandler(service *empServices.BancoCurriculoService) *empHandlers.BancoCurriculoHandler {
 	return empHandlers.NewBancoCurriculoHandler(service)
