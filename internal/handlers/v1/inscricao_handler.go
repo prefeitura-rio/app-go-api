@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -179,7 +180,7 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + err.Error()})
+			response.FromError(c, err, "Erro ao criar inscrição")
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{
@@ -214,7 +215,7 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + err.Error()})
+			response.FromError(c, err, "Erro ao criar inscrição")
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{
@@ -275,13 +276,13 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 
 	inscricoes, total, err := h.service.GetByCursoID(c.Request.Context(), cursoID, filter, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar inscrições: " + err.Error()})
+		response.FromError(c, err, "Erro ao listar inscrições")
 		return
 	}
 
 	// Calculate remaining vacancies for all enrollments in a single batched query
 	if err := h.populateRemainingVacanciesForEnrollments(c, inscricoes); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 
@@ -294,7 +295,7 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 	if !selfAccess {
 		summary, err = h.service.GetSummaryByCursoID(c.Request.Context(), cursoID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao obter resumo: " + err.Error()})
+			response.FromError(c, err, "Erro ao obter resumo")
 			return
 		}
 	}
@@ -417,7 +418,7 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 		request.AdminNotes,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar status: " + err.Error()})
+		response.FromError(c, err, "Erro ao atualizar status")
 		return
 	}
 
@@ -476,7 +477,7 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar status: " + err.Error()})
+		response.FromError(c, err, "Erro ao atualizar status")
 		return
 	}
 
@@ -519,7 +520,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 
 	inscricao, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar inscrição: " + err.Error()})
+		response.FromError(c, err, "Erro ao buscar inscrição")
 		return
 	}
 
@@ -535,7 +536,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 
 	// Calculate remaining vacancies for enrolled_unit schedules
 	if err := h.populateRemainingVacanciesForEnrollment(c, inscricao); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 
@@ -594,7 +595,7 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar certificado: " + err.Error()})
+		response.FromError(c, err, "Erro ao atualizar certificado")
 		return
 	}
 
@@ -644,7 +645,7 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), enrollmentID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir inscrição: " + err.Error()})
+		response.FromError(c, err, "Erro ao excluir inscrição")
 		return
 	}
 
@@ -687,7 +688,7 @@ func (h *InscricaoHandler) CreateManual(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar inscrição: " + err.Error()})
+		response.FromError(c, err, "Erro ao criar inscrição")
 		return
 	}
 
@@ -761,7 +762,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 	// Create temporary file
 	tempFile, err := os.CreateTemp("", "enrollment-import-*"+ext)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar arquivo temporário: " + err.Error()})
+		response.FromError(c, err, "Erro ao criar arquivo temporário")
 		return
 	}
 	defer func() {
@@ -775,7 +776,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
 			fmt.Printf("Error removing temp file: %v\n", removeErr)
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar arquivo: " + err.Error()})
+		response.FromError(c, err, "Erro ao salvar arquivo")
 		return
 	}
 
@@ -790,7 +791,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
 			fmt.Printf("Error removing temp file: %v\n", removeErr)
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar metadata do job: " + err.Error()})
+		response.FromError(c, err, "Erro ao criar metadata do job")
 		return
 	}
 
@@ -804,7 +805,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
 			fmt.Printf("Error removing temp file: %v\n", removeErr)
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar job: " + err.Error()})
+		response.FromError(c, err, "Erro ao criar job")
 		return
 	}
 
@@ -886,13 +887,13 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 
 	inscricoes, total, err := h.service.ListByCPF(c.Request.Context(), cpf, filter, offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar inscrições do usuário: " + err.Error()})
+		response.FromError(c, err, "Erro ao listar inscrições do usuário")
 		return
 	}
 
 	// Calculate remaining vacancies for all enrollments in a single batched query
 	if err := h.populateRemainingVacanciesForEnrollments(c, inscricoes); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 

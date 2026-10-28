@@ -11,6 +11,7 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/authorization"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -122,7 +123,7 @@ func (h *PropostaMEIHandler) GetByID(c *gin.Context) {
 	// Get proposal from database to check ownership
 	proposta, err := h.service.GetByID(c.Request.Context(), propostaID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar proposta: " + err.Error()})
+		response.FromError(c, err, "Erro ao buscar proposta")
 		return
 	}
 
@@ -178,7 +179,7 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 	// Get proposal from database to check ownership
 	proposta, err := h.service.GetByID(c.Request.Context(), propostaID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar proposta: " + err.Error()})
+		response.FromError(c, err, "Erro ao buscar proposta")
 		return
 	}
 
@@ -255,7 +256,7 @@ func (h *PropostaMEIHandler) UpdateStatusBulk(c *gin.Context) {
 		request.Status,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar status: " + err.Error()})
+		response.FromError(c, err, "Erro ao atualizar status")
 		return
 	}
 
@@ -344,7 +345,7 @@ func (h *PropostaMEIHandler) Delete(c *gin.Context) {
 	// Get proposal from database to check ownership
 	proposta, err := h.service.GetByID(c.Request.Context(), propostaID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar proposta: " + err.Error()})
+		response.FromError(c, err, "Erro ao buscar proposta")
 		return
 	}
 
@@ -369,7 +370,7 @@ func (h *PropostaMEIHandler) Delete(c *gin.Context) {
 
 	// Proceed with deletion
 	if err := h.service.Delete(c.Request.Context(), propostaID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir proposta: " + err.Error()})
+		response.FromError(c, err, "Erro ao excluir proposta")
 		return
 	}
 
@@ -412,7 +413,7 @@ func (h *PropostaMEIHandler) List(c *gin.Context) {
 
 	propostas, total, err := h.service.ListByOportunidade(c.Request.Context(), oportunidadeID, nomeEmpresa, cnpj, status, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar propostas: " + err.Error()})
+		response.FromError(c, err, "Erro ao listar propostas")
 		return
 	}
 
@@ -457,7 +458,7 @@ func (h *PropostaMEIHandler) ListByMEIEmpresa(c *gin.Context) {
 
 	propostas, total, err := h.service.ListByMEIEmpresa(c.Request.Context(), meiEmpresaID, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar propostas: " + err.Error()})
+		response.FromError(c, err, "Erro ao listar propostas")
 		return
 	}
 
