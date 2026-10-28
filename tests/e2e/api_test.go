@@ -203,9 +203,9 @@ func TestSwaggerDocumentation(t *testing.T) {
 }
 
 // TestBancoCurriculosRequiresAuthorization checks that the banco de currículos
-// — listing (with the advanced filters), ficha, histórico de candidaturas and
-// associação a vagas — stays closed without credentials on a running
-// environment. Its authorization does not depend on RBAC_ENABLED, so this holds
+// — listing (with the advanced filters), ficha, histórico de candidaturas,
+// associação a vagas and the citizen's choice to show or hide the resume —
+// stays closed without credentials on a running environment. Its authorization does not depend on RBAC_ENABLED, so this holds
 // in every environment.
 func TestBancoCurriculosRequiresAuthorization(t *testing.T) {
 	baseURL := getBaseURL(t)
@@ -217,6 +217,8 @@ func TestBancoCurriculosRequiresAuthorization(t *testing.T) {
 		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos/11111111111"},
 		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos/11111111111/candidaturas"},
 		{http.MethodPost, "/api/v1/empregabilidade/banco-curriculos/11111111111/associacoes"},
+		{http.MethodGet, "/api/v1/empregabilidade/curriculo/11111111111/banco-curriculos"},
+		{http.MethodPut, "/api/v1/empregabilidade/curriculo/11111111111/banco-curriculos"},
 	} {
 		t.Run(endpoint.method+" "+endpoint.path, func(t *testing.T) {
 			req, err := http.NewRequest(endpoint.method, baseURL+endpoint.path, strings.NewReader(`{"ids_vagas":[]}`))
@@ -306,6 +308,67 @@ func TestBancoCurriculosFichaContract(t *testing.T) {
 		for _, field := range item.fields {
 			if _, ok := definition.Properties[field]; !ok {
 				t.Errorf("Ficha contract missing field %s.%s", item.definition, field)
+			}
+		}
+	}
+}
+
+// TestParticipacaoBancoContract checks the running API publishes the contract
+// the citizen app uses for the banco de currículos card: the status (whether the
+// resume exists, what is missing for the minimum, when it was updated and
+// whether recruiters can see it) and the request that shows or hides it.
+func TestParticipacaoBancoContract(t *testing.T) {
+	baseURL := getBaseURL(t)
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Get(baseURL + "/docs/doc.json")
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected 200 for the OpenAPI spec, got %d", resp.StatusCode)
+	}
+
+	var spec struct {
+		Paths       map[string]map[string]json.RawMessage `json:"paths"`
+		Definitions map[string]struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		} `json:"definitions"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
+		t.Fatalf("Failed to decode OpenAPI spec: %v", err)
+	}
+
+	path := spec.Paths["/api/v1/empregabilidade/curriculo/{cpf}/banco-curriculos"]
+	for _, method := range []string{"get", "put"} {
+		if _, ok := path[method]; !ok {
+			t.Errorf("OpenAPI spec missing %s /api/v1/empregabilidade/curriculo/{cpf}/banco-curriculos", strings.ToUpper(method))
+		}
+	}
+
+	contrato := []struct {
+		definition string
+		fields     []string
+	}{
+		{"empregabilidade.ParticipacaoBancoStatus", []string{
+			"tem_curriculo", "curriculo_completo", "pendencias",
+			"curriculo_atualizado_em", "disponivel", "disponivel_alterado_em",
+			"origem_cadastro",
+		}},
+		{"empregabilidade.AtualizarParticipacaoBancoRequest", []string{"disponivel"}},
+	}
+
+	for _, item := range contrato {
+		definition, ok := spec.Definitions[item.definition]
+		if !ok {
+			t.Errorf("OpenAPI spec missing %s", item.definition)
+			continue
+		}
+		for _, field := range item.fields {
+			if _, ok := definition.Properties[field]; !ok {
+				t.Errorf("Participação contract missing field %s.%s", item.definition, field)
 			}
 		}
 	}
