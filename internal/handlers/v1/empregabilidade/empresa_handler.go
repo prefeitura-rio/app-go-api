@@ -2,12 +2,12 @@ package empregabilidade
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
@@ -208,8 +208,7 @@ func (h *EmpresaHandler) ConsultaCNPJ(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "CNPJ inválido: deve conter 14 dígitos"})
 			return
 		}
-		log.Printf("[EmpresaHandler] ConsultaCNPJ failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao consultar CNPJ"})
+		response.InternalError(c, err, "Erro ao consultar CNPJ")
 		return
 	}
 

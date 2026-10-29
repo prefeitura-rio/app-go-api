@@ -753,7 +753,8 @@ func TestCourseOwnershipCheck_LoaderError_InternalServerError(t *testing.T) {
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test/123", nil))
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Contains(t, w.Body.String(), "Erro ao buscar curso")
-	assert.Contains(t, w.Body.String(), "database error")
+	// DEV-49: o texto do erro interno fica no log, não no corpo da resposta.
+	assert.NotContains(t, w.Body.String(), "database error")
 }
 
 // ============ GetLoadedCursoOrgaoID Tests ============

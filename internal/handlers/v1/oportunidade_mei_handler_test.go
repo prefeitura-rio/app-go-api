@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
@@ -275,7 +276,7 @@ func TestOportunidadeMEIHandler_Create_ServiceError(t *testing.T) {
 		Titulo: "Test",
 	}
 
-	mockService.On("Create", mock.Anything, mock.Anything, false).Return(0, errors.New("validation error"))
+	mockService.On("Create", mock.Anything, mock.Anything, false).Return(0, apperrors.Invalid("validation error"))
 
 	body, _ := json.Marshal(oportunidade)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/oportunidades-mei", bytes.NewReader(body))
@@ -441,7 +442,7 @@ func TestOportunidadeMEIHandler_Update_ServiceError(t *testing.T) {
 		Titulo: "Test",
 	}
 
-	mockService.On("Update", mock.Anything, mock.Anything).Return(errors.New("update error"))
+	mockService.On("Update", mock.Anything, mock.Anything).Return(apperrors.Invalid("update error"))
 
 	body, _ := json.Marshal(oportunidade)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/oportunidades-mei/1", bytes.NewReader(body))
@@ -544,7 +545,7 @@ func TestOportunidadeMEIHandler_Publish_ServiceError(t *testing.T) {
 	r := gin.New()
 	r.PUT("/api/v1/oportunidades-mei/:id/publish", handler.Publish)
 
-	mockService.On("Publish", mock.Anything, 1).Return(errors.New("cannot publish"))
+	mockService.On("Publish", mock.Anything, 1).Return(apperrors.Invalid("cannot publish"))
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/oportunidades-mei/1/publish", nil)
 	w := httptest.NewRecorder()
@@ -746,7 +747,7 @@ func TestOportunidadeMEIHandler_CreateDraft_ServiceError(t *testing.T) {
 		Titulo: "Test Draft",
 	}
 
-	mockService.On("Create", mock.Anything, mock.Anything, true).Return(0, errors.New("validation failed: missing required fields"))
+	mockService.On("Create", mock.Anything, mock.Anything, true).Return(0, apperrors.Invalid("validation failed: missing required fields"))
 
 	body, _ := json.Marshal(oportunidade)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/oportunidades-mei/draft", bytes.NewReader(body))

@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -388,7 +389,7 @@ func (h *CourseHandler) Update(c *gin.Context) {
 
 	existingCurso, err := h.cursoService.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso: " + err.Error()})
+		response.FromError(c, err, "Erro ao buscar curso")
 		return
 	}
 	if existingCurso == nil {
@@ -666,20 +667,20 @@ func (h *CourseHandler) list(c *gin.Context, publicOnly bool) {
 		var err error
 		cursos, total, err = h.listSortedByAvailability(c, filter, page, limit)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos: " + err.Error()})
+			response.FromError(c, err, "Erro ao listar cursos")
 			return
 		}
 	} else {
 		var err error
 		cursos, total, err = h.cursoService.List(c.Request.Context(), filter, page, limit)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos: " + err.Error()})
+			response.FromError(c, err, "Erro ao listar cursos")
 			return
 		}
 
 		// Calculate remaining vacancies for all courses in a single batched query
 		if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+			response.FromError(c, err, "Erro ao calcular vagas restantes")
 			return
 		}
 	}
@@ -869,13 +870,13 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar rascunhos: " + err.Error()})
+		response.FromError(c, err, "Erro ao listar rascunhos")
 		return
 	}
 
 	// Calculate remaining vacancies for all courses in a single batched query
 	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 
@@ -948,7 +949,7 @@ func (h *CourseHandler) getByID(c *gin.Context, publicOnly bool) {
 
 	curso, err := h.cursoService.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso: " + err.Error()})
+		response.FromError(c, err, "Erro ao buscar curso")
 		return
 	}
 
@@ -972,7 +973,7 @@ func (h *CourseHandler) getByID(c *gin.Context, publicOnly bool) {
 
 	// Calculate remaining vacancies for all schedules
 	if err := h.calculateRemainingVacancies(c, curso); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 
@@ -1000,7 +1001,7 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.cursoService.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir curso: " + err.Error()})
+		response.FromError(c, err, "Erro ao excluir curso")
 		return
 	}
 
@@ -1091,13 +1092,13 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar cursos do usuário: " + err.Error()})
+		response.FromError(c, err, "Erro ao listar cursos do usuário")
 		return
 	}
 
 	// Calculate remaining vacancies for all courses in a single batched query
 	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao calcular vagas restantes: " + err.Error()})
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 

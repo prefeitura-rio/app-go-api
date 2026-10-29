@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 )
 
@@ -106,6 +107,9 @@ func (r *CursoRepository) Delete(ctx context.Context, id int) error {
 	result := r.db.WithContext(ctx).Delete(&models.Curso{}, id)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao excluir curso: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.NotFound("Curso não encontrado")
 	}
 	return nil
 }

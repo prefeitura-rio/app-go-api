@@ -7,6 +7,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
@@ -502,6 +503,18 @@ func TestCursoRepository_Delete(t *testing.T) {
 		err := repo.Delete(ctx, 1)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao excluir curso")
+	})
+
+	t.Run("delete of missing curso is not found", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "cursos"`)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectCommit()
+
+		err := repo.Delete(ctx, 999)
+		assert.True(t, apperrors.IsKind(err, apperrors.KindNotFound), "got %v", err)
+		assert.Equal(t, "Curso não encontrado", err.Error())
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
 

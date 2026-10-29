@@ -2,12 +2,15 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
+
+// ErrOportunidadeNaoEncontrada é a oportunidade MEI inexistente.
+var ErrOportunidadeNaoEncontrada = apperrors.NotFound("oportunidade não encontrada")
 
 type OportunidadeMEIService struct {
 	repo OportunidadeMEIRepositoryInterface
@@ -39,7 +42,7 @@ func (s *OportunidadeMEIService) Create(ctx context.Context, oportunidade *model
 
 	// Agora validar com status já definido
 	if err := oportunidade.Validate(); err != nil {
-		return 0, err
+		return 0, apperrors.Invalid(err.Error())
 	}
 
 	return s.repo.Create(ctx, oportunidade)
@@ -65,7 +68,7 @@ func (s *OportunidadeMEIService) Update(ctx context.Context, oportunidade *model
 		return err
 	}
 	if existing == nil {
-		return errors.New("oportunidade não encontrada")
+		return ErrOportunidadeNaoEncontrada
 	}
 
 	// Preservar o status existente ao atualizar (não publica automaticamente)
@@ -75,12 +78,12 @@ func (s *OportunidadeMEIService) Update(ctx context.Context, oportunidade *model
 	if oportunidade.Status == models.StatusOportunidadeDraft {
 		// Para drafts, validação mínima
 		if err := oportunidade.Validate(); err != nil {
-			return err
+			return apperrors.Invalid(err.Error())
 		}
 	} else {
 		// Para status publicado, validação completa
 		if err := oportunidade.ValidateForPublish(); err != nil {
-			return err
+			return apperrors.Invalid(err.Error())
 		}
 	}
 
@@ -95,12 +98,12 @@ func (s *OportunidadeMEIService) Publish(ctx context.Context, id int) error {
 		return err
 	}
 	if oportunidade == nil {
-		return errors.New("oportunidade não encontrada")
+		return ErrOportunidadeNaoEncontrada
 	}
 
 	// Validar completamente antes de publicar
 	if err := oportunidade.ValidateForPublish(); err != nil {
-		return errors.New("não é possível publicar: " + err.Error())
+		return apperrors.Invalid("não é possível publicar: " + err.Error())
 	}
 
 	oportunidade.Status = models.StatusOportunidadeActive
@@ -113,55 +116,19 @@ func (s *OportunidadeMEIService) Delete(ctx context.Context, id int) error {
 	return s.repo.Delete(ctx, id)
 }
 
+// List lista oportunidades MEI paginadas. O filtro "status" é aplicado no banco
+// pelo status efetivo (considerando a data de expiração), de modo que o total
+// devolvido é o COUNT real do status pedido, independente do pageSize. O status
+// dos itens da página é recalculado em memória apenas para exibição.
 func (s *OportunidadeMEIService) List(ctx context.Context, filters map[string]interface{}, titulo string, page, pageSize int) ([]*models.OportunidadeMEI, int, error) {
-	// Extract status filter if present, we'll handle it after updating expiration
-	var requestedStatus models.StatusOportunidadeMEI
-	var hasStatusFilter bool
-	if statusFilter, ok := filters["status"]; ok {
-		requestedStatus = statusFilter.(models.StatusOportunidadeMEI)
-		hasStatusFilter = true
-		// Remove status from database filters - we'll filter after updating status
-		delete(filters, "status")
-	}
-
-	// Get all opportunities matching other filters (without status filter)
 	offset := (page - 1) * pageSize
-	oportunidades, _, err := s.repo.List(ctx, filters, titulo, pageSize*10, 0) // Get more to filter
+	oportunidades, total, err := s.repo.List(ctx, filters, titulo, pageSize, offset)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Update status based on expiration for each opportunity
 	for _, oportunidade := range oportunidades {
 		oportunidade.UpdateStatusBasedOnExpiration()
-	}
-
-	// Filter by status if requested (after updating statuses)
-	if hasStatusFilter {
-		filtered := make([]*models.OportunidadeMEI, 0)
-		for _, oportunidade := range oportunidades {
-			if oportunidade.Status == requestedStatus {
-				filtered = append(filtered, oportunidade)
-			}
-		}
-		oportunidades = filtered
-	}
-
-	// Apply pagination to filtered results
-	total := len(oportunidades)
-	start := offset
-	end := offset + pageSize
-	if start > total {
-		start = total
-	}
-	if end > total {
-		end = total
-	}
-
-	if start < end {
-		oportunidades = oportunidades[start:end]
-	} else {
-		oportunidades = []*models.OportunidadeMEI{}
 	}
 
 	return oportunidades, total, nil

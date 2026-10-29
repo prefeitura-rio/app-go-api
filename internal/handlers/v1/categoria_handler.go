@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/handlers/common"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -86,7 +87,7 @@ func (h *CategoriaHandler) List(c *gin.Context) {
 
 	categorias, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar categorias: " + err.Error()})
+		response.FromError(c, err, "Erro ao listar categorias")
 		return
 	}
 

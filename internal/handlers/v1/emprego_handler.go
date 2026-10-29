@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -94,7 +95,7 @@ func (h *EmpregoHandler) GetByID(c *gin.Context) {
 
 	emprego, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar emprego: " + err.Error()})
+		response.FromError(c, err, "Erro ao buscar emprego")
 		return
 	}
 
@@ -131,7 +132,7 @@ func (h *EmpregoHandler) Update(c *gin.Context) {
 		if cpf != "" && secretariaIDs != nil {
 			existing, err := h.service.GetByID(c.Request.Context(), id)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar emprego: " + err.Error()})
+				response.FromError(c, err, "Erro ao buscar emprego")
 				return
 			}
 			if existing == nil {
@@ -191,7 +192,7 @@ func (h *EmpregoHandler) Delete(c *gin.Context) {
 	// Check if emprego exists first
 	emprego, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar emprego: " + err.Error()})
+		response.FromError(c, err, "Erro ao buscar emprego")
 		return
 	}
 	if emprego == nil {
@@ -213,7 +214,7 @@ func (h *EmpregoHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir emprego: " + err.Error()})
+		response.FromError(c, err, "Erro ao excluir emprego")
 		return
 	}
 
@@ -289,7 +290,7 @@ func (h *EmpregoHandler) List(c *gin.Context) {
 
 	empregos, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar empregos: " + err.Error()})
+		response.FromError(c, err, "Erro ao listar empregos")
 		return
 	}
 
