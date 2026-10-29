@@ -47,7 +47,7 @@ func ProvideDatabase(cfg *config.AppConfig) (*gorm.DB, error) {
 
 	// Add OpenTelemetry instrumentation to GORM (if tracing is enabled)
 	if cfg.Tracing.Enabled {
-		if err := db.Use(otelgorm.NewPlugin()); err != nil {
+		if err := db.Use(gormTracingPlugin()); err != nil {
 			return nil, fmt.Errorf("failed to add OTEL plugin to GORM: %w", err)
 		}
 		log.Println("GORM OpenTelemetry instrumentation enabled")
@@ -81,6 +81,13 @@ func newGormLogger(writer logger.Writer, level logger.LogLevel) logger.Interface
 		Colorful:             true,
 		ParameterizedQueries: true,
 	})
+}
+
+// gormTracingPlugin returns the OpenTelemetry GORM plugin. The db.statement attribute
+// keeps the placeholders instead of the bound values, so CPF, name or e-mail used in
+// queries never reach the traces.
+func gormTracingPlugin(opts ...otelgorm.Option) gorm.Plugin {
+	return otelgorm.NewPlugin(append([]otelgorm.Option{otelgorm.WithoutQueryVariables()}, opts...)...)
 }
 
 // ProvideRedisClient creates Redis client with connection pooling

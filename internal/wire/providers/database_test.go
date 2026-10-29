@@ -10,6 +10,10 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -156,4 +160,38 @@ func TestGormLogLevel(t *testing.T) {
 			assert.Equal(t, tt.want, gormLogLevel(cfg))
 		})
 	}
+}
+
+func TestGormTracingPlugin_DoesNotRecordQueryVariables(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
+
+	db, mock := openMockDB(t, logger.Discard)
+	require.NoError(t, db.Use(gormTracingPlugin(otelgorm.WithTracerProvider(tp), otelgorm.WithoutMetrics())))
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "inscricoes"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+	var total int64
+	err := db.Table("inscricoes").
+		Where("cpf ILIKE ? OR email ILIKE ?", "%"+syntheticCPF+"%", "%"+syntheticEmail+"%").
+		Count(&total).Error
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+
+	spans := recorder.Ended()
+	require.NotEmpty(t, spans)
+
+	var statement string
+	for _, span := range spans {
+		for _, attr := range span.Attributes() {
+			if attr.Key == semconv.DBStatementKey {
+				statement = attr.Value.AsString()
+			}
+			assert.NotContains(t, attr.Value.Emit(), syntheticCPF)
+			assert.NotContains(t, attr.Value.Emit(), syntheticEmail)
+		}
+	}
+	assert.Contains(t, statement, "cpf ILIKE '?'")
 }
