@@ -136,6 +136,16 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("Failed to open database: %v", err)
 	}
 
+	// Each new connection to ":memory:" opens a separate, empty database, so
+	// goroutines running jobs in parallel could land on a connection without
+	// the tables. Keep the pool at a single connection so everyone sees the
+	// same database.
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("Failed to get underlying sql.DB: %v", err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+
 	// Create tables manually to avoid PostgreSQL-specific syntax issues with AutoMigrate
 	// Jobs table
 	db.Exec(`CREATE TABLE jobs (
@@ -1523,8 +1533,20 @@ func TestStartJob_MultipleJobsParallel(t *testing.T) {
 		processor.StartJob(jobIDs[i])
 	}
 
-	// Wait for completion
-	time.Sleep(400 * time.Millisecond)
+	// Wait until every job has left the pending state (unknown type -> failed)
+	// and the processor has released all of them, instead of a fixed sleep.
+	assert.Eventually(t, func() bool {
+		for _, jobID := range jobIDs {
+			job, err := jobService.GetByID(context.Background(), jobID)
+			if err != nil || job == nil || job.Status == models.JobStatusPending {
+				return false
+			}
+		}
+		processor.mu.RLock()
+		activeCount := len(processor.activeJobs)
+		processor.mu.RUnlock()
+		return activeCount == 0
+	}, 5*time.Second, 10*time.Millisecond)
 
 	// Verify all jobs completed
 	processor.mu.RLock()
@@ -1532,10 +1554,10 @@ func TestStartJob_MultipleJobsParallel(t *testing.T) {
 	processor.mu.RUnlock()
 	assert.Equal(t, 0, activeCount)
 
-	// Verify all jobs are no longer pending (may have failed)
+	// Verify every job was processed and is no longer pending (unknown type fails)
 	for _, jobID := range jobIDs {
 		updatedJob, err := jobService.GetByID(context.Background(), jobID)
-		if err == nil && updatedJob != nil {
+		if assert.NoError(t, err) && assert.NotNil(t, updatedJob) {
 			assert.NotEqual(t, models.JobStatusPending, updatedJob.Status)
 		}
 	}
