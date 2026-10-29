@@ -1,12 +1,14 @@
 package clients
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -125,8 +127,7 @@ func (c *RMIClient) fetchPage(ctx context.Context, authToken string, cpf string,
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, models.PaginationResponse{}, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, models.PaginationResponse{}, rmiStatusError(resp)
 	}
 
 	// Parse response
@@ -167,8 +168,7 @@ func (c *RMIClient) GetOrgao(ctx context.Context, orgaoID string) (*models.Orgao
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, rmiStatusError(resp)
 	}
 
 	// Parse response - note: API returns the object directly, not wrapped in "data"
@@ -222,8 +222,7 @@ func (c *RMIClient) GetCNPJOwnerInfo(ctx context.Context, serviceToken string, c
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, rmiStatusError(resp)
 	}
 
 	var legalEntity models.LegalEntityDetails
@@ -273,8 +272,7 @@ func (c *RMIClient) GetCNPJOwnerInfo(ctx context.Context, serviceToken string, c
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, rmiStatusError(resp)
 	}
 
 	var citizenInfo models.CitizenContactInfo
@@ -331,8 +329,7 @@ func (c *RMIClient) GetCitizenByCPF(ctx context.Context, serviceToken string, cp
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, rmiStatusError(resp)
 	}
 
 	var citizenInfo models.CitizenContactInfo
@@ -385,8 +382,7 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, rmiStatusError(resp)
 	}
 
 	var legalEntity models.LegalEntityFull
@@ -400,6 +396,85 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 // rmiErrorBodyDrainLimit caps how much of an error response body is read and
 // discarded before the connection is released.
 const rmiErrorBodyDrainLimit = 64 << 10
+
+const rmiErrorSnippetMaxRunes = 120
+
+// rmiErrorMessageFields are the only fields of a JSON error body kept in the
+// error message; every other field may carry citizen data and is dropped.
+var rmiErrorMessageFields = []string{"error", "message"}
+
+var (
+	// Runs of 6+ digits with optional single separators: CPF, CNPJ, phone
+	// numbers, formatted or not.
+	rmiDigitRunPattern = regexp.MustCompile(`\d(?:[.\-/]?\d){5,}`)
+	rmiEmailPattern    = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
+)
+
+// rmiStatusError builds the error for a non-OK RMI response. Callers log these
+// errors and the RMI may echo citizen data in error bodies, so only a short,
+// sanitized excerpt of the body goes into the message (see sanitizeRMIErrorBody).
+func rmiStatusError(resp *http.Response) error {
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, rmiErrorBodyDrainLimit))
+	if snippet := sanitizeRMIErrorBody(body); snippet != "" {
+		return fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, snippet)
+	}
+	return fmt.Errorf("RMI API returned status %d", resp.StatusCode)
+}
+
+// sanitizeRMIErrorBody returns a single-line excerpt of an RMI error body that
+// is safe to log, or "" when nothing of it should be kept:
+//   - JSON: only the string fields "error" and "message", re-encoded as a JSON
+//     object; any other JSON (other fields, arrays, scalars) is dropped.
+//   - Plain text (proxy errors and the like): kept as one line.
+//
+// Either way, digit runs that look like CPF, CNPJ or phone numbers and e-mail
+// addresses are replaced by "[omitido]" and each piece is truncated.
+func sanitizeRMIErrorBody(body []byte) string {
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 {
+		return ""
+	}
+
+	if !json.Valid(trimmed) {
+		return sanitizeRMIErrorText(string(trimmed))
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(trimmed, &fields); err != nil {
+		return ""
+	}
+	kept := map[string]string{}
+	for _, name := range rmiErrorMessageFields {
+		var value string
+		if err := json.Unmarshal(fields[name], &value); err != nil {
+			continue
+		}
+		if value = sanitizeRMIErrorText(value); value != "" {
+			kept[name] = value
+		}
+	}
+	if len(kept) == 0 {
+		return ""
+	}
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(kept); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(buf.String())
+}
+
+func sanitizeRMIErrorText(text string) string {
+	text = rmiEmailPattern.ReplaceAllString(text, "[omitido]")
+	text = rmiDigitRunPattern.ReplaceAllString(text, "[omitido]")
+	text = strings.Join(strings.Fields(text), " ")
+	if runes := []rune(text); len(runes) > rmiErrorSnippetMaxRunes {
+		text = string(runes[:rmiErrorSnippetMaxRunes]) + "…"
+	}
+	return text
+}
 
 // GetCPFSecretarias fetches the list of cd_uas linked to a CPF from the app-rmi CPF-Secretaria registry.
 // Endpoint: GET /cpf-secretaria/{cpf}

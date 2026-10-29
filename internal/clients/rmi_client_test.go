@@ -1346,3 +1346,218 @@ func TestGetOrgao_ErrorStatus_KeepsResponseBody(t *testing.T) {
 		t.Errorf("Expected error %q, got %q", want, err.Error())
 	}
 }
+
+// Dados sintéticos: corpo de erro hostil, com CPF, CNPJ, e-mail e nome dentro e
+// fora do campo "error".
+const syntheticRMIErrorBodyWithPII = `{"error":"CPF 123.456.789-00 sem vinculo com 12.345.678/0001-90, contato fulano@example.com","cpf":"12345678900","nome":"Fulano de Teste","dados":{"email":"fulano@example.com"}}`
+
+var syntheticPII = []string{
+	"12345678900", "123.456.789-00", "12.345.678/0001-90", "12345678000190",
+	"fulano@example.com", "Fulano de Teste", "Fulano",
+}
+
+func assertNoSyntheticPII(t *testing.T, err error) {
+	t.Helper()
+	for _, leaked := range syntheticPII {
+		if strings.Contains(err.Error(), leaked) {
+			t.Errorf("Error message leaks personal data %q: %q", leaked, err.Error())
+		}
+	}
+}
+
+// legalEntityWithSocioHandler answers the legal-entity step of GetCNPJOwnerInfo
+// with one socio and the citizen step with status and body.
+func legalEntityWithSocioHandler(status int, body string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/v1/legal-entity/") {
+			legalEntity := models.LegalEntityDetails{CNPJ: "12345678000195", RazaoSocial: "Empresa Teste"}
+			legalEntity.Socios = []struct {
+				CPFSocio  string `json:"cpf_socio"`
+				NomeSocio string `json:"nome_socio_estrangeiro"`
+			}{{CPFSocio: "12345678900", NomeSocio: "Fulano de Teste"}}
+			_ = json.NewEncoder(w).Encode(legalEntity)
+			return
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}
+}
+
+func TestRMIClient_ErrorStatus_SanitizesResponseBody(t *testing.T) {
+	ctx := context.Background()
+	calls := []struct {
+		name    string
+		handler func(status int, body string) http.HandlerFunc
+		call    func(c *RMIClient) error
+	}{
+		{"GetUserLegalEntities", nil, func(c *RMIClient) error {
+			_, err := c.GetUserLegalEntities(ctx, "Bearer token", "12345678900")
+			return err
+		}},
+		{"GetOrgao", nil, func(c *RMIClient) error {
+			_, err := c.GetOrgao(ctx, "ORG1")
+			return err
+		}},
+		{"GetCNPJOwnerInfo legal entity", nil, func(c *RMIClient) error {
+			_, err := c.GetCNPJOwnerInfo(ctx, "token", "12345678000195")
+			return err
+		}},
+		{"GetCNPJOwnerInfo citizen", legalEntityWithSocioHandler, func(c *RMIClient) error {
+			_, err := c.GetCNPJOwnerInfo(ctx, "token", "12345678000195")
+			return err
+		}},
+		{"GetCitizenByCPF", nil, func(c *RMIClient) error {
+			_, err := c.GetCitizenByCPF(ctx, "token", "12345678900")
+			return err
+		}},
+		{"GetLegalEntityByCNPJ", nil, func(c *RMIClient) error {
+			_, err := c.GetLegalEntityByCNPJ(ctx, "token", "12345678000195")
+			return err
+		}},
+	}
+
+	bodies := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"campo error com dados pessoais", syntheticRMIErrorBodyWithPII,
+			`RMI API returned status 500: {"error":"CPF [omitido] sem vinculo com [omitido], contato [omitido]"}`},
+		{"JSON sem campo de mensagem", `{"cpf":"12345678900","nome":"Fulano de Teste"}`,
+			"RMI API returned status 500"},
+		{"texto puro com dados pessoais", "falha no upstream\n12345678900 fulano@example.com",
+			"RMI API returned status 500: falha no upstream [omitido] [omitido]"},
+	}
+
+	for _, tc := range calls {
+		for _, b := range bodies {
+			t.Run(tc.name+"/"+b.name, func(t *testing.T) {
+				handler := tc.handler
+				if handler == nil {
+					handler = func(status int, body string) http.HandlerFunc {
+						return func(w http.ResponseWriter, r *http.Request) {
+							w.WriteHeader(status)
+							_, _ = w.Write([]byte(body))
+						}
+					}
+				}
+				srv := httptest.NewServer(handler(http.StatusInternalServerError, b.body))
+				defer srv.Close()
+
+				client := NewRMIClient(srv.URL, 5*time.Second,
+					WithName(uniqueClientName(t, "sanitize-body-")),
+					WithRetryBackoff(time.Millisecond, 2*time.Millisecond))
+				err := tc.call(client)
+				if err == nil {
+					t.Fatal("Expected error for non-200 status")
+				}
+				if !strings.HasSuffix(err.Error(), b.want) {
+					t.Errorf("Expected error ending with %q, got %q", b.want, err.Error())
+				}
+				assertNoSyntheticPII(t, err)
+				if strings.Contains(err.Error(), "\n") {
+					t.Errorf("Error message must be a single line, got %q", err.Error())
+				}
+			})
+		}
+	}
+}
+
+func TestRMIClient_ErrorStatus_KeepsMessagesWithoutPersonalData(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name   string
+		status int
+		body   string
+		call   func(c *RMIClient) error
+		want   string
+	}{
+		{"GetOrgao 500 do sync de órgãos", http.StatusInternalServerError, `{"error":"Failed to retrieve department"}`,
+			func(c *RMIClient) error { _, err := c.GetOrgao(ctx, "ORG1"); return err },
+			`RMI API returned status 500: {"error":"Failed to retrieve department"}`},
+		{"GetCitizenByCPF 400 do sync de cidadãos", http.StatusBadRequest, `{"error":"Invalid CPF format"}`,
+			func(c *RMIClient) error { _, err := c.GetCitizenByCPF(ctx, "token", "123"); return err },
+			`RMI API returned status 400: {"error":"Invalid CPF format"}`},
+		{"GetLegalEntityByCNPJ 400 com message", http.StatusBadRequest, `{"message":"invalid request","error":"bad request"}` + "\n",
+			func(c *RMIClient) error { _, err := c.GetLegalEntityByCNPJ(ctx, "token", "12345678000195"); return err },
+			`RMI API returned status 400: {"error":"bad request","message":"invalid request"}`},
+		{"GetOrgao corpo vazio", http.StatusInternalServerError, "",
+			func(c *RMIClient) error { _, err := c.GetOrgao(ctx, "ORG1"); return err },
+			"RMI API returned status 500"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			client := NewRMIClient(srv.URL, 5*time.Second, WithName(uniqueClientName(t, "keep-body-")))
+			err := tt.call(client)
+			if err == nil {
+				t.Fatal("Expected error for non-200 status")
+			}
+			if err.Error() != tt.want {
+				t.Errorf("Expected error %q, got %q", tt.want, err.Error())
+			}
+		})
+	}
+}
+
+func TestSanitizeRMIErrorBody(t *testing.T) {
+	long := strings.Repeat("a", 500)
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"vazio", "", ""},
+		{"só espaços", "  \n\t ", ""},
+		{"JSON error sem dado pessoal", `{"error":"Failed to retrieve department"}`, `{"error":"Failed to retrieve department"}`},
+		{"JSON error com CPF formatado", `{"error":"CPF 123.456.789-00 inválido"}`, `{"error":"CPF [omitido] inválido"}`},
+		{"JSON error com telefone", `{"error":"telefone 21987654321 inválido"}`, `{"error":"telefone [omitido] inválido"}`},
+		{"JSON preserva números curtos", `{"error":"timeout after 30s, code 504"}`, `{"error":"timeout after 30s, code 504"}`},
+		{"JSON descarta campos fora de error/message", `{"error":"x","cpf":"12345678900","nome":"Fulano"}`, `{"error":"x"}`},
+		{"JSON sem campo de mensagem", `{"cpf":"12345678900","nome":"Fulano"}`, ""},
+		{"JSON error não string", `{"error":{"nome":"Fulano"}}`, ""},
+		{"JSON array", `[{"nome":"Fulano","cpf":"12345678900"}]`, ""},
+		{"JSON string", `"Fulano 12345678900"`, ""},
+		{"JSON error vazio", `{"error":"  "}`, ""},
+		{"JSON não escapa HTML", `{"error":"a < b & c"}`, `{"error":"a < b & c"}`},
+		{"JSON error longo é truncado", `{"error":"` + long + `"}`, `{"error":"` + strings.Repeat("a", rmiErrorSnippetMaxRunes) + `…"}`},
+		{"texto puro sem dado pessoal", "orgao indisponivel", "orgao indisponivel"},
+		{"texto puro do proxy", "upstream connect error or disconnect/reset before headers. reset reason: connection failure",
+			"upstream connect error or disconnect/reset before headers. reset reason: connection failure"},
+		{"texto puro com CNPJ e e-mail", "CNPJ 12.345.678/0001-90 de fulano.teste+x@example.com.br",
+			"CNPJ [omitido] de [omitido]"},
+		{"texto puro em várias linhas vira uma", "linha 1\r\nlinha 2\n\nlinha 3", "linha 1 linha 2 linha 3"},
+		{"texto puro longo é truncado", long, strings.Repeat("a", rmiErrorSnippetMaxRunes) + "…"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sanitizeRMIErrorBody([]byte(tt.body)); got != tt.want {
+				t.Errorf("sanitizeRMIErrorBody(%q) = %q, want %q", tt.body, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRMIClient_ErrorStatus_LargeBodyIsBounded(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(strings.Repeat("x", 1<<20)))
+	}))
+	defer srv.Close()
+
+	client := NewRMIClient(srv.URL, 5*time.Second, WithName(uniqueClientName(t, "large-body-")))
+	_, err := client.GetOrgao(context.Background(), "ORG1")
+	if err == nil {
+		t.Fatal("Expected error for non-200 status")
+	}
+	if len(err.Error()) > 512 {
+		t.Errorf("Error message should be bounded, got %d bytes", len(err.Error()))
+	}
+}
