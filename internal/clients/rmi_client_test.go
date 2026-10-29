@@ -1330,7 +1330,7 @@ func TestGetCPFSecretarias_ErrorStatus_OmitsResponseBody(t *testing.T) {
 	}
 }
 
-func TestGetOrgao_ErrorStatus_KeepsResponseBody(t *testing.T) {
+func TestGetOrgao_ErrorStatus_OmitsPlainTextBody(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("orgao indisponivel"))
@@ -1342,7 +1342,7 @@ func TestGetOrgao_ErrorStatus_KeepsResponseBody(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for non-200 status")
 	}
-	if want := "RMI API returned status 500: orgao indisponivel"; err.Error() != want {
+	if want := "RMI API returned status 500"; err.Error() != want {
 		t.Errorf("Expected error %q, got %q", want, err.Error())
 	}
 }
@@ -1425,8 +1425,14 @@ func TestRMIClient_ErrorStatus_SanitizesResponseBody(t *testing.T) {
 			`RMI API returned status 500: {"error":"CPF [omitido] sem vinculo com [omitido], contato [omitido]"}`},
 		{"JSON sem campo de mensagem", `{"cpf":"12345678900","nome":"Fulano de Teste"}`,
 			"RMI API returned status 500"},
-		{"texto puro com dados pessoais", "falha no upstream\n12345678900 fulano@example.com",
-			"RMI API returned status 500: falha no upstream [omitido] [omitido]"},
+		{"texto puro com dados pessoais", "Fulano de Teste\n12345678900 fulano@example.com",
+			"RMI API returned status 500"},
+		{"HTML com dados pessoais", "<html><body>Fulano de Teste 12345678900</body></html>",
+			"RMI API returned status 500"},
+		{"JSON cortado no limite de leitura", `{"nome":"Fulano de Teste","cpf":"12345678900","pad":"` + strings.Repeat("x", rmiErrorBodyDrainLimit) + `"}`,
+			"RMI API returned status 500"},
+		{"JSON com lixo no fim", `{"error":"x","nome":"Fulano de Teste"} trailing`,
+			"RMI API returned status 500"},
 	}
 
 	for _, tc := range calls {
@@ -1527,13 +1533,14 @@ func TestSanitizeRMIErrorBody(t *testing.T) {
 		{"JSON error vazio", `{"error":"  "}`, ""},
 		{"JSON não escapa HTML", `{"error":"a < b & c"}`, `{"error":"a < b & c"}`},
 		{"JSON error longo é truncado", `{"error":"` + long + `"}`, `{"error":"` + strings.Repeat("a", rmiErrorSnippetMaxRunes) + `…"}`},
-		{"texto puro sem dado pessoal", "orgao indisponivel", "orgao indisponivel"},
-		{"texto puro do proxy", "upstream connect error or disconnect/reset before headers. reset reason: connection failure",
-			"upstream connect error or disconnect/reset before headers. reset reason: connection failure"},
-		{"texto puro com CNPJ e e-mail", "CNPJ 12.345.678/0001-90 de fulano.teste+x@example.com.br",
-			"CNPJ [omitido] de [omitido]"},
-		{"texto puro em várias linhas vira uma", "linha 1\r\nlinha 2\n\nlinha 3", "linha 1 linha 2 linha 3"},
-		{"texto puro longo é truncado", long, strings.Repeat("a", rmiErrorSnippetMaxRunes) + "…"},
+		{"JSON com CNPJ e e-mail", `{"message":"CNPJ 12.345.678/0001-90 de fulano.teste+x@example.com.br"}`,
+			`{"message":"CNPJ [omitido] de [omitido]"}`},
+		{"JSON com CPF separado por espaços", `{"error":"CPF 123 456 789 00"}`, `{"error":"CPF [omitido]"}`},
+		{"JSON em várias linhas vira uma", `{"error":"linha 1\r\nlinha 2\n\nlinha 3"}`, `{"error":"linha 1 linha 2 linha 3"}`},
+		{"JSON com lixo no fim", `{"error":"x"} trailing`, ""},
+		{"texto puro", "orgao indisponivel", ""},
+		{"texto puro do proxy", "upstream connect error or disconnect/reset before headers. reset reason: connection failure", ""},
+		{"HTML", "<html><body>Fulano 12345678900</body></html>", ""},
 	}
 
 	for _, tt := range tests {

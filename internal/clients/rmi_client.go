@@ -406,7 +406,7 @@ var rmiErrorMessageFields = []string{"error", "message"}
 var (
 	// Runs of 6+ digits with optional single separators: CPF, CNPJ, phone
 	// numbers, formatted or not.
-	rmiDigitRunPattern = regexp.MustCompile(`\d(?:[.\-/]?\d){5,}`)
+	rmiDigitRunPattern = regexp.MustCompile(`\d(?:[.\-/ ]?\d){5,}`)
 	rmiEmailPattern    = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
 )
 
@@ -422,13 +422,12 @@ func rmiStatusError(resp *http.Response) error {
 }
 
 // sanitizeRMIErrorBody returns a single-line excerpt of an RMI error body that
-// is safe to log, or "" when nothing of it should be kept:
-//   - JSON: only the string fields "error" and "message", re-encoded as a JSON
-//     object; any other JSON (other fields, arrays, scalars) is dropped.
-//   - Plain text (proxy errors and the like): kept as one line.
-//
-// Either way, digit runs that look like CPF, CNPJ or phone numbers and e-mail
-// addresses are replaced by "[omitido]" and each piece is truncated.
+// is safe to log, or "" when nothing of it should be kept. Only the string
+// fields "error" and "message" of a complete JSON object are kept, re-encoded
+// as a JSON object, with digit runs that look like CPF, CNPJ or phone numbers
+// and e-mail addresses replaced by "[omitido]" and each value truncated. Any
+// other body (other JSON fields, arrays, scalars, JSON cut at the read limit,
+// HTML, plain text) is dropped, since it can carry citizen data verbatim.
 func sanitizeRMIErrorBody(body []byte) string {
 	trimmed := bytes.TrimSpace(body)
 	if len(trimmed) == 0 {
@@ -436,7 +435,7 @@ func sanitizeRMIErrorBody(body []byte) string {
 	}
 
 	if !json.Valid(trimmed) {
-		return sanitizeRMIErrorText(string(trimmed))
+		return ""
 	}
 
 	var fields map[string]json.RawMessage
