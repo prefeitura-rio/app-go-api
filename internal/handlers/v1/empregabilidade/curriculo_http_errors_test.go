@@ -29,11 +29,11 @@ var curriculoDBLeak = fmt.Errorf("erro ao buscar formação: %w", &pgconn.PgErro
 	Detail:  "Key (cpf)=(00000000000)",
 })
 
-var curriculoLeakMarkers = []string{"SQLSTATE", "statement", "relation", "curriculo_formacao", "00000000000", "erro ao buscar", "DETAIL"}
+var curriculoHTTPLeakMarkers = []string{"SQLSTATE", "statement", "relation", "curriculo_formacao", "00000000000", "erro ao buscar", "DETAIL"}
 
 func assertNoCurriculoLeak(t *testing.T, body string) {
 	t.Helper()
-	for _, marker := range curriculoLeakMarkers {
+	for _, marker := range curriculoHTTPLeakMarkers {
 		assert.NotContains(t, body, marker, "o corpo vaza detalhe interno")
 	}
 }

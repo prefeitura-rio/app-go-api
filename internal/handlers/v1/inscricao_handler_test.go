@@ -3,6 +3,7 @@ package v1_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,6 +15,8 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // Test basic handler initialization
@@ -245,6 +248,10 @@ func TestInscricaoHandler_UpdateCertificate_InvalidEnrollmentID(t *testing.T) {
 func TestInscricaoHandler_UpdateCertificate_InvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	h := v1.NewInscricaoHandler(nil, nil, nil)
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", h.UpdateCertificate)
 
@@ -525,4 +532,78 @@ type serviceError struct {
 
 func (e *serviceError) Error() string {
 	return e.msg
+}
+
+// TestInscricaoHandler_Update_EnrolledUnit verifies that enrolled_unit can only
+// be changed through the generic update endpoint by admin / casa_civil profiles.
+// Citizens change their schedule through PUT /enrollments/:enrollmentId/schedule.
+func TestInscricaoHandler_Update_EnrolledUnit(t *testing.T) {
+	const ownerCPF = "12345678901"
+	const otherCPF = "11111111111"
+
+	tests := []struct {
+		name     string
+		role     string
+		roles    []string
+		cpf      string
+		wantUnit bool
+	}{
+		{name: "citizen owner has enrolled_unit dropped", role: "USER", cpf: ownerCPF, wantUnit: false},
+		{name: "citizen with unrelated role has enrolled_unit dropped", role: "USER", roles: []string{"go:cursos:editor"}, cpf: ownerCPF, wantUnit: false},
+		{name: "admin keeps enrolled_unit", role: "ADMIN", cpf: otherCPF, wantUnit: true},
+		{name: "casa_civil keeps enrolled_unit", role: "USER", roles: []string{"go:cursos:casa_civil"}, cpf: otherCPF, wantUnit: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			mockService := new(MockInscricaoService)
+			handler := v1.NewInscricaoHandler(mockService, new(MockJobService), new(MockCursoRepository))
+
+			r := gin.New()
+			r.Use(func(c *gin.Context) {
+				c.Set(middlewares.UserRoleKey, tt.role)
+				c.Set(middlewares.UserCPFKey, tt.cpf)
+				if tt.roles != nil {
+					c.Set(middlewares.UserRolesKey, tt.roles)
+				}
+				c.Next()
+			})
+			r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId", handler.Update)
+
+			enrollmentID := uuid.New()
+			existing := &models.Inscricao{ID: enrollmentID, CursoID: 1, CPF: ownerCPF}
+
+			var received *models.InscricaoUpdateRequest
+			mockService.On("GetByID", mock.Anything, enrollmentID).Return(existing, nil)
+			mockService.On("UpdateInscricao", mock.Anything, enrollmentID, 1, mock.AnythingOfType("*models.InscricaoUpdateRequest")).
+				Run(func(args mock.Arguments) {
+					received = args.Get(3).(*models.InscricaoUpdateRequest)
+				}).
+				Return(nil).Once()
+
+			body, err := json.Marshal(map[string]interface{}{
+				"name":          "Novo Nome",
+				"enrolled_unit": map[string]interface{}{"id": "unit-2", "curso_id": 1, "address": "Rua X"},
+				"custom_fields": map[string]interface{}{"k": "v"},
+			})
+			require.NoError(t, err)
+			req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1/enrollments/"+enrollmentID.String(), bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			mockService.AssertExpectations(t)
+			require.NotNil(t, received)
+			require.NotNil(t, received.Name, "other fields must still reach the service")
+			assert.NotNil(t, received.CustomFieldsData, "custom_fields is not restricted by this rule")
+			if tt.wantUnit {
+				require.NotNil(t, received.EnrolledUnit)
+				assert.Equal(t, "unit-2", received.EnrolledUnit.ID)
+			} else {
+				assert.Nil(t, received.EnrolledUnit)
+			}
+		})
+	}
 }
