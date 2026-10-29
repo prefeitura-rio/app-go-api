@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"slices"
 	"strconv"
@@ -143,7 +144,8 @@ func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 		orgaoID, found, err := loader(c.Request.Context(), id)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso: " + err.Error()})
+			log.Printf("course ownership check: erro ao buscar curso: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso"})
 			c.Abort()
 			return
 		}
@@ -279,7 +281,8 @@ func CourseEnrollmentListAccess(loader courseLoaderFunc) gin.HandlerFunc {
 			}
 			orgaoID, found, err := loader(c.Request.Context(), id)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso: " + err.Error()})
+				log.Printf("course enrollment list access: erro ao buscar curso: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso"})
 				c.Abort()
 				return
 			}

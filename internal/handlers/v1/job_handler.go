@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
@@ -39,7 +40,7 @@ func (h *JobHandler) GetStatus(c *gin.Context) {
 
 	job, err := h.service.GetByID(c.Request.Context(), jobID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar job: " + err.Error()})
+		response.RespondError(c, err, "Erro ao buscar job")
 		return
 	}
 

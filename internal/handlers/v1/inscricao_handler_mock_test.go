@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
@@ -349,7 +350,7 @@ func TestInscricaoHandler_Create_DuplicateEnrollment(t *testing.T) {
 	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
 
 	mockService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
-		Return(errors.New("CPF já inscrito neste curso"))
+		Return(apperrors.Conflict("CPF já inscrito neste curso"))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader([]byte(`{}`)))
 	req.Header.Set("Content-Type", "application/json")
@@ -1539,7 +1540,7 @@ func TestInscricaoHandler_ChangeSchedule_NotFound(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
-		Return(nil, errors.New("inscrição não encontrada"))
+		Return(nil, apperrors.NotFound("inscrição não encontrada"))
 
 	reqBody := map[string]interface{}{
 		"enrolled_unit": map[string]interface{}{
@@ -1576,7 +1577,7 @@ func TestInscricaoHandler_ChangeSchedule_Forbidden(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "98765432100", mock.AnythingOfType("*models.ScheduleChangeRequest")).
-		Return(nil, errors.New("você só pode alterar suas próprias inscrições"))
+		Return(nil, apperrors.Forbidden("você só pode alterar suas próprias inscrições"))
 
 	reqBody := map[string]interface{}{
 		"enrolled_unit": map[string]interface{}{
@@ -1613,7 +1614,7 @@ func TestInscricaoHandler_ChangeSchedule_NoVacancies(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
-		Return(nil, errors.New("não há vagas disponíveis para esta turma"))
+		Return(nil, apperrors.Validation("não há vagas disponíveis para esta turma"))
 
 	reqBody := map[string]interface{}{
 		"enrolled_unit": map[string]interface{}{
@@ -1651,7 +1652,7 @@ func TestInscricaoHandler_ChangeSchedule_TimingRestriction(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
-		Return(nil, errors.New("não é possível trocar de turma com menos de 72h de antecedência"))
+		Return(nil, apperrors.Validation("não é possível trocar de turma com menos de 72h de antecedência"))
 
 	reqBody := map[string]interface{}{
 		"enrolled_unit": map[string]interface{}{
@@ -1787,7 +1788,7 @@ func TestInscricaoHandler_UpdateCertificate_NotFound(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
-		Return(errors.New("inscrição não encontrada"))
+		Return(apperrors.NotFound("inscrição não encontrada"))
 
 	reqBody := map[string]interface{}{
 		"certificate_url": "https://example.com/cert.pdf",
@@ -1818,7 +1819,7 @@ func TestInscricaoHandler_UpdateCertificate_WrongCourse(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
-		Return(errors.New("inscrição não pertence ao curso especificado"))
+		Return(apperrors.Validation("inscrição não pertence ao curso especificado"))
 
 	reqBody := map[string]interface{}{
 		"certificate_url": "https://example.com/cert.pdf",
@@ -1850,7 +1851,7 @@ func TestInscricaoHandler_UpdateCertificate_InvalidStatus(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
-		Return(errors.New("certificado só pode ser atribuído a inscrições aprovadas ou concluídas"))
+		Return(apperrors.Validation("certificado só pode ser atribuído a inscrições aprovadas ou concluídas"))
 
 	reqBody := map[string]interface{}{
 		"certificate_url": "https://example.com/cert.pdf",

@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
@@ -60,7 +62,7 @@ func (h *BancoCurriculoHandler) List(c *gin.Context) {
 
 	candidato, err := lerFiltroCandidato(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

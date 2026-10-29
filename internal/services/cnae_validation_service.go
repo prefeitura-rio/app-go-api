@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
@@ -71,20 +72,20 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 	cpf, err := utils.ExtractCPFFromToken(authToken)
 	if err != nil {
 		log.Printf("[CNAE_VALIDATION_ERROR] Failed to extract CPF from token: %v", err)
-		return fmt.Errorf("não foi possível extrair CPF do token de autenticação")
+		return apperrors.Validation("não foi possível extrair CPF do token de autenticação")
 	}
 
 	// 2. Get user's legal entities (with caching)
 	legalEntities, err := s.getUserLegalEntities(ctx, authToken, cpf)
 	if err != nil {
 		log.Printf("[CNAE_VALIDATION_ERROR] CPF=%s Error fetching legal entities: %v", cpf, err)
-		return fmt.Errorf("não foi possível validar seus CNPJs no momento. Tente novamente em instantes")
+		return apperrors.Unavailable("não foi possível validar seus CNPJs no momento. Tente novamente em instantes")
 	}
 
 	// 3. Check if user has any CNPJs
 	if len(legalEntities) == 0 {
 		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=no_cnpjs", cpf, cnpj)
-		return fmt.Errorf("nenhum CNPJ encontrado vinculado ao seu CPF")
+		return apperrors.Forbidden("nenhum CNPJ encontrado vinculado ao seu CPF")
 	}
 
 	// 4. Find the CNPJ in user's legal entities
@@ -102,7 +103,7 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 
 	if foundEntity == nil {
 		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=ownership", cpf, cnpj)
-		return fmt.Errorf("o CNPJ %s não pertence ao seu CPF", cnpj)
+		return apperrors.Forbidden(fmt.Sprintf("o CNPJ %s não pertence ao seu CPF", cnpj))
 	}
 
 	// 5. Get all CNAEs from the CNPJ (fiscal + secundarias)
@@ -115,8 +116,7 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 
 		// Format CNAEs for user-friendly error message
 		formattedCNAEs := strings.Join(opportunityCNAEIDs, ", ")
-		return fmt.Errorf("o CNPJ %s não possui CNAE compatível com esta oportunidade. CNAEs aceitos: %s",
-			cnpj, formattedCNAEs)
+		return apperrors.Forbidden(fmt.Sprintf("o CNPJ %s não possui CNAE compatível com esta oportunidade. CNAEs aceitos: %s", cnpj, formattedCNAEs))
 	}
 
 	// Success!

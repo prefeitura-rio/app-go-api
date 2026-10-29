@@ -1,13 +1,21 @@
 package response_test
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 )
 
@@ -43,5 +51,135 @@ func TestResponseHelpers(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "item1")
+	})
+}
+
+func TestRespondError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantMsg    string
+		wantField  string
+		leak       string
+	}{
+		{"not found", apperrors.NotFound("vaga não encontrada"), http.StatusNotFound, "vaga não encontrada", "", ""},
+		{"validation", apperrors.Validation("inválido"), http.StatusBadRequest, "inválido", "", ""},
+		{"conflict", apperrors.Conflict("duplicado"), http.StatusConflict, "duplicado", "", ""},
+		{"forbidden", apperrors.Forbidden("negado"), http.StatusForbidden, "negado", "", ""},
+		{"gorm not found", gorm.ErrRecordNotFound, http.StatusNotFound, "Recurso não encontrado", "", ""},
+		{
+			"unique violation",
+			&pq.Error{Code: pq.ErrorCode("23505"), Constraint: "users_email_key"},
+			http.StatusConflict,
+			"Este email já está cadastrado no sistema.",
+			"email",
+			"",
+		},
+		{
+			"unknown no leak",
+			errors.New("pq: connection refused segredo-interno"),
+			http.StatusInternalServerError,
+			"Erro interno do servidor",
+			"",
+			"segredo-interno",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
+
+			response.RespondError(c, tt.err)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			var body map[string]any
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+			assert.Equal(t, tt.wantMsg, body["error"])
+			if tt.wantField != "" {
+				assert.Equal(t, tt.wantField, body["field"])
+			} else {
+				_, hasField := body["field"]
+				assert.False(t, hasField)
+			}
+			if tt.leak != "" {
+				assert.NotContains(t, w.Body.String(), tt.leak)
+			}
+		})
+	}
+}
+
+func TestRespondError_LogsRouteTemplateNotRawPath(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var buf bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(prev)
+
+	r := gin.New()
+	r.GET("/api/v1/empregabilidade/curriculo/:cpf", func(c *gin.Context) {
+		response.RespondError(c, errors.New("boom"))
+	})
+
+	cpf := "12345678900"
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/empregabilidade/curriculo/"+cpf, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	logged := buf.String()
+	assert.Contains(t, logged, "/api/v1/empregabilidade/curriculo/:cpf")
+	assert.NotContains(t, logged, cpf)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestRespondError_FallbackMessage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("used only for unmapped 500", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/habilidades", nil)
+
+		response.RespondError(c, errors.New("pq: connection refused segredo"), "Erro ao criar habilidade")
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		assert.Equal(t, "Erro ao criar habilidade", body["error"])
+		assert.NotContains(t, w.Body.String(), "segredo")
+	})
+
+	t.Run("ignored for mapped domain errors", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/vagas/1", nil)
+
+		response.RespondError(c, apperrors.NotFound("vaga não encontrada"), "Erro ao buscar vaga")
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		assert.Equal(t, "vaga não encontrada", body["error"])
+	})
+
+	t.Run("ignored for unique violation", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/habilidades", nil)
+
+		response.RespondError(c,
+			&pq.Error{Code: pq.ErrorCode("23505"), Constraint: "emp_habilidades_nome_key"},
+			"Erro ao criar habilidade",
+		)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		assert.Equal(t, "Este nome já está cadastrado no sistema.", body["error"])
 	})
 }

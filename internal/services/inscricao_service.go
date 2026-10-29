@@ -8,30 +8,22 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
-// EnrollmentRuleError marks a rejection the citizen can act on — the course is
-// not open, the enrollment window is closed, the turma is not accepting people.
-// These are not server faults, so handlers answer 400 instead of 500 and the
-// portal can show the reason verbatim.
-type EnrollmentRuleError struct {
-	msg string
-}
-
-func (e *EnrollmentRuleError) Error() string { return e.msg }
-
-// NewEnrollmentRuleError builds a business-rule rejection carrying a message
-// meant to be shown to the citizen as-is.
+// NewEnrollmentRuleError builds a business-rule rejection (HTTP 400) carrying a
+// message meant to be shown to the citizen as-is — course not open, enrollment
+// window closed, turma not accepting people, etc.
 func NewEnrollmentRuleError(msg string) error {
-	return &EnrollmentRuleError{msg: msg}
+	return apperrors.Validation(msg)
 }
 
 func enrollmentRuleErrorf(format string, args ...any) error {
-	return &EnrollmentRuleError{msg: fmt.Sprintf(format, args...)}
+	return apperrors.Validation(fmt.Sprintf(format, args...))
 }
 
 // CitizenDataFetcher interface for fetching citizen data
@@ -124,7 +116,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		return fmt.Errorf("erro ao verificar inscrição existente: %w", err)
 	}
 	if exists {
-		return fmt.Errorf("CPF já inscrito neste curso")
+		return apperrors.Conflict("CPF já inscrito neste curso")
 	}
 
 	// Validate schedule_id if provided
@@ -135,7 +127,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 			return fmt.Errorf("erro ao verificar curso para validação de schedule: %w", err)
 		}
 		if curso == nil {
-			return fmt.Errorf("curso não encontrado")
+			return apperrors.NotFound("curso não encontrado")
 		}
 
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, true); err != nil {
@@ -230,7 +222,7 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 		return fmt.Errorf("erro ao verificar inscrição existente: %w", err)
 	}
 	if exists {
-		return fmt.Errorf("CPF já inscrito neste curso")
+		return apperrors.Conflict("CPF já inscrito neste curso")
 	}
 
 	if inscricao.ScheduleID != nil {
@@ -239,7 +231,7 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 			return fmt.Errorf("erro ao verificar curso para validação de schedule: %w", err)
 		}
 		if curso == nil {
-			return fmt.Errorf("curso não encontrado")
+			return apperrors.NotFound("curso não encontrado")
 		}
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, false); err != nil {
 			return err
@@ -325,7 +317,7 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 		return fmt.Errorf("erro ao verificar inscrição existente: %w", err)
 	}
 	if exists {
-		return fmt.Errorf("CPF já inscrito neste curso")
+		return apperrors.Conflict("CPF já inscrito neste curso")
 	}
 
 	// Validate schedule_id if provided
@@ -335,7 +327,7 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 			return fmt.Errorf("erro ao verificar curso para validação de schedule: %w", err)
 		}
 		if curso == nil {
-			return fmt.Errorf("curso não encontrado")
+			return apperrors.NotFound("curso não encontrado")
 		}
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, false); err != nil {
 			return err
@@ -408,7 +400,7 @@ func (s *InscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UU
 		return fmt.Errorf("erro ao verificar inscrição: %w", err)
 	}
 	if inscricao == nil {
-		return fmt.Errorf("inscrição não encontrada")
+		return apperrors.NotFound("inscrição não encontrada")
 	}
 
 	// Store old status for email decision
@@ -451,7 +443,7 @@ func (s *InscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UU
 func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoIDs []uuid.UUID, status models.StatusInscricao, reason, adminNotes string) (int, error) {
 	// Validate at least one ID provided
 	if len(inscricaoIDs) == 0 {
-		return 0, fmt.Errorf("nenhuma inscrição selecionada")
+		return 0, apperrors.Validation("nenhuma inscrição selecionada")
 	}
 
 	// Collect enrollment data for emails before update
@@ -538,7 +530,7 @@ func (s *InscricaoService) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("erro ao verificar inscrição: %w", err)
 	}
 	if inscricao == nil {
-		return fmt.Errorf("inscrição não encontrada")
+		return apperrors.NotFound("inscrição não encontrada")
 	}
 
 	return s.repo.Delete(ctx, id)
@@ -555,15 +547,15 @@ func (s *InscricaoService) UpdateCertificate(ctx context.Context, cursoID int, i
 		return fmt.Errorf("erro ao verificar inscrição: %w", err)
 	}
 	if inscricao == nil {
-		return fmt.Errorf("inscrição não encontrada")
+		return apperrors.NotFound("inscrição não encontrada")
 	}
 	if inscricao.CursoID != cursoID {
-		return fmt.Errorf("inscrição não pertence ao curso especificado")
+		return apperrors.Validation("inscrição não pertence ao curso especificado")
 	}
 
 	// Only allow certificate for approved or concluded enrollments
 	if inscricao.Status != models.StatusInscricaoApproved && inscricao.Status != models.StatusInscricaoConcluded {
-		return fmt.Errorf("certificado só pode ser atribuído a inscrições aprovadas ou concluídas")
+		return apperrors.Validation("certificado só pode ser atribuído a inscrições aprovadas ou concluídas")
 	}
 
 	// Update certificate URL
@@ -577,12 +569,12 @@ func (s *InscricaoService) UpdateInscricao(ctx context.Context, id uuid.UUID, cu
 		return fmt.Errorf("erro ao verificar inscrição: %w", err)
 	}
 	if inscricao == nil {
-		return fmt.Errorf("inscrição não encontrada")
+		return apperrors.NotFound("inscrição não encontrada")
 	}
 
 	// Validar que a inscrição pertence ao curso especificado
 	if inscricao.CursoID != cursoID {
-		return fmt.Errorf("inscrição não pertence ao curso especificado")
+		return apperrors.Validation("inscrição não pertence ao curso especificado")
 	}
 
 	// Atualizar apenas os campos permitidos
@@ -796,17 +788,17 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		return nil, fmt.Errorf("erro ao buscar inscrição: %w", err)
 	}
 	if inscricao == nil {
-		return nil, fmt.Errorf("inscrição não encontrada")
+		return nil, apperrors.NotFound("inscrição não encontrada")
 	}
 
 	// Validate that the enrollment belongs to the user
 	if inscricao.CPF != userCPF {
-		return nil, fmt.Errorf("você só pode alterar suas próprias inscrições")
+		return nil, apperrors.Forbidden("você só pode alterar suas próprias inscrições")
 	}
 
 	// Validate status - cannot change if cancelled or concluded
 	if inscricao.Status == models.StatusInscricaoCancelled || inscricao.Status == models.StatusInscricaoConcluded {
-		return nil, fmt.Errorf("não é possível trocar de turma para inscrições com status '%s'", inscricao.Status)
+		return nil, apperrors.Validation(fmt.Sprintf("não é possível trocar de turma para inscrições com status '%s'", inscricao.Status))
 	}
 
 	// Validate that the course has more than one schedule
@@ -815,10 +807,10 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		return nil, fmt.Errorf("erro ao buscar curso: %w", err)
 	}
 	if curso == nil {
-		return nil, fmt.Errorf("curso não encontrado")
+		return nil, apperrors.NotFound("curso não encontrado")
 	}
 	if countCourseSchedules(curso) <= 1 {
-		return nil, fmt.Errorf("não é possível trocar de turma: este curso possui apenas uma turma disponível")
+		return nil, apperrors.Validation("não é possível trocar de turma: este curso possui apenas uma turma disponível")
 	}
 
 	// Get schedule deadline hours from config (default 48)
@@ -829,13 +821,13 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 
 	// Parse the new schedule start date from EnrolledUnit
 	if request.EnrolledUnit == nil || len(request.EnrolledUnit.Schedules) == 0 {
-		return nil, fmt.Errorf("enrolled_unit com schedules é obrigatório")
+		return nil, apperrors.Validation("enrolled_unit com schedules é obrigatório")
 	}
 
 	// Get the class start date from the first schedule in EnrolledUnit
 	newScheduleStartDateStr := request.EnrolledUnit.Schedules[0].ClassStartDate
 	if newScheduleStartDateStr == "" {
-		return nil, fmt.Errorf("data de início da turma não informada")
+		return nil, apperrors.Validation("data de início da turma não informada")
 	}
 
 	// Parse the date (try common formats)
@@ -848,13 +840,13 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		}
 	}
 	if newScheduleStartDate.IsZero() {
-		return nil, fmt.Errorf("formato de data de início inválido: %s", newScheduleStartDateStr)
+		return nil, apperrors.Validation(fmt.Sprintf("formato de data de início inválido: %s", newScheduleStartDateStr))
 	}
 
 	// Validate deadline - must be at least X hours before class start
 	deadline := time.Now().Add(time.Duration(deadlineHours) * time.Hour)
 	if newScheduleStartDate.Before(deadline) {
-		return nil, fmt.Errorf("não é possível trocar de turma com menos de %d horas do início da aula", deadlineHours)
+		return nil, apperrors.Validation(fmt.Sprintf("não é possível trocar de turma com menos de %d horas do início da aula", deadlineHours))
 	}
 
 	// Validate that the new schedule has available vacancies
@@ -877,24 +869,24 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 				return nil, fmt.Errorf("erro ao buscar turma remota: %w", err)
 			}
 			if remoteSchedule == nil {
-				return nil, fmt.Errorf("turma não encontrada")
+				return nil, apperrors.NotFound("turma não encontrada")
 			}
 			if remoteSchedule.AcceptingEnrollments != nil && !*remoteSchedule.AcceptingEnrollments {
-				return nil, fmt.Errorf("esta turma não está aceitando inscrições no momento")
+				return nil, apperrors.Validation("esta turma não está aceitando inscrições no momento")
 			}
 			// Check vacancies for remote schedule
 			enrolledCount := enrollmentCounts[*request.ScheduleID]
 			if int(enrolledCount) >= remoteSchedule.Vacancies {
-				return nil, fmt.Errorf("não há vagas disponíveis nesta turma")
+				return nil, apperrors.Validation("não há vagas disponíveis nesta turma")
 			}
 		} else {
 			if schedule.AcceptingEnrollments != nil && !*schedule.AcceptingEnrollments {
-				return nil, fmt.Errorf("esta turma não está aceitando inscrições no momento")
+				return nil, apperrors.Validation("esta turma não está aceitando inscrições no momento")
 			}
 			// Check vacancies for course schedule
 			enrolledCount := enrollmentCounts[*request.ScheduleID]
 			if int(enrolledCount) >= schedule.Vacancies {
-				return nil, fmt.Errorf("não há vagas disponíveis nesta turma")
+				return nil, apperrors.Validation("não há vagas disponíveis nesta turma")
 			}
 		}
 	}

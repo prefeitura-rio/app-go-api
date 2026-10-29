@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"net/http"
 	"strconv"
 
@@ -32,13 +33,13 @@ func NewRegimeContratacaoHandler(service *services.RegimeContratacaoService) *Re
 func (h *RegimeContratacaoHandler) Create(c *gin.Context) {
 	var entity empregabilidade.RegimeContratacao
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -68,7 +69,7 @@ func (h *RegimeContratacaoHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), nil, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -101,7 +102,7 @@ func (h *RegimeContratacaoHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -134,14 +135,14 @@ func (h *RegimeContratacaoHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.RegimeContratacao
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	entity.ID = id
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -165,7 +166,7 @@ func (h *RegimeContratacaoHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 

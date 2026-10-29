@@ -2,12 +2,12 @@ package empregabilidade
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	empRepository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
@@ -161,16 +161,16 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 		return uuid.Nil, err
 	}
 	if vaga == nil {
-		return uuid.Nil, errors.New("vaga não encontrada")
+		return uuid.Nil, apperrors.NotFound("vaga não encontrada")
 	}
 
 	vaga.UpdateStatusBasedOnExpiration()
 
 	if vaga.Status != empregabilidade.StatusVagaPublicadoAtivo {
 		if vaga.Status == empregabilidade.StatusVagaPublicadoExpirado {
-			return uuid.Nil, errors.New("vaga expirada, não aceita mais candidaturas")
+			return uuid.Nil, apperrors.Validation("vaga expirada, não aceita mais candidaturas")
 		}
-		return uuid.Nil, errors.New("vaga não está ativa para candidaturas")
+		return uuid.Nil, apperrors.Validation("vaga não está ativa para candidaturas")
 	}
 
 	exists, err := s.repo.CheckExistingCandidatura(ctx, entity.CPF, entity.IDVaga)
@@ -178,7 +178,7 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 		return uuid.Nil, err
 	}
 	if exists {
-		return uuid.Nil, errors.New("candidatura já existe para esta vaga")
+		return uuid.Nil, apperrors.Conflict("candidatura já existe para esta vaga")
 	}
 
 	curriculo, err := s.curriculoService.GetCurriculoCompleto(ctx, entity.CPF)
@@ -251,7 +251,7 @@ func (s *CandidaturaService) Update(ctx context.Context, entity *empregabilidade
 		return err
 	}
 	if existing == nil {
-		return errors.New("candidatura não encontrada")
+		return apperrors.NotFound("candidatura não encontrada")
 	}
 
 	entity.Status = existing.Status
@@ -280,17 +280,17 @@ func (s *CandidaturaService) CountByStatus(ctx context.Context, filter empregabi
 
 func (s *CandidaturaService) UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error {
 	if !status.IsValid() {
-		return errors.New("status inválido")
+		return apperrors.Validation("status inválido")
 	}
 	existing, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if existing == nil {
-		return errors.New("candidatura não encontrada")
+		return apperrors.NotFound("candidatura não encontrada")
 	}
 	if !canTransitionCandidatura(existing.Status, status) {
-		return fmt.Errorf("transição de status inválida: %s → %s", existing.Status, status)
+		return apperrors.Conflict(fmt.Sprintf("transição de status inválida: %s → %s", existing.Status, status))
 	}
 
 	if err = s.repo.UpdateStatus(ctx, id, status); err != nil {
@@ -321,7 +321,7 @@ func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etap
 		return err
 	}
 	if candidatura == nil {
-		return errors.New("candidatura não encontrada")
+		return apperrors.NotFound("candidatura não encontrada")
 	}
 
 	vaga, err := s.vagaRepo.GetByID(ctx, candidatura.IDVaga)
@@ -329,7 +329,7 @@ func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etap
 		return err
 	}
 	if vaga == nil {
-		return errors.New("vaga não encontrada")
+		return apperrors.NotFound("vaga não encontrada")
 	}
 
 	var nextEtapa *empregabilidade.Etapa
@@ -340,7 +340,7 @@ func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etap
 		}
 	}
 	if nextEtapa == nil {
-		return errors.New("etapa não pertence à vaga desta candidatura")
+		return apperrors.Validation("etapa não pertence à vaga desta candidatura")
 	}
 
 	var currentEtapa *empregabilidade.Etapa
@@ -396,10 +396,10 @@ func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if existing == nil {
-		return errors.New("candidatura não encontrada")
+		return apperrors.NotFound("candidatura não encontrada")
 	}
 	if !canTransitionCandidatura(existing.Status, empregabilidade.StatusCandidaturaAprovada) {
-		return fmt.Errorf("candidatura não pode ser aprovada no status atual: %s", existing.Status)
+		return apperrors.Conflict(fmt.Sprintf("candidatura não pode ser aprovada no status atual: %s", existing.Status))
 	}
 
 	if err = s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaAprovada); err != nil {
@@ -422,10 +422,10 @@ type BulkUpdateStatusResult struct {
 
 func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (BulkUpdateStatusResult, error) {
 	if !status.IsValid() {
-		return BulkUpdateStatusResult{}, errors.New("status inválido")
+		return BulkUpdateStatusResult{}, apperrors.Validation("status inválido")
 	}
 	if len(cpfs) == 0 {
-		return BulkUpdateStatusResult{}, errors.New("lista de CPFs não pode ser vazia")
+		return BulkUpdateStatusResult{}, apperrors.Validation("lista de CPFs não pode ser vazia")
 	}
 
 	candidaturas, err := s.repo.BulkGetByCPFs(ctx, vagaID, cpfs)
@@ -495,7 +495,7 @@ type BulkUpdateEtapaResult struct {
 
 func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UUID, cpfs []string, etapaID uuid.UUID) (BulkUpdateEtapaResult, error) {
 	if len(cpfs) == 0 {
-		return BulkUpdateEtapaResult{}, errors.New("lista de CPFs não pode ser vazia")
+		return BulkUpdateEtapaResult{}, apperrors.Validation("lista de CPFs não pode ser vazia")
 	}
 
 	vaga, err := s.vagaRepo.GetByID(ctx, vagaID)
@@ -503,7 +503,7 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 		return BulkUpdateEtapaResult{}, err
 	}
 	if vaga == nil {
-		return BulkUpdateEtapaResult{}, errors.New("vaga não encontrada")
+		return BulkUpdateEtapaResult{}, apperrors.NotFound("vaga não encontrada")
 	}
 
 	etapaValida := false
@@ -516,7 +516,7 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 		}
 	}
 	if !etapaValida {
-		return BulkUpdateEtapaResult{}, errors.New("etapa não pertence à vaga")
+		return BulkUpdateEtapaResult{}, apperrors.Validation("etapa não pertence à vaga")
 	}
 
 	candidaturas, err := s.repo.BulkGetByCPFs(ctx, vagaID, cpfs)
@@ -561,7 +561,7 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 				mesmaEtapa = true
 			}
 			if !mesmaEtapa {
-				return BulkUpdateEtapaResult{}, errors.New("todos os candidatos precisam estar na mesma etapa para atualização em massa")
+				return BulkUpdateEtapaResult{}, apperrors.Conflict("todos os candidatos precisam estar na mesma etapa para atualização em massa")
 			}
 			updateIDs = append(updateIDs, c.ID)
 
@@ -604,10 +604,10 @@ func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if existing == nil {
-		return errors.New("candidatura não encontrada")
+		return apperrors.NotFound("candidatura não encontrada")
 	}
 	if !canTransitionCandidatura(existing.Status, empregabilidade.StatusCandidaturaReprovada) {
-		return fmt.Errorf("candidatura não pode ser reprovada no status atual: %s", existing.Status)
+		return apperrors.Conflict(fmt.Sprintf("candidatura não pode ser reprovada no status atual: %s", existing.Status))
 	}
 
 	if err = s.repo.UpdateStatus(ctx, id, empregabilidade.StatusCandidaturaReprovada); err != nil {

@@ -2,10 +2,10 @@ package empregabilidade
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
 
@@ -173,11 +173,11 @@ func (s *CurriculoService) ReplaceAllItensCurriculoByCPF(ctx context.Context, cp
 	cleanCPF := strings.TrimSpace(cpf)
 
 	if cleanCPF == "" {
-		return errors.New("CPF é obrigatório")
+		return apperrors.Validation("CPF é obrigatório")
 	}
 
 	if itensCurriculo == nil {
-		return errors.New("nenhuma modificação foi solicitada pelo usuário")
+		return apperrors.Validation("nenhuma modificação foi solicitada pelo usuário")
 	}
 
 	return s.repo.ReplaceAllItensCurriculoByCPF(

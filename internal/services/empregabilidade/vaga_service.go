@@ -2,11 +2,11 @@ package empregabilidade
 
 import (
 	"context"
-	"errors"
 	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
@@ -78,14 +78,14 @@ func (s *VagaService) validateContratante(ctx context.Context, cnpj string) erro
 		return err
 	}
 	if empresa == nil {
-		return errors.New("empresa contratante não encontrada")
+		return apperrors.Validation("empresa contratante não encontrada")
 	}
 	return nil
 }
 
 func validateQuantidadeEstimada(v *int) error {
 	if v != nil && *v <= 0 {
-		return errors.New("quantidade_estimada_contratacoes deve ser um número inteiro positivo")
+		return apperrors.Validation("quantidade_estimada_contratacoes deve ser um número inteiro positivo")
 	}
 	return nil
 }
@@ -142,7 +142,7 @@ func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) 
 		return err
 	}
 	if existing == nil {
-		return errors.New("vaga não encontrada")
+		return apperrors.NotFound("vaga não encontrada")
 	}
 
 	entity.Status = existing.Status
@@ -229,11 +229,11 @@ func (s *VagaService) Publish(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if vaga == nil {
-		return errors.New("vaga não encontrada")
+		return apperrors.NotFound("vaga não encontrada")
 	}
 
 	if vaga.Status != empregabilidade.StatusVagaEmEdicao && vaga.Status != empregabilidade.StatusVagaEmAprovacao {
-		return errors.New("vaga não está em estado de edição ou aprovação")
+		return apperrors.Conflict("vaga não está em estado de edição ou aprovação")
 	}
 
 	vaga.Status = empregabilidade.StatusVagaPublicadoAtivo
@@ -246,11 +246,11 @@ func (s *VagaService) SendToDraft(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if vaga == nil {
-		return errors.New("vaga não encontrada")
+		return apperrors.NotFound("vaga não encontrada")
 	}
 
 	if vaga.Status != empregabilidade.StatusVagaEmAprovacao {
-		return errors.New("vaga não está em estado de aprovação")
+		return apperrors.Conflict("vaga não está em estado de aprovação")
 	}
 
 	vaga.Status = empregabilidade.StatusVagaEmEdicao
@@ -263,11 +263,11 @@ func (s *VagaService) SendToApproval(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if vaga == nil {
-		return errors.New("vaga não encontrada")
+		return apperrors.NotFound("vaga não encontrada")
 	}
 
 	if vaga.Status != empregabilidade.StatusVagaEmEdicao {
-		return errors.New("vaga não está em estado de edição")
+		return apperrors.Conflict("vaga não está em estado de edição")
 	}
 
 	vaga.Status = empregabilidade.StatusVagaEmAprovacao
@@ -280,12 +280,12 @@ func (s *VagaService) FreezeVaga(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if vaga == nil {
-		return errors.New("vaga não encontrada")
+		return apperrors.NotFound("vaga não encontrada")
 	}
 
 	vaga.UpdateStatusBasedOnExpiration()
 	if vaga.Status != empregabilidade.StatusVagaPublicadoAtivo {
-		return errors.New("vaga não está em estado publicado_ativo para ser congelada")
+		return apperrors.Conflict("vaga não está em estado publicado_ativo para ser congelada")
 	}
 
 	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(ctx, id, empregabilidade.StatusCandidaturaVagaCongelada); err != nil {
@@ -302,11 +302,11 @@ func (s *VagaService) UnfreezeVaga(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if vaga == nil {
-		return errors.New("vaga não encontrada")
+		return apperrors.NotFound("vaga não encontrada")
 	}
 
 	if vaga.Status != empregabilidade.StatusVagaCongelada {
-		return errors.New("vaga não está em estado vaga_congelada para ser descongelada")
+		return apperrors.Conflict("vaga não está em estado vaga_congelada para ser descongelada")
 	}
 
 	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(ctx, id); err != nil {
@@ -324,14 +324,14 @@ func (s *VagaService) DiscontinueVaga(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if vaga == nil {
-		return errors.New("vaga não encontrada")
+		return apperrors.NotFound("vaga não encontrada")
 	}
 
 	vaga.UpdateStatusBasedOnExpiration()
 	if vaga.Status != empregabilidade.StatusVagaPublicadoAtivo &&
 		vaga.Status != empregabilidade.StatusVagaPublicadoExpirado &&
 		vaga.Status != empregabilidade.StatusVagaCongelada {
-		return errors.New("vaga não está em estado publicado ou congelado para ser descontinuada")
+		return apperrors.Conflict("vaga não está em estado publicado ou congelado para ser descontinuada")
 	}
 
 	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(ctx, id, empregabilidade.StatusCandidaturaDescontinuada); err != nil {
@@ -348,11 +348,11 @@ func (s *VagaService) ReactivateVaga(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if vaga == nil {
-		return errors.New("vaga não encontrada")
+		return apperrors.NotFound("vaga não encontrada")
 	}
 
 	if vaga.Status != empregabilidade.StatusVagaDescontinuada {
-		return errors.New("vaga não está em estado vaga_descontinuada para ser reativada")
+		return apperrors.Conflict("vaga não está em estado vaga_descontinuada para ser reativada")
 	}
 
 	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(ctx, id); err != nil {

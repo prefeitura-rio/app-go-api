@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,16 +32,33 @@ func NewTypesenseHandlerWithService(service services.TypesenseServiceInterface) 
 	}
 }
 
-// handleError é uma função utilitária para manipular erros em respostas HTTP
+// handleError responds with models.ErrorResponse ({"message","code"}) for both
+// 4xx and 5xx, matching the Typesense Swagger contract. For 5xx, logs the full
+// error and returns only the stable message (never err.Error()).
 func handleError(c *gin.Context, status int, message string, err error) {
-	response := models.ErrorResponse{
+	if status >= http.StatusInternalServerError {
+		if err != nil {
+			path := c.FullPath()
+			if path == "" && c.Request != nil && c.Request.URL != nil {
+				path = c.Request.URL.Path
+			}
+			method := ""
+			if c.Request != nil {
+				method = c.Request.Method
+			}
+			log.Printf("typesense error method=%s path=%s err=%v", method, path, err)
+		}
+		c.JSON(status, models.ErrorResponse{Message: message, Code: status})
+		return
+	}
+	body := models.ErrorResponse{
 		Message: message,
 		Code:    status,
 	}
 	if err != nil {
-		response.Message = message + ": " + err.Error()
+		body.Message = message + ": " + err.Error()
 	}
-	c.JSON(status, response)
+	c.JSON(status, body)
 }
 
 func (h *TypesenseHandler) SearchCursos(c *gin.Context) {
