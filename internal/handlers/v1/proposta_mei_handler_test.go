@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -231,7 +232,7 @@ func TestPropostaMEIHandler_Create_MissingAuth(t *testing.T) {
 
 func TestPropostaMEIHandler_Create_CNPJOwnershipError(t *testing.T) {
 	mockService := &MockPropostaMEIService{
-		createError: errors.New("o CNPJ 12345678000190 não pertence ao seu CPF"),
+		createError: apperrors.Forbidden("o CNPJ 12345678000190 não pertence ao seu CPF"),
 	}
 
 	router := setupRouter(mockService)
@@ -255,7 +256,7 @@ func TestPropostaMEIHandler_Create_CNPJOwnershipError(t *testing.T) {
 
 func TestPropostaMEIHandler_Create_CNAEMismatchError(t *testing.T) {
 	mockService := &MockPropostaMEIService{
-		createError: errors.New("o CNPJ 12345678000190 não possui CNAE compatível com esta oportunidade"),
+		createError: apperrors.Forbidden("o CNPJ 12345678000190 não possui CNAE compatível com esta oportunidade"),
 	}
 
 	router := setupRouter(mockService)
@@ -279,7 +280,7 @@ func TestPropostaMEIHandler_Create_CNAEMismatchError(t *testing.T) {
 
 func TestPropostaMEIHandler_Create_OpportunityNotFound(t *testing.T) {
 	mockService := &MockPropostaMEIService{
-		createError: errors.New("oportunidade não encontrada"),
+		createError: apperrors.NotFound("oportunidade não encontrada"),
 	}
 
 	router := setupRouter(mockService)
@@ -303,7 +304,7 @@ func TestPropostaMEIHandler_Create_OpportunityNotFound(t *testing.T) {
 
 func TestPropostaMEIHandler_Create_RMIServiceUnavailable(t *testing.T) {
 	mockService := &MockPropostaMEIService{
-		createError: errors.New("não foi possível validar seus CNPJs no momento"),
+		createError: apperrors.Unavailable("não foi possível validar seus CNPJs no momento. Tente novamente em instantes"),
 	}
 
 	router := setupRouter(mockService)
@@ -803,8 +804,11 @@ func TestPropostaMEIHandler_Update_UpdateServiceError(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", w.Code)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+	if strings.Contains(w.Body.String(), "update service error") {
+		t.Errorf("must not leak internal error: %s", w.Body.String())
 	}
 }
 

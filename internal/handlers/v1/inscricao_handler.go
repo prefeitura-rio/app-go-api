@@ -2,7 +2,6 @@ package v1
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -171,15 +170,6 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 
 	if middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:cursos:casa_civil") {
 		if err := h.service.CreateByAdmin(c.Request.Context(), &inscricao); err != nil {
-			if err.Error() == "CPF já inscrito neste curso" {
-				response.Error(c, http.StatusConflict, err.Error())
-				return
-			}
-			var ruleErr *services.EnrollmentRuleError
-			if errors.As(err, &ruleErr) {
-				response.Error(c, http.StatusBadRequest, err.Error())
-				return
-			}
 			response.RespondError(c, err, "Erro ao criar inscrição")
 			return
 		}
@@ -203,18 +193,6 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 		}
 		inscricao.CPF = cpf
 		if err := h.service.Create(c.Request.Context(), &inscricao); err != nil {
-			if err.Error() == "CPF já inscrito neste curso" {
-				response.Error(c, http.StatusConflict, err.Error())
-				return
-			}
-			// Business rules (course not open, window closed, turma closed) are the
-			// citizen's problem to fix, not a server fault — answer 400 and keep the
-			// message verbatim so the portal can show it.
-			var ruleErr *services.EnrollmentRuleError
-			if errors.As(err, &ruleErr) {
-				response.Error(c, http.StatusBadRequest, err.Error())
-				return
-			}
 			response.RespondError(c, err, "Erro ao criar inscrição")
 			return
 		}
@@ -378,7 +356,7 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateInscricao(c.Request.Context(), existing.ID, cursoID, &updateData); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.RespondError(c, err, "Erro ao atualizar inscrição")
 		return
 	}
 
@@ -473,10 +451,6 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateStatus(c.Request.Context(), enrollmentID, request.Status, request.Reason, request.AdminNotes); err != nil {
-		if err.Error() == "inscrição não encontrada" {
-			response.Error(c, http.StatusNotFound, err.Error())
-			return
-		}
 		response.RespondError(c, err, "Erro ao atualizar status")
 		return
 	}
@@ -583,18 +557,6 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateCertificate(c.Request.Context(), cursoID, enrollmentID, request.CertificateURL); err != nil {
-		if err.Error() == "inscrição não encontrada" {
-			response.Error(c, http.StatusNotFound, err.Error())
-			return
-		}
-		if err.Error() == "inscrição não pertence ao curso especificado" {
-			response.Error(c, http.StatusBadRequest, err.Error())
-			return
-		}
-		if err.Error() == "certificado só pode ser atribuído a inscrições aprovadas ou concluídas" {
-			response.Error(c, http.StatusBadRequest, err.Error())
-			return
-		}
 		response.RespondError(c, err, "Erro ao atualizar certificado")
 		return
 	}
@@ -684,10 +646,6 @@ func (h *InscricaoHandler) CreateManual(c *gin.Context) {
 	inscricao.CursoID = cursoID
 
 	if err := h.service.CreateManual(c.Request.Context(), &inscricao); err != nil {
-		if err.Error() == "CPF já inscrito neste curso" {
-			response.Error(c, http.StatusConflict, err.Error())
-			return
-		}
 		response.RespondError(c, err, "Erro ao criar inscrição")
 		return
 	}
@@ -974,19 +932,7 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 
 	inscricao, err := h.service.ChangeSchedule(c.Request.Context(), enrollmentID, userCPF, &request)
 	if err != nil {
-		errMsg := err.Error()
-		switch {
-		case errMsg == "inscrição não encontrada":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
-		case errMsg == "você só pode alterar suas próprias inscrições":
-			c.JSON(http.StatusForbidden, gin.H{"error": errMsg})
-		case strings.Contains(errMsg, "não é possível trocar de turma"):
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
-		case strings.Contains(errMsg, "não há vagas"):
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
-		default:
-			response.RespondError(c, err, "Erro ao trocar de turma")
-		}
+		response.RespondError(c, err, "Erro ao trocar de turma")
 		return
 	}
 

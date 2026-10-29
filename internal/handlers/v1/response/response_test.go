@@ -1,8 +1,10 @@
 package response_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -109,6 +111,30 @@ func TestRespondError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRespondError_LogsRouteTemplateNotRawPath(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var buf bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(prev)
+
+	r := gin.New()
+	r.GET("/api/v1/empregabilidade/curriculo/:cpf", func(c *gin.Context) {
+		response.RespondError(c, errors.New("boom"))
+	})
+
+	cpf := "12345678900"
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/empregabilidade/curriculo/"+cpf, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	logged := buf.String()
+	assert.Contains(t, logged, "/api/v1/empregabilidade/curriculo/:cpf")
+	assert.NotContains(t, logged, cpf)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 func TestRespondError_FallbackMessage(t *testing.T) {

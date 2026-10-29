@@ -753,7 +753,7 @@ func TestCourseOwnershipCheck_LoaderError_InternalServerError(t *testing.T) {
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test/123", nil))
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Contains(t, w.Body.String(), "Erro ao buscar curso")
-	assert.Contains(t, w.Body.String(), "database error")
+	assert.NotContains(t, w.Body.String(), "database error")
 }
 
 // ============ GetLoadedCursoOrgaoID Tests ============

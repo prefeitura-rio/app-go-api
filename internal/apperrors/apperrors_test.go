@@ -26,6 +26,7 @@ func TestConstructors_ErrorMessageAndKind(t *testing.T) {
 		{"Validation", apperrors.Validation("campo obrigatório"), apperrors.KindValidation, "campo obrigatório"},
 		{"Conflict", apperrors.Conflict("já existe"), apperrors.KindConflict, "já existe"},
 		{"Forbidden", apperrors.Forbidden("acesso negado"), apperrors.KindForbidden, "acesso negado"},
+		{"Unavailable", apperrors.Unavailable("tente novamente"), apperrors.KindUnavailable, "tente novamente"},
 		{"Internal", apperrors.Internal("falha interna"), apperrors.KindInternal, "falha interna"},
 	}
 	for _, tt := range tests {
@@ -55,6 +56,7 @@ func TestMap_DomainErrors(t *testing.T) {
 		{"validation", apperrors.Validation("dados inválidos"), http.StatusBadRequest, "dados inválidos"},
 		{"conflict", apperrors.Conflict("já se candidatou"), http.StatusConflict, "já se candidatou"},
 		{"forbidden", apperrors.Forbidden("acesso negado"), http.StatusForbidden, "acesso negado"},
+		{"unavailable", apperrors.Unavailable("tente novamente"), http.StatusServiceUnavailable, "tente novamente"},
 		{"internal", apperrors.Internal("ops"), http.StatusInternalServerError, "ops"},
 		{"wrapped domain", fmt.Errorf("ctx: %w", apperrors.NotFound("vaga não encontrada")), http.StatusNotFound, "vaga não encontrada"},
 	}

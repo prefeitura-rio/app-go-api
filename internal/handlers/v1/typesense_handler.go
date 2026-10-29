@@ -1,10 +1,10 @@
 package v1
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -32,18 +32,30 @@ func NewTypesenseHandlerWithService(service services.TypesenseServiceInterface) 
 	}
 }
 
-// handleError responds with a stable client message. For 5xx, uses RespondError
-// so internal details (DB, Typesense, etc.) are never returned to the client.
+// handleError responds with models.ErrorResponse ({"message","code"}) for both
+// 4xx and 5xx, matching the Typesense Swagger contract. For 5xx, logs the full
+// error and returns only the stable message (never err.Error()).
 func handleError(c *gin.Context, status int, message string, err error) {
-	if status >= http.StatusInternalServerError && err != nil {
-		response.RespondError(c, err, message)
+	if status >= http.StatusInternalServerError {
+		if err != nil {
+			path := c.FullPath()
+			if path == "" && c.Request != nil && c.Request.URL != nil {
+				path = c.Request.URL.Path
+			}
+			method := ""
+			if c.Request != nil {
+				method = c.Request.Method
+			}
+			log.Printf("typesense error method=%s path=%s err=%v", method, path, err)
+		}
+		c.JSON(status, models.ErrorResponse{Message: message, Code: status})
 		return
 	}
 	body := models.ErrorResponse{
 		Message: message,
 		Code:    status,
 	}
-	if err != nil && status < http.StatusInternalServerError {
+	if err != nil {
 		body.Message = message + ": " + err.Error()
 	}
 	c.JSON(status, body)

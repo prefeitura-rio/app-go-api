@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -441,10 +442,8 @@ func (m *mockInscricaoService) ChangeSchedule(ctx context.Context, inscricaoID u
 func TestInscricaoHandler_CreateManual_ConflictError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockService := &mockInscricaoService{
-		createManualErr: assert.AnError,
+		createManualErr: apperrors.Conflict("CPF já inscrito neste curso"),
 	}
-	// Override error message to simulate conflict
-	mockService.createManualErr = &conflictError{msg: "CPF já inscrito neste curso"}
 
 	h := v1.NewInscricaoHandler(mockService, nil, nil)
 	r := gin.New()
@@ -509,15 +508,7 @@ func TestInscricaoHandler_CreateManual_Success(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "secretaria")
 }
 
-// Helper error types for testing
-type conflictError struct {
-	msg string
-}
-
-func (e *conflictError) Error() string {
-	return e.msg
-}
-
+// Helper error type for testing unmapped 500s.
 type serviceError struct {
 	msg string
 }

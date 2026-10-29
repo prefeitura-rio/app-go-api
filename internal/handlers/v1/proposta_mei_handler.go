@@ -3,7 +3,6 @@ package v1
 import (
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -77,22 +76,7 @@ func (h *PropostaMEIHandler) Create(c *gin.Context) {
 	// Pass authToken to service
 	id, err := h.service.Create(c.Request.Context(), &proposta, authToken)
 	if err != nil {
-		// UX: Different status codes for different errors
-		if strings.Contains(err.Error(), "não pertence ao seu CPF") ||
-			strings.Contains(err.Error(), "não possui CNAE compatível") ||
-			strings.Contains(err.Error(), "Nenhum CNPJ encontrado") {
-			response.Error(c, http.StatusForbidden, err.Error())
-			return
-		}
-		if strings.Contains(err.Error(), "não encontrada") {
-			response.Error(c, http.StatusNotFound, err.Error())
-			return
-		}
-		if strings.Contains(err.Error(), "validar seus CNPJs") {
-			response.Error(c, http.StatusServiceUnavailable, err.Error())
-			return
-		}
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.RespondError(c, err, "Erro ao criar proposta")
 		return
 	}
 
@@ -214,11 +198,7 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateProposta(c.Request.Context(), propostaID, oportunidadeID, req.ValorProposta, req.PrazoExecucao, req.AceitaCustosIntegrais); err != nil {
-		if err.Error() == "proposta não encontrada" {
-			response.Error(c, http.StatusNotFound, err.Error())
-			return
-		}
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.RespondError(c, err, "Erro ao atualizar proposta")
 		return
 	}
 
@@ -315,7 +295,7 @@ func (h *PropostaMEIHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateStatusCidadao(c.Request.Context(), propostaID, status); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.RespondError(c, err, "Erro ao atualizar status")
 		return
 	}
 

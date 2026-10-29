@@ -17,6 +17,7 @@ const (
 	KindValidation
 	KindConflict
 	KindForbidden
+	KindUnavailable
 	KindInternal
 )
 
@@ -59,6 +60,11 @@ func Conflict(msg string) *Error {
 // Forbidden returns a 403-mapped domain error.
 func Forbidden(msg string) *Error {
 	return &Error{Kind: KindForbidden, Message: msg}
+}
+
+// Unavailable returns a 503-mapped domain error (temporary dependency failure).
+func Unavailable(msg string) *Error {
+	return &Error{Kind: KindUnavailable, Message: msg}
 }
 
 // Internal returns a 500-mapped domain error with a client-safe message.
@@ -120,6 +126,8 @@ func kindStatus(kind Kind) int {
 		return http.StatusConflict
 	case KindForbidden:
 		return http.StatusForbidden
+	case KindUnavailable:
+		return http.StatusServiceUnavailable
 	case KindInternal:
 		return http.StatusInternalServerError
 	default:

@@ -71,7 +71,11 @@ func RespondError(c *gin.Context, err error, fallbackMessage ...string) {
 	method, path := "", ""
 	if c.Request != nil {
 		method = c.Request.Method
-		path = c.Request.URL.Path
+		// Prefer the route template (/.../:cpf) so path params with PII are not logged.
+		path = c.FullPath()
+		if path == "" && c.Request.URL != nil {
+			path = c.Request.URL.Path
+		}
 	}
 	log.Printf("request error method=%s path=%s trace_id=%s err=%v", method, path, traceID, err)
 

@@ -40,7 +40,7 @@ func (h *OportunidadeMEIHandler) Create(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &oportunidade, false)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.RespondError(c, err, "Erro ao criar oportunidade")
 		return
 	}
 
@@ -67,7 +67,7 @@ func (h *OportunidadeMEIHandler) CreateDraft(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &oportunidade, true)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.RespondError(c, err, "Erro ao criar rascunho")
 		return
 	}
 
@@ -133,7 +133,7 @@ func (h *OportunidadeMEIHandler) Update(c *gin.Context) {
 
 	oportunidade.ID = id
 	if err := h.service.Update(c.Request.Context(), &oportunidade); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.RespondError(c, err, "Erro ao atualizar oportunidade")
 		return
 	}
 
@@ -182,7 +182,7 @@ func (h *OportunidadeMEIHandler) Publish(c *gin.Context) {
 	}
 
 	if err := h.service.Publish(c.Request.Context(), id); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.RespondError(c, err, "Erro ao publicar oportunidade")
 		return
 	}
 
