@@ -31,7 +31,6 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/workers"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 // @title API Go
@@ -237,15 +236,8 @@ func setupTimezone(name string) {
 }
 
 func openDB(cfg *config.AppConfig) (*gorm.DB, error) {
-	var logMode logger.LogLevel
-	if cfg.App.IsDevelopment() {
-		logMode = logger.Info
-	} else {
-		logMode = logger.Silent
-	}
-
 	db, err := gorm.Open(postgres.Open(cfg.Database.DSN()), &gorm.Config{
-		Logger: logger.Default.LogMode(logMode),
+		Logger: providers.GormLogger(cfg),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
