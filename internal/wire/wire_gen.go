@@ -115,13 +115,14 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 	vagaService := providers.ProvideEmpVagaService(vagaRepository, empregabilidadeEmpresaRepository, candidaturaRepository)
 	etapaService := providers.ProvideEmpEtapaService(etapaRepository)
 	curriculoService := providers.ProvideEmpCurriculoService(curriculoRepository)
-	candidaturaService := providers.ProvideEmpCandidaturaService(candidaturaRepository, vagaRepository, curriculoService, citizenSnapshotRepository, emailWorker)
+	candidaturaService := providers.ProvideEmpCandidaturaService(candidaturaRepository, vagaRepository, curriculoService, curriculoRepository, citizenSnapshotRepository, emailWorker)
 	onboardingService := providers.ProvideEmpOnboardingService(onboardingRepository)
 	termosUsoService := providers.ProvideEmpTermosUsoService(termosUsoRepository)
 	zonaService := providers.ProvideEmpZonaService(zonaRepository)
 	candidaturaBloqueioService := providers.ProvideEmpCandidaturaBloqueioService(candidaturaBloqueioRepository)
 	bancoCurriculoService := providers.ProvideEmpBancoCurriculoService(curriculoRepository, curriculoService, citizenSnapshotRepository)
 	associacaoCandidatoService := providers.ProvideEmpAssociacaoCandidatoService(curriculoRepository, curriculoService, termosUsoService, vagaRepository, candidaturaService, empregabilidadeEscolaridadeService, idiomaService, nivelIdiomaService, citizenSnapshotRepository)
+	participacaoBancoService := providers.ProvideEmpParticipacaoBancoService(curriculoRepository, curriculoService, termosUsoService)
 	cnpjConsultaService := providers.ProvideEmpCNPJConsultaService(rmiClient, serviceAccountTokenManager)
 	empregoHandler := providers.ProvideEmpregoHandler(empregoService)
 	acessibilidadeHandler := providers.ProvideAcessibilidadeHandler(acessibilidadeService, referenceCaches)
@@ -161,6 +162,7 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 	candidaturaBloqueioHandler := providers.ProvideEmpCandidaturaBloqueioHandler(candidaturaBloqueioService)
 	bancoCurriculoHandler := providers.ProvideEmpBancoCurriculoHandler(bancoCurriculoService)
 	associacaoCandidatoHandler := providers.ProvideEmpAssociacaoCandidatoHandler(associacaoCandidatoService)
+	participacaoBancoHandler := providers.ProvideEmpParticipacaoBancoHandler(participacaoBancoService)
 	applicationContainer := &ApplicationContainer{
 		DB:                              db,
 		Config:                          cfg,
@@ -237,6 +239,7 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 		EmpCandidaturaBloqueioService:   candidaturaBloqueioService,
 		EmpBancoCurriculoService:        bancoCurriculoService,
 		EmpAssociacaoCandidatoService:   associacaoCandidatoService,
+		EmpParticipacaoBancoService:     participacaoBancoService,
 		EmpCNPJConsultaService:          cnpjConsultaService,
 		EmpregoHandler:                  empregoHandler,
 		AcessibilidadeHandler:           acessibilidadeHandler,
@@ -272,6 +275,7 @@ func InitializeApplication(cfg *config.AppConfig) (*ApplicationContainer, error)
 		EmpCandidaturaBloqueioHandler:   candidaturaBloqueioHandler,
 		EmpBancoCurriculoHandler:        bancoCurriculoHandler,
 		EmpAssociacaoCandidatoHandler:   associacaoCandidatoHandler,
+		EmpParticipacaoBancoHandler:     participacaoBancoHandler,
 	}
 	return applicationContainer, nil
 }
@@ -367,6 +371,7 @@ type ApplicationContainer struct {
 	EmpCandidaturaBloqueioService *empregabilidade2.CandidaturaBloqueioService
 	EmpBancoCurriculoService      *empregabilidade2.BancoCurriculoService
 	EmpAssociacaoCandidatoService *empregabilidade2.AssociacaoCandidatoService
+	EmpParticipacaoBancoService   *empregabilidade2.ParticipacaoBancoService
 	EmpCNPJConsultaService        *empregabilidade2.CNPJConsultaService
 
 	// Core Handlers
@@ -406,6 +411,7 @@ type ApplicationContainer struct {
 	EmpCandidaturaBloqueioHandler   *empregabilidade3.CandidaturaBloqueioHandler
 	EmpBancoCurriculoHandler        *empregabilidade3.BancoCurriculoHandler
 	EmpAssociacaoCandidatoHandler   *empregabilidade3.AssociacaoCandidatoHandler
+	EmpParticipacaoBancoHandler     *empregabilidade3.ParticipacaoBancoHandler
 }
 
 // CategoriaContainer holds wired components for Categorias proof-of-concept
@@ -427,11 +433,11 @@ var EmpRepositorySet = wire.NewSet(providers.ProvideEmpRegimeContratacaoReposito
 
 var CoreServiceSet = wire.NewSet(providers.ProvideCategoriaService, providers.ProvideCursoService, providers.ProvideEmpregoService, providers.ProvideAcessibilidadeService, providers.ProvideEscolaridadeService, providers.ProvideEmpresaService, providers.ProvideInstituicaoService, providers.ProvideJobService, providers.ProvideOportunidadeMEIService, providers.ProvideCNAEValidationService, providers.ProvideContactInfoService, providers.ProvideEmailNotificationService, providers.ProvideEmailWorker, wire.Bind(new(services.EmailNotifier), new(*workers.EmailWorker)), providers.ProvideInscricaoService, providers.ProvidePropostaMEIService)
 
-var EmpServiceSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoService, providers.ProvideEmpModeloTrabalhoService, providers.ProvideEmpTipoPCDService, providers.ProvideEmpIdiomaService, providers.ProvideEmpNivelIdiomaService, providers.ProvideEmpEscolaridadeService, providers.ProvideEmpTipoConquistaService, providers.ProvideEmpSituacaoAtualService, providers.ProvideEmpDisponibilidadeService, providers.ProvideEmpEmpresaService, providers.ProvideEmpVagaService, providers.ProvideEmpEtapaService, providers.ProvideEmpCurriculoService, providers.ProvideEmpCandidaturaService, providers.ProvideEmpOnboardingService, providers.ProvideEmpTermosUsoService, providers.ProvideEmpCNPJConsultaService, providers.ProvideEmpZonaService, providers.ProvideEmpCandidaturaBloqueioService, providers.ProvideEmpHabilidadeService, providers.ProvideEmpComportamentoAtitudesService, providers.ProvideEmpBancoCurriculoService, providers.ProvideEmpAssociacaoCandidatoService)
+var EmpServiceSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoService, providers.ProvideEmpModeloTrabalhoService, providers.ProvideEmpTipoPCDService, providers.ProvideEmpIdiomaService, providers.ProvideEmpNivelIdiomaService, providers.ProvideEmpEscolaridadeService, providers.ProvideEmpTipoConquistaService, providers.ProvideEmpSituacaoAtualService, providers.ProvideEmpDisponibilidadeService, providers.ProvideEmpEmpresaService, providers.ProvideEmpVagaService, providers.ProvideEmpEtapaService, providers.ProvideEmpCurriculoService, providers.ProvideEmpCandidaturaService, providers.ProvideEmpOnboardingService, providers.ProvideEmpTermosUsoService, providers.ProvideEmpCNPJConsultaService, providers.ProvideEmpZonaService, providers.ProvideEmpCandidaturaBloqueioService, providers.ProvideEmpHabilidadeService, providers.ProvideEmpComportamentoAtitudesService, providers.ProvideEmpBancoCurriculoService, providers.ProvideEmpAssociacaoCandidatoService, providers.ProvideEmpParticipacaoBancoService)
 
 var CoreHandlerSet = wire.NewSet(providers.ProvideEmpregoHandler, providers.ProvideAcessibilidadeHandler, providers.ProvideCategoriaHandlerWithCache, providers.ProvideEmpresaHandler, providers.ProvideEscolaridadeHandler, providers.ProvideInstituicaoHandler, providers.ProvideInscricaoHandler, providers.ProvideCourseHandler, providers.ProvideJobHandler, providers.ProvideOportunidadeMEIHandler, providers.ProvidePropostaMEIHandler, providers.ProvideTypesenseHandler)
 
-var EmpHandlerSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoHandler, providers.ProvideEmpModeloTrabalhoHandler, providers.ProvideEmpTipoPCDHandler, providers.ProvideEmpIdiomaHandler, providers.ProvideEmpNivelIdiomaHandler, providers.ProvideEmpEscolaridadeHandler, providers.ProvideEmpTipoConquistaHandler, providers.ProvideEmpSituacaoAtualHandler, providers.ProvideEmpDisponibilidadeHandler, providers.ProvideEmpEmpresaHandler, providers.ProvideEmpVagaHandler, providers.ProvideEmpEtapaHandler, providers.ProvideEmpCandidaturaHandler, providers.ProvideEmpCurriculoHandler, providers.ProvideEmpHabilidadeHandler, providers.ProvideEmpComportamentoAtitudesHandler, providers.ProvideEmpOnboardingHandler, providers.ProvideEmpTermosUsoHandler, providers.ProvideEmpZonaHandler, providers.ProvideEmpCandidaturaBloqueioHandler, providers.ProvideEmpBancoCurriculoHandler, providers.ProvideEmpAssociacaoCandidatoHandler)
+var EmpHandlerSet = wire.NewSet(providers.ProvideEmpRegimeContratacaoHandler, providers.ProvideEmpModeloTrabalhoHandler, providers.ProvideEmpTipoPCDHandler, providers.ProvideEmpIdiomaHandler, providers.ProvideEmpNivelIdiomaHandler, providers.ProvideEmpEscolaridadeHandler, providers.ProvideEmpTipoConquistaHandler, providers.ProvideEmpSituacaoAtualHandler, providers.ProvideEmpDisponibilidadeHandler, providers.ProvideEmpEmpresaHandler, providers.ProvideEmpVagaHandler, providers.ProvideEmpEtapaHandler, providers.ProvideEmpCandidaturaHandler, providers.ProvideEmpCurriculoHandler, providers.ProvideEmpHabilidadeHandler, providers.ProvideEmpComportamentoAtitudesHandler, providers.ProvideEmpOnboardingHandler, providers.ProvideEmpTermosUsoHandler, providers.ProvideEmpZonaHandler, providers.ProvideEmpCandidaturaBloqueioHandler, providers.ProvideEmpBancoCurriculoHandler, providers.ProvideEmpAssociacaoCandidatoHandler, providers.ProvideEmpParticipacaoBancoHandler)
 
 // Legacy set kept for backward compatibility with the Categorias POC
 var CategoriaSet = wire.NewSet(providers.ProvideCategoriaRepository, providers.ProvideCategoriaService, wire.Bind(new(services.CategoriaServiceInterface), new(*services.CategoriaService)), v1.NewCategoriaHandler)

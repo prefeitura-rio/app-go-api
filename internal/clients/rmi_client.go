@@ -397,6 +397,10 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 	return &legalEntity, nil
 }
 
+// rmiErrorBodyDrainLimit caps how much of an error response body is read and
+// discarded before the connection is released.
+const rmiErrorBodyDrainLimit = 64 << 10
+
 // GetCPFSecretarias fetches the list of cd_uas linked to a CPF from the app-rmi CPF-Secretaria registry.
 // Endpoint: GET /cpf-secretaria/{cpf}
 // Requires service account authentication token.
@@ -447,8 +451,10 @@ func (c *RMIClient) fetchCPFSecretarias(ctx context.Context, serviceToken string
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		// The body is drained (bounded) for connection reuse but never put in the
+		// error: callers log it and the RMI may echo citizen data in error bodies.
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, rmiErrorBodyDrainLimit))
+		return nil, fmt.Errorf("RMI API returned status %d", resp.StatusCode)
 	}
 
 	var response struct {

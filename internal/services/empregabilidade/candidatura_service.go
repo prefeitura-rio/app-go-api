@@ -40,6 +40,12 @@ type CurriculoServiceInterface interface {
 	GetCurriculoCompleto(ctx context.Context, cpf string) (*empregabilidade.CurriculoCompleto, error)
 }
 
+// OrigemCadastroRegistrarInterface grava no currículo, na primeira candidatura
+// própria, como ele chegou à base (pela vaga ou pelo app).
+type OrigemCadastroRegistrarInterface interface {
+	RegistrarOrigemCadastro(ctx context.Context, cpf string) error
+}
+
 type CitizenSnapshotRepoForCandidaturaInterface interface {
 	GetByCPF(ctx context.Context, cpf string) (*models.CitizenSnapshot, error)
 	GetByCPFs(ctx context.Context, cpfs []string) (map[string]*models.CitizenSnapshot, error)
@@ -99,6 +105,7 @@ type CandidaturaService struct {
 	citizenSnapshotRepo      CitizenSnapshotRepoForCandidaturaInterface // pode ser nil
 	citizenDataFetcher       CitizenDataFetcherForCandidaturaInterface  // pode ser nil
 	emailNotificationService services.EmailNotifier
+	origemCadastro           OrigemCadastroRegistrarInterface // pode ser nil
 }
 
 func NewCandidaturaService(
@@ -129,6 +136,11 @@ func (s *CandidaturaService) SetCitizenDataFetcher(fetcher CitizenDataFetcherFor
 // the queued EmailWorker once it has been started by the application bootstrap.
 func (s *CandidaturaService) SetEmailNotifier(notifier services.EmailNotifier) {
 	s.emailNotificationService = notifier
+}
+
+// SetOrigemCadastroRegistrar liga o registro da origem do cadastro no currículo.
+func (s *CandidaturaService) SetOrigemCadastroRegistrar(registrar OrigemCadastroRegistrarInterface) {
+	s.origemCadastro = registrar
 }
 
 func (s *CandidaturaService) Create(ctx context.Context, entity *empregabilidade.Candidatura) (uuid.UUID, error) {
@@ -198,6 +210,8 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 	entity.ID = id
 	entity.Vaga = vaga
 
+	s.registrarOrigemCadastro(ctx, entity)
+
 	if !notificar {
 		return id, nil
 	}
@@ -210,6 +224,21 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 	}()
 
 	return id, nil
+}
+
+// registrarOrigemCadastro grava a origem do currículo na primeira candidatura
+// própria. A associação feita pelo recrutador não conta: a pessoa não se
+// candidatou. Uma falha aqui não desfaz a candidatura.
+func (s *CandidaturaService) registrarOrigemCadastro(ctx context.Context, entity *empregabilidade.Candidatura) {
+	if s.origemCadastro == nil {
+		return
+	}
+	if entity.Origem != nil && *entity.Origem == empregabilidade.OrigemCandidaturaBancoCurriculos {
+		return
+	}
+	if err := s.origemCadastro.RegistrarOrigemCadastro(ctx, entity.CPF); err != nil {
+		log.Printf("[CandidaturaService] falha ao registrar origem do cadastro para CPF %s: %v", maskCPF(entity.CPF), err)
+	}
 }
 
 func (s *CandidaturaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Candidatura, error) {
@@ -230,6 +259,8 @@ func (s *CandidaturaService) Update(ctx context.Context, entity *empregabilidade
 	entity.IDVaga = existing.IDVaga
 	entity.IDEtapaAtual = existing.IDEtapaAtual
 	entity.CurriculoSnapshot = existing.CurriculoSnapshot
+	entity.Origem = existing.Origem
+	entity.AssociadoPorCPF = existing.AssociadoPorCPF
 
 	return s.repo.Update(ctx, entity)
 }
