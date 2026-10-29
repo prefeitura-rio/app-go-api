@@ -10,6 +10,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -47,24 +48,25 @@ func NewContactInfoService(
 func (s *ContactInfoService) GetCNPJOwnerContactInfo(ctx context.Context, cnpj string) (*models.CNPJOwnerInfo, error) {
 	// Try cache first
 	cacheKey := fmt.Sprintf("cnpj:owner:contact:%s", cnpj)
+	maskedCNPJ := utils.MaskCNPJForLog(cnpj)
 
 	cachedData, err := s.redisClient.Get(ctx, cacheKey).Result()
 	if err == nil {
 		// Cache hit
 		var ownerInfo models.CNPJOwnerInfo
 		if err := json.Unmarshal([]byte(cachedData), &ownerInfo); err == nil {
-			log.Printf("[CONTACT_INFO_CACHE_HIT] CNPJ: %s", cnpj)
+			log.Printf("[CONTACT_INFO_CACHE_HIT] CNPJ: %s", maskedCNPJ)
 			return &ownerInfo, nil
 		}
 		// Cache data is corrupted, continue to fetch from API
-		log.Printf("[CONTACT_INFO_CACHE_CORRUPTED] CNPJ: %s, error: %v", cnpj, err)
+		log.Printf("[CONTACT_INFO_CACHE_CORRUPTED] CNPJ: %s, error: %v", maskedCNPJ, err)
 	} else if err != redis.Nil {
 		// Redis error (not a cache miss), log but continue
-		log.Printf("[CONTACT_INFO_CACHE_ERROR] CNPJ: %s, error: %v", cnpj, err)
+		log.Printf("[CONTACT_INFO_CACHE_ERROR] CNPJ: %s, error: %v", maskedCNPJ, err)
 	}
 
 	// Cache miss or error - fetch from RMI API
-	log.Printf("[CONTACT_INFO_CACHE_MISS] CNPJ: %s", cnpj)
+	log.Printf("[CONTACT_INFO_CACHE_MISS] CNPJ: %s", maskedCNPJ)
 
 	// Get service account token
 	token, err := s.tokenManager.GetToken(ctx)
@@ -81,17 +83,17 @@ func (s *ContactInfoService) GetCNPJOwnerContactInfo(ctx context.Context, cnpj s
 	// Cache the result
 	dataToCache, err := json.Marshal(ownerInfo)
 	if err != nil {
-		log.Printf("[CONTACT_INFO_CACHE_MARSHAL_ERROR] CNPJ: %s, error: %v", cnpj, err)
+		log.Printf("[CONTACT_INFO_CACHE_MARSHAL_ERROR] CNPJ: %s, error: %v", maskedCNPJ, err)
 		// Don't fail, just return the data without caching
 		return ownerInfo, nil
 	}
 
 	err = s.redisClient.Set(ctx, cacheKey, dataToCache, s.cacheTTL).Err()
 	if err != nil {
-		log.Printf("[CONTACT_INFO_CACHE_SET_ERROR] CNPJ: %s, error: %v", cnpj, err)
+		log.Printf("[CONTACT_INFO_CACHE_SET_ERROR] CNPJ: %s, error: %v", maskedCNPJ, err)
 		// Don't fail, just return the data without caching
 	} else {
-		log.Printf("[CONTACT_INFO_CACHED] CNPJ: %s, TTL: %v", cnpj, s.cacheTTL)
+		log.Printf("[CONTACT_INFO_CACHED] CNPJ: %s, TTL: %v", maskedCNPJ, s.cacheTTL)
 	}
 
 	return ownerInfo, nil
@@ -124,7 +126,7 @@ func (s *ContactInfoService) GetMultipleCNPJOwnerContactInfo(ctx context.Context
 	for i := 0; i < len(cnpjs); i++ {
 		result := <-resultChan
 		if result.err != nil {
-			log.Printf("[CONTACT_INFO_ERROR] CNPJ: %s, error: %v", result.cnpj, result.err)
+			log.Printf("[CONTACT_INFO_ERROR] CNPJ: %s, error: %v", utils.MaskCNPJForLog(result.cnpj), result.err)
 			// Don't add to results map (graceful degradation)
 			continue
 		}
