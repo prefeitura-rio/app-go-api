@@ -35,7 +35,7 @@ func (s *CNAEValidationService) CheckCNPJOwnership(
 	// Get user's legal entities (with caching)
 	legalEntities, err := s.getUserLegalEntities(ctx, authToken, cpf)
 	if err != nil {
-		log.Printf("[CNPJ_OWNERSHIP_ERROR] CPF=%s Error fetching legal entities: %v", cpf, err)
+		log.Printf("[CNPJ_OWNERSHIP_ERROR] CPF=%s Error fetching legal entities: %v", utils.MaskCPFForLog(cpf), err)
 		return false, err
 	}
 
@@ -77,13 +77,13 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 	// 2. Get user's legal entities (with caching)
 	legalEntities, err := s.getUserLegalEntities(ctx, authToken, cpf)
 	if err != nil {
-		log.Printf("[CNAE_VALIDATION_ERROR] CPF=%s Error fetching legal entities: %v", cpf, err)
+		log.Printf("[CNAE_VALIDATION_ERROR] CPF=%s Error fetching legal entities: %v", utils.MaskCPFForLog(cpf), err)
 		return fmt.Errorf("não foi possível validar seus CNPJs no momento. Tente novamente em instantes")
 	}
 
 	// 3. Check if user has any CNPJs
 	if len(legalEntities) == 0 {
-		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=no_cnpjs", cpf, cnpj)
+		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=no_cnpjs", utils.MaskCPFForLog(cpf), cnpj)
 		return fmt.Errorf("nenhum CNPJ encontrado vinculado ao seu CPF")
 	}
 
@@ -101,7 +101,7 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 	}
 
 	if foundEntity == nil {
-		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=ownership", cpf, cnpj)
+		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=ownership", utils.MaskCPFForLog(cpf), cnpj)
 		return fmt.Errorf("o CNPJ %s não pertence ao seu CPF", cnpj)
 	}
 
@@ -111,7 +111,7 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 	// 6. Check if any CNPJ CNAE matches any opportunity CNAE
 	if !utils.HasMatchingCNAE(cnpjCNAEs, opportunityCNAEIDs) {
 		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=cnae_mismatch CNPJCNAEs=%v OpportunityCNAEs=%v",
-			cpf, cnpj, cnpjCNAEs, opportunityCNAEIDs)
+			utils.MaskCPFForLog(cpf), cnpj, cnpjCNAEs, opportunityCNAEIDs)
 
 		// Format CNAEs for user-friendly error message
 		formattedCNAEs := strings.Join(opportunityCNAEIDs, ", ")
@@ -120,7 +120,7 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 	}
 
 	// Success!
-	log.Printf("[CNAE_VALIDATION_SUCCESS] CPF=%s CNPJ=%s", cpf, cnpj)
+	log.Printf("[CNAE_VALIDATION_SUCCESS] CPF=%s CNPJ=%s", utils.MaskCPFForLog(cpf), cnpj)
 	return nil
 }
 
@@ -130,15 +130,15 @@ func (s *CNAEValidationService) getUserLegalEntities(ctx context.Context, authTo
 	cached, err := s.cache.Get(ctx, cpf)
 	if err != nil {
 		// Cache error - log but continue with API call
-		log.Printf("[CACHE_ERROR] Failed to get from cache for CPF=%s: %v", cpf, err)
+		log.Printf("[CACHE_ERROR] Failed to get from cache for CPF=%s: %v", utils.MaskCPFForLog(cpf), err)
 	} else if cached != nil {
 		// Cache hit
-		log.Printf("[CACHE_HIT] CPF=%s Found %d legal entities", cpf, len(cached))
+		log.Printf("[CACHE_HIT] CPF=%s Found %d legal entities", utils.MaskCPFForLog(cpf), len(cached))
 		return cached, nil
 	}
 
 	// Cache miss - fetch from RMI API
-	log.Printf("[CACHE_MISS] CPF=%s Fetching from RMI API", cpf)
+	log.Printf("[CACHE_MISS] CPF=%s Fetching from RMI API", utils.MaskCPFForLog(cpf))
 	entities, err := s.rmiClient.GetUserLegalEntities(ctx, authToken, cpf)
 	if err != nil {
 		return nil, err
@@ -146,9 +146,9 @@ func (s *CNAEValidationService) getUserLegalEntities(ctx context.Context, authTo
 
 	// Store in cache (ignore cache errors - not critical)
 	if err := s.cache.Set(ctx, cpf, entities); err != nil {
-		log.Printf("[CACHE_ERROR] Failed to set cache for CPF=%s: %v", cpf, err)
+		log.Printf("[CACHE_ERROR] Failed to set cache for CPF=%s: %v", utils.MaskCPFForLog(cpf), err)
 	} else {
-		log.Printf("[CACHE_SET] CPF=%s Cached %d legal entities", cpf, len(entities))
+		log.Printf("[CACHE_SET] CPF=%s Cached %d legal entities", utils.MaskCPFForLog(cpf), len(entities))
 	}
 
 	return entities, nil
