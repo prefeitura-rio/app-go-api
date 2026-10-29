@@ -3248,8 +3248,8 @@ paths:
       - application/json
       description: Atualiza o status de uma inscrição específica. Admin, casa civil
         e editor de cursos alteram qualquer status e admin_notes; o cidadão dono da
-        inscrição só pode cancelá-la (status cancelled), exceto quando ela já está
-        concluded ou cancelled (409), e admin_notes enviado por ele é descartado.
+        inscrição só pode cancelá-la (status cancelled) e admin_notes enviado por
+        ele é descartado.
       parameters:
       - description: ID do curso
         in: path
@@ -3284,10 +3284,6 @@ paths:
             $ref: '#/definitions/models.ErrorResponse'
         "404":
           description: Not Found
-          schema:
-            $ref: '#/definitions/models.ErrorResponse'
-        "409":
-          description: Conflict
           schema:
             $ref: '#/definitions/models.ErrorResponse'
         "500":
