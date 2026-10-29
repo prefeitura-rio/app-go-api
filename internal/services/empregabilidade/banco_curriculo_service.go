@@ -32,8 +32,8 @@ func indexarPorMinusculas(opcoes ...string) map[string]string {
 	return m
 }
 
-// BancoCurriculoService serve o banco de currículos do backoffice: a listagem de
-// todos os currículos da base e a ficha de cada um.
+// BancoCurriculoService serve o banco de currículos do backoffice: a listagem
+// dos currículos da base e a ficha de cada um.
 type BancoCurriculoService struct {
 	repo                BancoCurriculoRepositoryInterface
 	curriculos          CurriculoCompletoGetterInterface
@@ -59,7 +59,9 @@ func (s *BancoCurriculoService) SetCitizenDataFetcher(fetcher CitizenDataFetcher
 	s.citizenDataFetcher = fetcher
 }
 
+// List lista os currículos da base, menos os de quem se ocultou do banco no app.
 func (s *BancoCurriculoService) List(ctx context.Context, filter empregabilidade.BancoCurriculoFilter, page, pageSize int) ([]*empregabilidade.BancoCurriculoItem, int64, error) {
+	filter.SomenteDisponiveis = true
 	return s.repo.ListBancoCurriculos(ctx, filter, page, pageSize)
 }
 
