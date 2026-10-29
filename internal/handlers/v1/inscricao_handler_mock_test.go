@@ -17,6 +17,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -349,7 +350,7 @@ func TestInscricaoHandler_Create_DuplicateEnrollment(t *testing.T) {
 	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
 
 	mockService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
-		Return(errors.New("CPF já inscrito neste curso"))
+		Return(services.ErrCPFJaInscrito)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader([]byte(`{}`)))
 	req.Header.Set("Content-Type", "application/json")
@@ -1799,7 +1800,7 @@ func TestInscricaoHandler_UpdateCertificate_NotFound(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
-		Return(errors.New("inscrição não encontrada"))
+		Return(services.ErrInscricaoNaoEncontrada)
 
 	reqBody := map[string]interface{}{
 		"certificate_url": "https://example.com/cert.pdf",
@@ -1834,7 +1835,7 @@ func TestInscricaoHandler_UpdateCertificate_WrongCourse(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
-		Return(errors.New("inscrição não pertence ao curso especificado"))
+		Return(services.ErrInscricaoDeOutroCurso)
 
 	reqBody := map[string]interface{}{
 		"certificate_url": "https://example.com/cert.pdf",
@@ -1870,7 +1871,7 @@ func TestInscricaoHandler_UpdateCertificate_InvalidStatus(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
-		Return(errors.New("certificado só pode ser atribuído a inscrições aprovadas ou concluídas"))
+		Return(services.ErrCertificadoStatusInvalido)
 
 	reqBody := map[string]interface{}{
 		"certificate_url": "https://example.com/cert.pdf",

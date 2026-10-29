@@ -72,7 +72,7 @@ func TestInscricaoHandler_Create_UnexpectedErrorStays500(t *testing.T) {
 func TestInscricaoHandler_Create_DuplicateStays409(t *testing.T) {
 	mockSvc := new(MockInscricaoService)
 	mockSvc.On("Create", mock.Anything, mock.Anything).Return(
-		errors.New("CPF já inscrito neste curso"),
+		services.ErrCPFJaInscrito,
 	)
 
 	w := postEnrollment(citizenRouter(v1.NewInscricaoHandler(mockSvc, nil, nil), "USER"))

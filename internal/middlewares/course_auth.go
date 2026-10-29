@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 )
 
 const (
@@ -143,7 +145,7 @@ func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 		orgaoID, found, err := loader(c.Request.Context(), id)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso: " + err.Error()})
+			response.FromError(c, err, "Erro ao buscar curso")
 			c.Abort()
 			return
 		}
@@ -279,7 +281,7 @@ func CourseEnrollmentListAccess(loader courseLoaderFunc) gin.HandlerFunc {
 			}
 			orgaoID, found, err := loader(c.Request.Context(), id)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso: " + err.Error()})
+				response.FromError(c, err, "Erro ao buscar curso")
 				c.Abort()
 				return
 			}

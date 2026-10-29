@@ -2,12 +2,15 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
+
+// ErrOportunidadeNaoEncontrada é a oportunidade MEI inexistente.
+var ErrOportunidadeNaoEncontrada = apperrors.NotFound("oportunidade não encontrada")
 
 type OportunidadeMEIService struct {
 	repo OportunidadeMEIRepositoryInterface
@@ -39,7 +42,7 @@ func (s *OportunidadeMEIService) Create(ctx context.Context, oportunidade *model
 
 	// Agora validar com status já definido
 	if err := oportunidade.Validate(); err != nil {
-		return 0, err
+		return 0, apperrors.Invalid(err.Error())
 	}
 
 	return s.repo.Create(ctx, oportunidade)
@@ -65,7 +68,7 @@ func (s *OportunidadeMEIService) Update(ctx context.Context, oportunidade *model
 		return err
 	}
 	if existing == nil {
-		return errors.New("oportunidade não encontrada")
+		return ErrOportunidadeNaoEncontrada
 	}
 
 	// Preservar o status existente ao atualizar (não publica automaticamente)
@@ -75,12 +78,12 @@ func (s *OportunidadeMEIService) Update(ctx context.Context, oportunidade *model
 	if oportunidade.Status == models.StatusOportunidadeDraft {
 		// Para drafts, validação mínima
 		if err := oportunidade.Validate(); err != nil {
-			return err
+			return apperrors.Invalid(err.Error())
 		}
 	} else {
 		// Para status publicado, validação completa
 		if err := oportunidade.ValidateForPublish(); err != nil {
-			return err
+			return apperrors.Invalid(err.Error())
 		}
 	}
 
@@ -95,12 +98,12 @@ func (s *OportunidadeMEIService) Publish(ctx context.Context, id int) error {
 		return err
 	}
 	if oportunidade == nil {
-		return errors.New("oportunidade não encontrada")
+		return ErrOportunidadeNaoEncontrada
 	}
 
 	// Validar completamente antes de publicar
 	if err := oportunidade.ValidateForPublish(); err != nil {
-		return errors.New("não é possível publicar: " + err.Error())
+		return apperrors.Invalid("não é possível publicar: " + err.Error())
 	}
 
 	oportunidade.Status = models.StatusOportunidadeActive

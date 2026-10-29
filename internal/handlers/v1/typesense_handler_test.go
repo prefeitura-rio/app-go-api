@@ -689,3 +689,35 @@ func TestTypesenseHandler_SearchMultiCollection_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }
+
+// DEV-49: falha do Typesense responde 500 com a mensagem da operação, sem o
+// texto do erro interno (host, porta, chave de coleção).
+func TestTypesenseHandler_ServiceError_DoesNotLeak(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	leak := errors.New("dial tcp 10.0.0.7:8108: connect: connection refused")
+	mockSvc := &mockTypesenseService{
+		searchCursosFunc: func(context.Context, models.CursoSearchParameters) (*models.SearchDocumentsResponse, error) {
+			return nil, leak
+		},
+		searchEmpregosFunc: func(context.Context, models.EmpregoSearchParameters) (*models.SearchDocumentsResponse, error) {
+			return nil, leak
+		},
+	}
+	h := v1.NewTypesenseHandlerWithService(mockSvc)
+	r := gin.New()
+	r.POST("/cursos", h.SearchCursos)
+	r.POST("/empregos", h.SearchEmpregos)
+
+	for _, path := range []string{"/cursos", "/empregos"} {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader([]byte(`{"q":"x"}`)))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusInternalServerError, w.Code)
+			assert.NotContains(t, w.Body.String(), "dial tcp")
+			assert.NotContains(t, w.Body.String(), "10.0.0.7")
+		})
+	}
+}
