@@ -29,6 +29,11 @@ type mockOportunidadeMEIRepo struct {
 	listByOrgaoErr         error
 	updateExpiredErr       error
 	updateExpiredCallCount int
+	listCalls              int
+	lastListFilters        map[string]interface{}
+	lastListTitulo         string
+	lastListLimit          int
+	lastListOffset         int
 }
 
 func (m *mockOportunidadeMEIRepo) Create(ctx context.Context, oportunidade *models.OportunidadeMEI) (int, error) {
@@ -57,6 +62,14 @@ func (m *mockOportunidadeMEIRepo) Delete(ctx context.Context, id int) error {
 }
 
 func (m *mockOportunidadeMEIRepo) List(ctx context.Context, filters map[string]interface{}, titulo string, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
+	m.listCalls++
+	m.lastListFilters = make(map[string]interface{}, len(filters))
+	for k, v := range filters {
+		m.lastListFilters[k] = v
+	}
+	m.lastListTitulo = titulo
+	m.lastListLimit = limit
+	m.lastListOffset = offset
 	if m.listErr != nil {
 		return nil, 0, m.listErr
 	}
@@ -405,34 +418,83 @@ func TestOportunidadeMEIService_Delete(t *testing.T) {
 func TestOportunidadeMEIService_List(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("List with status filter", func(t *testing.T) {
+	t.Run("List with status filter delegates status to repository and uses its real total", func(t *testing.T) {
 		active := validOportunidade()
 		active.Status = models.StatusOportunidadeActive
 
-		draft := validOportunidade()
-		draft.ID = 2
-		draft.Status = models.StatusOportunidadeDraft
-
 		repo := &mockOportunidadeMEIRepo{
-			listItems: []*models.OportunidadeMEI{active, draft},
-			listTotal: 2,
+			listItems: []*models.OportunidadeMEI{active},
+			listTotal: 37,
 		}
 		svc := services.NewOportunidadeMEIServiceWithInterface(repo)
 
 		filters := map[string]interface{}{
-			"status": models.StatusOportunidadeActive,
+			"status":   models.StatusOportunidadeActive,
+			"orgao_id": "org-123",
 		}
 
-		items, total, err := svc.List(ctx, filters, "", 1, 10)
+		items, total, err := svc.List(ctx, filters, "jardim", 3, 10)
 		if err != nil {
 			t.Fatalf("List: %v", err)
 		}
-		// Should only return active items
-		if len(items) != 1 {
-			t.Errorf("expected 1 active item, got %d", len(items))
+		if repo.listCalls != 1 {
+			t.Fatalf("expected 1 repo.List call, got %d", repo.listCalls)
 		}
-		if total != 1 {
-			t.Errorf("expected total 1, got %d", total)
+		if got := repo.lastListFilters["status"]; got != models.StatusOportunidadeActive {
+			t.Errorf("expected status filter %q passed to repository, got %v", models.StatusOportunidadeActive, got)
+		}
+		if got := repo.lastListFilters["orgao_id"]; got != "org-123" {
+			t.Errorf("expected orgao_id filter passed to repository, got %v", got)
+		}
+		if repo.lastListTitulo != "jardim" {
+			t.Errorf("expected titulo passed to repository, got %q", repo.lastListTitulo)
+		}
+		if repo.lastListLimit != 10 {
+			t.Errorf("expected limit 10 (pageSize), got %d", repo.lastListLimit)
+		}
+		if repo.lastListOffset != 20 {
+			t.Errorf("expected offset 20 for page 3, got %d", repo.lastListOffset)
+		}
+		if len(items) != 1 {
+			t.Errorf("expected the repository page (1 item), got %d", len(items))
+		}
+		if total != 37 {
+			t.Errorf("expected real total 37 from repository, got %d", total)
+		}
+	})
+
+	t.Run("List total does not depend on pageSize (tab counter with pageSize 1)", func(t *testing.T) {
+		for _, status := range []models.StatusOportunidadeMEI{
+			models.StatusOportunidadeActive,
+			models.StatusOportunidadeExpired,
+			models.StatusOportunidadeDraft,
+		} {
+			for _, pageSize := range []int{1, 10} {
+				item := validOportunidade()
+				item.Status = status
+				if status == models.StatusOportunidadeExpired {
+					past := time.Now().Add(-24 * time.Hour)
+					item.DataExpiracao = &past
+				}
+
+				repo := &mockOportunidadeMEIRepo{
+					listItems: []*models.OportunidadeMEI{item},
+					listTotal: 125,
+				}
+				svc := services.NewOportunidadeMEIServiceWithInterface(repo)
+
+				_, total, err := svc.List(ctx, map[string]interface{}{"status": status}, "", 1, pageSize)
+				if err != nil {
+					t.Fatalf("List(%s, pageSize=%d): %v", status, pageSize, err)
+				}
+				if total != 125 {
+					t.Errorf("List(%s, pageSize=%d): expected total 125, got %d", status, pageSize, total)
+				}
+				if repo.lastListLimit != pageSize || repo.lastListOffset != 0 {
+					t.Errorf("List(%s, pageSize=%d): expected limit=%d offset=0, got limit=%d offset=%d",
+						status, pageSize, pageSize, repo.lastListLimit, repo.lastListOffset)
+				}
+			}
 		}
 	})
 
@@ -459,8 +521,8 @@ func TestOportunidadeMEIService_List(t *testing.T) {
 	})
 
 	t.Run("List with pagination", func(t *testing.T) {
-		items := make([]*models.OportunidadeMEI, 5)
-		for i := 0; i < 5; i++ {
+		items := make([]*models.OportunidadeMEI, 2)
+		for i := 0; i < 2; i++ {
 			items[i] = validOportunidade()
 			items[i].ID = i + 1
 		}
@@ -471,13 +533,16 @@ func TestOportunidadeMEIService_List(t *testing.T) {
 		}
 		svc := services.NewOportunidadeMEIServiceWithInterface(repo)
 
-		// Page 1, size 2
-		result, total, err := svc.List(ctx, nil, "", 1, 2)
+		// Page 2, size 2
+		result, total, err := svc.List(ctx, nil, "", 2, 2)
 		if err != nil {
 			t.Fatalf("List: %v", err)
 		}
+		if repo.lastListLimit != 2 || repo.lastListOffset != 2 {
+			t.Errorf("expected limit=2 offset=2, got limit=%d offset=%d", repo.lastListLimit, repo.lastListOffset)
+		}
 		if len(result) != 2 {
-			t.Errorf("expected 2 items on page 1, got %d", len(result))
+			t.Errorf("expected 2 items on page 2, got %d", len(result))
 		}
 		if total != 5 {
 			t.Errorf("expected total 5, got %d", total)
@@ -502,7 +567,7 @@ func TestOportunidadeMEIService_List(t *testing.T) {
 
 		repo := &mockOportunidadeMEIRepo{
 			listItems: []*models.OportunidadeMEI{expired},
-			listTotal: 1,
+			listTotal: 14,
 		}
 		svc := services.NewOportunidadeMEIServiceWithInterface(repo)
 
@@ -514,12 +579,18 @@ func TestOportunidadeMEIService_List(t *testing.T) {
 		if err != nil {
 			t.Fatalf("List: %v", err)
 		}
-		// Should return 1 expired item after status update
-		if len(items) != 1 {
-			t.Errorf("expected 1 expired item, got %d", len(items))
+		if got := repo.lastListFilters["status"]; got != models.StatusOportunidadeExpired {
+			t.Errorf("expected status filter %q passed to repository, got %v", models.StatusOportunidadeExpired, got)
 		}
-		if total != 1 {
-			t.Errorf("expected total 1, got %d", total)
+		if len(items) != 1 {
+			t.Fatalf("expected 1 item, got %d", len(items))
+		}
+		// Page items get their status recalculated for display
+		if items[0].Status != models.StatusOportunidadeExpired {
+			t.Errorf("expected page item status recalculated to expired, got %q", items[0].Status)
+		}
+		if total != 14 {
+			t.Errorf("expected real total 14 from repository, got %d", total)
 		}
 	})
 }
@@ -583,7 +654,7 @@ func TestOportunidadeMEIService_ListDrafts(t *testing.T) {
 
 		repo := &mockOportunidadeMEIRepo{
 			listItems: []*models.OportunidadeMEI{draft},
-			listTotal: 1,
+			listTotal: 42,
 		}
 		svc := services.NewOportunidadeMEIServiceWithInterface(repo)
 
@@ -591,11 +662,17 @@ func TestOportunidadeMEIService_ListDrafts(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListDrafts: %v", err)
 		}
+		if got := repo.lastListFilters["status"]; got != models.StatusOportunidadeDraft {
+			t.Errorf("expected status filter %q passed to repository, got %v", models.StatusOportunidadeDraft, got)
+		}
+		if _, ok := repo.lastListFilters["orgao_id"]; ok {
+			t.Error("expected no orgao_id filter")
+		}
+		if total != 42 {
+			t.Errorf("expected real total 42 from repository, got %d", total)
+		}
 		if len(result) != 1 {
 			t.Errorf("expected 1 draft, got %d", len(result))
-		}
-		if total != 1 {
-			t.Errorf("expected total 1, got %d", total)
 		}
 	})
 
@@ -613,6 +690,12 @@ func TestOportunidadeMEIService_ListDrafts(t *testing.T) {
 		result, total, err := svc.ListDrafts(ctx, "org-123", "", 1, 10)
 		if err != nil {
 			t.Fatalf("ListDrafts: %v", err)
+		}
+		if got := repo.lastListFilters["status"]; got != models.StatusOportunidadeDraft {
+			t.Errorf("expected status filter %q passed to repository, got %v", models.StatusOportunidadeDraft, got)
+		}
+		if got := repo.lastListFilters["orgao_id"]; got != "org-123" {
+			t.Errorf("expected orgao_id filter passed to repository, got %v", got)
 		}
 		if len(result) != 1 {
 			t.Errorf("expected 1 draft, got %d", len(result))

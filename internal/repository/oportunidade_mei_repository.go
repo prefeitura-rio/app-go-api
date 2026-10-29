@@ -71,8 +71,12 @@ func (r *OportunidadeMEIRepository) List(ctx context.Context, filters map[string
 
 	db := r.db.WithContext(ctx).Model(&models.OportunidadeMEI{})
 
-	// Aplicar filtros exatos
+	// Aplicar filtros exatos (status é tratado pelo status efetivo)
 	for key, value := range filters {
+		if key == "status" {
+			db = applyEffectiveStatusFilter(db, value, time.Now())
+			continue
+		}
 		db = db.Where(key+" = ?", value)
 	}
 
@@ -81,7 +85,9 @@ func (r *OportunidadeMEIRepository) List(ctx context.Context, filters map[string
 		db = db.Where("unaccent(titulo) ILIKE unaccent(?)", "%"+titulo+"%")
 	}
 
-	db.Count(&total)
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("erro ao contar oportunidades MEI: %w", err)
+	}
 
 	result := db.
 		Order("created_at DESC").
@@ -94,6 +100,37 @@ func (r *OportunidadeMEIRepository) List(ctx context.Context, filters map[string
 	}
 
 	return oportunidades, int(total), nil
+}
+
+// applyEffectiveStatusFilter filtra pelo status efetivo da oportunidade, com a
+// mesma regra de models.OportunidadeMEI.UpdateStatusBasedOnExpiration: uma
+// oportunidade "active" com data de expiração no passado conta como "expired" e
+// uma "expired" com data de expiração no futuro (ou agora) conta como "active".
+// Assim o COUNT do banco bate com o status exibido em cada item. Rascunhos (e
+// qualquer outro valor) são filtrados pelo status gravado.
+func applyEffectiveStatusFilter(db *gorm.DB, value interface{}, now time.Time) *gorm.DB {
+	var status models.StatusOportunidadeMEI
+	switch v := value.(type) {
+	case models.StatusOportunidadeMEI:
+		status = v
+	case string:
+		status = models.StatusOportunidadeMEI(v)
+	default:
+		return db.Where("status = ?", value)
+	}
+
+	expirable := []string{string(models.StatusOportunidadeActive), string(models.StatusOportunidadeExpired)}
+
+	switch status {
+	case models.StatusOportunidadeActive:
+		return db.Where("((status IN ? AND data_expiracao >= ?) OR (status = ? AND data_expiracao IS NULL))",
+			expirable, now, string(models.StatusOportunidadeActive))
+	case models.StatusOportunidadeExpired:
+		return db.Where("((status IN ? AND data_expiracao < ?) OR (status = ? AND data_expiracao IS NULL))",
+			expirable, now, string(models.StatusOportunidadeExpired))
+	default:
+		return db.Where("status = ?", value)
+	}
 }
 
 func (r *OportunidadeMEIRepository) ListByStatus(ctx context.Context, status models.StatusOportunidadeMEI, limit, offset int) ([]*models.OportunidadeMEI, int, error) {
