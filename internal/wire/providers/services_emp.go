@@ -88,6 +88,16 @@ func ProvideEmpBancoCurriculoService(
 	return empServices.NewBancoCurriculoService(curriculoRepo, curriculoService, citizenSnapshotRepo)
 }
 
+// ProvideEmpParticipacaoBancoService creates the service behind the citizen's
+// banco de currículos toggle in the app.
+func ProvideEmpParticipacaoBancoService(
+	curriculoRepo *empRepository.CurriculoRepository,
+	curriculoService *empServices.CurriculoService,
+	termosUsoService *empServices.TermosUsoService,
+) *empServices.ParticipacaoBancoService {
+	return empServices.NewParticipacaoBancoService(curriculoRepo, curriculoService, termosUsoService)
+}
+
 // ProvideEmpAssociacaoCandidatoService creates the service that associates
 // candidates from the banco de currículos to vagas.
 func ProvideEmpAssociacaoCandidatoService(
@@ -114,11 +124,14 @@ func ProvideEmpCandidaturaService(
 	candidaturaRepo *empRepository.CandidaturaRepository,
 	vagaRepo *empRepository.VagaRepository,
 	curriculoService *empServices.CurriculoService,
+	curriculoRepo *empRepository.CurriculoRepository,
 	citizenSnapshotRepo *repository.CitizenSnapshotRepository,
 	emailNotifier services.EmailNotifier,
 ) *empServices.CandidaturaService {
 	// citizenDataFetcher is nil; citizen sync worker is started separately in the router
-	return empServices.NewCandidaturaService(candidaturaRepo, vagaRepo, curriculoService, citizenSnapshotRepo, nil, emailNotifier)
+	service := empServices.NewCandidaturaService(candidaturaRepo, vagaRepo, curriculoService, citizenSnapshotRepo, nil, emailNotifier)
+	service.SetOrigemCadastroRegistrar(curriculoRepo)
+	return service
 }
 
 // ProvideEmpOnboardingService creates empregabilidade OnboardingService

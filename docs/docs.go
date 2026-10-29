@@ -5445,6 +5445,146 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/empregabilidade/curriculo/{cpf}/banco-curriculos": {
+            "get": {
+                "description": "Diz se o currículo do cidadão está disponível para os recrutadores no banco de currículos, o que falta para o currículo mínimo (o mesmo exigido para se candidatar) e quando o currículo foi atualizado. Só o próprio cidadão ou um admin.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-curriculo-banco"
+                ],
+                "summary": "Consultar participação no banco de currículos",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do cidadão",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.ParticipacaoBancoStatus"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "O cidadão escolhe se os recrutadores podem consultar o currículo no banco de currículos. Vale para qualquer currículo, completo ou não (422 quando a pessoa ainda não salvou nenhuma parte). Só o próprio cidadão.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empregabilidade-curriculo-banco"
+                ],
+                "summary": "Ativar ou desativar o currículo no banco de currículos",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do cidadão",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Disponível ou não",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.AtualizarParticipacaoBancoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/empregabilidade.ParticipacaoBancoStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/empregabilidade/curriculo/{cpf}/conquistas": {
             "get": {
                 "description": "Retorna todas as conquistas do usuário autenticado",
@@ -13157,6 +13297,17 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.AtualizarParticipacaoBancoRequest": {
+            "type": "object",
+            "required": [
+                "disponivel"
+            ],
+            "properties": {
+                "disponivel": {
+                    "type": "boolean"
+                }
+            }
+        },
         "empregabilidade.BancoCurriculoCandidatura": {
             "type": "object",
             "properties": {
@@ -14102,6 +14253,38 @@ const docTemplate = `{
                 "OrigemCandidaturaSecretaria",
                 "OrigemCandidaturaBancoCurriculos"
             ]
+        },
+        "empregabilidade.ParticipacaoBancoStatus": {
+            "type": "object",
+            "properties": {
+                "curriculo_atualizado_em": {
+                    "description": "CurriculoAtualizadoEm é quando o cidadão salvou o currículo pela última vez.",
+                    "type": "string"
+                },
+                "curriculo_completo": {
+                    "description": "CurriculoCompleto diz se o currículo tem o mínimo exigido para se\ncandidatar; Pendencias diz o que falta. Não impede a participação no banco,\nque mostra o que a pessoa conseguiu salvar.",
+                    "type": "boolean"
+                },
+                "disponivel": {
+                    "type": "boolean"
+                },
+                "disponivel_alterado_em": {
+                    "type": "string"
+                },
+                "origem_cadastro": {
+                    "type": "string"
+                },
+                "pendencias": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "tem_curriculo": {
+                    "description": "TemCurriculo é falso enquanto o cidadão não salvou nenhuma seção.",
+                    "type": "boolean"
+                }
+            }
         },
         "empregabilidade.RegimeContratacao": {
             "type": "object",
