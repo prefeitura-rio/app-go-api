@@ -12,6 +12,9 @@ type BancoCurriculoFilter struct {
 	Search string
 	// Candidato são os filtros avançados (gênero, idade, experiência etc.).
 	Candidato FiltroCandidato
+	// SomenteDisponiveis deixa de fora quem se ocultou do banco de currículos no
+	// app. O service sempre liga; o recrutador não escolhe.
+	SomenteDisponiveis bool
 }
 
 // BancoCurriculoItem é uma linha da listagem do banco de currículos.

@@ -37,8 +37,9 @@ const bancoCurriculosSelect = `
 			LIMIT 1
 		) AS profissao`
 
-// ListBancoCurriculos lista todos os currículos da base, com os dados pessoais do
-// cadastro do cidadão quando existirem, do mais recente para o mais antigo.
+// ListBancoCurriculos lista os currículos da base (ou só os que o cidadão deixou
+// disponíveis, com SomenteDisponiveis), com os dados pessoais do cadastro do
+// cidadão quando existirem, do mais recente para o mais antigo.
 func (r *CurriculoRepository) ListBancoCurriculos(ctx context.Context, filter empregabilidade.BancoCurriculoFilter, page, pageSize int) ([]*empregabilidade.BancoCurriculoItem, int64, error) {
 	var where string
 	var args []interface{}
@@ -64,6 +65,13 @@ func (r *CurriculoRepository) ListBancoCurriculos(ctx context.Context, filter em
 			where += " AND " + condicao
 		}
 		args = append(args, argsFiltro...)
+	}
+	if filter.SomenteDisponiveis {
+		if where == "" {
+			where = " WHERE c.disponivel_banco"
+		} else {
+			where += " AND c.disponivel_banco"
+		}
 	}
 
 	var total int64

@@ -143,6 +143,17 @@ func TestBancoCurriculoService_List_RepassaFiltroEPaginacao(t *testing.T) {
 	assert.Equal(t, 10, repo.gotSize)
 }
 
+func TestBancoCurriculoService_List_DeixaDeForaQuemSeOcultou(t *testing.T) {
+	repo := &fakeBancoRepo{}
+	svc := services.NewBancoCurriculoService(repo, &fakeBancoCurriculoCompleto{}, &fakeBancoSnapshotRepo{})
+
+	// O recrutador não escolhe: quem se ocultou no app fica sempre de fora.
+	_, _, err := svc.List(context.Background(), empregabilidade.BancoCurriculoFilter{SomenteDisponiveis: false}, 1, 10)
+
+	require.NoError(t, err)
+	assert.True(t, repo.gotFilter.SomenteDisponiveis)
+}
+
 func TestBancoCurriculoService_GetDetalhe_NaoEncontrado(t *testing.T) {
 	completo := &fakeBancoCurriculoCompleto{}
 	svc := services.NewBancoCurriculoService(&fakeBancoRepo{}, completo, &fakeBancoSnapshotRepo{})
