@@ -83,7 +83,7 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 
 	// 3. Check if user has any CNPJs
 	if len(legalEntities) == 0 {
-		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=no_cnpjs", cpf, cnpj)
+		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=no_cnpjs", cpf, utils.MaskCNPJForLog(cnpj))
 		return fmt.Errorf("nenhum CNPJ encontrado vinculado ao seu CPF")
 	}
 
@@ -101,7 +101,7 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 	}
 
 	if foundEntity == nil {
-		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=ownership", cpf, cnpj)
+		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=ownership", cpf, utils.MaskCNPJForLog(cnpj))
 		return fmt.Errorf("o CNPJ %s não pertence ao seu CPF", cnpj)
 	}
 
@@ -111,7 +111,7 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 	// 6. Check if any CNPJ CNAE matches any opportunity CNAE
 	if !utils.HasMatchingCNAE(cnpjCNAEs, opportunityCNAEIDs) {
 		log.Printf("[CNAE_VALIDATION_FAILED] CPF=%s CNPJ=%s Reason=cnae_mismatch CNPJCNAEs=%v OpportunityCNAEs=%v",
-			cpf, cnpj, cnpjCNAEs, opportunityCNAEIDs)
+			cpf, utils.MaskCNPJForLog(cnpj), cnpjCNAEs, opportunityCNAEIDs)
 
 		// Format CNAEs for user-friendly error message
 		formattedCNAEs := strings.Join(opportunityCNAEIDs, ", ")
@@ -120,7 +120,7 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 	}
 
 	// Success!
-	log.Printf("[CNAE_VALIDATION_SUCCESS] CPF=%s CNPJ=%s", cpf, cnpj)
+	log.Printf("[CNAE_VALIDATION_SUCCESS] CPF=%s CNPJ=%s", cpf, utils.MaskCNPJForLog(cnpj))
 	return nil
 }
 
