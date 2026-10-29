@@ -34,6 +34,7 @@ func TestMaskCNPJForLog(t *testing.T) {
 		{"empty", "", "***"},
 		{"no digits", "abc", "***"},
 		{"exactly 5 digits", "12345", "12*45"},
+		{"non-ascii digits stay whole runes", "١٢٣٤٥٦", "١٢**٥٦"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
