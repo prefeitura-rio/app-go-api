@@ -8,6 +8,7 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 // ErrPropostaNaoEncontrada é a proposta MEI inexistente.
@@ -206,7 +207,7 @@ func (s *PropostaMEIService) enrichPropostaWithContactInfo(ctx context.Context, 
 	contactInfo, err := s.contactInfoService.GetCNPJOwnerContactInfo(ctx, proposta.MEIEmpresaID)
 	if err != nil {
 		log.Printf("[CONTACT_INFO_ERROR] Failed to fetch contact info for CNPJ %s: %v",
-			proposta.MEIEmpresaID, err)
+			utils.MaskCNPJForLog(proposta.MEIEmpresaID), err)
 		return
 	}
 
