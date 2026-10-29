@@ -42,6 +42,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	courseOrgaoInjector := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOrgaoInjector())
 	courseDraftAuth := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseDraftAuthorization())
 	courseListFilter := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseListFilter())
+	courseOrgaoUpdateScope := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOrgaoUpdateScope())
 	enrollmentListAccess := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseEnrollmentListAccess(cursoLoader))
 
 	enrollmentCPFLoader := func(ctx context.Context, id uuid.UUID) (string, bool, error) {
@@ -65,7 +66,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courses.GET("/drafts", courseListFilter, app.CourseHandler.ListDrafts)
 		courses.GET("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.GetByID)
 		courses.DELETE("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.Delete)
-		courses.PUT("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.Update)
+		courses.PUT("/:courseId", courseAuth, ownershipCheck, courseOrgaoUpdateScope, app.CourseHandler.Update)
 		courses.PUT("/:courseId/send-to-review", courseAuth, ownershipCheck, app.CourseHandler.SendToReview)
 		courses.PUT("/:courseId/approve", courseAuth, ownershipCheck, app.CourseHandler.Approve)
 		courses.PUT("/:courseId/request-changes", courseAuth, ownershipCheck, app.CourseHandler.RequestChanges)

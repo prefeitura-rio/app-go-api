@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -1094,4 +1095,144 @@ func TestCourseEnrollmentSingleAccess_InvalidEnrollmentID_400(t *testing.T) {
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/courses/1/enrollments/not-a-uuid", nil))
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Contains(t, w.Body.String(), "ID da inscrição inválido")
+}
+
+// ============ CourseOrgaoUpdateScope Tests ============
+
+// setupOrgaoUpdateScopeRouter wires CourseOrgaoUpdateScope in front of a handler
+// that echoes the body it received, so tests also prove the body is preserved.
+func setupOrgaoUpdateScopeRouter(inject gin.HandlerFunc) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.PUT("/courses/:courseId", inject, middlewares.CourseOrgaoUpdateScope(), func(c *gin.Context) {
+		var body map[string]interface{}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "handler: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, body)
+	})
+	return r
+}
+
+func putCourse(r *gin.Engine, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPut, "/courses/1", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w
+}
+
+func TestCourseOrgaoUpdateScope(t *testing.T) {
+	admin := func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	}
+
+	tests := []struct {
+		name       string
+		inject     gin.HandlerFunc
+		body       string
+		wantStatus int
+		wantError  string
+	}{
+		{
+			name:       "editor moving course to another secretaria is forbidden",
+			inject:     injectCourseRoles("go:cursos:editor", "", []string{"orgao-a", "orgao-a2"}),
+			body:       `{"titulo":"Curso","orgao_id":"orgao-b"}`,
+			wantStatus: http.StatusForbidden,
+			wantError:  "orgão do curso não pertence à sua secretaria",
+		},
+		{
+			name:       "editor keeping the same orgao passes",
+			inject:     injectCourseRoles("go:cursos:editor", "", []string{"orgao-a", "orgao-a2"}),
+			body:       `{"titulo":"Curso","orgao_id":"orgao-a"}`,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "editor moving course within own secretaria passes",
+			inject:     injectCourseRoles("go:cursos:editor", "", []string{"orgao-a", "orgao-a2"}),
+			body:       `{"titulo":"Curso","orgao_id":"orgao-a2"}`,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "editor scoped by go:orgao keeping own orgao passes",
+			inject:     injectCourseRoles("go:cursos:editor", "orgao-x", nil),
+			body:       `{"orgao_id":"orgao-x"}`,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "editor scoped by go:orgao moving to another orgao is forbidden",
+			inject:     injectCourseRoles("go:cursos:editor", "orgao-x", nil),
+			body:       `{"orgao_id":"orgao-y"}`,
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "editor clearing orgao_id is forbidden",
+			inject:     injectCourseRoles("go:cursos:editor", "", []string{"orgao-a"}),
+			body:       `{"titulo":"Curso","orgao_id":""}`,
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "editor omitting orgao_id (persisted as empty) is forbidden",
+			inject:     injectCourseRoles("go:cursos:editor", "", []string{"orgao-a"}),
+			body:       `{"titulo":"Curso"}`,
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "editor with case-variant key is still checked",
+			inject:     injectCourseRoles("go:cursos:editor", "", []string{"orgao-a"}),
+			body:       `{"orgao_id":"orgao-a","ORGAO_ID":"orgao-b"}`,
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "editor with malformed body gets 400",
+			inject:     injectCourseRoles("go:cursos:editor", "", []string{"orgao-a"}),
+			body:       `{"orgao_id":`,
+			wantStatus: http.StatusBadRequest,
+			wantError:  "Dados inválidos",
+		},
+		{
+			name:       "editor with non-string orgao_id gets 400",
+			inject:     injectCourseRoles("go:cursos:editor", "", []string{"orgao-a"}),
+			body:       `{"orgao_id":123}`,
+			wantStatus: http.StatusBadRequest,
+			wantError:  "Dados inválidos",
+		},
+		{
+			name:       "admin may move course to any orgao",
+			inject:     admin,
+			body:       `{"orgao_id":"orgao-b"}`,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "casa_civil may move course to any orgao",
+			inject:     injectCourseRoles("go:cursos:casa_civil", "", nil),
+			body:       `{"orgao_id":"orgao-b"}`,
+			wantStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := setupOrgaoUpdateScopeRouter(tt.inject)
+			w := putCourse(r, tt.body)
+			assert.Equal(t, tt.wantStatus, w.Code, w.Body.String())
+			if tt.wantError != "" {
+				assert.Contains(t, w.Body.String(), tt.wantError)
+			}
+		})
+	}
+}
+
+func TestCourseOrgaoUpdateScope_PreservesBodyForHandler(t *testing.T) {
+	r := setupOrgaoUpdateScopeRouter(injectCourseRoles("go:cursos:editor", "", []string{"orgao-a"}))
+
+	w := putCourse(r, `{"titulo":"Curso Atualizado","orgao_id":"orgao-a"}`)
+
+	assert.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	var got map[string]interface{}
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	assert.Equal(t, "Curso Atualizado", got["titulo"])
+	assert.Equal(t, "orgao-a", got["orgao_id"])
 }
