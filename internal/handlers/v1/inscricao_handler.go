@@ -400,6 +400,10 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 	// em vez de recusado para não quebrar clientes que reenviam o objeto inteiro.
 	if !isAdmin {
 		updateData.AdminNotes = nil
+		// A unidade de matrícula só pode ser alterada diretamente por perfis
+		// administrativos; o cidadão troca de turma pelo endpoint dedicado
+		// PUT /api/v1/enrollments/:enrollmentId/schedule.
+		updateData.EnrolledUnit = nil
 	}
 
 	if err := h.service.UpdateInscricao(c.Request.Context(), existing.ID, cursoID, &updateData); err != nil {
