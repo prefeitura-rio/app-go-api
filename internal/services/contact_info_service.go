@@ -54,12 +54,13 @@ func (s *ContactInfoService) GetCNPJOwnerContactInfo(ctx context.Context, cnpj s
 	if err == nil {
 		// Cache hit
 		var ownerInfo models.CNPJOwnerInfo
-		if err := json.Unmarshal([]byte(cachedData), &ownerInfo); err == nil {
+		unmarshalErr := json.Unmarshal([]byte(cachedData), &ownerInfo)
+		if unmarshalErr == nil {
 			log.Printf("[CONTACT_INFO_CACHE_HIT] CNPJ: %s", maskedCNPJ)
 			return &ownerInfo, nil
 		}
 		// Cache data is corrupted, continue to fetch from API
-		log.Printf("[CONTACT_INFO_CACHE_CORRUPTED] CNPJ: %s, error: %v", maskedCNPJ, err)
+		log.Printf("[CONTACT_INFO_CACHE_CORRUPTED] CNPJ: %s, error: %v", maskedCNPJ, unmarshalErr)
 	} else if err != redis.Nil {
 		// Redis error (not a cache miss), log but continue
 		log.Printf("[CONTACT_INFO_CACHE_ERROR] CNPJ: %s, error: %v", maskedCNPJ, err)
