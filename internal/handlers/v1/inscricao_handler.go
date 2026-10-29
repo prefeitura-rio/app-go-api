@@ -445,7 +445,7 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 }
 
 // @Summary      Atualizar status de inscrição individual
-// @Description  Atualiza o status de uma inscrição específica. Admin, casa civil e editor de cursos alteram qualquer status e admin_notes; o cidadão dono da inscrição só pode cancelá-la (status cancelled), exceto quando ela já está concluded ou cancelled (409), e admin_notes enviado por ele é descartado.
+// @Description  Atualiza o status de uma inscrição específica. Admin, casa civil e editor de cursos alteram qualquer status e admin_notes; o cidadão dono da inscrição só pode cancelá-la (status cancelled) e admin_notes enviado por ele é descartado.
 // @Tags         inscricoes
 // @Accept       json
 // @Produce      json
@@ -456,7 +456,6 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 // @Failure      400          {object}  models.ErrorResponse
 // @Failure      403          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
-// @Failure      409          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId}/status [put]
 func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
@@ -509,13 +508,6 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 		}
 		if request.Status != models.StatusInscricaoCancelled {
 			c.JSON(http.StatusForbidden, gin.H{"error": "o cidadão só pode cancelar a própria inscrição"})
-			return
-		}
-		// Para o cidadão, concluded e cancelled são terminais (como em
-		// ChangeSchedule). A equipe segue sem a trava: o portal interno usa esta
-		// rota para desfazer a conclusão e para reprovar uma inscrição concluída.
-		if existing.Status == models.StatusInscricaoCancelled || existing.Status == models.StatusInscricaoConcluded {
-			c.JSON(http.StatusConflict, gin.H{"error": "não é possível cancelar inscrições com status '" + string(existing.Status) + "'"})
 			return
 		}
 		request.AdminNotes = ""
