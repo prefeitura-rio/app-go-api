@@ -102,6 +102,13 @@ definitions:
           $ref: '#/definitions/empregabilidade.AssociacaoVaga'
         type: array
     type: object
+  empregabilidade.AtualizarParticipacaoBancoRequest:
+    properties:
+      disponivel:
+        type: boolean
+    required:
+    - disponivel
+    type: object
   empregabilidade.BancoCurriculoCandidatura:
     properties:
       data_candidatura:
@@ -715,6 +722,32 @@ definitions:
     - OrigemCandidaturaPortalCidadao
     - OrigemCandidaturaSecretaria
     - OrigemCandidaturaBancoCurriculos
+  empregabilidade.ParticipacaoBancoStatus:
+    properties:
+      curriculo_atualizado_em:
+        description: CurriculoAtualizadoEm é quando o cidadão salvou o currículo pela
+          última vez.
+        type: string
+      curriculo_completo:
+        description: |-
+          CurriculoCompleto diz se o currículo tem o mínimo exigido para se
+          candidatar; Pendencias diz o que falta. Não impede a participação no banco,
+          que mostra o que a pessoa conseguiu salvar.
+        type: boolean
+      disponivel:
+        type: boolean
+      disponivel_alterado_em:
+        type: string
+      origem_cadastro:
+        type: string
+      pendencias:
+        items:
+          type: string
+        type: array
+      tem_curriculo:
+        description: TemCurriculo é falso enquanto o cidadão não salvou nenhuma seção.
+        type: boolean
+    type: object
   empregabilidade.RegimeContratacao:
     properties:
       created_at:
@@ -4581,6 +4614,104 @@ paths:
       summary: Buscar currículo completo
       tags:
       - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/{cpf}/banco-curriculos:
+    get:
+      description: Diz se o currículo do cidadão está disponível para os recrutadores
+        no banco de currículos, o que falta para o currículo mínimo (o mesmo exigido
+        para se candidatar) e quando o currículo foi atualizado. Só o próprio cidadão
+        ou um admin.
+      parameters:
+      - description: CPF do cidadão
+        in: path
+        name: cpf
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.ParticipacaoBancoStatus'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Consultar participação no banco de currículos
+      tags:
+      - empregabilidade-curriculo-banco
+    put:
+      consumes:
+      - application/json
+      description: O cidadão escolhe se os recrutadores podem consultar o currículo
+        no banco de currículos. Vale para qualquer currículo, completo ou não (422
+        quando a pessoa ainda não salvou nenhuma parte). Só o próprio cidadão.
+      parameters:
+      - description: CPF do cidadão
+        in: path
+        name: cpf
+        required: true
+        type: string
+      - description: Disponível ou não
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.AtualizarParticipacaoBancoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.ParticipacaoBancoStatus'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Ativar ou desativar o currículo no banco de currículos
+      tags:
+      - empregabilidade-curriculo-banco
   /api/v1/empregabilidade/curriculo/{cpf}/conquistas:
     get:
       description: Retorna todas as conquistas do usuário autenticado
