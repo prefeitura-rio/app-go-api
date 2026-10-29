@@ -3197,7 +3197,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: Adiciona ou atualiza a URL do certificado de uma inscrição
+      description: Adiciona ou atualiza a URL do certificado de uma inscrição (somente
+        admin, casa civil e editor de cursos)
       parameters:
       - description: ID do curso
         in: path
@@ -3245,7 +3246,10 @@ paths:
     put:
       consumes:
       - application/json
-      description: Atualiza o status de uma inscrição específica
+      description: Atualiza o status de uma inscrição específica. Admin, casa civil
+        e editor de cursos alteram qualquer status e admin_notes; o cidadão dono da
+        inscrição só pode cancelá-la (status cancelled) e admin_notes enviado por
+        ele é descartado.
       parameters:
       - description: ID do curso
         in: path
@@ -3272,6 +3276,10 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/models.ErrorResponse'
         "404":

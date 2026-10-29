@@ -598,6 +598,8 @@ func TestInscricaoHandler_UpdateIndividualStatus_Success(t *testing.T) {
 
 	enrollmentID := uuid.New()
 
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(&models.Inscricao{ID: enrollmentID, CursoID: 1, CPF: "12345678901"}, nil)
 	mockService.On("UpdateStatus", mock.Anything, enrollmentID, models.StatusInscricaoApproved, "Approved", "Notes").
 		Return(nil)
 
@@ -636,6 +638,8 @@ func TestInscricaoHandler_UpdateIndividualStatus_Editor_Passes(t *testing.T) {
 
 	enrollmentID := uuid.New()
 
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(&models.Inscricao{ID: enrollmentID, CursoID: 1, CPF: "12345678901"}, nil)
 	mockService.On("UpdateStatus", mock.Anything, enrollmentID, models.StatusInscricaoApproved, "", "").
 		Return(nil)
 
@@ -1748,6 +1752,10 @@ func TestInscricaoHandler_UpdateCertificate_Success(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
 
 	enrollmentID := uuid.New()
@@ -1782,6 +1790,10 @@ func TestInscricaoHandler_UpdateCertificate_NotFound(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
 
 	enrollmentID := uuid.New()
@@ -1813,6 +1825,10 @@ func TestInscricaoHandler_UpdateCertificate_WrongCourse(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
 
 	enrollmentID := uuid.New()
@@ -1845,6 +1861,10 @@ func TestInscricaoHandler_UpdateCertificate_InvalidStatus(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
 
 	enrollmentID := uuid.New()
@@ -1877,6 +1897,10 @@ func TestInscricaoHandler_UpdateCertificate_ServiceError(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
 
 	enrollmentID := uuid.New()

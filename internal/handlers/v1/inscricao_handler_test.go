@@ -244,6 +244,10 @@ func TestInscricaoHandler_UpdateCertificate_InvalidEnrollmentID(t *testing.T) {
 func TestInscricaoHandler_UpdateCertificate_InvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	h := v1.NewInscricaoHandler(nil, nil, nil)
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", h.UpdateCertificate)
 
