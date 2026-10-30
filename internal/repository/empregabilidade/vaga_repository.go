@@ -55,6 +55,16 @@ func (r *VagaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empregabil
 	return &entity, nil
 }
 
+// ExistsByID diz se há vaga (não removida) com o id, sem carregar a vaga nem
+// as relações dela.
+func (r *VagaRepository) ExistsByID(ctx context.Context, id uuid.UUID) (bool, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&empregabilidade.Vaga{}).Where("id = ?", id).Count(&count).Error; err != nil {
+		return false, fmt.Errorf("erro ao verificar vaga: %w", err)
+	}
+	return count > 0, nil
+}
+
 func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
 	updates := map[string]interface{}{
 		"titulo":                           entity.Titulo,

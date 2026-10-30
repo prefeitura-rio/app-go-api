@@ -150,8 +150,8 @@ func ProvideEmpZonaService(repo *empRepository.ZonaRepository) *empServices.Zona
 }
 
 // ProvideEmpCandidaturaBloqueioService creates empregabilidade CandidaturaBloqueioService
-func ProvideEmpCandidaturaBloqueioService(repo *empRepository.CandidaturaBloqueioRepository) *empServices.CandidaturaBloqueioService {
-	return empServices.NewCandidaturaBloqueioService(repo)
+func ProvideEmpCandidaturaBloqueioService(repo *empRepository.CandidaturaBloqueioRepository, vagaRepo *empRepository.VagaRepository) *empServices.CandidaturaBloqueioService {
+	return empServices.NewCandidaturaBloqueioService(repo, vagaRepo)
 }
 
 // ProvideEmpCNPJConsultaService creates empregabilidade CNPJConsultaService.

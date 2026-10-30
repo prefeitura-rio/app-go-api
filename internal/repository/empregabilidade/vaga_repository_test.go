@@ -2591,3 +2591,57 @@ func TestVagaRepository_ListPublic_FindError(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Equal(t, 0, total)
 }
+
+func TestVagaRepository_ExistsByID(t *testing.T) {
+	existsSQL := regexp.QuoteMeta(`SELECT count(*) FROM "emp_vagas" WHERE id = $1 AND "emp_vagas"."deleted_at" IS NULL`)
+	id := uuid.New()
+
+	tests := []struct {
+		name    string
+		setup   func(mock sqlmock.Sqlmock)
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "vaga existe",
+			setup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(existsSQL).WithArgs(id).
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+			},
+			want: true,
+		},
+		{
+			name: "vaga não existe (ou foi removida)",
+			setup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(existsSQL).WithArgs(id).
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+			},
+			want: false,
+		},
+		{
+			name: "erro do banco",
+			setup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(existsSQL).WithArgs(id).WillReturnError(fmt.Errorf("connection refused"))
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, cleanup := repository.SetupMockDB(t)
+			defer cleanup()
+			tt.setup(mock)
+
+			got, err := NewVagaRepository(db).ExistsByID(context.Background(), id)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.want, got)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
