@@ -179,13 +179,39 @@ func TestEtapaHandler_ListByVaga_ServiceError(t *testing.T) {
 
 func TestEtapaHandler_GetByID_Found(t *testing.T) {
 	id := uuid.MustParse(validUUID)
-	repo := &mockEtapaRepoH{entity: &empmodels.Etapa{ID: id, Titulo: "Triagem"}}
+	repo := &mockEtapaRepoH{entity: &empmodels.Etapa{ID: id, IDVaga: id, Titulo: "Triagem"}}
 	r := setupEtapaRouter(repo)
 	req := httptest.NewRequest(http.MethodGet, "/vagas/"+validUUID+"/etapas/"+validUUID, nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+// Etapa que pertence a outra vaga não é devolvida pela rota da vaga do path
+// (DEV-137): a autorização da rota é feita sobre a vaga do path.
+func TestEtapaHandler_GetByID_EtapaDeOutraVaga_NotFound(t *testing.T) {
+	etapaID := uuid.MustParse(validUUID)
+	outraVaga := uuid.MustParse("99999999-9999-4999-8999-999999999999")
+	repo := &mockEtapaRepoH{entity: &empmodels.Etapa{ID: etapaID, IDVaga: outraVaga, Titulo: "Triagem"}}
+	r := setupEtapaRouter(repo)
+	req := httptest.NewRequest(http.MethodGet, "/vagas/"+validUUID+"/etapas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestEtapaHandler_GetByID_InvalidVagaID(t *testing.T) {
+	repo := &mockEtapaRepoH{}
+	r := setupEtapaRouter(repo)
+	req := httptest.NewRequest(http.MethodGet, "/vagas/bad-uuid/etapas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
 	}
 }
 

@@ -83,8 +83,8 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empVagas.PUT("/:id/zonas", vagaAuth, vagaOwnership, app.EmpVagaHandler.UpdateZonas)
 		empVagas.PUT("/:id/idiomas-requisito", vagaAuth, vagaOwnership, app.EmpVagaHandler.UpdateIdiomasRequisito)
 		empVagas.POST("/:id/etapas", vagaAuth, vagaOwnership, app.EmpEtapaHandler.Create)
-		empVagas.GET("/:id/etapas", app.EmpEtapaHandler.ListByVaga)
-		empVagas.GET("/:id/etapas/:etapaId", app.EmpEtapaHandler.GetByID)
+		empVagas.GET("/:id/etapas", vagaAuth, vagaReadOwnership, app.EmpEtapaHandler.ListByVaga)
+		empVagas.GET("/:id/etapas/:etapaId", vagaAuth, vagaReadOwnership, app.EmpEtapaHandler.GetByID)
 		empVagas.PUT("/:id/etapas/:etapaId", vagaAuth, vagaOwnership, app.EmpEtapaHandler.Update)
 		empVagas.DELETE("/:id/etapas/:etapaId", vagaAuth, vagaOwnership, app.EmpEtapaHandler.Delete)
 	}
