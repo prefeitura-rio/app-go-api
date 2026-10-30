@@ -164,3 +164,19 @@ func TestCourseHandler_DBError_Returns500WithoutLeak(t *testing.T) {
 		})
 	}
 }
+
+// DEV-119: o PUT que removeria turma com inscrição responde 409 com a mensagem
+// do domínio, não 500.
+func TestCourseHandler_Update_ScheduleWithEnrollments_Returns409(t *testing.T) {
+	const msg = "Não é possível remover turmas que têm inscrições: a turma 3d901bcb-a112-44f1-b71d-b75e4329ca00 tem 2 inscrição(ões)."
+	svc := new(MockCursoService)
+	svc.On("GetByID", mock.Anything, 1).Return(&models.Curso{ID: 1, Titulo: "Curso"}, nil)
+	svc.On("Update", mock.Anything, mock.Anything).
+		Return(fmt.Errorf("erro ao atualizar remote class: %w", apperrors.Conflict(msg)))
+
+	w := doCourseReq(newCourseErrRouter(svc), http.MethodPut, "/courses/1", `{"title":"Curso"}`)
+
+	assert.Equal(t, http.StatusConflict, w.Code, w.Body.String())
+	assert.JSONEq(t, `{"error":"`+msg+`"}`, w.Body.String())
+	svc.AssertExpectations(t)
+}

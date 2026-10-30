@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
@@ -369,7 +370,7 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 }
 
 // @Summary      Editar curso
-// @Description  Atualiza um curso existente. Também usado para publicar rascunhos mudando status de "draft" para "opened"
+// @Description  Atualiza um curso existente. Também usado para publicar rascunhos mudando status de "draft" para "opened". Turmas, locais e turma remota que não vierem no payload (ou vierem sem o id) são removidos; se alguma turma removida tiver inscrições, o PUT é recusado com 409 e nada é alterado. Envie o id de cada turma e local que deve ser mantido.
 // @Tags         courses
 // @Accept       json
 // @Produce      json
@@ -378,6 +379,7 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 // @Success      200      {object}  object
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      404      {object}  models.ErrorResponse
+// @Failure      409      {object}  models.ErrorResponse  "Turma removida (ou local/turma remota removidos) ainda tem inscrições"
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId} [put]
 func (h *CourseHandler) Update(c *gin.Context) {
@@ -457,6 +459,11 @@ func (h *CourseHandler) Update(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": strings.TrimPrefix(err.Error(), "erro de validação: "),
 			})
+			return
+		}
+		// Domain errors (e.g. a turma with enrollments) carry their own status
+		if _, ok := apperrors.As(err); ok {
+			response.FromError(c, err, "Erro ao atualizar curso")
 			return
 		}
 		// Otherwise, treat as database error
