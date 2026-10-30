@@ -1316,7 +1316,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza um curso existente. Também usado para publicar rascunhos mudando status de \"draft\" para \"opened\"",
+                "description": "Atualiza um curso existente. Também usado para publicar rascunhos mudando status de \"draft\" para \"opened\". Turmas, locais e turma remota que não vierem no payload (ou vierem sem o id) são removidos; se alguma turma removida tiver inscrições, o PUT é recusado com 409 e nada é alterado. Envie o id de cada turma e local que deve ser mantido.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1360,6 +1360,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Turma removida (ou local/turma remota removidos) ainda tem inscrições",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }

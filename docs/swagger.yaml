@@ -2958,7 +2958,10 @@ paths:
       consumes:
       - application/json
       description: Atualiza um curso existente. Também usado para publicar rascunhos
-        mudando status de "draft" para "opened"
+        mudando status de "draft" para "opened". Turmas, locais e turma remota que
+        não vierem no payload (ou vierem sem o id) são removidos; se alguma turma
+        removida tiver inscrições, o PUT é recusado com 409 e nada é alterado. Envie
+        o id de cada turma e local que deve ser mantido.
       parameters:
       - description: ID do curso
         in: path
@@ -2984,6 +2987,11 @@ paths:
             $ref: '#/definitions/models.ErrorResponse'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "409":
+          description: Turma removida (ou local/turma remota removidos) ainda tem
+            inscrições
           schema:
             $ref: '#/definitions/models.ErrorResponse'
         "500":
