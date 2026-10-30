@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -49,6 +50,10 @@ func (h *CandidaturaBloqueioHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// id e created_at são do banco, nunca do corpo.
+	entity.ID = uuid.Nil
+	entity.CreatedAt = time.Time{}
 
 	// O CPF do bloqueio vem do token; só admin do módulo registra em nome de
 	// outro CPF informado no corpo (mesma regra de CandidaturaHandler.Create).

@@ -27,7 +27,9 @@ func (m *mockCandidaturaBloqueioRepoH) Create(_ context.Context, entity *empmode
 	if m.err != nil {
 		return uuid.Nil, m.err
 	}
-	m.created = entity
+	// Cópia do que chegou ao repositório: o handler altera a entidade depois.
+	gravado := *entity
+	m.created = &gravado
 	return uuid.New(), nil
 }
 
@@ -226,6 +228,24 @@ func TestCandidaturaBloqueioHandler_Create_ErroAoBuscarVaga_NaoGrava(t *testing.
 	}
 	if repo.created != nil {
 		t.Errorf("expected nothing persisted, got %+v", repo.created)
+	}
+}
+
+func TestCandidaturaBloqueioHandler_Create_IgnoraIDECreatedAtDoCorpo(t *testing.T) {
+	repo := &mockCandidaturaBloqueioRepoH{}
+	r := setupCandidaturaBloqueioRouter(repo)
+	w := postBloqueio(r, `{"id":"`+validUUID+`","created_at":"2020-01-01T00:00:00Z","id_vaga":"`+validUUID+`"}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if repo.created == nil {
+		t.Fatal("expected record persisted")
+	}
+	if repo.created.ID != uuid.Nil {
+		t.Errorf("expected ID left to the database, got %s", repo.created.ID)
+	}
+	if !repo.created.CreatedAt.IsZero() {
+		t.Errorf("expected CreatedAt left to autoCreateTime, got %s", repo.created.CreatedAt)
 	}
 }
 
