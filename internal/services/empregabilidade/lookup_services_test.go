@@ -1222,7 +1222,7 @@ func (m *mockEtapaRepo) Update(ctx context.Context, e *empregabilidade.Etapa) er
 	return nil
 }
 
-func (m *mockEtapaRepo) Delete(ctx context.Context, id uuid.UUID) error {
+func (m *mockEtapaRepo) Delete(ctx context.Context, vagaID, id uuid.UUID) error {
 	delete(m.items, id)
 	return nil
 }
@@ -1280,7 +1280,7 @@ func TestEtapaService_CRUD(t *testing.T) {
 
 	t.Run("Delete", func(t *testing.T) {
 		id, _ := svc.Create(ctx, &empregabilidade.Etapa{IDVaga: vagaID, Titulo: "Dinâmica", Ordem: 4})
-		err := svc.Delete(ctx, id)
+		err := svc.Delete(ctx, vagaID, id)
 		if err != nil {
 			t.Fatalf("Delete: %v", err)
 		}
