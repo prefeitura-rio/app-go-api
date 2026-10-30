@@ -909,6 +909,13 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		return nil, fmt.Errorf("não é possível trocar de turma para inscrições com status '%s'", inscricao.Status)
 	}
 
+	// Moving to the turma the enrollment is already in changes nothing. Refuse it
+	// with its own message before the vacancy count, which includes the
+	// enrollment itself and would answer "sem vagas" for a full turma (DEV-141).
+	if request.ScheduleID != nil && inscricao.ScheduleID != nil && *request.ScheduleID == *inscricao.ScheduleID {
+		return nil, enrollmentRuleErrorf("não é possível trocar de turma: você já está nesta turma")
+	}
+
 	// Validate that the course has more than one schedule
 	curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 	if err != nil {

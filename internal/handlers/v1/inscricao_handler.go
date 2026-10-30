@@ -998,7 +998,7 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 }
 
 // @Summary      Trocar turma/horário de inscrição
-// @Description  Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com pelo menos 72h de antecedência do início da aula. Se a inscrição estava aprovada, volta para status pendente.
+// @Description  Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com a antecedência mínima do início da aula configurada em ENROLLMENT_SCHEDULE_CHANGE_DEADLINE_HOURS (48h por padrão). A troca para a turma em que a inscrição já está é recusada com 400 ("você já está nesta turma"). Se a inscrição estava aprovada, volta para status pendente.
 // @Tags         enrollments
 // @Accept       json
 // @Produce      json
