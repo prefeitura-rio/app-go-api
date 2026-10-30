@@ -413,8 +413,91 @@ func ensureSchedulesWithoutEnrollments(ctx context.Context, tx *gorm.DB, schedul
 
 // updateRemoteClassWithTx updates remote class for a course
 func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.DB, curso *models.Curso) error {
-	if curso.RemoteClass == nil {
-		// The whole remote class goes away (CASCADE deletes its schedules).
+	if curso.RemoteClass != nil {
+		// Check if a remote class already exists
+		var existingRemote models.RemoteClass
+		err := tx.WithContext(ctx).Where("curso_id = ?", curso.ID).First(&existingRemote).Error
+
+		curso.RemoteClass.CursoID = curso.ID
+		existingScheduleIDs := make(map[string]bool)
+
+		if err == nil {
+			// Update existing remote class
+			curso.RemoteClass.ID = existingRemote.ID
+			if err := tx.WithContext(ctx).Model(&existingRemote).Updates(curso.RemoteClass).Error; err != nil {
+				return fmt.Errorf("erro ao atualizar remote class: %w", err)
+			}
+
+			// Build map of schedule IDs to keep
+			scheduleIDsToKeep := make(map[string]bool)
+			for _, schedule := range curso.RemoteClass.Schedules {
+				if schedule.ID.String() != "00000000-0000-0000-0000-000000000000" {
+					scheduleIDsToKeep[schedule.ID.String()] = true
+				}
+			}
+
+			// Delete only schedules that are not in the update list
+			var existingSchedules []models.RemoteSchedule
+			if err := tx.WithContext(ctx).Where("remote_class_id = ?", curso.RemoteClass.ID).Find(&existingSchedules).Error; err != nil {
+				return fmt.Errorf("erro ao buscar remote schedules existentes: %w", err)
+			}
+			var scheduleIDsToDelete []uuid.UUID
+			for _, existing := range existingSchedules {
+				existingScheduleIDs[existing.ID.String()] = true
+				if !scheduleIDsToKeep[existing.ID.String()] {
+					scheduleIDsToDelete = append(scheduleIDsToDelete, existing.ID)
+				}
+			}
+			if err := ensureSchedulesWithoutEnrollments(ctx, tx, scheduleIDsToDelete); err != nil {
+				return err
+			}
+			if len(scheduleIDsToDelete) > 0 {
+				if err := tx.WithContext(ctx).Where("id IN ?", scheduleIDsToDelete).Delete(&models.RemoteSchedule{}).Error; err != nil {
+					return fmt.Errorf("erro ao deletar remote schedules obsoletos: %w", err)
+				}
+			}
+		} else if err != gorm.ErrRecordNotFound {
+			return fmt.Errorf("erro ao buscar remote class existente: %w", err)
+		} else {
+			// Create new remote class
+			if err := tx.WithContext(ctx).Omit("Schedules").Create(curso.RemoteClass).Error; err != nil {
+				return fmt.Errorf("erro ao criar remote class: %w", err)
+			}
+		}
+
+		// Update or create schedules for this remote class
+		if len(curso.RemoteClass.Schedules) > 0 {
+			var schedulesToCreate []models.RemoteSchedule
+
+			for j := range curso.RemoteClass.Schedules {
+				curso.RemoteClass.Schedules[j].RemoteClassID = curso.RemoteClass.ID
+				curso.RemoteClass.Schedules[j].DisplayOrder = j + 1
+
+				if existingScheduleIDs[curso.RemoteClass.Schedules[j].ID.String()] {
+					// Update existing schedule
+					if err := tx.WithContext(ctx).Model(&curso.RemoteClass.Schedules[j]).
+						Select("vacancies", "enrollment_start_date", "enrollment_end_date", "class_start_date", "class_end_date", "class_time", "class_days", "display_order", "accepting_enrollments", "updated_at").
+						Updates(&curso.RemoteClass.Schedules[j]).Error; err != nil {
+						return fmt.Errorf("erro ao atualizar remote schedule: %w", err)
+					}
+				} else {
+					// Queue for batch creation. An id that is not a schedule of
+					// this course is created as a new turma, never written to
+					// another course's turma.
+					curso.RemoteClass.Schedules[j].ID = uuid.Nil
+					schedulesToCreate = append(schedulesToCreate, curso.RemoteClass.Schedules[j])
+				}
+			}
+
+			// Batch create new schedules
+			if len(schedulesToCreate) > 0 {
+				if err := tx.WithContext(ctx).Create(&schedulesToCreate).Error; err != nil {
+					return fmt.Errorf("erro ao criar remote schedules: %w", err)
+				}
+			}
+		}
+	} else {
+		// If no remote class provided, delete existing one if any (CASCADE will delete schedules)
 		var scheduleIDs []uuid.UUID
 		if err := tx.WithContext(ctx).Model(&models.RemoteSchedule{}).
 			Where("remote_class_id IN (?)", tx.Model(&models.RemoteClass{}).Select("id").Where("curso_id = ?", curso.ID)).
@@ -426,89 +509,6 @@ func (r *CursoRepository) updateRemoteClassWithTx(ctx context.Context, tx *gorm.
 		}
 		if err := tx.WithContext(ctx).Where("curso_id = ?", curso.ID).Delete(&models.RemoteClass{}).Error; err != nil {
 			return fmt.Errorf("erro ao deletar remote class: %w", err)
-		}
-		return nil
-	}
-
-	// Check if a remote class already exists
-	var existingRemote models.RemoteClass
-	err := tx.WithContext(ctx).Where("curso_id = ?", curso.ID).First(&existingRemote).Error
-
-	curso.RemoteClass.CursoID = curso.ID
-	existingScheduleIDs := make(map[uuid.UUID]bool)
-
-	if err == nil {
-		// Update existing remote class
-		curso.RemoteClass.ID = existingRemote.ID
-		if err := tx.WithContext(ctx).Model(&existingRemote).Updates(curso.RemoteClass).Error; err != nil {
-			return fmt.Errorf("erro ao atualizar remote class: %w", err)
-		}
-
-		// Build map of schedule IDs to keep
-		scheduleIDsToKeep := make(map[uuid.UUID]bool)
-		for _, schedule := range curso.RemoteClass.Schedules {
-			if schedule.ID != uuid.Nil {
-				scheduleIDsToKeep[schedule.ID] = true
-			}
-		}
-
-		// Delete only schedules that are not in the update list
-		var existingSchedules []models.RemoteSchedule
-		if err := tx.WithContext(ctx).Where("remote_class_id = ?", curso.RemoteClass.ID).Find(&existingSchedules).Error; err != nil {
-			return fmt.Errorf("erro ao buscar remote schedules existentes: %w", err)
-		}
-		var scheduleIDsToDelete []uuid.UUID
-		for _, existing := range existingSchedules {
-			existingScheduleIDs[existing.ID] = true
-			if !scheduleIDsToKeep[existing.ID] {
-				scheduleIDsToDelete = append(scheduleIDsToDelete, existing.ID)
-			}
-		}
-		if err := ensureSchedulesWithoutEnrollments(ctx, tx, scheduleIDsToDelete); err != nil {
-			return err
-		}
-		if len(scheduleIDsToDelete) > 0 {
-			if err := tx.WithContext(ctx).Where("id IN ?", scheduleIDsToDelete).Delete(&models.RemoteSchedule{}).Error; err != nil {
-				return fmt.Errorf("erro ao deletar remote schedules obsoletos: %w", err)
-			}
-		}
-	} else if err != gorm.ErrRecordNotFound {
-		return fmt.Errorf("erro ao buscar remote class existente: %w", err)
-	} else {
-		// Create new remote class
-		if err := tx.WithContext(ctx).Omit("Schedules").Create(curso.RemoteClass).Error; err != nil {
-			return fmt.Errorf("erro ao criar remote class: %w", err)
-		}
-	}
-
-	// Update or create schedules for this remote class
-	if len(curso.RemoteClass.Schedules) > 0 {
-		var schedulesToCreate []models.RemoteSchedule
-
-		for j := range curso.RemoteClass.Schedules {
-			curso.RemoteClass.Schedules[j].RemoteClassID = curso.RemoteClass.ID
-			curso.RemoteClass.Schedules[j].DisplayOrder = j + 1
-
-			if existingScheduleIDs[curso.RemoteClass.Schedules[j].ID] {
-				// Update existing schedule
-				if err := tx.WithContext(ctx).Model(&curso.RemoteClass.Schedules[j]).
-					Select("vacancies", "enrollment_start_date", "enrollment_end_date", "class_start_date", "class_end_date", "class_time", "class_days", "display_order", "accepting_enrollments", "updated_at").
-					Updates(&curso.RemoteClass.Schedules[j]).Error; err != nil {
-					return fmt.Errorf("erro ao atualizar remote schedule: %w", err)
-				}
-			} else {
-				// An id that is not a schedule of this course (another course's
-				// turma, or one that no longer exists) is created as a new turma.
-				curso.RemoteClass.Schedules[j].ID = uuid.Nil
-				schedulesToCreate = append(schedulesToCreate, curso.RemoteClass.Schedules[j])
-			}
-		}
-
-		// Batch create new schedules
-		if len(schedulesToCreate) > 0 {
-			if err := tx.WithContext(ctx).Create(&schedulesToCreate).Error; err != nil {
-				return fmt.Errorf("erro ao criar remote schedules: %w", err)
-			}
 		}
 	}
 
