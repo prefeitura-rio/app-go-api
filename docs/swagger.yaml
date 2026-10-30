@@ -3804,8 +3804,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Registra a tentativa de candidatura de um CPF a uma vaga que foi
-        bloqueada por não atender critérios de elegibilidade
+      description: |-
+        Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.
+        Para o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.
       parameters:
       - description: Dados do bloqueio
         in: body
@@ -3822,6 +3823,18 @@ paths:
             $ref: '#/definitions/empregabilidade.CandidaturaBloqueio'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
           schema:
             additionalProperties:
               type: string

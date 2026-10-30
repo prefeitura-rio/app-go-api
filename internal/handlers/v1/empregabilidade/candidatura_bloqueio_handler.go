@@ -1,17 +1,23 @@
 package empregabilidade
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 func handleCandidaturaBloqueioError(c *gin.Context, err error) {
+	if errors.Is(err, services.ErrBloqueioVagaNaoEncontrada) {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
 	dbErr := utils.ParseDatabaseError(err)
 	c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
 }
@@ -25,13 +31,16 @@ func NewCandidaturaBloqueioHandler(service *services.CandidaturaBloqueioService)
 }
 
 // @Summary      Registrar bloqueio de candidatura
-// @Description  Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade
+// @Description  Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.
+// @Description  Para o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.
 // @Tags         empregabilidade-candidatura-bloqueios
 // @Accept       json
 // @Produce      json
 // @Param        request  body      empregabilidade.CandidaturaBloqueio  true  "Dados do bloqueio"
 // @Success      201      {object}  empregabilidade.CandidaturaBloqueio
 // @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      404      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidatura-bloqueios [post]
 func (h *CandidaturaBloqueioHandler) Create(c *gin.Context) {
@@ -39,6 +48,18 @@ func (h *CandidaturaBloqueioHandler) Create(c *gin.Context) {
 	if err := c.ShouldBindJSON(&entity); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// O CPF do bloqueio vem do token; só admin do módulo registra em nome de
+	// outro CPF informado no corpo (mesma regra de CandidaturaHandler.Create).
+	isAdmin := middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:empregabilidade:admin")
+	if !isAdmin || entity.CPF == "" {
+		cpf := middlewares.GetUserCPF(c)
+		if cpf == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "CPF não encontrado no token de autenticação"})
+			return
+		}
+		entity.CPF = cpf
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
