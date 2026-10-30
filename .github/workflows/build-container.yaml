@@ -45,7 +45,7 @@ jobs:
         if: steps.check-k8s-only.outputs.k8s_only != 'true'
         uses: actions/setup-go@v5
         with:
-          go-version: '1.27'
+          go-version-file: go.mod
           cache: true
 
       - name: Install swag
