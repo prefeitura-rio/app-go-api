@@ -699,9 +699,9 @@ func (s *InscricaoService) validateScheduleID(_ context.Context, scheduleID uuid
 	return enrollmentRuleErrorf("a turma selecionada não pertence a este curso")
 }
 
-// enrolledUnitForSchedule builds the enrolled_unit snapshot of the course
-// location that holds scheduleID, with all of that location's schedules, from
-// the course data. Remote schedules have no location and yield nil.
+// enrolledUnitForSchedule builds, from the course data, the enrolled_unit
+// snapshot of the location (or remote class) that holds scheduleID, with all of
+// its schedules. It returns nil when the course has no such schedule.
 func enrolledUnitForSchedule(scheduleID uuid.UUID, curso *models.Curso) *models.EnrolledUnit {
 	for _, location := range curso.LocationClasses {
 		for _, schedule := range location.Schedules {
@@ -734,7 +734,52 @@ func enrolledUnitForSchedule(scheduleID uuid.UUID, curso *models.Curso) *models.
 			}
 		}
 	}
+
+	if curso.RemoteClass != nil {
+		remote := curso.RemoteClass
+		for _, schedule := range remote.Schedules {
+			if schedule.ID != scheduleID {
+				continue
+			}
+			schedules := make([]models.EnrolledUnitSchedule, 0, len(remote.Schedules))
+			for _, sch := range remote.Schedules {
+				schedules = append(schedules, models.EnrolledUnitSchedule{
+					ID:             sch.ID.String(),
+					LocationID:     remote.ID.String(),
+					Vacancies:      sch.Vacancies,
+					ClassStartDate: formatOptionalTime(sch.ClassStartDate),
+					ClassEndDate:   formatOptionalTime(sch.ClassEndDate),
+					ClassTime:      derefString(sch.ClassTime),
+					ClassDays:      derefString(sch.ClassDays),
+					CreatedAt:      sch.CreatedAt.Format(time.RFC3339),
+					UpdatedAt:      sch.UpdatedAt.Format(time.RFC3339),
+				})
+			}
+			return &models.EnrolledUnit{
+				ID:        remote.ID.String(),
+				CursoID:   curso.ID,
+				Schedules: schedules,
+				CreatedAt: remote.CreatedAt.Format(time.RFC3339),
+				UpdatedAt: remote.UpdatedAt.Format(time.RFC3339),
+			}
+		}
+	}
+
 	return nil
+}
+
+func formatOptionalTime(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.Format(time.RFC3339)
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // EnrichWithPersonalInfo populates PersonalInfo for a single enrollment

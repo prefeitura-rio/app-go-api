@@ -14,8 +14,9 @@ import (
 
 // TestInscricaoService_Create_EnrolledUnitFromValidatedSchedule covers DEV-134:
 // on the citizen Create flow the enrolled_unit sent in the body is never
-// persisted as-is. It is rebuilt from the course data for the schedule_id that
-// passed validateScheduleID, and dropped when there is no validated schedule.
+// persisted as-is. It is rebuilt from the course data (location or remote class)
+// for the schedule_id that passed validateScheduleID, and dropped when there is
+// no validated schedule.
 func TestInscricaoService_Create_EnrolledUnitFromValidatedSchedule(t *testing.T) {
 	ctx := context.Background()
 	accepting := true
@@ -52,11 +53,19 @@ func TestInscricaoService_Create_EnrolledUnitFromValidatedSchedule(t *testing.T)
 			},
 		},
 	}
+	remoteStart := time.Date(2026, 11, 15, 19, 0, 0, 0, time.UTC)
+	remoteTime := "19:00 - 21:00"
 	remote := &models.RemoteClass{
-		ID:      uuid.New(),
-		CursoID: 1,
+		ID:        uuid.New(),
+		CursoID:   1,
+		CreatedAt: created,
+		UpdatedAt: updated,
 		Schedules: []models.RemoteSchedule{
-			{ID: remoteScheduleID, Vacancies: 50, AcceptingEnrollments: &accepting},
+			{
+				ID: remoteScheduleID, Vacancies: 50, AcceptingEnrollments: &accepting,
+				ClassStartDate: &remoteStart, ClassTime: &remoteTime,
+				CreatedAt: created, UpdatedAt: updated,
+			},
 		},
 	}
 
@@ -141,7 +150,7 @@ func TestInscricaoService_Create_EnrolledUnitFromValidatedSchedule(t *testing.T)
 		}
 	})
 
-	t.Run("remote schedule keeps no enrolled_unit", func(t *testing.T) {
+	t.Run("enrolled_unit is rebuilt from the validated remote schedule", func(t *testing.T) {
 		var persisted *models.Inscricao
 		err := newSvc(&persisted).Create(ctx, &models.Inscricao{
 			CPF: "12345678900", CursoID: 1, Name: "Teste", ScheduleID: &remoteScheduleID, EnrolledUnit: forged(),
@@ -149,8 +158,21 @@ func TestInscricaoService_Create_EnrolledUnitFromValidatedSchedule(t *testing.T)
 		if err != nil {
 			t.Fatalf("esperava sucesso, veio erro: %v", err)
 		}
-		if persisted.EnrolledUnit != nil {
-			t.Fatalf("turma remota não tem local; enrolled_unit do corpo não deveria ser persistido: %+v", persisted.EnrolledUnit)
+		unit := persisted.EnrolledUnit
+		if unit == nil {
+			t.Fatal("esperava enrolled_unit montado a partir da turma remota validada")
+		}
+		if unit.ID != remote.ID.String() || unit.CursoID != 1 || unit.Address != "" {
+			t.Fatalf("enrolled_unit não corresponde à turma remota do curso: %+v", unit)
+		}
+		if len(unit.Schedules) != 1 {
+			t.Fatalf("esperava 1 turma remota, veio %d", len(unit.Schedules))
+		}
+		got := unit.Schedules[0]
+		if got.ID != remoteScheduleID.String() || got.LocationID != remote.ID.String() || got.Vacancies != 50 ||
+			got.ClassStartDate != remoteStart.Format(time.RFC3339) || got.ClassEndDate != "" ||
+			got.ClassTime != remoteTime || got.ClassDays != "" {
+			t.Fatalf("turma remota não corresponde ao curso: %+v", got)
 		}
 	})
 

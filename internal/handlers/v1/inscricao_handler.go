@@ -221,7 +221,10 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 		inscricao.CPF = cpf
 		// Campos administrativos não podem vir do cidadão que cria a própria
 		// inscrição (mass assignment): são descartados, como no Update. O
-		// enrolled_unit é montado pelo serviço a partir da schedule_id validada.
+		// enrolled_unit é montado pelo serviço a partir da schedule_id validada;
+		// o id é gerado pelo banco e o curso é sempre o da URL.
+		inscricao.ID = uuid.Nil
+		inscricao.Curso = nil
 		inscricao.AdminNotes = ""
 		inscricao.CertificateURL = ""
 		inscricao.ConcludedAt = nil

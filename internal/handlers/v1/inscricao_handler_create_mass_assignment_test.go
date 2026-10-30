@@ -19,13 +19,17 @@ import (
 
 // TestInscricaoHandler_Create_InternalFields covers the mass assignment fix on
 // POST /courses/:courseId/enrollments (DEV-134): a citizen creating their own
-// enrollment cannot set admin_notes, certificate_url or concluded_at. Those are
-// dropped before the service call; admins and casa_civil keep them.
+// enrollment cannot set admin_notes, certificate_url, concluded_at, the id or a
+// nested curso. Those are dropped before the service call; admins and
+// casa_civil keep the internal fields.
 func TestInscricaoHandler_Create_InternalFields(t *testing.T) {
 	const citizenCPF = "12345678901"
 	scheduleID := uuid.New()
+	clientID := uuid.New()
 
 	body := map[string]interface{}{
+		"id":              clientID.String(),
+		"curso":           map[string]interface{}{"id": 999, "titulo": "Curso forjado"},
 		"name":            "Cidadão Teste",
 		"cpf":             citizenCPF,
 		"reason":          "Quero aprender",
@@ -97,6 +101,9 @@ func TestInscricaoHandler_Create_InternalFields(t *testing.T) {
 				assert.Empty(t, captured.AdminNotes)
 				assert.Empty(t, captured.CertificateURL)
 				assert.Nil(t, captured.ConcludedAt)
+				assert.Equal(t, uuid.Nil, captured.ID)
+				assert.Nil(t, captured.Curso)
+				assert.Equal(t, 1, captured.CursoID)
 			}
 		})
 	}
