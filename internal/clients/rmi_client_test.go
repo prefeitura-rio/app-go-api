@@ -1568,3 +1568,65 @@ func TestRMIClient_ErrorStatus_LargeBodyIsBounded(t *testing.T) {
 		t.Errorf("Error message should be bounded, got %d bytes", len(err.Error()))
 	}
 }
+
+// DEV-148: o CitizenSyncWorker precisa distinguir resultado de negócio esperado
+// (cidadão inexistente, CPF inválido) de falha de infraestrutura, sem depender
+// do texto do erro.
+func TestGetCitizenByCPF_NotFound_ReturnsErrCitizenNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	client := NewRMIClient(srv.URL, 5*time.Second, WithName(uniqueClientName(t, "citizen-404-")))
+	_, err := client.GetCitizenByCPF(context.Background(), "token", "00000000191")
+	if !errors.Is(err, ErrCitizenNotFound) {
+		t.Fatalf("Expected ErrCitizenNotFound, got %v", err)
+	}
+	if err.Error() != "citizen not found" {
+		t.Errorf("Expected message %q, got %q", "citizen not found", err.Error())
+	}
+}
+
+func TestGetCitizenByCPF_ErrorStatus_ExposesStatusCode(t *testing.T) {
+	tests := []struct {
+		name    string
+		status  int
+		body    string
+		wantMsg string
+	}{
+		{"400 CPF inválido", http.StatusBadRequest, `{"error":"Invalid CPF format"}`,
+			`RMI API returned status 400: {"error":"Invalid CPF format"}`},
+		{"500 sem corpo", http.StatusInternalServerError, "",
+			"RMI API returned status 500"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			client := NewRMIClient(srv.URL, 5*time.Second,
+				WithName(uniqueClientName(t, "citizen-status-")),
+				WithRetryBackoff(time.Millisecond, 2*time.Millisecond))
+			_, err := client.GetCitizenByCPF(context.Background(), "token", "00000000191")
+
+			var statusErr *RMIStatusError
+			if !errors.As(err, &statusErr) {
+				t.Fatalf("Expected *RMIStatusError, got %T: %v", err, err)
+			}
+			if statusErr.StatusCode != tt.status {
+				t.Errorf("Expected StatusCode %d, got %d", tt.status, statusErr.StatusCode)
+			}
+			if err.Error() != tt.wantMsg {
+				t.Errorf("Expected message %q, got %q", tt.wantMsg, err.Error())
+			}
+			if errors.Is(err, ErrCitizenNotFound) {
+				t.Errorf("Status %d must not be reported as ErrCitizenNotFound", tt.status)
+			}
+		})
+	}
+}
