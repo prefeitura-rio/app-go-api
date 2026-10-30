@@ -768,6 +768,31 @@ func enrolledUnitForSchedule(scheduleID uuid.UUID, curso *models.Curso) *models.
 	return nil
 }
 
+// scheduleClassStartDate returns the class start date of scheduleID in the
+// course (location or remote class), or nil when the course has no such
+// schedule or the schedule has no start date.
+func scheduleClassStartDate(scheduleID uuid.UUID, curso *models.Curso) *time.Time {
+	for _, location := range curso.LocationClasses {
+		for _, schedule := range location.Schedules {
+			if schedule.ID == scheduleID {
+				if schedule.ClassStartDate.IsZero() {
+					return nil
+				}
+				start := schedule.ClassStartDate
+				return &start
+			}
+		}
+	}
+	if curso.RemoteClass != nil {
+		for _, schedule := range curso.RemoteClass.Schedules {
+			if schedule.ID == scheduleID {
+				return schedule.ClassStartDate
+			}
+		}
+	}
+	return nil
+}
+
 func formatOptionalTime(t *time.Time) string {
 	if t == nil {
 		return ""
@@ -921,89 +946,51 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		return nil, fmt.Errorf("não é possível trocar de turma: este curso possui apenas uma turma disponível")
 	}
 
+	// The new turma comes only from a schedule_id of this enrollment's course.
+	// The enrolled_unit sent in the body is never read: it is rebuilt below from
+	// the course data, so a citizen cannot persist a unit, schedule or date that
+	// skipped validation (DEV-136, same rule as Create since DEV-134).
+	if request.ScheduleID == nil {
+		return nil, enrollmentRuleErrorf("não é possível trocar de turma: selecione a nova turma")
+	}
+	scheduleID := *request.ScheduleID
+
+	// Belongs to the course and is accepting enrollments. The turma's own
+	// enrollment window is not enforced here, as before: the citizen is already
+	// enrolled in the course.
+	if err := s.validateScheduleID(ctx, scheduleID, curso, false); err != nil {
+		return nil, err
+	}
+
 	// Get schedule deadline hours from config (default 48)
 	deadlineHours := 48
 	if s.cfg != nil && s.cfg.Enrollment.ScheduleChangeDeadlineHours > 0 {
 		deadlineHours = s.cfg.Enrollment.ScheduleChangeDeadlineHours
 	}
 
-	// Parse the new schedule start date from EnrolledUnit
-	if request.EnrolledUnit == nil || len(request.EnrolledUnit.Schedules) == 0 {
-		return nil, fmt.Errorf("enrolled_unit com schedules é obrigatório")
+	// Validate deadline against the real class start of the new schedule -
+	// must be at least X hours before class start
+	newScheduleStartDate := scheduleClassStartDate(scheduleID, curso)
+	if newScheduleStartDate == nil {
+		return nil, enrollmentRuleErrorf("não é possível trocar de turma: a turma não tem data de início definida")
 	}
-
-	// Get the class start date from the first schedule in EnrolledUnit
-	newScheduleStartDateStr := request.EnrolledUnit.Schedules[0].ClassStartDate
-	if newScheduleStartDateStr == "" {
-		return nil, fmt.Errorf("data de início da turma não informada")
-	}
-
-	// Parse the date (try common formats)
-	var newScheduleStartDate time.Time
-	formats := []string{"2006-01-02T15:04:05Z07:00", "2006-01-02T15:04:05Z", "2006-01-02", time.RFC3339}
-	for _, format := range formats {
-		if parsed, err := time.Parse(format, newScheduleStartDateStr); err == nil {
-			newScheduleStartDate = parsed
-			break
-		}
-	}
-	if newScheduleStartDate.IsZero() {
-		return nil, fmt.Errorf("formato de data de início inválido: %s", newScheduleStartDateStr)
-	}
-
-	// Validate deadline - must be at least X hours before class start
 	deadline := time.Now().Add(time.Duration(deadlineHours) * time.Hour)
 	if newScheduleStartDate.Before(deadline) {
 		return nil, fmt.Errorf("não é possível trocar de turma com menos de %d horas do início da aula", deadlineHours)
 	}
 
-	// Validate that the new schedule has available vacancies
-	if request.ScheduleID != nil {
-		scheduleIDs := []uuid.UUID{*request.ScheduleID}
-		enrollmentCounts, err := s.cursoRepo.CountEnrollmentsByScheduleIDs(ctx, scheduleIDs)
-		if err != nil {
-			return nil, fmt.Errorf("erro ao verificar vagas: %w", err)
-		}
-
-		// Get schedule info to check vacancies
-		schedule, err := s.cursoRepo.GetCourseScheduleByID(ctx, *request.ScheduleID)
-		if err != nil {
-			return nil, fmt.Errorf("erro ao buscar turma: %w", err)
-		}
-		if schedule == nil {
-			// Try remote schedule
-			remoteSchedule, err := s.cursoRepo.GetRemoteScheduleByID(ctx, *request.ScheduleID)
-			if err != nil {
-				return nil, fmt.Errorf("erro ao buscar turma remota: %w", err)
-			}
-			if remoteSchedule == nil {
-				return nil, fmt.Errorf("turma não encontrada")
-			}
-			if remoteSchedule.AcceptingEnrollments != nil && !*remoteSchedule.AcceptingEnrollments {
-				return nil, fmt.Errorf("esta turma não está aceitando inscrições no momento")
-			}
-			// Check vacancies for remote schedule
-			enrolledCount := enrollmentCounts[*request.ScheduleID]
-			if int(enrolledCount) >= remoteSchedule.Vacancies {
-				return nil, fmt.Errorf("não há vagas disponíveis nesta turma")
-			}
-		} else {
-			if schedule.AcceptingEnrollments != nil && !*schedule.AcceptingEnrollments {
-				return nil, fmt.Errorf("esta turma não está aceitando inscrições no momento")
-			}
-			// Check vacancies for course schedule
-			enrolledCount := enrollmentCounts[*request.ScheduleID]
-			if int(enrolledCount) >= schedule.Vacancies {
-				return nil, fmt.Errorf("não há vagas disponíveis nesta turma")
-			}
-		}
+	// Validate that the new schedule has available vacancies (limit from the course data)
+	enrollmentCounts, err := s.cursoRepo.CountEnrollmentsByScheduleIDs(ctx, []uuid.UUID{scheduleID})
+	if err != nil {
+		return nil, fmt.Errorf("erro ao verificar vagas: %w", err)
+	}
+	if int(enrollmentCounts[scheduleID]) >= s.findScheduleVacancies(scheduleID, curso) {
+		return nil, fmt.Errorf("não há vagas disponíveis nesta turma")
 	}
 
 	// Update schedule information
-	if request.ScheduleID != nil {
-		inscricao.ScheduleID = request.ScheduleID
-	}
-	inscricao.EnrolledUnit = request.EnrolledUnit
+	inscricao.ScheduleID = &scheduleID
+	inscricao.EnrolledUnit = enrolledUnitForSchedule(scheduleID, curso)
 	inscricao.UpdatedAt = time.Now()
 
 	// Save changes

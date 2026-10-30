@@ -16014,14 +16014,17 @@
         },
         "models.ScheduleChangeRequest": {
             "type": "object",
-            "required": [
-                "enrolled_unit"
-            ],
             "properties": {
                 "enrolled_unit": {
-                    "$ref": "#/definitions/models.EnrolledUnit"
+                    "description": "EnrolledUnit is accepted for compatibility with older clients and\nignored: the server builds the enrolled_unit from the course data.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.EnrolledUnit"
+                        }
+                    ]
                 },
                 "schedule_id": {
+                    "description": "ScheduleID is the new turma, of the enrollment's course. Required: the\nservice rejects the change without it.",
                     "type": "string"
                 }
             }
