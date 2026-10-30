@@ -138,6 +138,11 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		return ErrCPFJaInscrito
 	}
 
+	// The enrolled_unit is never taken from the request body: it is rebuilt below
+	// from the course data for the validated schedule_id, so a citizen cannot
+	// persist a unit or schedule that skipped validateScheduleID.
+	inscricao.EnrolledUnit = nil
+
 	// Validate schedule_id if provided
 	// Only load full course with schedules when schedule validation is needed
 	if inscricao.ScheduleID != nil {
@@ -152,6 +157,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, true); err != nil {
 			return err
 		}
+		inscricao.EnrolledUnit = enrolledUnitForSchedule(*inscricao.ScheduleID, curso)
 
 		// If auto-approve is enabled, check vacancy availability to prevent overbooking
 		// Note: This is an advisory check (COUNT then INSERT, no lock). In high-concurrency
@@ -691,6 +697,89 @@ func (s *InscricaoService) validateScheduleID(_ context.Context, scheduleID uuid
 	}
 
 	return enrollmentRuleErrorf("a turma selecionada não pertence a este curso")
+}
+
+// enrolledUnitForSchedule builds, from the course data, the enrolled_unit
+// snapshot of the location (or remote class) that holds scheduleID, with all of
+// its schedules. It returns nil when the course has no such schedule.
+func enrolledUnitForSchedule(scheduleID uuid.UUID, curso *models.Curso) *models.EnrolledUnit {
+	for _, location := range curso.LocationClasses {
+		for _, schedule := range location.Schedules {
+			if schedule.ID != scheduleID {
+				continue
+			}
+			schedules := make([]models.EnrolledUnitSchedule, 0, len(location.Schedules))
+			for _, sch := range location.Schedules {
+				schedules = append(schedules, models.EnrolledUnitSchedule{
+					ID:             sch.ID.String(),
+					LocationID:     location.ID.String(),
+					Vacancies:      sch.Vacancies,
+					ClassStartDate: sch.ClassStartDate.Format(time.RFC3339),
+					ClassEndDate:   sch.ClassEndDate.Format(time.RFC3339),
+					ClassTime:      sch.ClassTime,
+					ClassDays:      sch.ClassDays,
+					CreatedAt:      sch.CreatedAt.Format(time.RFC3339),
+					UpdatedAt:      sch.UpdatedAt.Format(time.RFC3339),
+				})
+			}
+			return &models.EnrolledUnit{
+				ID:               location.ID.String(),
+				CursoID:          curso.ID,
+				Address:          location.Address,
+				Neighborhood:     location.Neighborhood,
+				NeighborhoodZone: location.NeighborhoodZone,
+				Schedules:        schedules,
+				CreatedAt:        location.CreatedAt.Format(time.RFC3339),
+				UpdatedAt:        location.UpdatedAt.Format(time.RFC3339),
+			}
+		}
+	}
+
+	if curso.RemoteClass != nil {
+		remote := curso.RemoteClass
+		for _, schedule := range remote.Schedules {
+			if schedule.ID != scheduleID {
+				continue
+			}
+			schedules := make([]models.EnrolledUnitSchedule, 0, len(remote.Schedules))
+			for _, sch := range remote.Schedules {
+				schedules = append(schedules, models.EnrolledUnitSchedule{
+					ID:             sch.ID.String(),
+					LocationID:     remote.ID.String(),
+					Vacancies:      sch.Vacancies,
+					ClassStartDate: formatOptionalTime(sch.ClassStartDate),
+					ClassEndDate:   formatOptionalTime(sch.ClassEndDate),
+					ClassTime:      derefString(sch.ClassTime),
+					ClassDays:      derefString(sch.ClassDays),
+					CreatedAt:      sch.CreatedAt.Format(time.RFC3339),
+					UpdatedAt:      sch.UpdatedAt.Format(time.RFC3339),
+				})
+			}
+			return &models.EnrolledUnit{
+				ID:        remote.ID.String(),
+				CursoID:   curso.ID,
+				Schedules: schedules,
+				CreatedAt: remote.CreatedAt.Format(time.RFC3339),
+				UpdatedAt: remote.UpdatedAt.Format(time.RFC3339),
+			}
+		}
+	}
+
+	return nil
+}
+
+func formatOptionalTime(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.Format(time.RFC3339)
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // EnrichWithPersonalInfo populates PersonalInfo for a single enrollment
