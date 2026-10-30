@@ -1886,11 +1886,16 @@ definitions:
   models.ScheduleChangeRequest:
     properties:
       enrolled_unit:
-        $ref: '#/definitions/models.EnrolledUnit'
+        allOf:
+        - $ref: '#/definitions/models.EnrolledUnit'
+        description: |-
+          EnrolledUnit is accepted for compatibility with older clients and
+          ignored: the server builds the enrolled_unit from the course data.
       schedule_id:
+        description: |-
+          ScheduleID is the new turma, of the enrollment's course. Required: the
+          service rejects the change without it.
         type: string
-    required:
-    - enrolled_unit
     type: object
   models.SearchDocumentsResponse:
     properties:
