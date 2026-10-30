@@ -1033,7 +1033,11 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 	inscricao, err := h.service.ChangeSchedule(c.Request.Context(), enrollmentID, userCPF, &request)
 	if err != nil {
 		errMsg := err.Error()
+		var ruleErr *services.EnrollmentRuleError
 		switch {
+		case errors.As(err, &ruleErr):
+			// Turma de outro curso, fechada ou sem schedule_id: o cidadão resolve.
+			response.Error(c, http.StatusBadRequest, ruleErr.Error())
 		case errMsg == "inscrição não encontrada":
 			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
 		case errMsg == "você só pode alterar suas próprias inscrições":

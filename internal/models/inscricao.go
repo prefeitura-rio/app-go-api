@@ -253,6 +253,10 @@ type InscricaoUpdateRequest struct {
 }
 
 type ScheduleChangeRequest struct {
-	ScheduleID   *uuid.UUID    `json:"schedule_id"`
-	EnrolledUnit *EnrolledUnit `json:"enrolled_unit" binding:"required"`
+	// ScheduleID is the new turma, of the enrollment's course. Required: the
+	// service rejects the change without it.
+	ScheduleID *uuid.UUID `json:"schedule_id"`
+	// EnrolledUnit is accepted for compatibility with older clients and
+	// ignored: the server builds the enrolled_unit from the course data.
+	EnrolledUnit *EnrolledUnit `json:"enrolled_unit,omitempty"`
 }
