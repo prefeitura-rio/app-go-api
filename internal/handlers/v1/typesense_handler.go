@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -138,20 +139,25 @@ func (h *TypesenseHandler) SearchMultiCollection(c *gin.Context) {
 
 // SearchDocuments busca documentos em uma coleção específica
 // @Summary      Buscar documentos em uma coleção
-// @Description  Busca documentos em uma coleção
+// @Description  Busca documentos em uma coleção pública. Só as coleções cursos e empregos são aceitas; qualquer outro nome responde 404.
 // @Tags         search
 // @Accept       json
 // @Produce      json
-// @Param        collection  path      string                 true  "Nome da coleção"
+// @Param        collection  path      string                 true  "Nome da coleção" Enums(cursos, empregos)
 // @Param        params      body      models.SearchParameters true  "Parâmetros de busca"
 // @Success      200         {object}  models.SearchDocumentsResponse
 // @Failure      400         {object}  models.ErrorResponse
+// @Failure      404         {object}  models.ErrorResponse
 // @Failure      500         {object}  models.ErrorResponse
 // @Router       /api/v1/typesense/collections/{collection}/documents/search [post]
 func (h *TypesenseHandler) SearchDocuments(c *gin.Context) {
 	collectionName := c.Param("collection")
 	if collectionName == "" {
 		handleError(c, http.StatusBadRequest, "Nome da coleção é obrigatório", nil)
+		return
+	}
+	if !services.IsSearchableCollection(collectionName) {
+		handleError(c, http.StatusNotFound, "Coleção não encontrada", nil)
 		return
 	}
 
@@ -162,6 +168,10 @@ func (h *TypesenseHandler) SearchDocuments(c *gin.Context) {
 	}
 
 	results, err := h.service.SearchDocuments(c.Request.Context(), collectionName, params)
+	if errors.Is(err, services.ErrCollectionNotAllowed) {
+		handleError(c, http.StatusNotFound, "Coleção não encontrada", nil)
+		return
+	}
 	if err != nil {
 		handleError(c, http.StatusInternalServerError, "Erro ao buscar documentos", err)
 		return

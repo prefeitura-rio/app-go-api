@@ -13055,7 +13055,7 @@ const docTemplate = `{
         },
         "/api/v1/typesense/collections/{collection}/documents/search": {
             "post": {
-                "description": "Busca documentos em uma coleção",
+                "description": "Busca documentos em uma coleção pública. Só as coleções cursos e empregos são aceitas; qualquer outro nome responde 404.",
                 "consumes": [
                     "application/json"
                 ],
@@ -13068,6 +13068,10 @@ const docTemplate = `{
                 "summary": "Buscar documentos em uma coleção",
                 "parameters": [
                     {
+                        "enum": [
+                            "cursos",
+                            "empregos"
+                        ],
                         "type": "string",
                         "description": "Nome da coleção",
                         "name": "collection",
@@ -13093,6 +13097,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }

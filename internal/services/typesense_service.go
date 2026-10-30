@@ -13,6 +13,29 @@ import (
 	"github.com/typesense/typesense-go/v3/typesense/api"
 )
 
+// Coleções do Typesense abertas à busca pública.
+const (
+	CollectionCursos   = "cursos"
+	CollectionEmpregos = "empregos"
+)
+
+// ErrCollectionNotAllowed indica uma coleção fora da allowlist de busca pública.
+var ErrCollectionNotAllowed = errors.New("coleção não disponível para busca")
+
+// searchableCollections é a allowlist fixa das coleções que a API consulta.
+// Qualquer outra coleção da mesma instância do Typesense fica inacessível.
+var searchableCollections = map[string]struct{}{
+	CollectionCursos:   {},
+	CollectionEmpregos: {},
+}
+
+// IsSearchableCollection informa se a coleção está na allowlist de busca
+// pública. A comparação é exata (sem normalizar caixa nem espaços).
+func IsSearchableCollection(name string) bool {
+	_, ok := searchableCollections[name]
+	return ok
+}
+
 // TypesenseServiceInterface define os métodos do serviço de busca Typesense
 type TypesenseServiceInterface interface {
 	SearchCursos(ctx context.Context, params models.CursoSearchParameters) (*models.SearchDocumentsResponse, error)
@@ -67,7 +90,7 @@ func (s *TypesenseService) SearchCursos(ctx context.Context, params models.Curso
 	searchParams := params.ToSearchParameters()
 
 	// Executar busca na collection de cursos
-	response, err := s.SearchDocuments(ctx, "cursos", searchParams)
+	response, err := s.SearchDocuments(ctx, CollectionCursos, searchParams)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao buscar cursos: %w", err)
 	}
@@ -103,7 +126,7 @@ func (s *TypesenseService) SearchEmpregos(ctx context.Context, params models.Emp
 	searchParams := params.ToSearchParameters()
 
 	// Executar busca na collection de empregos
-	response, err := s.SearchDocuments(ctx, "empregos", searchParams)
+	response, err := s.SearchDocuments(ctx, CollectionEmpregos, searchParams)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao buscar empregos: %w", err)
 	}
@@ -133,8 +156,13 @@ func (s *TypesenseService) SearchEmpregos(ctx context.Context, params models.Emp
 	return response, nil
 }
 
-// SearchDocuments busca documentos em uma coleção
+// SearchDocuments busca documentos em uma coleção da allowlist de busca
+// pública; qualquer outra devolve ErrCollectionNotAllowed sem consultar o Typesense.
 func (s *TypesenseService) SearchDocuments(ctx context.Context, collectionName string, params models.SearchParameters) (*models.SearchDocumentsResponse, error) {
+	if !IsSearchableCollection(collectionName) {
+		return nil, ErrCollectionNotAllowed
+	}
+
 	// Converte os valores para ponteiros quando necessário
 	q := params.Q
 	queryBy := params.QueryBy
