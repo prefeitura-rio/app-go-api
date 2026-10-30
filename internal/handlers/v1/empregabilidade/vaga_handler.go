@@ -202,6 +202,7 @@ func (h *VagaHandler) List(c *gin.Context) {
 // @Param        id   path      string  true  "ID da vaga"
 // @Success      200  {object}  empregabilidade.Vaga
 // @Failure      400  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas/{id} [get]

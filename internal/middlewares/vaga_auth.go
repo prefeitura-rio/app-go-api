@@ -138,9 +138,13 @@ func GetVagaAllowedOrgaos(c *gin.Context) []string {
 	return nil
 }
 
-// VagaOwnershipInfo carries the vaga fields VagaOwnershipCheck needs.
+// VagaOwnershipInfo carries the vaga fields VagaOwnershipCheck and
+// VagaReadOwnershipCheck need.
 type VagaOwnershipInfo struct {
 	OrgaoParceiroID string
+	// Published é true quando a vaga já foi publicada (qualquer estado
+	// pós-publicação). Só VagaReadOwnershipCheck o considera.
+	Published bool
 }
 
 // VagaLoaderFunc loads ownership info for a vaga. Returns nil when the vaga does
@@ -159,6 +163,19 @@ type VagaLoaderFunc func(ctx context.Context, id uuid.UUID) (*VagaOwnershipInfo,
 // como os demais de autorização de vaga/curso, só roda quando RBAC_ENABLED=true
 // (ver routes_emp.go / rbacMiddleware).
 func VagaOwnershipCheck(loader VagaLoaderFunc) gin.HandlerFunc {
+	return vagaOwnershipCheck(loader, false)
+}
+
+// VagaReadOwnershipCheck protege a leitura de uma vaga pelo ID (GET /vagas/:id),
+// depois de VagaAuthorization. Vaga já publicada é visível a qualquer chamador
+// que chegou até aqui (o mesmo conteúdo já é público). Vaga ainda não publicada
+// (em edição ou em aprovação) segue a regra de VagaOwnershipCheck: admin /
+// go:empregabilidade:admin, ou editor cujo escopo contém o órgão parceiro.
+func VagaReadOwnershipCheck(loader VagaLoaderFunc) gin.HandlerFunc {
+	return vagaOwnershipCheck(loader, true)
+}
+
+func vagaOwnershipCheck(loader VagaLoaderFunc, allowPublished bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if IsAdmin(c) || HasRole(c, "go:empregabilidade:admin") {
 			c.Next()
@@ -181,6 +198,11 @@ func VagaOwnershipCheck(loader VagaLoaderFunc) gin.HandlerFunc {
 		if info == nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
 			c.Abort()
+			return
+		}
+
+		if allowPublished && info.Published {
+			c.Next()
 			return
 		}
 

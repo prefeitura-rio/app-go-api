@@ -605,3 +605,74 @@ func TestVagaOwnershipCheck_LoaderError(t *testing.T) {
 		vagaLoaderStub("", false, errors.New("boom")), ownershipVagaUUID)
 	assert.Equal(t, http.StatusInternalServerError, code)
 }
+
+// --- VagaReadOwnershipCheck (GET /vagas/:id, DEV-135) ---
+
+func readLoaderStub(orgaoID string, published bool) middlewares.VagaLoaderFunc {
+	return func(_ context.Context, _ uuid.UUID) (*middlewares.VagaOwnershipInfo, error) {
+		return &middlewares.VagaOwnershipInfo{OrgaoParceiroID: orgaoID, Published: published}, nil
+	}
+}
+
+func runVagaReadOwnership(inject gin.HandlerFunc, loader middlewares.VagaLoaderFunc, id string) int {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	if inject != nil {
+		r.Use(inject)
+	}
+	r.GET("/vagas/:id", middlewares.VagaReadOwnershipCheck(loader),
+		func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/vagas/"+id, nil))
+	return w.Code
+}
+
+func TestVagaReadOwnershipCheck(t *testing.T) {
+	tests := []struct {
+		name   string
+		inject gin.HandlerFunc
+		loader middlewares.VagaLoaderFunc
+		id     string
+		want   int
+	}{
+		{"admin vê vaga não publicada de outro órgão", injectAdminRole(),
+			readLoaderStub("orgao-b", false), ownershipVagaUUID, http.StatusOK},
+		{"emp admin vê vaga não publicada de outro órgão", injectVagaRoles("go:empregabilidade:admin", "", nil),
+			readLoaderStub("orgao-b", false), ownershipVagaUUID, http.StatusOK},
+		{"editor vê vaga não publicada do próprio órgão", injectVagaRoles("go:empregabilidade:editor", "orgao-a", nil),
+			readLoaderStub("orgao-a", false), ownershipVagaUUID, http.StatusOK},
+		{"editor vê vaga não publicada da própria secretaria", injectVagaRoles("go:empregabilidade:editor_sem_curadoria", "", []string{"orgao-x", "orgao-a"}),
+			readLoaderStub("orgao-a", false), ownershipVagaUUID, http.StatusOK},
+		{"editor não vê vaga não publicada de outro órgão", injectVagaRoles("go:empregabilidade:editor_com_curadoria", "orgao-a", nil),
+			readLoaderStub("orgao-b", false), ownershipVagaUUID, http.StatusForbidden},
+		{"editor sem escopo não vê vaga não publicada", injectVagaRoles("go:empregabilidade:editor", "", nil),
+			readLoaderStub("orgao-a", false), ownershipVagaUUID, http.StatusForbidden},
+		{"sem role não vê vaga não publicada", injectVagaRoles("", "orgao-a", nil),
+			readLoaderStub("orgao-a", false), ownershipVagaUUID, http.StatusForbidden},
+		{"role de outro módulo não vê vaga não publicada", injectVagaRoles("go:cursos:editor", "orgao-a", nil),
+			readLoaderStub("orgao-a", false), ownershipVagaUUID, http.StatusForbidden},
+		{"editor vê vaga publicada de outro órgão", injectVagaRoles("go:empregabilidade:editor", "orgao-a", nil),
+			readLoaderStub("orgao-b", true), ownershipVagaUUID, http.StatusOK},
+		{"vaga inexistente", injectVagaRoles("go:empregabilidade:editor", "orgao-a", nil),
+			vagaLoaderStub("", true, nil), ownershipVagaUUID, http.StatusNotFound},
+		{"id inválido", injectVagaRoles("go:empregabilidade:editor", "orgao-a", nil),
+			readLoaderStub("orgao-a", false), "not-a-uuid", http.StatusBadRequest},
+		{"erro ao carregar", injectVagaRoles("go:empregabilidade:editor", "orgao-a", nil),
+			vagaLoaderStub("", false, errors.New("boom")), ownershipVagaUUID, http.StatusInternalServerError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, runVagaReadOwnership(tt.inject, tt.loader, tt.id))
+		})
+	}
+}
+
+// A checagem de escrita continua sem exceção para vaga publicada: o editor de
+// outro órgão não altera vaga publicada só porque pode lê-la.
+func TestVagaOwnershipCheck_Editor_CrossOrgPublished_Forbidden(t *testing.T) {
+	code := runVagaOwnership(injectVagaRoles("go:empregabilidade:editor", "orgao-a", nil),
+		readLoaderStub("orgao-b", true), ownershipVagaUUID)
+	assert.Equal(t, http.StatusForbidden, code)
+}
