@@ -22,7 +22,27 @@ var (
 	ErrCNPJNotFound     = errors.New("CNPJ não encontrado")
 	ErrCNPJAccessDenied = errors.New("acesso negado ao CNPJ")
 	ErrInvalidCNPJ      = errors.New("CNPJ inválido")
+
+	// ErrCitizenNotFound is returned by GetCitizenByCPF when the RMI answers 404
+	// for the CPF: an expected business result, not an infrastructure failure.
+	ErrCitizenNotFound = errors.New("citizen not found")
 )
+
+// RMIStatusError is the error for a non-OK RMI response. Snippet is the
+// sanitized excerpt of the response body (see sanitizeRMIErrorBody), empty when
+// nothing of it is safe to keep. Callers use StatusCode to tell a rejected
+// input (4xx) from an RMI failure (5xx) without parsing the message.
+type RMIStatusError struct {
+	StatusCode int
+	Snippet    string
+}
+
+func (e *RMIStatusError) Error() string {
+	if e.Snippet != "" {
+		return fmt.Sprintf("RMI API returned status %d: %s", e.StatusCode, e.Snippet)
+	}
+	return fmt.Sprintf("RMI API returned status %d", e.StatusCode)
+}
 
 const (
 	maxLegalEntities = 1000 // Safety limit to prevent infinite loops
@@ -325,7 +345,7 @@ func (c *RMIClient) GetCitizenByCPF(ctx context.Context, serviceToken string, cp
 	}()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("citizen not found")
+		return nil, ErrCitizenNotFound
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -415,10 +435,7 @@ var (
 // sanitized excerpt of the body goes into the message (see sanitizeRMIErrorBody).
 func rmiStatusError(resp *http.Response) error {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, rmiErrorBodyDrainLimit))
-	if snippet := sanitizeRMIErrorBody(body); snippet != "" {
-		return fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, snippet)
-	}
-	return fmt.Errorf("RMI API returned status %d", resp.StatusCode)
+	return &RMIStatusError{StatusCode: resp.StatusCode, Snippet: sanitizeRMIErrorBody(body)}
 }
 
 // sanitizeRMIErrorBody returns a single-line excerpt of an RMI error body that
