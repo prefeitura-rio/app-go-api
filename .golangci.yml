@@ -38,12 +38,24 @@ linters:
         - G505
 
   exclusions:
-    paths:
-      - _test\.go$
+    # Test files are excluded per linter (not via `paths`, which would also
+    # hide the formatters below) so gofmt/goimports still check them.
     rules:
       - path: _test\.go$
         linters:
           - errcheck
+          - govet
+          - sqlclosecheck
+          - rowserrcheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+  settings:
+    gofmt:
+      simplify: true
 
 issues:
   max-issues-per-linter: 50

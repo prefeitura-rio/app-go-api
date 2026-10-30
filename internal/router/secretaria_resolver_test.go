@@ -8,10 +8,10 @@ import (
 
 func TestMergeSecretariaOrgaoIDs(t *testing.T) {
 	tests := []struct {
-		name              string
-		snapshotOrgaoIDs  []string
-		cdUAs             []string
-		want              []string
+		name             string
+		snapshotOrgaoIDs []string
+		cdUAs            []string
+		want             []string
 	}{
 		{
 			name:             "cd_ua without snapshot is included (SEIM case)",
