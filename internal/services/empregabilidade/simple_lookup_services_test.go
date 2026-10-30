@@ -69,8 +69,8 @@ func (m *MockEtapaRepository) Update(ctx context.Context, entity *empregabilidad
 	return args.Error(0)
 }
 
-func (m *MockEtapaRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	args := m.Called(ctx, id)
+func (m *MockEtapaRepository) Delete(ctx context.Context, vagaID, id uuid.UUID) error {
+	args := m.Called(ctx, vagaID, id)
 	return args.Error(0)
 }
 
@@ -278,14 +278,17 @@ func TestEtapaService_DeleteByVaga(t *testing.T) {
 
 func TestEtapaService_Delete(t *testing.T) {
 	id := uuid.New()
+	vagaID := uuid.New()
 
 	mockRepo := new(MockEtapaRepository)
-	mockRepo.On("Delete", mock.Anything, id).Return(nil)
+	mockRepo.On("GetByID", mock.Anything, id).Return(&empregabilidade.Etapa{ID: id, IDVaga: vagaID}, nil)
+	mockRepo.On("Delete", mock.Anything, vagaID, id).Return(nil)
 
 	service := NewEtapaServiceWithInterface(mockRepo)
-	err := service.Delete(context.Background(), id)
+	err := service.Delete(context.Background(), vagaID, id)
 
 	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
 }
 
 // OnboardingService Tests

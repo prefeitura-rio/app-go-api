@@ -12,7 +12,9 @@ import (
 )
 
 type mockEtapaRepository struct {
-	items []*empregabilidade.Etapa
+	items   []*empregabilidade.Etapa
+	updated []*empregabilidade.Etapa
+	deleted []uuid.UUID
 }
 
 func (m *mockEtapaRepository) Create(ctx context.Context, entity *empregabilidade.Etapa) (uuid.UUID, error) {
@@ -29,10 +31,12 @@ func (m *mockEtapaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empre
 }
 
 func (m *mockEtapaRepository) Update(ctx context.Context, entity *empregabilidade.Etapa) error {
+	m.updated = append(m.updated, entity)
 	return nil
 }
 
-func (m *mockEtapaRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (m *mockEtapaRepository) Delete(ctx context.Context, vagaID, id uuid.UUID) error {
+	m.deleted = append(m.deleted, id)
 	return nil
 }
 
@@ -86,4 +90,77 @@ func TestEtapaService_ListByVaga(t *testing.T) {
 	assert.Len(t, items, 2)
 	assert.Equal(t, "Entrevista", items[0].Titulo)
 	assert.Equal(t, "Teste Técnico", items[1].Titulo)
+}
+
+// Update e Delete só agem sobre etapa da vaga informada (DEV-139).
+func TestEtapaService_Update_EscopoDaVaga(t *testing.T) {
+	vagaA := uuid.New()
+	vagaB := uuid.New()
+	etapaA := uuid.New()
+	etapaB := uuid.New()
+
+	tests := []struct {
+		name      string
+		entity    *empregabilidade.Etapa
+		wantErr   error
+		wantSaved bool
+	}{
+		{"etapa da vaga do path", &empregabilidade.Etapa{ID: etapaA, IDVaga: vagaA, Titulo: "Nova"}, nil, true},
+		{"etapa de outra vaga", &empregabilidade.Etapa{ID: etapaB, IDVaga: vagaA, Titulo: "Movida"}, services.ErrEtapaNaoEncontrada, false},
+		{"etapa inexistente", &empregabilidade.Etapa{ID: uuid.New(), IDVaga: vagaA, Titulo: "Nova"}, services.ErrEtapaNaoEncontrada, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockEtapaRepository{items: []*empregabilidade.Etapa{
+				{ID: etapaA, IDVaga: vagaA, Titulo: "Triagem"},
+				{ID: etapaB, IDVaga: vagaB, Titulo: "Entrevista"},
+			}}
+			service := services.NewEtapaServiceWithInterface(mockRepo)
+
+			err := service.Update(context.Background(), tt.entity)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantSaved, len(mockRepo.updated) == 1)
+		})
+	}
+}
+
+func TestEtapaService_Delete_EscopoDaVaga(t *testing.T) {
+	vagaA := uuid.New()
+	vagaB := uuid.New()
+	etapaA := uuid.New()
+	etapaB := uuid.New()
+
+	tests := []struct {
+		name        string
+		etapaID     uuid.UUID
+		wantErr     error
+		wantDeleted bool
+	}{
+		{"etapa da vaga do path", etapaA, nil, true},
+		{"etapa de outra vaga", etapaB, services.ErrEtapaNaoEncontrada, false},
+		{"etapa inexistente", uuid.New(), services.ErrEtapaNaoEncontrada, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockEtapaRepository{items: []*empregabilidade.Etapa{
+				{ID: etapaA, IDVaga: vagaA, Titulo: "Triagem"},
+				{ID: etapaB, IDVaga: vagaB, Titulo: "Entrevista"},
+			}}
+			service := services.NewEtapaServiceWithInterface(mockRepo)
+
+			err := service.Delete(context.Background(), vagaA, tt.etapaID)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantDeleted, len(mockRepo.deleted) == 1)
+		})
+	}
 }

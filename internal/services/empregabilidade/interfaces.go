@@ -119,7 +119,7 @@ type EtapaRepositoryInterface interface {
 	Create(ctx context.Context, entity *empregabilidade.Etapa) (uuid.UUID, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Etapa, error)
 	Update(ctx context.Context, entity *empregabilidade.Etapa) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, vagaID, id uuid.UUID) error
 	ListByVaga(ctx context.Context, vagaID uuid.UUID) ([]*empregabilidade.Etapa, error)
 	DeleteByVaga(ctx context.Context, vagaID uuid.UUID) error
 }

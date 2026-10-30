@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -9,6 +10,10 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
+
+// ErrEtapaNaoEncontrada indica que não há etapa com o id informado na vaga
+// informada (inexistente ou pertencente a outra vaga).
+var ErrEtapaNaoEncontrada = errors.New("etapa não encontrada")
 
 type EtapaRepository struct {
 	db *gorm.DB
@@ -38,18 +43,35 @@ func (r *EtapaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empregabi
 	return &entity, nil
 }
 
+// Update grava título, descrição e ordem da etapa entity.ID somente se ela
+// pertence à vaga entity.IDVaga. Não cria etapa (sem upsert) nem muda a vaga
+// dona; sem linha afetada devolve ErrEtapaNaoEncontrada.
 func (r *EtapaRepository) Update(ctx context.Context, entity *empregabilidade.Etapa) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).
+		Model(&empregabilidade.Etapa{}).
+		Where("id = ? AND id_vaga = ?", entity.ID, entity.IDVaga).
+		Select("titulo", "descricao", "ordem", "updated_at").
+		Updates(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar etapa: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return ErrEtapaNaoEncontrada
 	}
 	return nil
 }
 
-func (r *EtapaRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	result := r.db.WithContext(ctx).Delete(&empregabilidade.Etapa{}, "id = ?", id)
+// Delete exclui a etapa id somente se ela pertence à vaga vagaID; sem linha
+// afetada devolve ErrEtapaNaoEncontrada.
+func (r *EtapaRepository) Delete(ctx context.Context, vagaID, id uuid.UUID) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND id_vaga = ?", id, vagaID).
+		Delete(&empregabilidade.Etapa{})
 	if result.Error != nil {
 		return fmt.Errorf("erro ao excluir etapa: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return ErrEtapaNaoEncontrada
 	}
 	return nil
 }

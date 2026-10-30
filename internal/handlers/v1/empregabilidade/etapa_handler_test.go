@@ -21,6 +21,8 @@ type mockEtapaRepoH struct {
 	entity    *empmodels.Etapa
 	listItems []*empmodels.Etapa
 	err       error
+	updated   bool
+	deleted   bool
 }
 
 func (m *mockEtapaRepoH) Create(_ context.Context, e *empmodels.Etapa) (uuid.UUID, error) {
@@ -35,10 +37,12 @@ func (m *mockEtapaRepoH) GetByID(_ context.Context, _ uuid.UUID) (*empmodels.Eta
 }
 
 func (m *mockEtapaRepoH) Update(_ context.Context, _ *empmodels.Etapa) error {
+	m.updated = true
 	return m.err
 }
 
-func (m *mockEtapaRepoH) Delete(_ context.Context, _ uuid.UUID) error {
+func (m *mockEtapaRepoH) Delete(_ context.Context, _, _ uuid.UUID) error {
+	m.deleted = true
 	return m.err
 }
 
@@ -249,7 +253,8 @@ func TestEtapaHandler_GetByID_ServiceError(t *testing.T) {
 }
 
 func TestEtapaHandler_Update_Success(t *testing.T) {
-	repo := &mockEtapaRepoH{}
+	id := uuid.MustParse(validUUID)
+	repo := &mockEtapaRepoH{entity: &empmodels.Etapa{ID: id, IDVaga: id, Titulo: "Triagem"}}
 	r := setupEtapaRouter(repo)
 	body := bodyOf(`{"nome":"Etapa Final"}`)
 	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/etapas/"+validUUID, body)
@@ -301,7 +306,8 @@ func TestEtapaHandler_Update_ServiceError(t *testing.T) {
 }
 
 func TestEtapaHandler_Delete_Success(t *testing.T) {
-	repo := &mockEtapaRepoH{}
+	id := uuid.MustParse(validUUID)
+	repo := &mockEtapaRepoH{entity: &empmodels.Etapa{ID: id, IDVaga: id, Titulo: "Triagem"}}
 	r := setupEtapaRouter(repo)
 	req := httptest.NewRequest(http.MethodDelete, "/vagas/"+validUUID+"/etapas/"+validUUID, nil)
 	w := httptest.NewRecorder()
@@ -330,5 +336,86 @@ func TestEtapaHandler_Delete_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", w.Code)
+	}
+}
+
+// PUT e DELETE só agem sobre etapa da vaga do path (DEV-139): a autorização da
+// rota é feita sobre a vaga do path, então etapa de outra vaga responde 404 e
+// nada é gravado.
+func TestEtapaHandler_Update_EtapaDeOutraVaga_NotFound(t *testing.T) {
+	etapaID := uuid.MustParse(validUUID)
+	outraVaga := uuid.MustParse("99999999-9999-4999-8999-999999999999")
+	repo := &mockEtapaRepoH{entity: &empmodels.Etapa{ID: etapaID, IDVaga: outraVaga, Titulo: "Triagem"}}
+	r := setupEtapaRouter(repo)
+	body := bodyOf(`{"titulo":"Movida"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/etapas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+	if repo.updated {
+		t.Error("etapa de outra vaga não pode ser gravada")
+	}
+}
+
+func TestEtapaHandler_Update_EtapaInexistente_NotFound(t *testing.T) {
+	repo := &mockEtapaRepoH{entity: nil}
+	r := setupEtapaRouter(repo)
+	body := bodyOf(`{"titulo":"Nova"}`)
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/etapas/"+validUUID, body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+	if repo.updated {
+		t.Error("etapa inexistente não pode ser criada pelo PUT")
+	}
+}
+
+func TestEtapaHandler_Delete_EtapaDeOutraVaga_NotFound(t *testing.T) {
+	etapaID := uuid.MustParse(validUUID)
+	outraVaga := uuid.MustParse("99999999-9999-4999-8999-999999999999")
+	repo := &mockEtapaRepoH{entity: &empmodels.Etapa{ID: etapaID, IDVaga: outraVaga, Titulo: "Triagem"}}
+	r := setupEtapaRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/vagas/"+validUUID+"/etapas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+	if repo.deleted {
+		t.Error("etapa de outra vaga não pode ser excluída")
+	}
+}
+
+func TestEtapaHandler_Delete_EtapaInexistente_NotFound(t *testing.T) {
+	repo := &mockEtapaRepoH{entity: nil}
+	r := setupEtapaRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/vagas/"+validUUID+"/etapas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+	if repo.deleted {
+		t.Error("nada deve ser excluído para etapa inexistente")
+	}
+}
+
+func TestEtapaHandler_Delete_InvalidVagaID(t *testing.T) {
+	repo := &mockEtapaRepoH{}
+	r := setupEtapaRouter(repo)
+	req := httptest.NewRequest(http.MethodDelete, "/vagas/bad-id/etapas/"+validUUID, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+	if repo.deleted {
+		t.Error("nada deve ser excluído com ID de vaga inválido")
 	}
 }
