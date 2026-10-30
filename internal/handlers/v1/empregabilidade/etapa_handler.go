@@ -61,6 +61,8 @@ func (h *EtapaHandler) Create(c *gin.Context) {
 // @Param        id       path      string  true  "ID da vaga"
 // @Success      200      {object}  map[string]interface{}
 // @Failure      400      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
+// @Failure      404      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas/{id}/etapas [get]
 func (h *EtapaHandler) ListByVaga(c *gin.Context) {
@@ -87,10 +89,17 @@ func (h *EtapaHandler) ListByVaga(c *gin.Context) {
 // @Param        etapaId  path      string  true  "ID da etapa"
 // @Success      200      {object}  empregabilidade.Etapa
 // @Failure      400      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
 // @Failure      404      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas/{id}/etapas/{etapaId} [get]
 func (h *EtapaHandler) GetByID(c *gin.Context) {
+	vagaID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da vaga inválido"})
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("etapaId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
@@ -103,7 +112,7 @@ func (h *EtapaHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	if entity == nil {
+	if entity == nil || entity.IDVaga != vagaID {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Etapa não encontrada"})
 		return
 	}
