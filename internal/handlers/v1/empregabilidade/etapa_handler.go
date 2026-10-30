@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -130,6 +131,7 @@ func (h *EtapaHandler) GetByID(c *gin.Context) {
 // @Param        request  body      empregabilidade.Etapa  true  "Dados da etapa"
 // @Success      200      {object}  empregabilidade.Etapa
 // @Failure      400      {object}  map[string]string
+// @Failure      404      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas/{id}/etapas/{etapaId} [put]
 func (h *EtapaHandler) Update(c *gin.Context) {
@@ -155,7 +157,7 @@ func (h *EtapaHandler) Update(c *gin.Context) {
 	entity.IDVaga = vagaID
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		handleEtapaWriteError(c, err)
 		return
 	}
 
@@ -170,19 +172,37 @@ func (h *EtapaHandler) Update(c *gin.Context) {
 // @Param        etapaId  path      string  true  "ID da etapa"
 // @Success      200      {object}  map[string]string
 // @Failure      400      {object}  map[string]string
+// @Failure      404      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas/{id}/etapas/{etapaId} [delete]
 func (h *EtapaHandler) Delete(c *gin.Context) {
+	vagaID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da vaga inválido"})
+		return
+	}
+
 	etapaID, err := uuid.Parse(c.Param("etapaId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
 		return
 	}
 
-	if err := h.service.Delete(c.Request.Context(), etapaID); err != nil {
-		handleLookupError(c, err)
+	if err := h.service.Delete(c.Request.Context(), vagaID, etapaID); err != nil {
+		handleEtapaWriteError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Etapa excluída com sucesso"})
+}
+
+// handleEtapaWriteError responde 404 quando a etapa não existe na vaga do path
+// (a autorização da rota vale só para essa vaga) e delega o resto a
+// handleLookupError.
+func handleEtapaWriteError(c *gin.Context, err error) {
+	if errors.Is(err, services.ErrEtapaNaoEncontrada) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Etapa não encontrada"})
+		return
+	}
+	handleLookupError(c, err)
 }
