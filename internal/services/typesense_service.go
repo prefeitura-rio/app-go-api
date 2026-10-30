@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -43,6 +44,14 @@ type TypesenseServiceInterface interface {
 	SearchMultiCollection(ctx context.Context, params models.MultiCollectionSearchParameters) (*models.MultiCollectionSearchResponse, error)
 }
 
+// multiSearchCollectionErrorMessage é o que o chamador vê no lugar do erro de
+// uma coleção que falhou na busca múltipla. O erro real (host, porta, causa)
+// vai só para o log, como em handleError (DEV-144).
+const multiSearchCollectionErrorMessage = "Erro ao buscar documentos"
+
+// errMultiSearchAllFailed é devolvido quando nenhuma coleção pedida respondeu.
+var errMultiSearchAllFailed = errors.New("erro ao buscar documentos em todas as coleções")
+
 // TypesenseService fornece operações de busca no Typesense
 type TypesenseService struct {
 	client *typesense.Client
@@ -67,6 +76,12 @@ func NewTypesenseService() (*TypesenseService, error) {
 	return &TypesenseService{
 		client: client,
 	}, nil
+}
+
+// NewTypesenseServiceWithClient cria um TypesenseService com um cliente já
+// configurado (usado em testes com um Typesense falso).
+func NewTypesenseServiceWithClient(client *typesense.Client) *TypesenseService {
+	return &TypesenseService{client: client}
 }
 
 // SearchCursos busca cursos usando parâmetros específicos e otimizados para a estrutura aninhada
@@ -249,19 +264,22 @@ func (s *TypesenseService) SearchMultiCollection(ctx context.Context, params mod
 
 	// Contador de total de documentos encontrados em todas as coleções
 	totalFound := 0
+	// Quantas coleções responderam sem erro
+	succeeded := 0
 
 	// Busca em cada coleção
 	for _, collectionName := range params.Collections {
 		// Executa a busca na coleção atual
 		result, err := s.SearchDocuments(ctx, collectionName, params.Params)
 		if err != nil {
-			// Se houver erro em uma coleção, continua com as próximas
-			// mas registra o erro nos resultados
+			// Se houver erro em uma coleção, continua com as próximas. O erro
+			// real vai para o log; o chamador vê só a mensagem genérica.
+			log.Printf("[TypesenseService] busca múltipla: erro na coleção %q: %v", collectionName, err)
 			response.Results[collectionName] = models.SearchDocumentsResponse{
 				Found: 0,
 				Hits:  []map[string]interface{}{},
 				RequestParams: map[string]interface{}{
-					"error": err.Error(),
+					"error": multiSearchCollectionErrorMessage,
 				},
 			}
 			continue
@@ -269,9 +287,16 @@ func (s *TypesenseService) SearchMultiCollection(ctx context.Context, params mod
 
 		// Adiciona resultado ao mapa de resultados
 		response.Results[collectionName] = *result
+		succeeded++
 
 		// Incrementa o contador total
 		totalFound += result.Found
+	}
+
+	// Nenhuma coleção respondeu: a falha é do backend e não pode virar um 200
+	// vazio. O handler responde 500 com a mensagem genérica.
+	if succeeded == 0 {
+		return nil, errMultiSearchAllFailed
 	}
 
 	// Atualiza o total encontrado

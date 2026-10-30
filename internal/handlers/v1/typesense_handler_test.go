@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/stretchr/testify/assert"
+	"github.com/typesense/typesense-go/v3/typesense"
 )
 
 // mockTypesenseService is a mock implementation of the TypesenseService for testing
@@ -808,6 +810,60 @@ func TestTypesenseHandler_SearchDocuments_AllowedCollections_Succeed(t *testing.
 
 			assert.Equal(t, http.StatusOK, w.Code)
 			assert.Equal(t, collection, got)
+		})
+	}
+}
+
+// DEV-144: com o Typesense indisponível, a busca múltipla responde 500 com a
+// mensagem genérica (não 200 vazio) e sem host, porta ou causa do erro; com
+// falha parcial responde 200 e a coleção que falhou traz só a genérica.
+func TestTypesenseHandler_SearchMultiCollection_BackendFailure_MaskedEndToEnd(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const internalHost = "typesense.go.svc.cluster.local"
+	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/collections/cursos/documents/search" {
+			_, _ = w.Write([]byte(`{"found":1,"page":1,"hits":[{"document":{"id":"1"},"highlights":[]}],"request_params":{"collection_name":"cursos","per_page":10,"q":"*"}}`))
+			return
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"message":"dial tcp: lookup ` + internalHost + ` on 10.20.0.10:53: no such host"}`))
+	}))
+	defer fake.Close()
+
+	svc := services.NewTypesenseServiceWithClient(typesense.NewClient(
+		typesense.WithServer(fake.URL),
+		typesense.WithAPIKey("test-key"),
+		typesense.WithNumRetries(0),
+	))
+	h := v1.NewTypesenseHandlerWithService(svc)
+	r := gin.New()
+	r.POST("/api/v1/typesense/multi-search", h.SearchMultiCollection)
+
+	leaks := []string{internalHost, "10.20.0.10", "no such host", "dial tcp", "503", strings.TrimPrefix(fake.URL, "http://")}
+
+	tests := []struct {
+		name        string
+		collections string
+		wantStatus  int
+		wantBody    string
+	}{
+		{"todas as coleções falham", `["empregos","vagas"]`, http.StatusInternalServerError, "Erro ao realizar busca em múltiplas coleções"},
+		{"falha parcial", `["cursos","empregos"]`, http.StatusOK, `"error":"Erro ao buscar documentos"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := []byte(`{"collections": ` + tt.collections + `, "params": {"q": "*", "query_by": "titulo"}}`)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/typesense/multi-search", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Contains(t, w.Body.String(), tt.wantBody)
+			for _, leak := range leaks {
+				assert.NotContains(t, w.Body.String(), leak)
+			}
 		})
 	}
 }
