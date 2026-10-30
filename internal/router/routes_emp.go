@@ -47,6 +47,7 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		}
 		return &middlewares.VagaOwnershipInfo{
 			OrgaoParceiroID: vaga.IDOrgaoParceiro,
+			Published:       vaga.Status.IsPublished(),
 		}, nil
 	}
 
@@ -60,6 +61,7 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	vagaOrgaoInjector := rbacMiddleware(cfg.App.RBACEnabled, middlewares.VagaOrgaoInjector())
 	vagaListFilter := rbacMiddleware(cfg.App.RBACEnabled, middlewares.VagaListFilter())
 	vagaOwnership := rbacMiddleware(cfg.App.RBACEnabled, middlewares.VagaOwnershipCheck(vagaLoader))
+	vagaReadOwnership := rbacMiddleware(cfg.App.RBACEnabled, middlewares.VagaReadOwnershipCheck(vagaLoader))
 
 	// Vagas
 	empVagas := emp.Group("/vagas")
@@ -67,7 +69,7 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empVagas.POST("", vagaAuth, vagaOrgaoInjector, app.EmpVagaHandler.Create)
 		empVagas.POST("/draft", vagaAuth, vagaOrgaoInjector, app.EmpVagaHandler.Create)
 		empVagas.GET("", vagaAuth, vagaListFilter, app.EmpVagaHandler.List)
-		empVagas.GET("/:id", app.EmpVagaHandler.GetByID)
+		empVagas.GET("/:id", vagaAuth, vagaReadOwnership, app.EmpVagaHandler.GetByID)
 		empVagas.PUT("/:id", vagaAuth, vagaOrgaoInjector, vagaOwnership, app.EmpVagaHandler.Update)
 		empVagas.DELETE("/:id", vagaAuth, vagaOwnership, app.EmpVagaHandler.Delete)
 		empVagas.PUT("/:id/send-to-draft", vagaAuth, vagaOwnership, app.EmpVagaHandler.SendToDraft)
