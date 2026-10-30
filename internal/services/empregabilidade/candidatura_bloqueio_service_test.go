@@ -33,16 +33,16 @@ func (m *mockCandidaturaBloqueioRepository) List(ctx context.Context, filter map
 }
 
 type mockVagaRepoForBloqueio struct {
-	vaga *empregabilidade.Vaga
-	err  error
+	exists bool
+	err    error
 }
 
-func (m *mockVagaRepoForBloqueio) GetByID(_ context.Context, _ uuid.UUID) (*empregabilidade.Vaga, error) {
-	return m.vaga, m.err
+func (m *mockVagaRepoForBloqueio) ExistsByID(_ context.Context, _ uuid.UUID) (bool, error) {
+	return m.exists, m.err
 }
 
 func vagaExistente() *mockVagaRepoForBloqueio {
-	return &mockVagaRepoForBloqueio{vaga: &empregabilidade.Vaga{ID: uuid.New()}}
+	return &mockVagaRepoForBloqueio{exists: true}
 }
 
 func TestNewCandidaturaBloqueioService(t *testing.T) {

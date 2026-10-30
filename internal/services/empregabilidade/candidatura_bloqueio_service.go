@@ -13,27 +13,32 @@ import (
 // a nenhuma vaga cadastrada.
 var ErrBloqueioVagaNaoEncontrada = errors.New("vaga não encontrada")
 
+// VagaExistenciaRepositoryInterface confere se uma vaga existe sem carregá-la.
+type VagaExistenciaRepositoryInterface interface {
+	ExistsByID(ctx context.Context, id uuid.UUID) (bool, error)
+}
+
 type CandidaturaBloqueioService struct {
 	repo     CandidaturaBloqueioRepositoryInterface
-	vagaRepo VagaRepositoryInterface
+	vagaRepo VagaExistenciaRepositoryInterface
 }
 
 func NewCandidaturaBloqueioService(repo *repository.CandidaturaBloqueioRepository, vagaRepo *repository.VagaRepository) *CandidaturaBloqueioService {
 	return &CandidaturaBloqueioService{repo: repo, vagaRepo: vagaRepo}
 }
 
-func NewCandidaturaBloqueioServiceWithInterface(repo CandidaturaBloqueioRepositoryInterface, vagaRepo VagaRepositoryInterface) *CandidaturaBloqueioService {
+func NewCandidaturaBloqueioServiceWithInterface(repo CandidaturaBloqueioRepositoryInterface, vagaRepo VagaExistenciaRepositoryInterface) *CandidaturaBloqueioService {
 	return &CandidaturaBloqueioService{repo: repo, vagaRepo: vagaRepo}
 }
 
 // Create registra o bloqueio depois de conferir que a vaga existe. A vaga não
 // precisa estar ativa: ela pode ter expirado durante a tentativa do candidato.
 func (s *CandidaturaBloqueioService) Create(ctx context.Context, entity *empregabilidade.CandidaturaBloqueio) (uuid.UUID, error) {
-	vaga, err := s.vagaRepo.GetByID(ctx, entity.IDVaga)
+	exists, err := s.vagaRepo.ExistsByID(ctx, entity.IDVaga)
 	if err != nil {
 		return uuid.Nil, err
 	}
-	if vaga == nil {
+	if !exists {
 		return uuid.Nil, ErrBloqueioVagaNaoEncontrada
 	}
 	return s.repo.Create(ctx, entity)

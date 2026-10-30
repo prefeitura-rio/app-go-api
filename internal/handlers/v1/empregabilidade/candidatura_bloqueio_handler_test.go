@@ -38,18 +38,24 @@ func (m *mockCandidaturaBloqueioRepoH) List(_ context.Context, _ map[string]inte
 // Usuário cidadão do contexto padrão dos testes (CPF sintético).
 const bloqueioTokenCPF = "12345678900"
 
-func vagaExistenteBloqueio() *mockVagaForCandidaturaH {
-	return &mockVagaForCandidaturaH{entity: &empmodels.Vaga{
-		ID:     uuid.MustParse(validUUID),
-		Status: empmodels.StatusVagaPublicadoAtivo,
-	}}
+type mockVagaExistenciaBloqueioH struct {
+	exists bool
+	err    error
+}
+
+func (m *mockVagaExistenciaBloqueioH) ExistsByID(_ context.Context, _ uuid.UUID) (bool, error) {
+	return m.exists, m.err
+}
+
+func vagaExistenteBloqueio() *mockVagaExistenciaBloqueioH {
+	return &mockVagaExistenciaBloqueioH{exists: true}
 }
 
 // setupCandidaturaBloqueioRouterAs monta o router com o contexto de usuário que
 // o middleware ExtractUserContext injetaria: CPF do token e papéis.
 func setupCandidaturaBloqueioRouterAs(
 	repo services.CandidaturaBloqueioRepositoryInterface,
-	vagaRepo services.VagaRepositoryInterface,
+	vagaRepo services.VagaExistenciaRepositoryInterface,
 	cpf, role string,
 	roles []string,
 ) *gin.Engine {
@@ -189,7 +195,7 @@ func TestCandidaturaBloqueioHandler_Create_AdminSemCPFNoCorpo_UsaToken(t *testin
 
 func TestCandidaturaBloqueioHandler_Create_VagaInexistente_NotFound(t *testing.T) {
 	repo := &mockCandidaturaBloqueioRepoH{}
-	r := setupCandidaturaBloqueioRouterAs(repo, &mockVagaForCandidaturaH{}, bloqueioTokenCPF, "", nil)
+	r := setupCandidaturaBloqueioRouterAs(repo, &mockVagaExistenciaBloqueioH{}, bloqueioTokenCPF, "", nil)
 	w := postBloqueio(r, `{"id_vaga":"`+validUUID+`"}`)
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
@@ -201,7 +207,7 @@ func TestCandidaturaBloqueioHandler_Create_VagaInexistente_NotFound(t *testing.T
 
 func TestCandidaturaBloqueioHandler_Create_SemIDVaga_NotFound(t *testing.T) {
 	repo := &mockCandidaturaBloqueioRepoH{}
-	r := setupCandidaturaBloqueioRouterAs(repo, &mockVagaForCandidaturaH{}, bloqueioTokenCPF, "", nil)
+	r := setupCandidaturaBloqueioRouterAs(repo, &mockVagaExistenciaBloqueioH{}, bloqueioTokenCPF, "", nil)
 	w := postBloqueio(r, `{"criterios_nao_atendidos":["idade_minima"]}`)
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
@@ -213,7 +219,7 @@ func TestCandidaturaBloqueioHandler_Create_SemIDVaga_NotFound(t *testing.T) {
 
 func TestCandidaturaBloqueioHandler_Create_ErroAoBuscarVaga_NaoGrava(t *testing.T) {
 	repo := &mockCandidaturaBloqueioRepoH{}
-	r := setupCandidaturaBloqueioRouterAs(repo, &mockVagaForCandidaturaH{err: fmt.Errorf("db down")}, bloqueioTokenCPF, "", nil)
+	r := setupCandidaturaBloqueioRouterAs(repo, &mockVagaExistenciaBloqueioH{err: fmt.Errorf("db down")}, bloqueioTokenCPF, "", nil)
 	w := postBloqueio(r, `{"id_vaga":"`+validUUID+`"}`)
 	if w.Code < http.StatusInternalServerError {
 		t.Fatalf("expected 5xx, got %d: %s", w.Code, w.Body.String())
