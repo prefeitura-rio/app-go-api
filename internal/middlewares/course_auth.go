@@ -145,40 +145,48 @@ func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 			return
 		}
 
-		orgaoID, found, err := loader(c.Request.Context(), id)
+		authorizeCourseOwnership(c, loader, id)
+	}
+}
 
-		if err != nil {
-			response.FromError(c, err, "Erro ao buscar curso")
-			c.Abort()
-			return
-		}
+// authorizeCourseOwnership loads course id and lets the request through only
+// for admin / go:cursos:casa_civil, or go:cursos:editor when the course's orgao
+// is in the caller's scope. It is the body of CourseOwnershipCheck, shared with
+// middlewares that resolve the course from another resource (JobAccess).
+func authorizeCourseOwnership(c *gin.Context, loader courseLoaderFunc, id int) {
+	orgaoID, found, err := loader(c.Request.Context(), id)
 
-		if !found {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
-			c.Abort()
-			return
-		}
+	if err != nil {
+		response.FromError(c, err, "Erro ao buscar curso")
+		c.Abort()
+		return
+	}
 
-		c.Set(courseLoadedCursoKey, orgaoID)
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
+		c.Abort()
+		return
+	}
 
-		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
+	c.Set(courseLoadedCursoKey, orgaoID)
+
+	if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
+		c.Next()
+		return
+	}
+
+	if isCursosEditor(c) {
+		if courseOrgaoInScope(c, orgaoID) {
 			c.Next()
 			return
 		}
-
-		if isCursosEditor(c) {
-			if courseOrgaoInScope(c, orgaoID) {
-				c.Next()
-				return
-			}
-			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
-			c.Abort()
-			return
-		}
-
-		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
 		c.Abort()
+		return
 	}
+
+	c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
+	c.Abort()
 }
 
 // CourseOrgaoUpdateScope guards PUT /courses/:courseId against an editor moving

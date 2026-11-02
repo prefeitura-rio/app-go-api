@@ -12122,7 +12122,7 @@ const docTemplate = `{
         },
         "/api/v1/jobs/{jobId}/status": {
             "get": {
-                "description": "Retorna o status e progresso de um job em execução ou concluído",
+                "description": "Retorna o status e progresso de um job em execução ou concluído. Exige o mesmo acesso da importação que criou o job: admin, go:cursos:casa_civil ou go:cursos:editor com escopo no órgão do curso do job. Em errors[].data, a linha com falha é identificada pelas iniciais do nome e pelo CPF mascarado.",
                 "produces": [
                     "application/json"
                 ],
@@ -12148,6 +12148,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
