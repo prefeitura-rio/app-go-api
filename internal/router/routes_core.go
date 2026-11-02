@@ -2,11 +2,13 @@ package router
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
+	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
 
@@ -83,7 +85,23 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courses.DELETE("/:courseId/enrollments/:enrollmentId", enrollmentSingleAccess, app.InscricaoHandler.Delete)
 	}
 
-	apiV1.Group("/jobs").GET("/:jobId/status", app.JobHandler.GetStatus)
+	jobCursoLoader := func(ctx context.Context, id uuid.UUID) (int, bool, error) {
+		job, err := app.JobService.GetByID(ctx, id)
+		if err != nil {
+			return 0, false, err
+		}
+		if job == nil {
+			return 0, false, nil
+		}
+		var metadata models.EnrollmentImportMetadata
+		if len(job.Metadata) == 0 || json.Unmarshal(job.Metadata, &metadata) != nil {
+			return 0, true, nil
+		}
+		return metadata.CursoID, true, nil
+	}
+	jobAccess := rbacMiddleware(cfg.App.RBACEnabled, middlewares.JobAccess(jobCursoLoader, cursoLoader))
+
+	apiV1.Group("/jobs").GET("/:jobId/status", jobAccess, app.JobHandler.GetStatus)
 	apiV1.Group("/users").GET("/:userId/courses", app.CourseHandler.ListByUser)
 	enrollments := apiV1.Group("/enrollments")
 	enrollments.GET("/user/:cpf", app.InscricaoHandler.ListByUser)
