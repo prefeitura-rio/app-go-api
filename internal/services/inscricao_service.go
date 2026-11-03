@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -145,6 +146,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 
 	// Validate schedule_id if provided
 	// Only load full course with schedules when schedule validation is needed
+	vacancies := 0
 	if inscricao.ScheduleID != nil {
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err != nil {
@@ -158,22 +160,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 			return err
 		}
 		inscricao.EnrolledUnit = enrolledUnitForSchedule(*inscricao.ScheduleID, curso)
-
-		// If auto-approve is enabled, check vacancy availability to prevent overbooking
-		// Note: This is an advisory check (COUNT then INSERT, no lock). In high-concurrency
-		// scenarios, multiple requests could pass the check and exceed vacancies. This matches
-		// the existing pattern used in ChangeSchedule and manual approval flows. For strict
-		// enforcement, consider adding DB constraints or SELECT FOR UPDATE locks.
-		if autoApprove {
-			vacancies := s.findScheduleVacancies(*inscricao.ScheduleID, curso)
-			if vacancies > 0 {
-				enrolledCount, err := s.cursoRepo.CountEnrollmentsByScheduleID(ctx, *inscricao.ScheduleID)
-				// Fail-safe: if we cannot verify capacity or schedule is full, disable auto-approve
-				if err != nil || int(enrolledCount) >= vacancies {
-					autoApprove = false
-				}
-			}
-		}
+		vacancies = s.findScheduleVacancies(*inscricao.ScheduleID, curso)
 	}
 
 	// Fetch citizen data from RMI (forced sync) to populate Email and Phone
@@ -196,19 +183,14 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 		}
 	}
 
-	// Set initial status based on auto-approve setting
-	if autoApprove {
-		inscricao.Status = models.StatusInscricaoApproved
-	} else {
-		inscricao.Status = models.StatusInscricaoPending
-	}
 	inscricao.EnrolledAt = time.Now()
 	inscricao.UpdatedAt = time.Now()
 	origem := models.OrigemInscricaoPortalCidadao
 	inscricao.OrigemInscricao = &origem
 
-	// Create enrollment
-	if err := s.repo.Create(ctx, inscricao); err != nil {
+	// Create enrollment; approved only while the turma has a vacancy
+	autoApprove, err = s.createWithinVacancies(ctx, inscricao, autoApprove, vacancies)
+	if err != nil {
 		return err
 	}
 
@@ -250,6 +232,7 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 		return ErrCPFJaInscrito
 	}
 
+	vacancies := 0
 	if inscricao.ScheduleID != nil {
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err != nil {
@@ -261,15 +244,7 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, false); err != nil {
 			return err
 		}
-		if autoApprove {
-			vacancies := s.findScheduleVacancies(*inscricao.ScheduleID, curso)
-			if vacancies > 0 {
-				enrolledCount, err := s.cursoRepo.CountEnrollmentsByScheduleID(ctx, *inscricao.ScheduleID)
-				if err != nil || int(enrolledCount) >= vacancies {
-					autoApprove = false
-				}
-			}
-		}
+		vacancies = s.findScheduleVacancies(*inscricao.ScheduleID, curso)
 	}
 
 	// The email/phone on the enrollment are the contact provided by the órgão/secretaria
@@ -291,17 +266,13 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 		}
 	}
 
-	if autoApprove {
-		inscricao.Status = models.StatusInscricaoApproved
-	} else {
-		inscricao.Status = models.StatusInscricaoPending
-	}
 	inscricao.EnrolledAt = time.Now()
 	inscricao.UpdatedAt = time.Now()
 	origemAdmin := models.OrigemInscricaoSecretaria
 	inscricao.OrigemInscricao = &origemAdmin
 
-	if err := s.repo.Create(ctx, inscricao); err != nil {
+	autoApprove, err = s.createWithinVacancies(ctx, inscricao, autoApprove, vacancies)
+	if err != nil {
 		return err
 	}
 
@@ -346,6 +317,7 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 	}
 
 	// Validate schedule_id if provided
+	vacancies := 0
 	if inscricao.ScheduleID != nil {
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err != nil {
@@ -357,16 +329,7 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 		if err := s.validateScheduleID(ctx, *inscricao.ScheduleID, curso, false); err != nil {
 			return err
 		}
-		// Check vacancy availability to prevent overbooking when auto-approving
-		if autoApprove {
-			vacancies := s.findScheduleVacancies(*inscricao.ScheduleID, curso)
-			if vacancies > 0 {
-				enrolledCount, err := s.cursoRepo.CountEnrollmentsByScheduleID(ctx, *inscricao.ScheduleID)
-				if err != nil || int(enrolledCount) >= vacancies {
-					autoApprove = false
-				}
-			}
-		}
+		vacancies = s.findScheduleVacancies(*inscricao.ScheduleID, curso)
 	}
 
 	// NOTE: citizen data fetching is skipped — admin provides data explicitly
@@ -374,17 +337,13 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 	// Sanitize admin-provided email before persisting
 	inscricao.Email = models.SanitizeEmail(inscricao.Email)
 
-	if autoApprove {
-		inscricao.Status = models.StatusInscricaoApproved
-	} else {
-		inscricao.Status = models.StatusInscricaoPending
-	}
 	inscricao.EnrolledAt = time.Now()
 	inscricao.UpdatedAt = time.Now()
 	origemManual := models.OrigemInscricaoSecretaria
 	inscricao.OrigemInscricao = &origemManual
 
-	if err := s.repo.Create(ctx, inscricao); err != nil {
+	autoApprove, err = s.createWithinVacancies(ctx, inscricao, autoApprove, vacancies)
+	if err != nil {
 		return err
 	}
 
@@ -407,6 +366,57 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 	}
 
 	return nil
+}
+
+// createWithinVacancies stores inscricao, approved when autoApprove is set and
+// its turma still has a vacancy, pending otherwise, and reports whether it was
+// stored approved. vacancies is the turma limit from the course data; 0 means
+// no limit.
+//
+// An auto-approval into a limited turma takes a vacancy, so the count and the
+// insert run under the turma lock (WithScheduleLock): concurrent enrollments
+// are counted one after the other and cannot approve more than the limit
+// (DEV-199). When the vacancy cannot be verified (the lock or the count
+// fails), the enrollment is stored pending, as before; an error of the insert
+// itself is returned.
+func (s *InscricaoService) createWithinVacancies(ctx context.Context, inscricao *models.Inscricao, autoApprove bool, vacancies int) (bool, error) {
+	if !autoApprove || inscricao.ScheduleID == nil || vacancies <= 0 {
+		inscricao.Status = enrollmentStatus(autoApprove)
+		return autoApprove, s.repo.Create(ctx, inscricao)
+	}
+
+	scheduleID := *inscricao.ScheduleID
+	approved := false
+	insertAttempted := false
+	err := s.repo.WithScheduleLock(ctx, scheduleID, func(ctx context.Context) error {
+		occupied, err := s.cursoRepo.CountEnrollmentsByScheduleID(ctx, scheduleID)
+		if err != nil {
+			return err
+		}
+		approved = int(occupied) < vacancies
+		inscricao.Status = enrollmentStatus(approved)
+		insertAttempted = true
+		return s.repo.Create(ctx, inscricao)
+	})
+	if err == nil {
+		return approved, nil
+	}
+	if insertAttempted {
+		return false, err
+	}
+
+	// Fail-safe: the vacancy could not be verified, so do not auto-approve. A
+	// pending enrollment takes no vacancy and needs no lock.
+	log.Printf("[InscricaoService] vagas da turma %s não verificadas, inscrição fica pendente: %v", scheduleID, err)
+	inscricao.Status = models.StatusInscricaoPending
+	return false, s.repo.Create(ctx, inscricao)
+}
+
+func enrollmentStatus(approved bool) models.StatusInscricao {
+	if approved {
+		return models.StatusInscricaoApproved
+	}
+	return models.StatusInscricaoPending
 }
 
 func (s *InscricaoService) GetByID(ctx context.Context, id uuid.UUID) (*models.Inscricao, error) {
@@ -913,6 +923,34 @@ func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, i
 	}
 }
 
+// errSemVagasNaTurma refuses a turma change into a turma that is full. The
+// handler maps the message to 400.
+var errSemVagasNaTurma = errors.New("não há vagas disponíveis nesta turma")
+
+// moveToSchedule checks that the turma scheduleID still has a vacancy and moves
+// inscricao into it. ChangeSchedule calls it under the turma lock, with the
+// locked transaction in ctx.
+func (s *InscricaoService) moveToSchedule(ctx context.Context, inscricao *models.Inscricao, scheduleID uuid.UUID, vacancies int, curso *models.Curso) error {
+	enrollmentCounts, err := s.cursoRepo.CountEnrollmentsByScheduleIDs(ctx, []uuid.UUID{scheduleID})
+	if err != nil {
+		return fmt.Errorf("erro ao verificar vagas: %w", err)
+	}
+	if int(enrollmentCounts[scheduleID]) >= vacancies {
+		return errSemVagasNaTurma
+	}
+
+	// Update schedule information
+	inscricao.ScheduleID = &scheduleID
+	inscricao.EnrolledUnit = enrolledUnitForSchedule(scheduleID, curso)
+	inscricao.UpdatedAt = time.Now()
+
+	// Save changes
+	if err := s.repo.Update(ctx, inscricao); err != nil {
+		return fmt.Errorf("erro ao atualizar inscrição: %w", err)
+	}
+	return nil
+}
+
 // ChangeSchedule allows a citizen to change their enrollment to a different schedule/class
 func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.UUID, userCPF string, request *models.ScheduleChangeRequest) (*models.Inscricao, error) {
 	// Fetch current enrollment
@@ -986,22 +1024,24 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		return nil, fmt.Errorf("não é possível trocar de turma com menos de %d horas do início da aula", deadlineHours)
 	}
 
-	// Validate that the new schedule has available vacancies (limit from the course data)
-	enrollmentCounts, err := s.cursoRepo.CountEnrollmentsByScheduleIDs(ctx, []uuid.UUID{scheduleID})
-	if err != nil {
+	// Validate that the new schedule has available vacancies (limit from the
+	// course data) and move the enrollment under the turma lock, so concurrent
+	// changes into the same turma are counted one after the other (DEV-199).
+	vacancies := s.findScheduleVacancies(scheduleID, curso)
+	locked := false
+	var moveErr error
+	err = s.repo.WithScheduleLock(ctx, scheduleID, func(ctx context.Context) error {
+		locked = true
+		moveErr = s.moveToSchedule(ctx, inscricao, scheduleID, vacancies, curso)
+		return moveErr
+	})
+	switch {
+	case err == nil:
+	case !locked:
 		return nil, fmt.Errorf("erro ao verificar vagas: %w", err)
-	}
-	if int(enrollmentCounts[scheduleID]) >= s.findScheduleVacancies(scheduleID, curso) {
-		return nil, fmt.Errorf("não há vagas disponíveis nesta turma")
-	}
-
-	// Update schedule information
-	inscricao.ScheduleID = &scheduleID
-	inscricao.EnrolledUnit = enrolledUnitForSchedule(scheduleID, curso)
-	inscricao.UpdatedAt = time.Now()
-
-	// Save changes
-	if err := s.repo.Update(ctx, inscricao); err != nil {
+	case moveErr != nil:
+		return nil, moveErr
+	default:
 		return nil, fmt.Errorf("erro ao atualizar inscrição: %w", err)
 	}
 

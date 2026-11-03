@@ -641,7 +641,7 @@ func (r *CursoRepository) updateLocationClassesWithTx(ctx context.Context, tx *g
 func (r *CursoRepository) CountEnrollmentsByScheduleID(ctx context.Context, scheduleID uuid.UUID) (int64, error) {
 	var count int64
 
-	result := r.db.WithContext(ctx).
+	result := dbFromContext(ctx, r.db).WithContext(ctx).
 		Model(&models.Inscricao{}).
 		Where("schedule_id = ?", scheduleID).
 		Where("status IN ?", []models.StatusInscricao{
@@ -671,7 +671,7 @@ func (r *CursoRepository) CountEnrollmentsByScheduleIDs(ctx context.Context, sch
 
 	var results []Result
 
-	err := r.db.WithContext(ctx).
+	err := dbFromContext(ctx, r.db).WithContext(ctx).
 		Model(&models.Inscricao{}).
 		Select("schedule_id, COUNT(*) as count").
 		Where("schedule_id IN ?", scheduleIDs).
