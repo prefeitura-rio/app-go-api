@@ -6680,7 +6680,7 @@ paths:
       description: Consulta dados de uma empresa pelo CNPJ no RMI (Registro Mercantil
         Integrado)
       parameters:
-      - description: CNPJ da empresa (com ou sem formatação)
+      - description: CNPJ da empresa, numérico ou alfanumérico (com ou sem formatação)
         in: path
         name: cnpj
         required: true

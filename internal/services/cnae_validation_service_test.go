@@ -643,3 +643,49 @@ func TestCNAEValidationService_CheckCNPJOwnership(t *testing.T) {
 		}
 	})
 }
+
+// DEV-183: o CNPJ alfanumérico é comparado inteiro (letras incluídas), sem
+// descartar letras como a comparação só por dígitos fazia.
+func TestCNAEValidationService_CNPJAlfanumerico(t *testing.T) {
+	validToken := "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcmVmZXJyZWRfdXNlcm5hbWUiOiIxMjM0NTY3ODkwMCJ9.fake"
+
+	ownership := []struct {
+		name      string
+		owned     string
+		provided  string
+		wantOwner bool
+	}{
+		{"alphanumeric owned, formatted lowercase provided", "12ABC34501DE35", "12.abc.345/01de-35", true},
+		{"alphanumeric owned, formatted owned entity", "12.ABC.345/01DE-35", "12ABC34501DE35", true},
+		{"same digits but different letters", "12XYZ34501DE35", "12ABC34501DE35", false},
+		{"numeric owned, provided with letters around the same digits", "12345678000190", "1234567800019A0", false},
+		{"numeric owned, alphanumeric provided with the same digits", "12345678000190", "12345678AB000190", false},
+	}
+	for _, tt := range ownership {
+		t.Run("CheckCNPJOwnership/"+tt.name, func(t *testing.T) {
+			mockRMI := &MockRMIClient{entities: []models.LegalEntity{{CNPJ: tt.owned, CNAEFiscal: "4110700", RazaoSocial: "Empresa Sintetica"}}}
+			service := services.NewCNAEValidationService(mockRMI, NewMockCache())
+
+			isOwner, err := service.CheckCNPJOwnership(context.Background(), validToken, "12345678900", tt.provided)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if isOwner != tt.wantOwner {
+				t.Errorf("CheckCNPJOwnership(owned=%q, provided=%q) = %v, want %v", tt.owned, tt.provided, isOwner, tt.wantOwner)
+			}
+		})
+
+		t.Run("ValidatePropostaForCNAE/"+tt.name, func(t *testing.T) {
+			mockRMI := &MockRMIClient{entities: []models.LegalEntity{{CNPJ: tt.owned, CNAEFiscal: "4110700", RazaoSocial: "Empresa Sintetica"}}}
+			service := services.NewCNAEValidationService(mockRMI, NewMockCache())
+
+			err := service.ValidatePropostaForCNAE(context.Background(), validToken, tt.provided, []string{"4110700"})
+			if tt.wantOwner && err != nil {
+				t.Errorf("expected success, got %v", err)
+			}
+			if !tt.wantOwner && err == nil {
+				t.Errorf("expected ownership error for owned=%q provided=%q", tt.owned, tt.provided)
+			}
+		})
+	}
+}
