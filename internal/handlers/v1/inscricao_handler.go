@@ -36,6 +36,32 @@ func NewInscricaoHandler(service services.InscricaoServiceInterface, jobService 
 	}
 }
 
+// isEnrollmentStaff reports whether the caller is course staff (admin,
+// casa civil or cursos editor). With RBAC_ENABLED=true the route middleware
+// additionally restricts editors to courses of their own orgao.
+func isEnrollmentStaff(c *gin.Context) bool {
+	return isEnrollmentAdmin(c) || middlewares.HasRole(c, "go:cursos:editor")
+}
+
+func isEnrollmentAdmin(c *gin.Context) bool {
+	return middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:cursos:casa_civil")
+}
+
+// isEnrollmentStaffFor reports whether the caller acts as staff on an
+// enrollment of enrollmentCPF. An editor who owns the enrollment is held to the
+// owner rules: CourseEnrollmentSingleAccess lets the owner through before the
+// orgao check, so the editor scope is never verified for their own enrollment.
+func isEnrollmentStaffFor(c *gin.Context, enrollmentCPF string) bool {
+	if isEnrollmentAdmin(c) {
+		return true
+	}
+	if !middlewares.HasRole(c, "go:cursos:editor") {
+		return false
+	}
+	userCPF := middlewares.GetUserCPF(c)
+	return userCPF == "" || userCPF != enrollmentCPF
+}
+
 // populateRemainingVacanciesForEnrollment calculates remaining vacancies for a single enrollment's enrolled_unit
 func (h *InscricaoHandler) populateRemainingVacanciesForEnrollment(c *gin.Context, inscricao *models.Inscricao) error {
 	if inscricao.EnrolledUnit == nil || len(inscricao.EnrolledUnit.Schedules) == 0 {
@@ -161,7 +187,7 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 
 	var inscricao models.Inscricao
 	if err := c.ShouldBindJSON(&inscricao); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
@@ -170,7 +196,7 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 
 	if middlewares.IsAdmin(c) || middlewares.HasRole(c, "go:cursos:casa_civil") {
 		if err := h.service.CreateByAdmin(c.Request.Context(), &inscricao); err != nil {
-			response.RespondError(c, err, "Erro ao criar inscrição")
+			respondCreateInscricaoError(c, err)
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{
@@ -192,8 +218,17 @@ func (h *InscricaoHandler) Create(c *gin.Context) {
 			return
 		}
 		inscricao.CPF = cpf
+		// Campos administrativos não podem vir do cidadão que cria a própria
+		// inscrição (mass assignment): são descartados, como no Update. O
+		// enrolled_unit é montado pelo serviço a partir da schedule_id validada;
+		// o id é gerado pelo banco e o curso é sempre o da URL.
+		inscricao.ID = uuid.Nil
+		inscricao.Curso = nil
+		inscricao.AdminNotes = ""
+		inscricao.CertificateURL = ""
+		inscricao.ConcludedAt = nil
 		if err := h.service.Create(c.Request.Context(), &inscricao); err != nil {
-			response.RespondError(c, err, "Erro ao criar inscrição")
+			respondCreateInscricaoError(c, err)
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{
@@ -254,13 +289,13 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 
 	inscricoes, total, err := h.service.GetByCursoID(c.Request.Context(), cursoID, filter, page, limit)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao listar inscrições")
+		response.FromError(c, err, "Erro ao listar inscrições")
 		return
 	}
 
 	// Calculate remaining vacancies for all enrollments in a single batched query
 	if err := h.populateRemainingVacanciesForEnrollments(c, inscricoes); err != nil {
-		response.RespondError(c, err, "Erro ao calcular vagas restantes")
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 
@@ -273,7 +308,7 @@ func (h *InscricaoHandler) List(c *gin.Context) {
 	if !selfAccess {
 		summary, err = h.service.GetSummaryByCursoID(c.Request.Context(), cursoID)
 		if err != nil {
-			response.RespondError(c, err, "Erro ao obter resumo")
+			response.FromError(c, err, "Erro ao obter resumo")
 			return
 		}
 	}
@@ -323,14 +358,14 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 
 	var updateData models.InscricaoUpdateRequest
 	if err := c.ShouldBindJSON(&updateData); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
 	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 
 	if err != nil {
-		response.RespondError(c, err)
+		response.FromError(c, err, "Erro ao buscar inscrição")
 		return
 	}
 	if existing == nil {
@@ -353,10 +388,14 @@ func (h *InscricaoHandler) Update(c *gin.Context) {
 	// em vez de recusado para não quebrar clientes que reenviam o objeto inteiro.
 	if !isAdmin {
 		updateData.AdminNotes = nil
+		// A unidade de matrícula só pode ser alterada diretamente por perfis
+		// administrativos; o cidadão troca de turma pelo endpoint dedicado
+		// PUT /api/v1/enrollments/:enrollmentId/schedule.
+		updateData.EnrolledUnit = nil
 	}
 
 	if err := h.service.UpdateInscricao(c.Request.Context(), existing.ID, cursoID, &updateData); err != nil {
-		response.RespondError(c, err, "Erro ao atualizar inscrição")
+		response.FromError(c, err, "Erro ao atualizar inscrição")
 		return
 	}
 
@@ -384,7 +423,7 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 
 	var request models.EnrollmentStatusUpdateRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
@@ -396,7 +435,7 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 		request.AdminNotes,
 	)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao atualizar status")
+		response.FromError(c, err, "Erro ao atualizar status")
 		return
 	}
 
@@ -414,7 +453,7 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 }
 
 // @Summary      Atualizar status de inscrição individual
-// @Description  Atualiza o status de uma inscrição específica
+// @Description  Atualiza o status de uma inscrição específica. Admin, casa civil e editor de cursos alteram qualquer status e admin_notes; o cidadão dono da inscrição só pode cancelá-la (status cancelled), exceto quando ela já está concluded ou cancelled (409), e admin_notes enviado por ele é descartado.
 // @Tags         inscricoes
 // @Accept       json
 // @Produce      json
@@ -423,11 +462,13 @@ func (h *InscricaoHandler) UpdateStatus(c *gin.Context) {
 // @Param        request      body      object  true  "Dados para atualização: {\"status\": \"approved\", \"reason\": \"...\", \"admin_notes\": \"...\"}"
 // @Success      200          {object}  object
 // @Failure      400          {object}  models.ErrorResponse
+// @Failure      403          {object}  models.ErrorResponse
 // @Failure      404          {object}  models.ErrorResponse
+// @Failure      409          {object}  models.ErrorResponse
 // @Failure      500          {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId}/enrollments/{enrollmentId}/status [put]
 func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
-	_, err := strconv.Atoi(c.Param("courseId"))
+	courseID, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do curso inválido"})
 		return
@@ -446,12 +487,50 @@ func (h *InscricaoHandler) UpdateIndividualStatus(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
+	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar inscrição"})
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "inscrição não encontrada"})
+		return
+	}
+	if existing.CursoID != courseID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "inscrição não pertence ao curso especificado"})
+		return
+	}
+
+	// Fora da equipe do curso, só o cidadão dono da inscrição chega aqui, e ele
+	// só pode cancelá-la. admin_notes é campo administrativo interno e é
+	// descartado (como no PUT da inscrição). A checagem fica no handler para
+	// valer também com RBAC_ENABLED=false, quando enrollmentSingleAccess não roda.
+	if !isEnrollmentStaffFor(c, existing.CPF) {
+		userCPF := middlewares.GetUserCPF(c)
+		if userCPF == "" || existing.CPF != userCPF {
+			c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
+			return
+		}
+		if request.Status != models.StatusInscricaoCancelled {
+			c.JSON(http.StatusForbidden, gin.H{"error": "o cidadão só pode cancelar a própria inscrição"})
+			return
+		}
+		// Para o cidadão, concluded e cancelled são terminais (como em
+		// ChangeSchedule). A equipe segue sem a trava: o portal interno usa esta
+		// rota para desfazer a conclusão e para reprovar uma inscrição concluída.
+		if existing.Status == models.StatusInscricaoCancelled || existing.Status == models.StatusInscricaoConcluded {
+			c.JSON(http.StatusConflict, gin.H{"error": "não é possível cancelar inscrições com status '" + string(existing.Status) + "'"})
+			return
+		}
+		request.AdminNotes = ""
+	}
+
 	if err := h.service.UpdateStatus(c.Request.Context(), enrollmentID, request.Status, request.Reason, request.AdminNotes); err != nil {
-		response.RespondError(c, err, "Erro ao atualizar status")
+		response.FromError(c, err, "Erro ao atualizar status")
 		return
 	}
 
@@ -494,7 +573,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 
 	inscricao, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao buscar inscrição")
+		response.FromError(c, err, "Erro ao buscar inscrição")
 		return
 	}
 
@@ -510,7 +589,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 
 	// Calculate remaining vacancies for enrolled_unit schedules
 	if err := h.populateRemainingVacanciesForEnrollment(c, inscricao); err != nil {
-		response.RespondError(c, err, "Erro ao calcular vagas restantes")
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 
@@ -524,7 +603,7 @@ func (h *InscricaoHandler) GetByID(c *gin.Context) {
 }
 
 // @Summary      Atualizar certificado de inscrição
-// @Description  Adiciona ou atualiza a URL do certificado de uma inscrição
+// @Description  Adiciona ou atualiza a URL do certificado de uma inscrição (somente admin, casa civil e editor de cursos)
 // @Tags         inscricoes
 // @Accept       json
 // @Produce      json
@@ -550,14 +629,34 @@ func (h *InscricaoHandler) UpdateCertificate(c *gin.Context) {
 		return
 	}
 
+	if !isEnrollmentStaff(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
+		return
+	}
+	if !isEnrollmentAdmin(c) {
+		existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar inscrição"})
+			return
+		}
+		if existing == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "inscrição não encontrada"})
+			return
+		}
+		if !isEnrollmentStaffFor(c, existing.CPF) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "acesso negado"})
+			return
+		}
+	}
+
 	var request models.CertificateUpdateRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
 	if err := h.service.UpdateCertificate(c.Request.Context(), cursoID, enrollmentID, request.CertificateURL); err != nil {
-		response.RespondError(c, err, "Erro ao atualizar certificado")
+		response.FromError(c, err, "Erro ao atualizar certificado")
 		return
 	}
 
@@ -593,7 +692,7 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 
 	existing, err := h.service.GetByID(c.Request.Context(), enrollmentID)
 	if err != nil {
-		response.RespondError(c, err)
+		response.FromError(c, err, "Erro ao verificar inscrição")
 		return
 	}
 	if existing == nil {
@@ -607,7 +706,7 @@ func (h *InscricaoHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), enrollmentID); err != nil {
-		response.RespondError(c, err, "Erro ao excluir inscrição")
+		response.FromError(c, err, "Erro ao excluir inscrição")
 		return
 	}
 
@@ -638,7 +737,7 @@ func (h *InscricaoHandler) CreateManual(c *gin.Context) {
 
 	var inscricao models.Inscricao
 	if err := c.ShouldBindJSON(&inscricao); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
@@ -646,7 +745,7 @@ func (h *InscricaoHandler) CreateManual(c *gin.Context) {
 	inscricao.CursoID = cursoID
 
 	if err := h.service.CreateManual(c.Request.Context(), &inscricao); err != nil {
-		response.RespondError(c, err, "Erro ao criar inscrição")
+		respondCreateInscricaoError(c, err)
 		return
 	}
 
@@ -692,7 +791,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 	// Get uploaded file
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Arquivo não fornecido ou inválido: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo não fornecido ou inválido: " + err.Error()})
 		return
 	}
 	defer func() {
@@ -720,7 +819,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 	// Create temporary file
 	tempFile, err := os.CreateTemp("", "enrollment-import-*"+ext)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao criar arquivo temporário")
+		response.FromError(c, err, "Erro ao criar arquivo temporário")
 		return
 	}
 	defer func() {
@@ -734,7 +833,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
 			fmt.Printf("Error removing temp file: %v\n", removeErr)
 		}
-		response.RespondError(c, err, "Erro ao salvar arquivo")
+		response.FromError(c, err, "Erro ao salvar arquivo")
 		return
 	}
 
@@ -749,7 +848,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
 			fmt.Printf("Error removing temp file: %v\n", removeErr)
 		}
-		response.RespondError(c, err, "Erro ao criar metadata do job")
+		response.FromError(c, err, "Erro ao criar metadata do job")
 		return
 	}
 
@@ -763,7 +862,7 @@ func (h *InscricaoHandler) Import(c *gin.Context) {
 		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
 			fmt.Printf("Error removing temp file: %v\n", removeErr)
 		}
-		response.RespondError(c, err, "Erro ao criar job")
+		response.FromError(c, err, "Erro ao criar job")
 		return
 	}
 
@@ -845,13 +944,13 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 
 	inscricoes, total, err := h.service.ListByCPF(c.Request.Context(), cpf, filter, offset, limit)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao listar inscrições do usuário")
+		response.FromError(c, err, "Erro ao listar inscrições do usuário")
 		return
 	}
 
 	// Calculate remaining vacancies for all enrollments in a single batched query
 	if err := h.populateRemainingVacanciesForEnrollments(c, inscricoes); err != nil {
-		response.RespondError(c, err, "Erro ao calcular vagas restantes")
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 
@@ -898,7 +997,7 @@ func (h *InscricaoHandler) ListByUser(c *gin.Context) {
 }
 
 // @Summary      Trocar turma/horário de inscrição
-// @Description  Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com pelo menos 72h de antecedência do início da aula. Se a inscrição estava aprovada, volta para status pendente.
+// @Description  Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com a antecedência mínima do início da aula configurada em ENROLLMENT_SCHEDULE_CHANGE_DEADLINE_HOURS (48h por padrão). A troca para a turma em que a inscrição já está é recusada com 400 ("você já está nesta turma"). Se a inscrição estava aprovada, volta para status pendente.
 // @Tags         enrollments
 // @Accept       json
 // @Produce      json
@@ -926,13 +1025,13 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 
 	var request models.ScheduleChangeRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
 	inscricao, err := h.service.ChangeSchedule(c.Request.Context(), enrollmentID, userCPF, &request)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao trocar de turma")
+		response.FromError(c, err, "Erro ao trocar de turma")
 		return
 	}
 
@@ -941,4 +1040,11 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 		"data":    inscricao,
 		"message": "Turma alterada com sucesso",
 	})
+}
+
+// respondCreateInscricaoError responde as falhas de criação de inscrição.
+// Regras de negócio (Validation), duplicidade (Conflict) e ausência (NotFound)
+// seguem response.FromError — a mensagem pública chega íntegra ao portal.
+func respondCreateInscricaoError(c *gin.Context, err error) {
+	response.FromError(c, err, "Erro ao criar inscrição")
 }

@@ -2,8 +2,10 @@ package empregabilidade
 
 import (
 	"context"
+	"regexp"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
@@ -244,7 +246,7 @@ func TestEtapaRepository_Delete_DatabaseError(t *testing.T) {
 		WillReturnError(assert.AnError)
 	mock.ExpectRollback()
 
-	err := repo.Delete(ctx, id)
+	err := repo.Delete(ctx, uuid.New(), id)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "erro ao excluir etapa")
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -284,5 +286,75 @@ func TestEtapaRepository_DeleteByVaga_DatabaseError(t *testing.T) {
 	err := repo.DeleteByVaga(ctx, vagaID)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "erro ao excluir etapas da vaga")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// Update e Delete filtram pela etapa E pela vaga (DEV-139): etapa de outra vaga
+// não é alterada, movida nem excluída, e o PUT não cria etapa (sem upsert).
+func TestEtapaRepository_Update_FiltraPorVaga(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+	entity := &empregabilidade.Etapa{ID: uuid.New(), IDVaga: uuid.New(), Titulo: "Entrevista", Descricao: "RH", Ordem: 2}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_etapas" SET "titulo"=\$1,"descricao"=\$2,"ordem"=\$3,"updated_at"=\$4 WHERE id = \$5 AND id_vaga = \$6$`).
+		WithArgs(entity.Titulo, entity.Descricao, entity.Ordem, sqlmock.AnyArg(), entity.ID, entity.IDVaga).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	err := repo.Update(context.Background(), entity)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestEtapaRepository_Update_EtapaForaDaVaga_NaoEncontrada(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+	entity := &empregabilidade.Etapa{ID: uuid.New(), IDVaga: uuid.New(), Titulo: "Entrevista", Ordem: 1}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_etapas"`)).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
+
+	err := repo.Update(context.Background(), entity)
+	assert.ErrorIs(t, err, ErrEtapaNaoEncontrada)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestEtapaRepository_Delete_FiltraPorVaga(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+	vagaID := uuid.New()
+	id := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_etapas" WHERE id = $1 AND id_vaga = $2`)).
+		WithArgs(id, vagaID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	err := repo.Delete(context.Background(), vagaID, id)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestEtapaRepository_Delete_EtapaForaDaVaga_NaoEncontrada(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "emp_etapas"`)).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
+
+	err := repo.Delete(context.Background(), uuid.New(), uuid.New())
+	assert.ErrorIs(t, err, ErrEtapaNaoEncontrada)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

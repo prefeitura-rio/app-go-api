@@ -243,7 +243,7 @@ func (h *CourseHandler) calculateRemainingVacanciesForCourses(c *gin.Context, cu
 func (h *CourseHandler) Create(c *gin.Context) {
 	var curso models.Curso
 	if err := c.ShouldBindJSON(&curso); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
@@ -256,7 +256,7 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	// órgão adicional a aplicar aqui.
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
-		response.RespondError(c, err)
+		response.FromError(c, err, "Erro ao criar curso")
 		return
 	}
 
@@ -293,7 +293,7 @@ func (h *CourseHandler) Create(c *gin.Context) {
 func (h *CourseHandler) CreateDraft(c *gin.Context) {
 	var curso models.Curso
 	if err := c.ShouldBindJSON(&curso); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
@@ -320,7 +320,7 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
-		response.RespondError(c, err)
+		response.FromError(c, err, "Erro ao criar rascunho")
 		return
 	}
 
@@ -344,7 +344,7 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 }
 
 // @Summary      Editar curso
-// @Description  Atualiza um curso existente. Também usado para publicar rascunhos mudando status de "draft" para "opened"
+// @Description  Atualiza um curso existente. Também usado para publicar rascunhos mudando status de "draft" para "opened". Turmas, locais e turma remota que não vierem no payload (ou vierem sem o id) são removidos; se alguma turma removida tiver inscrições, o PUT é recusado com 409 e nada é alterado. Envie o id de cada turma e local que deve ser mantido.
 // @Tags         courses
 // @Accept       json
 // @Produce      json
@@ -353,6 +353,7 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 // @Success      200      {object}  object
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      404      {object}  models.ErrorResponse
+// @Failure      409      {object}  models.ErrorResponse  "Turma removida (ou local/turma remota removidos) ainda tem inscrições"
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/courses/{courseId} [put]
 func (h *CourseHandler) Update(c *gin.Context) {
@@ -364,7 +365,7 @@ func (h *CourseHandler) Update(c *gin.Context) {
 
 	existingCurso, err := h.cursoService.GetByID(c.Request.Context(), id)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao buscar curso")
+		response.FromError(c, err, "Erro ao buscar curso")
 		return
 	}
 	if existingCurso == nil {
@@ -374,7 +375,7 @@ func (h *CourseHandler) Update(c *gin.Context) {
 
 	var curso models.Curso
 	if err := c.ShouldBindJSON(&curso); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
@@ -427,7 +428,7 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.cursoService.Update(c.Request.Context(), &curso); err != nil {
-		response.RespondError(c, err)
+		response.FromError(c, err, "Erro ao atualizar curso")
 		return
 	}
 
@@ -630,20 +631,20 @@ func (h *CourseHandler) list(c *gin.Context, publicOnly bool) {
 		var err error
 		cursos, total, err = h.listSortedByAvailability(c, filter, page, limit)
 		if err != nil {
-			response.RespondError(c, err, "Erro ao listar cursos")
+			response.FromError(c, err, "Erro ao listar cursos")
 			return
 		}
 	} else {
 		var err error
 		cursos, total, err = h.cursoService.List(c.Request.Context(), filter, page, limit)
 		if err != nil {
-			response.RespondError(c, err, "Erro ao listar cursos")
+			response.FromError(c, err, "Erro ao listar cursos")
 			return
 		}
 
 		// Calculate remaining vacancies for all courses in a single batched query
 		if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
-			response.RespondError(c, err, "Erro ao calcular vagas restantes")
+			response.FromError(c, err, "Erro ao calcular vagas restantes")
 			return
 		}
 	}
@@ -833,13 +834,13 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao listar rascunhos")
+		response.FromError(c, err, "Erro ao listar rascunhos")
 		return
 	}
 
 	// Calculate remaining vacancies for all courses in a single batched query
 	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
-		response.RespondError(c, err, "Erro ao calcular vagas restantes")
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 
@@ -912,7 +913,7 @@ func (h *CourseHandler) getByID(c *gin.Context, publicOnly bool) {
 
 	curso, err := h.cursoService.GetByID(c.Request.Context(), id)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao buscar curso")
+		response.FromError(c, err, "Erro ao buscar curso")
 		return
 	}
 
@@ -936,7 +937,7 @@ func (h *CourseHandler) getByID(c *gin.Context, publicOnly bool) {
 
 	// Calculate remaining vacancies for all schedules
 	if err := h.calculateRemainingVacancies(c, curso); err != nil {
-		response.RespondError(c, err, "Erro ao calcular vagas restantes")
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 
@@ -964,7 +965,7 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.cursoService.Delete(c.Request.Context(), id); err != nil {
-		response.RespondError(c, err, "Erro ao excluir curso")
+		response.FromError(c, err, "Erro ao excluir curso")
 		return
 	}
 
@@ -1055,13 +1056,13 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 
 	cursos, total, err := h.cursoService.List(c.Request.Context(), filter, page, limit)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao listar cursos do usuário")
+		response.FromError(c, err, "Erro ao listar cursos do usuário")
 		return
 	}
 
 	// Calculate remaining vacancies for all courses in a single batched query
 	if err := h.calculateRemainingVacanciesForCourses(c, cursos); err != nil {
-		response.RespondError(c, err, "Erro ao calcular vagas restantes")
+		response.FromError(c, err, "Erro ao calcular vagas restantes")
 		return
 	}
 
@@ -1101,7 +1102,7 @@ func (h *CourseHandler) SendToReview(c *gin.Context) {
 		return
 	}
 	if err := h.cursoService.SendToReview(c.Request.Context(), id); err != nil {
-		response.RespondError(c, err)
+		response.FromError(c, err, "Erro ao enviar curso para revisão")
 		return
 	}
 	if h.courseCache != nil {
@@ -1117,7 +1118,7 @@ func (h *CourseHandler) Approve(c *gin.Context) {
 		return
 	}
 	if err := h.cursoService.Approve(c.Request.Context(), id); err != nil {
-		response.RespondError(c, err)
+		response.FromError(c, err, "Erro ao aprovar curso")
 		return
 	}
 	if h.courseCache != nil {
@@ -1133,7 +1134,7 @@ func (h *CourseHandler) RequestChanges(c *gin.Context) {
 		return
 	}
 	if err := h.cursoService.RequestChanges(c.Request.Context(), id); err != nil {
-		response.RespondError(c, err)
+		response.FromError(c, err, "Erro ao solicitar edição do curso")
 		return
 	}
 	if h.courseCache != nil {
@@ -1149,7 +1150,7 @@ func (h *CourseHandler) RequestDeletion(c *gin.Context) {
 		return
 	}
 	if err := h.cursoService.RequestDeletion(c.Request.Context(), id); err != nil {
-		response.RespondError(c, err)
+		response.FromError(c, err, "Erro ao solicitar exclusão do curso")
 		return
 	}
 	if h.courseCache != nil {

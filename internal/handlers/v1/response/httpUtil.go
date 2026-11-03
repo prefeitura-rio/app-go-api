@@ -55,11 +55,7 @@ type ErrorWithField struct {
 // An optional fallbackMessage is used only for unmapped 500s (replacing
 // apperrors.MsgInternal). Domain errors and mapped DB constraints keep their
 // own client-safe messages; fallback is ignored for 4xx.
-func RespondError(c *gin.Context, err error, fallbackMessage ...string) {
-	if err == nil {
-		return
-	}
-
+func logRespondError(c *gin.Context, err error) {
 	traceID := ""
 	if span := trace.SpanFromContext(c.Request.Context()); span != nil {
 		sc := span.SpanContext()
@@ -78,6 +74,14 @@ func RespondError(c *gin.Context, err error, fallbackMessage ...string) {
 		}
 	}
 	log.Printf("request error method=%s path=%s trace_id=%s err=%v", method, path, traceID, err)
+}
+
+func RespondError(c *gin.Context, err error, fallbackMessage ...string) {
+	if err == nil {
+		return
+	}
+
+	logRespondError(c, err)
 
 	status, message, field := apperrors.Map(err)
 	if status == http.StatusInternalServerError &&

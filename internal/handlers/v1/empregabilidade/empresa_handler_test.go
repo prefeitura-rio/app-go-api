@@ -321,3 +321,25 @@ func TestEmpresaHandler_ConsultaCNPJ_WithMockedService(t *testing.T) {
 		}
 	})
 }
+
+// DEV-49: falha inesperada na consulta de CNPJ responde 500 genérico, sem o
+// texto do erro interno (configuração, token, RMI).
+func TestEmpresaHandler_ConsultaCNPJ_InternalError_DoesNotLeak(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := services.NewEmpresaServiceWithInterface(&mockEmpresaRepoEmpH{})
+	h := handlers.NewEmpresaHandler(svc).WithCNPJConsulta(&services.CNPJConsultaService{})
+
+	r := gin.New()
+	r.GET("/consulta/:cnpj", h.ConsultaCNPJ)
+
+	req := httptest.NewRequest(http.MethodGet, "/consulta/12345678000190", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
+	if got, want := w.Body.String(), `{"error":"Erro ao consultar CNPJ"}`; got != want {
+		t.Errorf("expected body %s, got %s", want, got)
+	}
+}

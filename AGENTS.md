@@ -12,7 +12,7 @@ The service is also consumed by `superapp` (citizen-facing frontend) and by inte
 
 ### Technology Stack
 
-- **Language**: Go 1.24
+- **Language**: Go 1.27
 - **Framework**: Gin (gin-gonic/gin v1.10)
 - **Database**: PostgreSQL 16+ via GORM (gorm.io/gorm v1.30) with `gorm.io/driver/postgres`
 - **Cache**: Redis 7+ via `redis/go-redis/v9`
@@ -289,7 +289,7 @@ The `flake.nix` `devShells.default` includes:
 
 | Tool | Purpose |
 |---|---|
-| `go_1_24` | Go compiler and toolchain |
+| `go_1_27` | Go compiler and toolchain |
 | `gopls` | Go language server (editor support) |
 | `gotools` | `goimports` and other Go utilities |
 | `golangci-lint` | Linter (matches CI version) |

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type EmpregoHandler struct {
@@ -36,7 +38,7 @@ func NewEmpregoHandler(service *services.EmpregoService) *EmpregoHandler {
 func (h *EmpregoHandler) Create(c *gin.Context) {
 	var emprego models.Emprego
 	if err := c.ShouldBindJSON(&emprego); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
@@ -55,7 +57,18 @@ func (h *EmpregoHandler) Create(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &emprego)
 	if err != nil {
-		response.RespondError(c, err)
+		// Check if it's a validation error (simple check for common validation terms)
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "obrigatório") || strings.Contains(errMsg, "inválid") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+			return
+		}
+		// Otherwise, treat as database error
+		dbErr := utils.ParseDatabaseError(err)
+		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
+			"error": dbErr.GetUserFriendlyMessage(),
+			"field": dbErr.Field,
+		})
 		return
 	}
 
@@ -82,7 +95,7 @@ func (h *EmpregoHandler) GetByID(c *gin.Context) {
 
 	emprego, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao buscar emprego")
+		response.FromError(c, err, "Erro ao buscar emprego")
 		return
 	}
 
@@ -119,7 +132,7 @@ func (h *EmpregoHandler) Update(c *gin.Context) {
 		if cpf != "" && secretariaIDs != nil {
 			existing, err := h.service.GetByID(c.Request.Context(), id)
 			if err != nil {
-				response.RespondError(c, err, "Erro ao buscar emprego")
+				response.FromError(c, err, "Erro ao buscar emprego")
 				return
 			}
 			if existing == nil {
@@ -136,13 +149,24 @@ func (h *EmpregoHandler) Update(c *gin.Context) {
 
 	var emprego models.Emprego
 	if err := c.ShouldBindJSON(&emprego); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
 	emprego.ID = id
 	if err := h.service.Update(c.Request.Context(), &emprego); err != nil {
-		response.RespondError(c, err)
+		// Check if it's a validation error
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "obrigatório") || strings.Contains(errMsg, "inválid") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+			return
+		}
+		// Otherwise, treat as database error
+		dbErr := utils.ParseDatabaseError(err)
+		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
+			"error": dbErr.GetUserFriendlyMessage(),
+			"field": dbErr.Field,
+		})
 		return
 	}
 
@@ -168,7 +192,7 @@ func (h *EmpregoHandler) Delete(c *gin.Context) {
 	// Check if emprego exists first
 	emprego, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao buscar emprego")
+		response.FromError(c, err, "Erro ao buscar emprego")
 		return
 	}
 	if emprego == nil {
@@ -190,7 +214,7 @@ func (h *EmpregoHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		response.RespondError(c, err, "Erro ao excluir emprego")
+		response.FromError(c, err, "Erro ao excluir emprego")
 		return
 	}
 
@@ -266,7 +290,7 @@ func (h *EmpregoHandler) List(c *gin.Context) {
 
 	empregos, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao listar empregos")
+		response.FromError(c, err, "Erro ao listar empregos")
 		return
 	}
 

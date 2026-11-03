@@ -18,6 +18,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -350,7 +351,7 @@ func TestInscricaoHandler_Create_DuplicateEnrollment(t *testing.T) {
 	r.POST("/api/v1/courses/:courseId/enrollments", handler.Create)
 
 	mockService.On("Create", mock.Anything, mock.AnythingOfType("*models.Inscricao")).
-		Return(apperrors.Conflict("CPF já inscrito neste curso"))
+		Return(services.ErrCPFJaInscrito)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/courses/1/enrollments", bytes.NewReader([]byte(`{}`)))
 	req.Header.Set("Content-Type", "application/json")
@@ -599,6 +600,8 @@ func TestInscricaoHandler_UpdateIndividualStatus_Success(t *testing.T) {
 
 	enrollmentID := uuid.New()
 
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(&models.Inscricao{ID: enrollmentID, CursoID: 1, CPF: "12345678901"}, nil)
 	mockService.On("UpdateStatus", mock.Anything, enrollmentID, models.StatusInscricaoApproved, "Approved", "Notes").
 		Return(nil)
 
@@ -637,6 +640,8 @@ func TestInscricaoHandler_UpdateIndividualStatus_Editor_Passes(t *testing.T) {
 
 	enrollmentID := uuid.New()
 
+	mockService.On("GetByID", mock.Anything, enrollmentID).
+		Return(&models.Inscricao{ID: enrollmentID, CursoID: 1, CPF: "12345678901"}, nil)
 	mockService.On("UpdateStatus", mock.Anything, enrollmentID, models.StatusInscricaoApproved, "", "").
 		Return(nil)
 
@@ -1749,6 +1754,10 @@ func TestInscricaoHandler_UpdateCertificate_Success(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
 
 	enrollmentID := uuid.New()
@@ -1783,12 +1792,16 @@ func TestInscricaoHandler_UpdateCertificate_NotFound(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
 
 	enrollmentID := uuid.New()
 
 	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
-		Return(apperrors.NotFound("inscrição não encontrada"))
+		Return(services.ErrInscricaoNaoEncontrada)
 
 	reqBody := map[string]interface{}{
 		"certificate_url": "https://example.com/cert.pdf",
@@ -1814,12 +1827,16 @@ func TestInscricaoHandler_UpdateCertificate_WrongCourse(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
 
 	enrollmentID := uuid.New()
 
 	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
-		Return(apperrors.Validation("inscrição não pertence ao curso especificado"))
+		Return(services.ErrInscricaoDeOutroCurso)
 
 	reqBody := map[string]interface{}{
 		"certificate_url": "https://example.com/cert.pdf",
@@ -1846,12 +1863,16 @@ func TestInscricaoHandler_UpdateCertificate_InvalidStatus(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
 
 	enrollmentID := uuid.New()
 
 	mockService.On("UpdateCertificate", mock.Anything, 1, enrollmentID, mock.Anything).
-		Return(apperrors.Validation("certificado só pode ser atribuído a inscrições aprovadas ou concluídas"))
+		Return(services.ErrCertificadoStatusInvalido)
 
 	reqBody := map[string]interface{}{
 		"certificate_url": "https://example.com/cert.pdf",
@@ -1878,6 +1899,10 @@ func TestInscricaoHandler_UpdateCertificate_ServiceError(t *testing.T) {
 	handler := v1.NewInscricaoHandler(mockService, mockJobService, mockCursoRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRoleKey, "ADMIN")
+		c.Next()
+	})
 	r.PUT("/api/v1/courses/:courseId/enrollments/:enrollmentId/certificate", handler.UpdateCertificate)
 
 	enrollmentID := uuid.New()

@@ -21,8 +21,44 @@ func NewInscricaoRepository(db *gorm.DB) *InscricaoRepository {
 	}
 }
 
+// txContextKey carries, in a context, the transaction opened by WithScheduleLock.
+type txContextKey struct{}
+
+// dbFromContext returns the transaction WithScheduleLock put in ctx, or db when
+// there is none. Repository methods called inside WithScheduleLock must use it
+// to run in the locked transaction.
+func dbFromContext(ctx context.Context, db *gorm.DB) *gorm.DB {
+	if tx, ok := ctx.Value(txContextKey{}).(*gorm.DB); ok && tx != nil {
+		return tx
+	}
+	return db
+}
+
+// scheduleLockKeyPrefix namespaces the advisory lock key of a turma, so it does
+// not share keys with other advisory locks of the database.
+const scheduleLockKeyPrefix = "inscricoes:schedule:"
+
+// WithScheduleLock runs fn in a transaction that holds a lock on the turma
+// (schedule) scheduleID until it commits or rolls back. Callers that count the
+// turma's vacancies and then insert or move an enrollment into it are
+// serialized, so each count sees the writes of the ones before it (DEV-199).
+//
+// The lock is a transaction-level advisory lock keyed by the schedule id, which
+// covers both course_schedules and remote_schedules. The context passed to fn
+// carries the transaction: Create, Update and the CursoRepository counts called
+// with it run inside the locked transaction. An error returned by fn rolls the
+// transaction back.
+func (r *InscricaoRepository) WithScheduleLock(ctx context.Context, scheduleID uuid.UUID, fn func(ctx context.Context) error) error {
+	return dbFromContext(ctx, r.db).WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", scheduleLockKeyPrefix+scheduleID.String()).Error; err != nil {
+			return fmt.Errorf("erro ao bloquear turma para controle de vagas: %w", err)
+		}
+		return fn(context.WithValue(ctx, txContextKey{}, tx))
+	})
+}
+
 func (r *InscricaoRepository) Create(ctx context.Context, inscricao *models.Inscricao) error {
-	result := r.db.WithContext(ctx).Create(inscricao)
+	result := dbFromContext(ctx, r.db).WithContext(ctx).Create(inscricao)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao criar inscrição: %w", result.Error)
 	}
@@ -329,7 +365,7 @@ func (r *InscricaoRepository) ListApprovedStartingBetween(ctx context.Context, s
 }
 
 func (r *InscricaoRepository) Update(ctx context.Context, inscricao *models.Inscricao) error {
-	result := r.db.WithContext(ctx).
+	result := dbFromContext(ctx, r.db).WithContext(ctx).
 		Model(inscricao).
 		Where("id = ?", inscricao.ID).
 		Updates(inscricao)

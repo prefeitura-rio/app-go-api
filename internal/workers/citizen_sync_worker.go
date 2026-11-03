@@ -2,7 +2,10 @@ package workers
 
 import (
 	"context"
+	"errors"
 	"log"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -13,6 +16,15 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
+// The worker writes informational lines and expected business results to
+// stdout and real failures to stderr: plain-text container logs get severity
+// INFO from stdout and ERROR from stderr in GKE, so ERROR stays reserved for
+// infrastructure problems (token, database, RMI unavailable).
+var (
+	defaultCitizenSyncInfoLog  = log.New(os.Stdout, "", log.LstdFlags)
+	defaultCitizenSyncErrorLog = log.New(os.Stderr, "", log.LstdFlags)
+)
+
 // CitizenSyncWorker handles periodic synchronization of citizen data from RMI API
 type CitizenSyncWorker struct {
 	rmiClient           *clients.RMIClient
@@ -21,6 +33,36 @@ type CitizenSyncWorker struct {
 	syncInterval        time.Duration
 	staleThreshold      time.Duration
 	batchSize           int
+	infoLog             *log.Logger // nil: defaultCitizenSyncInfoLog
+	errorLog            *log.Logger // nil: defaultCitizenSyncErrorLog
+}
+
+func (w *CitizenSyncWorker) infoLogger() *log.Logger {
+	if w.infoLog != nil {
+		return w.infoLog
+	}
+	return defaultCitizenSyncInfoLog
+}
+
+func (w *CitizenSyncWorker) errorLogger() *log.Logger {
+	if w.errorLog != nil {
+		return w.errorLog
+	}
+	return defaultCitizenSyncErrorLog
+}
+
+// isExpectedCitizenSyncError reports whether err is a business result the RMI
+// gives for the CPF itself (citizen not found, CPF rejected as invalid) rather
+// than a failure of the sync: these are logged as warnings, not errors.
+func isExpectedCitizenSyncError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, clients.ErrCitizenNotFound) {
+		return true
+	}
+	var statusErr *clients.RMIStatusError
+	return errors.As(err, &statusErr) && statusErr.StatusCode == http.StatusBadRequest
 }
 
 // NewCitizenSyncWorker creates a new citizen sync worker instance
@@ -42,27 +84,27 @@ func NewCitizenSyncWorker(
 
 // Start begins the worker loop - runs until context is cancelled
 func (w *CitizenSyncWorker) Start(ctx context.Context) error {
-	log.Println("[CitizenSyncWorker] Starting citizen sync worker...")
+	w.infoLogger().Println("[CitizenSyncWorker] Starting citizen sync worker...")
 
 	// Run initial sync immediately
 	if err := w.runSync(ctx); err != nil {
-		log.Printf("[CitizenSyncWorker] Initial sync failed: %v", err)
+		w.errorLogger().Printf("[CitizenSyncWorker] Initial sync failed: %v", err)
 	}
 
 	// Setup periodic ticker
 	ticker := time.NewTicker(w.syncInterval)
 	defer ticker.Stop()
 
-	log.Printf("[CitizenSyncWorker] Worker started successfully. Sync interval: %v", w.syncInterval)
+	w.infoLogger().Printf("[CitizenSyncWorker] Worker started successfully. Sync interval: %v", w.syncInterval)
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("[CitizenSyncWorker] Context cancelled, shutting down worker...")
+			w.infoLogger().Println("[CitizenSyncWorker] Context cancelled, shutting down worker...")
 			return ctx.Err()
 		case <-ticker.C:
 			if err := w.runSync(ctx); err != nil {
-				log.Printf("[CitizenSyncWorker] Sync cycle failed: %v", err)
+				w.errorLogger().Printf("[CitizenSyncWorker] Sync cycle failed: %v", err)
 			}
 		}
 	}
@@ -71,35 +113,35 @@ func (w *CitizenSyncWorker) Start(ctx context.Context) error {
 // runSync executes a full sync cycle
 func (w *CitizenSyncWorker) runSync(ctx context.Context) error {
 	startTime := time.Now()
-	log.Println("[CitizenSyncWorker] Starting sync cycle...")
+	w.infoLogger().Println("[CitizenSyncWorker] Starting sync cycle...")
 
 	// Find CPFs that need syncing (have enrollments but missing/stale snapshot)
 	cpfsToSync, err := w.citizenSnapshotRepo.GetCPFsWithEnrollments(ctx, w.staleThreshold, w.batchSize)
 	if err != nil {
-		log.Printf("[CitizenSyncWorker] Failed to get CPFs to sync: %v", err)
+		w.errorLogger().Printf("[CitizenSyncWorker] Failed to get CPFs to sync: %v", err)
 		return err
 	}
 
 	if len(cpfsToSync) == 0 {
-		log.Println("[CitizenSyncWorker] No citizen snapshots need syncing")
+		w.infoLogger().Println("[CitizenSyncWorker] No citizen snapshots need syncing")
 		return nil
 	}
 
-	log.Printf("[CitizenSyncWorker] Found %d CPFs to sync", len(cpfsToSync))
+	w.infoLogger().Printf("[CitizenSyncWorker] Found %d CPFs to sync", len(cpfsToSync))
 
 	// Get service account token
 	token, err := w.tokenManager.GetToken(ctx)
 	if err != nil {
-		log.Printf("[CitizenSyncWorker] Failed to get service token: %v", err)
+		w.errorLogger().Printf("[CitizenSyncWorker] Failed to get service token: %v", err)
 		return err
 	}
 
 	// Sync citizens
-	synced, failed := w.syncCitizens(ctx, cpfsToSync, token)
+	synced, skipped, failed := w.syncCitizens(ctx, cpfsToSync, token)
 
 	duration := time.Since(startTime)
-	log.Printf("[CitizenSyncWorker] Sync cycle completed in %v: %d synced, %d failed",
-		duration, synced, failed)
+	w.infoLogger().Printf("[CitizenSyncWorker] Sync cycle completed in %v: %d synced, %d skipped (not found or invalid CPF), %d failed",
+		duration, synced, skipped, failed)
 
 	// Log stats
 	w.logSyncStats(ctx)
@@ -107,26 +149,33 @@ func (w *CitizenSyncWorker) runSync(ctx context.Context) error {
 	return nil
 }
 
-// syncCitizens syncs citizen data from RMI API
-func (w *CitizenSyncWorker) syncCitizens(ctx context.Context, cpfs []string, token string) (synced int, failed int) {
+// syncCitizens syncs citizen data from RMI API. skipped counts the CPFs the RMI
+// answered with an expected business result (see isExpectedCitizenSyncError);
+// failed counts real failures.
+func (w *CitizenSyncWorker) syncCitizens(ctx context.Context, cpfs []string, token string) (synced, skipped, failed int) {
 	for _, cpf := range cpfs {
-		if err := w.syncSingleCitizen(ctx, cpf, token); err != nil {
-			log.Printf("[CitizenSyncWorker] Failed to sync citizen %s: %v", maskCPF(cpf), err)
-			failed++
-		} else {
+		err := w.syncSingleCitizen(ctx, cpf, token)
+		switch {
+		case err == nil:
 			synced++
+		case isExpectedCitizenSyncError(err):
+			w.infoLogger().Printf("[CitizenSyncWorker] WARN: citizen %s not synced: %v", maskCPF(cpf), err)
+			skipped++
+		default:
+			w.errorLogger().Printf("[CitizenSyncWorker] Failed to sync citizen %s: %v", maskCPF(cpf), err)
+			failed++
 		}
 
 		// Check context cancellation between iterations
 		select {
 		case <-ctx.Done():
-			log.Println("[CitizenSyncWorker] Context cancelled during sync")
-			return synced, failed
+			w.infoLogger().Println("[CitizenSyncWorker] Context cancelled during sync")
+			return synced, skipped, failed
 		default:
 		}
 	}
 
-	return synced, failed
+	return synced, skipped, failed
 }
 
 // syncSingleCitizen fetches and upserts a single citizen snapshot
@@ -145,7 +194,7 @@ func (w *CitizenSyncWorker) syncSingleCitizen(ctx context.Context, cpf string, t
 		return err
 	}
 
-	log.Printf("[CitizenSyncWorker] Synced citizen %s (%s)", maskCPF(cpf), citizenInfo.Nome)
+	w.infoLogger().Printf("[CitizenSyncWorker] Synced citizen %s", maskCPF(cpf))
 	return nil
 }
 
@@ -226,7 +275,7 @@ func (w *CitizenSyncWorker) syncCitizen(ctx context.Context, cpf string, force b
 	if err != nil {
 		// If token fails but we have existing data, return it
 		if existing != nil {
-			log.Printf("[CitizenSyncWorker] Token failed, returning stale snapshot for %s: %v", maskCPF(cpf), err)
+			w.errorLogger().Printf("[CitizenSyncWorker] Token failed, returning stale snapshot for %s: %v", maskCPF(cpf), err)
 			return existing, nil
 		}
 		return nil, err
@@ -236,7 +285,11 @@ func (w *CitizenSyncWorker) syncCitizen(ctx context.Context, cpf string, force b
 	if err != nil {
 		// If RMI fails but we have existing data, return it
 		if existing != nil {
-			log.Printf("[CitizenSyncWorker] RMI failed, returning stale snapshot for %s: %v", maskCPF(cpf), err)
+			if isExpectedCitizenSyncError(err) {
+				w.infoLogger().Printf("[CitizenSyncWorker] WARN: RMI did not return citizen %s, returning stale snapshot: %v", maskCPF(cpf), err)
+			} else {
+				w.errorLogger().Printf("[CitizenSyncWorker] RMI failed, returning stale snapshot for %s: %v", maskCPF(cpf), err)
+			}
 			return existing, nil
 		}
 		return nil, err
@@ -249,7 +302,7 @@ func (w *CitizenSyncWorker) syncCitizen(ctx context.Context, cpf string, force b
 		oldHash := existing.ComputeDataHash()
 		newHash := snapshot.ComputeDataHash()
 		if oldHash != newHash && len(oldHash) >= 8 && len(newHash) >= 8 {
-			log.Printf("[CitizenSyncWorker] Citizen %s data updated in RMI (hash changed: %s -> %s)", maskCPF(cpf), oldHash[:8], newHash[:8])
+			w.infoLogger().Printf("[CitizenSyncWorker] Citizen %s data updated in RMI (hash changed: %s -> %s)", maskCPF(cpf), oldHash[:8], newHash[:8])
 		}
 	}
 
@@ -258,7 +311,7 @@ func (w *CitizenSyncWorker) syncCitizen(ctx context.Context, cpf string, force b
 		return nil, err
 	}
 
-	log.Printf("[CitizenSyncWorker] On-demand sync completed for citizen %s", maskCPF(cpf))
+	w.infoLogger().Printf("[CitizenSyncWorker] On-demand sync completed for citizen %s", maskCPF(cpf))
 	return snapshot, nil
 }
 
@@ -266,10 +319,10 @@ func (w *CitizenSyncWorker) syncCitizen(ctx context.Context, cpf string, force b
 func (w *CitizenSyncWorker) logSyncStats(ctx context.Context) {
 	count, err := w.citizenSnapshotRepo.Count(ctx)
 	if err != nil {
-		log.Printf("[CitizenSyncWorker] Failed to get stats: %v", err)
+		w.errorLogger().Printf("[CitizenSyncWorker] Failed to get stats: %v", err)
 		return
 	}
-	log.Printf("[CitizenSyncWorker] Total citizen snapshots: %d", count)
+	w.infoLogger().Printf("[CitizenSyncWorker] Total citizen snapshots: %d", count)
 }
 
 // parseDate tries to parse date in common formats

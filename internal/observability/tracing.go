@@ -53,8 +53,11 @@ func InitTracer(cfg *config.AppConfig) error {
 		return err
 	}
 
-	// Create trace provider with batching
+	// Create trace provider with batching. The url.path redactor runs on span
+	// start, so the raw request path (which may carry a CPF) never reaches
+	// the exporter.
 	tracerProvider = sdktrace.NewTracerProvider(
+		sdktrace.WithSpanProcessor(newURLPathRedactor()),
 		sdktrace.WithBatcher(exporter,
 			sdktrace.WithMaxExportBatchSize(512),
 			sdktrace.WithBatchTimeout(time.Second*10),

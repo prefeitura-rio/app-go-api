@@ -5,12 +5,36 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/typesense/typesense-go/v3/typesense"
 	"github.com/typesense/typesense-go/v3/typesense/api"
 )
+
+// Coleções do Typesense abertas à busca pública.
+const (
+	CollectionCursos   = "cursos"
+	CollectionEmpregos = "empregos"
+)
+
+// ErrCollectionNotAllowed indica uma coleção fora da allowlist de busca pública.
+var ErrCollectionNotAllowed = errors.New("coleção não disponível para busca")
+
+// searchableCollections é a allowlist fixa das coleções que a API consulta.
+// Qualquer outra coleção da mesma instância do Typesense fica inacessível.
+var searchableCollections = map[string]struct{}{
+	CollectionCursos:   {},
+	CollectionEmpregos: {},
+}
+
+// IsSearchableCollection informa se a coleção está na allowlist de busca
+// pública. A comparação é exata (sem normalizar caixa nem espaços).
+func IsSearchableCollection(name string) bool {
+	_, ok := searchableCollections[name]
+	return ok
+}
 
 // TypesenseServiceInterface define os métodos do serviço de busca Typesense
 type TypesenseServiceInterface interface {
@@ -19,6 +43,14 @@ type TypesenseServiceInterface interface {
 	SearchDocuments(ctx context.Context, collectionName string, params models.SearchParameters) (*models.SearchDocumentsResponse, error)
 	SearchMultiCollection(ctx context.Context, params models.MultiCollectionSearchParameters) (*models.MultiCollectionSearchResponse, error)
 }
+
+// multiSearchCollectionErrorMessage é o que o chamador vê no lugar do erro de
+// uma coleção que falhou na busca múltipla. O erro real (host, porta, causa)
+// vai só para o log, como em handleError (DEV-144).
+const multiSearchCollectionErrorMessage = "Erro ao buscar documentos"
+
+// errMultiSearchAllFailed é devolvido quando nenhuma coleção pedida respondeu.
+var errMultiSearchAllFailed = errors.New("erro ao buscar documentos em todas as coleções")
 
 // TypesenseService fornece operações de busca no Typesense
 type TypesenseService struct {
@@ -46,13 +78,19 @@ func NewTypesenseService() (*TypesenseService, error) {
 	}, nil
 }
 
+// NewTypesenseServiceWithClient cria um TypesenseService com um cliente já
+// configurado (usado em testes com um Typesense falso).
+func NewTypesenseServiceWithClient(client *typesense.Client) *TypesenseService {
+	return &TypesenseService{client: client}
+}
+
 // SearchCursos busca cursos usando parâmetros específicos e otimizados para a estrutura aninhada
 func (s *TypesenseService) SearchCursos(ctx context.Context, params models.CursoSearchParameters) (*models.SearchDocumentsResponse, error) {
 	// Converter para parâmetros padrão
 	searchParams := params.ToSearchParameters()
 
 	// Executar busca na collection de cursos
-	response, err := s.SearchDocuments(ctx, "cursos", searchParams)
+	response, err := s.SearchDocuments(ctx, CollectionCursos, searchParams)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao buscar cursos: %w", err)
 	}
@@ -88,7 +126,7 @@ func (s *TypesenseService) SearchEmpregos(ctx context.Context, params models.Emp
 	searchParams := params.ToSearchParameters()
 
 	// Executar busca na collection de empregos
-	response, err := s.SearchDocuments(ctx, "empregos", searchParams)
+	response, err := s.SearchDocuments(ctx, CollectionEmpregos, searchParams)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao buscar empregos: %w", err)
 	}
@@ -118,8 +156,13 @@ func (s *TypesenseService) SearchEmpregos(ctx context.Context, params models.Emp
 	return response, nil
 }
 
-// SearchDocuments busca documentos em uma coleção
+// SearchDocuments busca documentos em uma coleção da allowlist de busca
+// pública; qualquer outra devolve ErrCollectionNotAllowed sem consultar o Typesense.
 func (s *TypesenseService) SearchDocuments(ctx context.Context, collectionName string, params models.SearchParameters) (*models.SearchDocumentsResponse, error) {
+	if !IsSearchableCollection(collectionName) {
+		return nil, ErrCollectionNotAllowed
+	}
+
 	// Converte os valores para ponteiros quando necessário
 	q := params.Q
 	queryBy := params.QueryBy
@@ -221,19 +264,22 @@ func (s *TypesenseService) SearchMultiCollection(ctx context.Context, params mod
 
 	// Contador de total de documentos encontrados em todas as coleções
 	totalFound := 0
+	// Quantas coleções responderam sem erro
+	succeeded := 0
 
 	// Busca em cada coleção
 	for _, collectionName := range params.Collections {
 		// Executa a busca na coleção atual
 		result, err := s.SearchDocuments(ctx, collectionName, params.Params)
 		if err != nil {
-			// Se houver erro em uma coleção, continua com as próximas
-			// mas registra o erro nos resultados
+			// Se houver erro em uma coleção, continua com as próximas. O erro
+			// real vai para o log; o chamador vê só a mensagem genérica.
+			log.Printf("[TypesenseService] busca múltipla: erro na coleção %q: %v", collectionName, err)
 			response.Results[collectionName] = models.SearchDocumentsResponse{
 				Found: 0,
 				Hits:  []map[string]interface{}{},
 				RequestParams: map[string]interface{}{
-					"error": err.Error(),
+					"error": multiSearchCollectionErrorMessage,
 				},
 			}
 			continue
@@ -241,9 +287,16 @@ func (s *TypesenseService) SearchMultiCollection(ctx context.Context, params mod
 
 		// Adiciona resultado ao mapa de resultados
 		response.Results[collectionName] = *result
+		succeeded++
 
 		// Incrementa o contador total
 		totalFound += result.Found
+	}
+
+	// Nenhuma coleção respondeu: a falha é do backend e não pode virar um 200
+	// vazio. O handler responde 500 com a mensagem genérica.
+	if succeeded == 0 {
+		return nil, errMultiSearchAllFailed
 	}
 
 	// Atualiza o total encontrado

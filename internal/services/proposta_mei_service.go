@@ -8,7 +8,11 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
+
+// ErrPropostaNaoEncontrada é a proposta MEI inexistente.
+var ErrPropostaNaoEncontrada = apperrors.NotFound("proposta não encontrada")
 
 type PropostaMEIService struct {
 	repo                  PropostaMEIRepositoryInterface
@@ -34,7 +38,7 @@ func NewPropostaMEIService(
 func (s *PropostaMEIService) Create(ctx context.Context, proposta *models.PropostaMEI, authToken string) (uuid.UUID, error) {
 	// Validar campos da proposta
 	if err := proposta.Validate(); err != nil {
-		return uuid.Nil, apperrors.Validation(err.Error())
+		return uuid.Nil, apperrors.Invalid(err.Error())
 	}
 
 	// Validar que a oportunidade existe e está ativa
@@ -43,10 +47,10 @@ func (s *PropostaMEIService) Create(ctx context.Context, proposta *models.Propos
 		return uuid.Nil, err
 	}
 	if oportunidade == nil {
-		return uuid.Nil, apperrors.NotFound("oportunidade não encontrada")
+		return uuid.Nil, ErrOportunidadeNaoEncontrada
 	}
 	if oportunidade.Status != models.StatusOportunidadeActive {
-		return uuid.Nil, apperrors.Validation("oportunidade não está ativa")
+		return uuid.Nil, apperrors.Invalid("oportunidade não está ativa")
 	}
 
 	// NEW: Validate CNAE compatibility
@@ -99,19 +103,19 @@ func (s *PropostaMEIService) UpdateProposta(ctx context.Context, id uuid.UUID, o
 		return err
 	}
 	if proposta == nil {
-		return apperrors.NotFound("proposta não encontrada")
+		return ErrPropostaNaoEncontrada
 	}
 
 	// Validar que a proposta pertence à oportunidade especificada
 	if proposta.OportunidadeMEIID != oportunidadeID {
-		return apperrors.Validation("proposta não pertence à oportunidade especificada")
+		return apperrors.Invalid("proposta não pertence à oportunidade especificada")
 	}
 
 	// Atualizar os campos fornecidos
 	if valorProposta != nil {
 		// Validate that the value is positive
 		if *valorProposta < 0 {
-			return apperrors.Validation("valor_proposta deve ser positivo")
+			return apperrors.Invalid("valor_proposta deve ser positivo")
 		}
 		proposta.ValorProposta = valorProposta
 	}
@@ -133,7 +137,7 @@ func (s *PropostaMEIService) UpdateStatusCidadao(ctx context.Context, id uuid.UU
 		return err
 	}
 	if proposta == nil {
-		return apperrors.NotFound("proposta não encontrada")
+		return ErrPropostaNaoEncontrada
 	}
 
 	proposta.StatusCidadao = status
@@ -178,11 +182,11 @@ func (s *PropostaMEIService) ListByStatus(ctx context.Context, status models.Sta
 
 func (s *PropostaMEIService) UpdateMultipleStatus(ctx context.Context, propostaIDs []uuid.UUID, status models.StatusPropostaCidadao) (int, error) {
 	if len(propostaIDs) == 0 {
-		return 0, apperrors.Validation("nenhuma proposta selecionada")
+		return 0, apperrors.Invalid("nenhuma proposta selecionada")
 	}
 
 	if !status.IsValid() {
-		return 0, apperrors.Validation("status inválido")
+		return 0, apperrors.Invalid("status inválido")
 	}
 
 	return s.repo.UpdateMultipleStatus(ctx, propostaIDs, status)
@@ -203,7 +207,7 @@ func (s *PropostaMEIService) enrichPropostaWithContactInfo(ctx context.Context, 
 	contactInfo, err := s.contactInfoService.GetCNPJOwnerContactInfo(ctx, proposta.MEIEmpresaID)
 	if err != nil {
 		log.Printf("[CONTACT_INFO_ERROR] Failed to fetch contact info for CNPJ %s: %v",
-			proposta.MEIEmpresaID, err)
+			utils.MaskCNPJForLog(proposta.MEIEmpresaID), err)
 		return
 	}
 

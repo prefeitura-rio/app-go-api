@@ -1,12 +1,14 @@
 package clients
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -20,7 +22,27 @@ var (
 	ErrCNPJNotFound     = errors.New("CNPJ não encontrado")
 	ErrCNPJAccessDenied = errors.New("acesso negado ao CNPJ")
 	ErrInvalidCNPJ      = errors.New("CNPJ inválido")
+
+	// ErrCitizenNotFound is returned by GetCitizenByCPF when the RMI answers 404
+	// for the CPF: an expected business result, not an infrastructure failure.
+	ErrCitizenNotFound = errors.New("citizen not found")
 )
+
+// RMIStatusError is the error for a non-OK RMI response. Snippet is the
+// sanitized excerpt of the response body (see sanitizeRMIErrorBody), empty when
+// nothing of it is safe to keep. Callers use StatusCode to tell a rejected
+// input (4xx) from an RMI failure (5xx) without parsing the message.
+type RMIStatusError struct {
+	StatusCode int
+	Snippet    string
+}
+
+func (e *RMIStatusError) Error() string {
+	if e.Snippet != "" {
+		return fmt.Sprintf("RMI API returned status %d: %s", e.StatusCode, e.Snippet)
+	}
+	return fmt.Sprintf("RMI API returned status %d", e.StatusCode)
+}
 
 const (
 	maxLegalEntities = 1000 // Safety limit to prevent infinite loops
@@ -125,8 +147,7 @@ func (c *RMIClient) fetchPage(ctx context.Context, authToken string, cpf string,
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, models.PaginationResponse{}, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, models.PaginationResponse{}, rmiStatusError(resp)
 	}
 
 	// Parse response
@@ -167,8 +188,7 @@ func (c *RMIClient) GetOrgao(ctx context.Context, orgaoID string) (*models.Orgao
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, rmiStatusError(resp)
 	}
 
 	// Parse response - note: API returns the object directly, not wrapped in "data"
@@ -222,8 +242,7 @@ func (c *RMIClient) GetCNPJOwnerInfo(ctx context.Context, serviceToken string, c
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, rmiStatusError(resp)
 	}
 
 	var legalEntity models.LegalEntityDetails
@@ -273,8 +292,7 @@ func (c *RMIClient) GetCNPJOwnerInfo(ctx context.Context, serviceToken string, c
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, rmiStatusError(resp)
 	}
 
 	var citizenInfo models.CitizenContactInfo
@@ -327,12 +345,11 @@ func (c *RMIClient) GetCitizenByCPF(ctx context.Context, serviceToken string, cp
 	}()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("citizen not found")
+		return nil, ErrCitizenNotFound
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, rmiStatusError(resp)
 	}
 
 	var citizenInfo models.CitizenContactInfo
@@ -385,8 +402,7 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("RMI API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, rmiStatusError(resp)
 	}
 
 	var legalEntity models.LegalEntityFull
@@ -400,6 +416,81 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 // rmiErrorBodyDrainLimit caps how much of an error response body is read and
 // discarded before the connection is released.
 const rmiErrorBodyDrainLimit = 64 << 10
+
+const rmiErrorSnippetMaxRunes = 120
+
+// rmiErrorMessageFields are the only fields of a JSON error body kept in the
+// error message; every other field may carry citizen data and is dropped.
+var rmiErrorMessageFields = []string{"error", "message"}
+
+var (
+	// Runs of 6+ digits with optional single separators: CPF, CNPJ, phone
+	// numbers, formatted or not.
+	rmiDigitRunPattern = regexp.MustCompile(`\d(?:[.\-/ ]?\d){5,}`)
+	rmiEmailPattern    = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
+)
+
+// rmiStatusError builds the error for a non-OK RMI response. Callers log these
+// errors and the RMI may echo citizen data in error bodies, so only a short,
+// sanitized excerpt of the body goes into the message (see sanitizeRMIErrorBody).
+func rmiStatusError(resp *http.Response) error {
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, rmiErrorBodyDrainLimit))
+	return &RMIStatusError{StatusCode: resp.StatusCode, Snippet: sanitizeRMIErrorBody(body)}
+}
+
+// sanitizeRMIErrorBody returns a single-line excerpt of an RMI error body that
+// is safe to log, or "" when nothing of it should be kept. Only the string
+// fields "error" and "message" of a complete JSON object are kept, re-encoded
+// as a JSON object, with digit runs that look like CPF, CNPJ or phone numbers
+// and e-mail addresses replaced by "[omitido]" and each value truncated. Any
+// other body (other JSON fields, arrays, scalars, JSON cut at the read limit,
+// HTML, plain text) is dropped, since it can carry citizen data verbatim.
+func sanitizeRMIErrorBody(body []byte) string {
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 {
+		return ""
+	}
+
+	if !json.Valid(trimmed) {
+		return ""
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(trimmed, &fields); err != nil {
+		return ""
+	}
+	kept := map[string]string{}
+	for _, name := range rmiErrorMessageFields {
+		var value string
+		if err := json.Unmarshal(fields[name], &value); err != nil {
+			continue
+		}
+		if value = sanitizeRMIErrorText(value); value != "" {
+			kept[name] = value
+		}
+	}
+	if len(kept) == 0 {
+		return ""
+	}
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(kept); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(buf.String())
+}
+
+func sanitizeRMIErrorText(text string) string {
+	text = rmiEmailPattern.ReplaceAllString(text, "[omitido]")
+	text = rmiDigitRunPattern.ReplaceAllString(text, "[omitido]")
+	text = strings.Join(strings.Fields(text), " ")
+	if runes := []rune(text); len(runes) > rmiErrorSnippetMaxRunes {
+		text = string(runes[:rmiErrorSnippetMaxRunes]) + "…"
+	}
+	return text
+}
 
 // GetCPFSecretarias fetches the list of cd_uas linked to a CPF from the app-rmi CPF-Secretaria registry.
 // Endpoint: GET /cpf-secretaria/{cpf}
@@ -471,19 +562,41 @@ func (c *RMIClient) fetchCPFSecretarias(ctx context.Context, serviceToken string
 	return response.CdUAs, nil
 }
 
-// NormalizeCNPJ removes formatting and validates that the CNPJ has 14 digits
+// cnpjLength is the size of a normalized CNPJ: 12 positions (root and order)
+// followed by 2 check digits.
+const cnpjLength = 14
+
+// NormalizeCNPJ removes formatting and validates the CNPJ shape. It accepts both
+// the numeric CNPJ and the alphanumeric one of the Receita Federal: the first 12
+// positions are ASCII letters (A-Z) or digits and the last 2 (check digits) are
+// digits. Dots, slashes, hyphens and whitespace are dropped and letters are
+// upper-cased; any other character, or a result that is not 14 characters long,
+// yields ErrInvalidCNPJ.
 func NormalizeCNPJ(cnpj string) (string, error) {
-	var digits strings.Builder
+	var normalized strings.Builder
+	normalized.Grow(cnpjLength)
 	for _, r := range cnpj {
-		if unicode.IsDigit(r) {
-			digits.WriteRune(r)
+		switch {
+		case r == '.' || r == '/' || r == '-' || unicode.IsSpace(r):
+			continue
+		case r >= '0' && r <= '9', r >= 'A' && r <= 'Z':
+			normalized.WriteRune(r)
+		case r >= 'a' && r <= 'z':
+			normalized.WriteRune(r - 'a' + 'A')
+		default:
+			return "", ErrInvalidCNPJ
 		}
 	}
 
-	normalized := digits.String()
-	if len(normalized) != 14 {
+	result := normalized.String()
+	if len(result) != cnpjLength {
 		return "", ErrInvalidCNPJ
 	}
+	for _, r := range result[cnpjLength-2:] {
+		if r < '0' || r > '9' {
+			return "", ErrInvalidCNPJ
+		}
+	}
 
-	return normalized, nil
+	return result, nil
 }

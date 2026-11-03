@@ -1,6 +1,10 @@
 package router
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +13,9 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
+	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
 
@@ -628,4 +635,44 @@ func containsParameter(path, param string) bool {
 		}
 	}
 	return false
+}
+
+// cursoRepoGetByIDStub satisfies services.CursoRepositoryInterface for the
+// ownership loader; any other method panics (nil embedded interface), which
+// also proves the request never reaches the persistence layer.
+type cursoRepoGetByIDStub struct {
+	services.CursoRepositoryInterface
+	curso *models.Curso
+}
+
+func (s *cursoRepoGetByIDStub) GetByID(_ context.Context, _ int) (*models.Curso, error) {
+	return s.curso, nil
+}
+
+// TestRegisterCoreRoutes_CourseUpdate_EditorCannotMoveOrgaoOutOfScope proves the
+// PUT /courses/:courseId chain rejects an editor relocating a course they own to
+// an orgao outside their secretaria (DEV-107), before the handler runs.
+func TestRegisterCoreRoutes_CourseUpdate_EditorCannotMoveOrgaoOutOfScope(t *testing.T) {
+	router := gin.New()
+	apiV1 := router.Group("/api/v1")
+	apiV1.Use(func(c *gin.Context) {
+		c.Set(middlewares.UserRolesKey, []string{"go:cursos:editor"})
+		c.Set(middlewares.UserSecretariaOrgaoIDsKey, []string{"orgao-a"})
+		c.Next()
+	})
+	apiPublic := router.Group("/api/public")
+
+	app := createMockApplicationContainer()
+	app.CursoService = services.NewCursoServiceWithInterface(&cursoRepoGetByIDStub{
+		curso: &models.Curso{ID: 1, OrgaoID: "orgao-a"},
+	})
+	registerCoreRoutes(apiV1, apiPublic, app, newTestCoreConfig())
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/courses/1", strings.NewReader(`{"titulo":"Curso","orgao_id":"orgao-b"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code, w.Body.String())
+	assert.Contains(t, w.Body.String(), "orgão do curso não pertence à sua secretaria")
 }

@@ -38,9 +38,11 @@ func TestBancoCurriculosAuthorization(t *testing.T) {
 			want:  http.StatusForbidden,
 		},
 		{
-			name:  "editor de empregabilidade sem role do módulo",
-			setup: func(c *gin.Context) { c.Set(middlewares.UserRolesKey, []string{"go:empregabilidade:editor_com_curadoria"}) },
-			want:  http.StatusForbidden,
+			name: "editor de empregabilidade sem role do módulo",
+			setup: func(c *gin.Context) {
+				c.Set(middlewares.UserRolesKey, []string{"go:empregabilidade:editor_com_curadoria"})
+			},
+			want: http.StatusForbidden,
 		},
 		{
 			name:  "cidadão autenticado",
@@ -106,9 +108,11 @@ func TestBancoCurriculosAssociacaoAuthorization(t *testing.T) {
 			wantOrgaos: []string{"2700"},
 		},
 		{
-			name:  "editor sem secretaria nem órgão",
-			setup: func(c *gin.Context) { c.Set(middlewares.UserRolesKey, []string{"go:empregabilidade:editor_sem_curadoria"}) },
-			want:  http.StatusForbidden,
+			name: "editor sem secretaria nem órgão",
+			setup: func(c *gin.Context) {
+				c.Set(middlewares.UserRolesKey, []string{"go:empregabilidade:editor_sem_curadoria"})
+			},
+			want: http.StatusForbidden,
 		},
 		{
 			name:  "perfil só do banco de currículos não associa",

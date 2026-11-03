@@ -34,13 +34,13 @@ func NewOportunidadeMEIHandler(service services.OportunidadeMEIServiceInterface)
 func (h *OportunidadeMEIHandler) Create(c *gin.Context) {
 	var oportunidade models.OportunidadeMEI
 	if err := c.ShouldBindJSON(&oportunidade); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &oportunidade, false)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao criar oportunidade")
+		response.FromError(c, err, "Erro ao criar oportunidade")
 		return
 	}
 
@@ -61,13 +61,13 @@ func (h *OportunidadeMEIHandler) Create(c *gin.Context) {
 func (h *OportunidadeMEIHandler) CreateDraft(c *gin.Context) {
 	var oportunidade models.OportunidadeMEI
 	if err := c.ShouldBindJSON(&oportunidade); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &oportunidade, true)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao criar rascunho")
+		response.FromError(c, err, "Erro ao criar rascunho de oportunidade")
 		return
 	}
 
@@ -95,7 +95,7 @@ func (h *OportunidadeMEIHandler) GetByID(c *gin.Context) {
 
 	oportunidade, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao buscar oportunidade")
+		response.FromError(c, err, "Erro ao buscar oportunidade")
 		return
 	}
 
@@ -127,13 +127,13 @@ func (h *OportunidadeMEIHandler) Update(c *gin.Context) {
 
 	var oportunidade models.OportunidadeMEI
 	if err := c.ShouldBindJSON(&oportunidade); err != nil {
-		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 		return
 	}
 
 	oportunidade.ID = id
 	if err := h.service.Update(c.Request.Context(), &oportunidade); err != nil {
-		response.RespondError(c, err, "Erro ao atualizar oportunidade")
+		response.FromError(c, err, "Erro ao atualizar oportunidade")
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *OportunidadeMEIHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		response.RespondError(c, err, "Erro ao excluir oportunidade")
+		response.FromError(c, err, "Erro ao excluir oportunidade")
 		return
 	}
 
@@ -182,13 +182,13 @@ func (h *OportunidadeMEIHandler) Publish(c *gin.Context) {
 	}
 
 	if err := h.service.Publish(c.Request.Context(), id); err != nil {
-		response.RespondError(c, err, "Erro ao publicar oportunidade")
+		response.FromError(c, err, "Erro ao publicar oportunidade")
 		return
 	}
 
 	oportunidade, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao buscar oportunidade")
+		response.FromError(c, err, "Erro ao buscar oportunidade")
 		return
 	}
 
@@ -254,7 +254,7 @@ func (h *OportunidadeMEIHandler) List(c *gin.Context) {
 	oportunidades, total, err = h.service.List(c.Request.Context(), filters, titulo, page, pageSize)
 
 	if err != nil {
-		response.RespondError(c, err, "Erro ao listar oportunidades")
+		response.FromError(c, err, "Erro ao listar oportunidades")
 		return
 	}
 
@@ -295,7 +295,7 @@ func (h *OportunidadeMEIHandler) ListDrafts(c *gin.Context) {
 
 	oportunidades, total, err := h.service.ListDrafts(c.Request.Context(), orgaoID, titulo, page, pageSize)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao listar rascunhos")
+		response.FromError(c, err, "Erro ao listar rascunhos")
 		return
 	}
 

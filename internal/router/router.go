@@ -32,6 +32,15 @@ func rbacMiddleware(enabled bool, real gin.HandlerFunc) gin.HandlerFunc {
 	return noOpHandler
 }
 
+// newEngine cria o engine do Gin com recuperação de panic e log de acesso sem dados
+// pessoais (no lugar do gin.Logger de gin.Default, que grava o caminho e a query string
+// crus, com o CPF de /enrollments/user/:cpf ou de ?search=).
+func newEngine() *gin.Engine {
+	r := gin.New()
+	r.Use(middlewares.AccessLogger(gin.DefaultWriter), gin.Recovery())
+	return r
+}
+
 // SetupRouter initializes the Gin engine with all routes using Wire-managed dependencies.
 // ctx controls the lifetime of all background workers started here.
 func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error) {
@@ -40,7 +49,7 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 		return nil, fmt.Errorf("failed to initialize application container: %w", err)
 	}
 
-	r := gin.Default()
+	r := newEngine()
 
 	if cfg.Tracing.Enabled {
 		r.Use(otelgin.Middleware(cfg.Tracing.ServiceName))

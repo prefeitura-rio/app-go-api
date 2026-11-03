@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type EnrollmentImportProcessor struct {
@@ -272,7 +274,7 @@ func (p *EnrollmentImportProcessor) Process(ctx context.Context, job *models.Job
 			enrollmentErrors = append(enrollmentErrors, models.JobError{
 				Line:    lineNumber,
 				Message: errorMsg,
-				Data:    fmt.Sprintf("%s - %s", row.NomeCompleto, row.CPF),
+				Data:    importRowErrorData(row),
 			})
 		} else {
 			successCount++
@@ -485,6 +487,25 @@ func findScheduleByTurma(turma string, scheduleMap map[string]struct {
 	}
 
 	return nil, nil, fmt.Errorf("turma '%s' não encontrada para este curso", turma)
+}
+
+// importRowErrorData identifies a failed import row in Job.Errors without the
+// citizen's full name or CPF in clear text: the job status is served over HTTP
+// and persisted in jobs.errors (DEV-149). The line number locates the row in the
+// uploaded file; name initials and the masked CPF only help confirm it.
+func importRowErrorData(row EnrollmentRow) string {
+	initials := make([]string, 0, 4)
+	for _, word := range strings.Fields(row.NomeCompleto) {
+		first, _ := utf8.DecodeRuneInString(word)
+		initials = append(initials, string(first)+".")
+	}
+
+	maskedCPF := ""
+	if strings.TrimSpace(row.CPF) != "" {
+		maskedCPF = utils.MaskCPFForLog(utils.ExtractDigits(row.CPF))
+	}
+
+	return strings.Join(initials, " ") + " - " + maskedCPF
 }
 
 func (p *EnrollmentImportProcessor) processRow(ctx context.Context, cursoID int, row EnrollmentRow, customFields []models.CustomField, scheduleMap map[string]struct {

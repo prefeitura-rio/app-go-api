@@ -1316,7 +1316,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza um curso existente. Também usado para publicar rascunhos mudando status de \"draft\" para \"opened\"",
+                "description": "Atualiza um curso existente. Também usado para publicar rascunhos mudando status de \"draft\" para \"opened\". Turmas, locais e turma remota que não vierem no payload (ou vierem sem o id) são removidos; se alguma turma removida tiver inscrições, o PUT é recusado com 409 e nada é alterado. Envie o id de cada turma e local que deve ser mantido.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1360,6 +1360,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Turma removida (ou local/turma remota removidos) ainda tem inscrições",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -1881,7 +1887,7 @@ const docTemplate = `{
         },
         "/api/v1/courses/{courseId}/enrollments/{enrollmentId}/certificate": {
             "put": {
-                "description": "Adiciona ou atualiza a URL do certificado de uma inscrição",
+                "description": "Adiciona ou atualiza a URL do certificado de uma inscrição (somente admin, casa civil e editor de cursos)",
                 "consumes": [
                     "application/json"
                 ],
@@ -1953,7 +1959,7 @@ const docTemplate = `{
         },
         "/api/v1/courses/{courseId}/enrollments/{enrollmentId}/status": {
             "put": {
-                "description": "Atualiza o status de uma inscrição específica",
+                "description": "Atualiza o status de uma inscrição específica. Admin, casa civil e editor de cursos alteram qualquer status e admin_notes; o cidadão dono da inscrição só pode cancelá-la (status cancelled), exceto quando ela já está concluded ou cancelled (409), e admin_notes enviado por ele é descartado.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2002,8 +2008,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -2452,7 +2470,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade",
+                "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.\nPara o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2483,6 +2501,24 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -6601,7 +6637,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "CNPJ da empresa (com ou sem formatação)",
+                        "description": "CNPJ da empresa, numérico ou alfanumérico (com ou sem formatação)",
                         "name": "cnpj",
                         "in": "path",
                         "required": true
@@ -10042,6 +10078,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -10281,6 +10326,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -10401,6 +10464,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -10474,6 +10546,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -10522,6 +10603,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -11707,7 +11797,7 @@ const docTemplate = `{
         },
         "/api/v1/enrollments/{enrollmentId}/schedule": {
             "put": {
-                "description": "Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com pelo menos 72h de antecedência do início da aula. Se a inscrição estava aprovada, volta para status pendente.",
+                "description": "Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com a antecedência mínima do início da aula configurada em ENROLLMENT_SCHEDULE_CHANGE_DEADLINE_HOURS (48h por padrão). A troca para a turma em que a inscrição já está é recusada com 400 (\"você já está nesta turma\"). Se a inscrição estava aprovada, volta para status pendente.",
                 "consumes": [
                     "application/json"
                 ],
@@ -12032,7 +12122,7 @@ const docTemplate = `{
         },
         "/api/v1/jobs/{jobId}/status": {
             "get": {
-                "description": "Retorna o status e progresso de um job em execução ou concluído",
+                "description": "Retorna o status e progresso de um job em execução ou concluído. Exige o mesmo acesso da importação que criou o job: admin, go:cursos:casa_civil ou go:cursos:editor com escopo no órgão do curso do job. Em errors[].data, a linha com falha é identificada pelas iniciais do nome e pelo CPF mascarado.",
                 "produces": [
                     "application/json"
                 ],
@@ -12058,6 +12148,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12965,7 +13061,7 @@ const docTemplate = `{
         },
         "/api/v1/typesense/collections/{collection}/documents/search": {
             "post": {
-                "description": "Busca documentos em uma coleção",
+                "description": "Busca documentos em uma coleção pública. Só as coleções cursos e empregos são aceitas; qualquer outro nome responde 404.",
                 "consumes": [
                     "application/json"
                 ],
@@ -12978,6 +13074,10 @@ const docTemplate = `{
                 "summary": "Buscar documentos em uma coleção",
                 "parameters": [
                     {
+                        "enum": [
+                            "cursos",
+                            "empregos"
+                        ],
                         "type": "string",
                         "description": "Nome da coleção",
                         "name": "collection",
@@ -13003,6 +13103,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -15944,14 +16050,17 @@ const docTemplate = `{
         },
         "models.ScheduleChangeRequest": {
             "type": "object",
-            "required": [
-                "enrolled_unit"
-            ],
             "properties": {
                 "enrolled_unit": {
-                    "$ref": "#/definitions/models.EnrolledUnit"
+                    "description": "EnrolledUnit is accepted for compatibility with older clients and\nignored: the server builds the enrolled_unit from the course data.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.EnrolledUnit"
+                        }
+                    ]
                 },
                 "schedule_id": {
+                    "description": "ScheduleID is the new turma, of the enrollment's course. Required: the\nservice rejects the change without it.",
                     "type": "string"
                 }
             }

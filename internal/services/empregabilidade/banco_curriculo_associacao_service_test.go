@@ -65,7 +65,9 @@ func (f *fakeCriador) CreateSemNotificacao(_ context.Context, entity *empregabil
 	return uuid.New(), nil
 }
 
-type fakeEscolaridades struct{ itens []*empregabilidade.Escolaridade }
+type fakeEscolaridades struct {
+	itens []*empregabilidade.Escolaridade
+}
 
 func (f *fakeEscolaridades) List(_ context.Context, _ map[string]interface{}, _, _ int) ([]*empregabilidade.Escolaridade, int, error) {
 	return f.itens, len(f.itens), nil

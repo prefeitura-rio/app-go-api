@@ -2,12 +2,12 @@ package empregabilidade
 
 import (
 	"errors"
-	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
@@ -40,7 +40,7 @@ func (h *EmpresaHandler) WithCNPJConsulta(cnpjConsultaService *services.CNPJCons
 func (h *EmpresaHandler) Create(c *gin.Context) {
 	var entity empregabilidade.Empresa
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -139,7 +139,7 @@ func (h *EmpresaHandler) Update(c *gin.Context) {
 
 	var entity empregabilidade.Empresa
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h *EmpresaHandler) Delete(c *gin.Context) {
 // @Description  Consulta dados de uma empresa pelo CNPJ no RMI (Registro Mercantil Integrado)
 // @Tags         empregabilidade-empresas
 // @Produce      json
-// @Param        cnpj   path      string  true  "CNPJ da empresa (com ou sem formatação)"
+// @Param        cnpj   path      string  true  "CNPJ da empresa, numérico ou alfanumérico (com ou sem formatação)"
 // @Success      200    {object}  models.LegalEntityConsultaResponse
 // @Failure      400    {object}  map[string]string
 // @Failure      404    {object}  map[string]string
@@ -205,10 +205,10 @@ func (h *EmpresaHandler) ConsultaCNPJ(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, clients.ErrInvalidCNPJ) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "CNPJ inválido: deve conter 14 dígitos"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "CNPJ inválido: deve ter 14 caracteres, 12 letras ou dígitos seguidos de 2 dígitos verificadores"})
 			return
 		}
-		response.RespondError(c, err)
+		response.InternalError(c, err, "Erro ao consultar CNPJ")
 		return
 	}
 

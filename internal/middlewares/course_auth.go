@@ -1,14 +1,18 @@
 package middlewares
 
 import (
+	"bytes"
 	"context"
-	"log"
+	"encoding/json"
+	"io"
 	"net/http"
 	"slices"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 )
 
 const (
@@ -141,40 +145,90 @@ func CourseOwnershipCheck(loader courseLoaderFunc) gin.HandlerFunc {
 			return
 		}
 
-		orgaoID, found, err := loader(c.Request.Context(), id)
+		authorizeCourseOwnership(c, loader, id)
+	}
+}
 
-		if err != nil {
-			log.Printf("course ownership check: erro ao buscar curso: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso"})
-			c.Abort()
+// authorizeCourseOwnership loads course id and lets the request through only
+// for admin / go:cursos:casa_civil, or go:cursos:editor when the course's orgao
+// is in the caller's scope. It is the body of CourseOwnershipCheck, shared with
+// middlewares that resolve the course from another resource (JobAccess).
+func authorizeCourseOwnership(c *gin.Context, loader courseLoaderFunc, id int) {
+	orgaoID, found, err := loader(c.Request.Context(), id)
+
+	if err != nil {
+		response.FromError(c, err, "Erro ao buscar curso")
+		c.Abort()
+		return
+	}
+
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
+		c.Abort()
+		return
+	}
+
+	c.Set(courseLoadedCursoKey, orgaoID)
+
+	if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
+		c.Next()
+		return
+	}
+
+	if isCursosEditor(c) {
+		if courseOrgaoInScope(c, orgaoID) {
+			c.Next()
 			return
 		}
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
+		c.Abort()
+		return
+	}
 
-		if !found {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
-			c.Abort()
-			return
-		}
+	c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
+	c.Abort()
+}
 
-		c.Set(courseLoadedCursoKey, orgaoID)
-
-		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
+// CourseOrgaoUpdateScope guards PUT /courses/:courseId against an editor moving
+// a course out of their scope. CourseOwnershipCheck only validates the course's
+// current orgao; the body's orgao_id is untrusted input and is persisted as-is
+// (an omitted field is persisted as empty), so for go:cursos:editor the value
+// that would be written must be within the caller's secretaria/orgao scope —
+// the same rule CreateDraft applies. Admin and go:cursos:casa_civil may move
+// courses freely. The body is restored for the handler.
+func CourseOrgaoUpdateScope() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") || !isCursosEditor(c) {
 			c.Next()
 			return
 		}
 
-		if isCursosEditor(c) {
-			if courseOrgaoInScope(c, orgaoID) {
-				c.Next()
-				return
-			}
-			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: curso não pertence à sua secretaria"})
+		raw, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+			c.Abort()
+			return
+		}
+		c.Request.Body = io.NopCloser(bytes.NewReader(raw))
+
+		var payload struct {
+			OrgaoID string `json:"orgao_id"`
+		}
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
 			c.Abort()
 			return
 		}
 
-		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
-		c.Abort()
+		if !courseOrgaoInScope(c, payload.OrgaoID) {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "Acesso negado: orgão do curso não pertence à sua secretaria",
+			})
+			c.Abort()
+			return
+		}
+
+		c.Next()
 	}
 }
 
@@ -281,8 +335,7 @@ func CourseEnrollmentListAccess(loader courseLoaderFunc) gin.HandlerFunc {
 			}
 			orgaoID, found, err := loader(c.Request.Context(), id)
 			if err != nil {
-				log.Printf("course enrollment list access: erro ao buscar curso: %v", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar curso"})
+				response.FromError(c, err, "Erro ao buscar curso")
 				c.Abort()
 				return
 			}

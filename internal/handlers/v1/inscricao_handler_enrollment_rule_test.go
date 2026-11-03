@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -73,7 +72,7 @@ func TestInscricaoHandler_Create_UnexpectedErrorStays500(t *testing.T) {
 func TestInscricaoHandler_Create_DuplicateStays409(t *testing.T) {
 	mockSvc := new(MockInscricaoService)
 	mockSvc.On("Create", mock.Anything, mock.Anything).Return(
-		apperrors.Conflict("CPF já inscrito neste curso"),
+		services.ErrCPFJaInscrito,
 	)
 
 	w := postEnrollment(citizenRouter(v1.NewInscricaoHandler(mockSvc, nil, nil), "USER"))

@@ -87,7 +87,7 @@ func (h *CategoriaHandler) List(c *gin.Context) {
 
 	categorias, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao listar categorias")
+		response.FromError(c, err, "Erro ao listar categorias")
 		return
 	}
 

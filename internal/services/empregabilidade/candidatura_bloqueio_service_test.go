@@ -32,15 +32,28 @@ func (m *mockCandidaturaBloqueioRepository) List(ctx context.Context, filter map
 	return m.items, m.total, nil
 }
 
+type mockVagaRepoForBloqueio struct {
+	exists bool
+	err    error
+}
+
+func (m *mockVagaRepoForBloqueio) ExistsByID(_ context.Context, _ uuid.UUID) (bool, error) {
+	return m.exists, m.err
+}
+
+func vagaExistente() *mockVagaRepoForBloqueio {
+	return &mockVagaRepoForBloqueio{exists: true}
+}
+
 func TestNewCandidaturaBloqueioService(t *testing.T) {
 	mockRepo := &mockCandidaturaBloqueioRepository{}
-	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo)
+	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo, vagaExistente())
 	assert.NotNil(t, service)
 }
 
 func TestCandidaturaBloqueioService_Create(t *testing.T) {
 	mockRepo := &mockCandidaturaBloqueioRepository{}
-	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo)
+	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo, vagaExistente())
 
 	id, err := service.Create(context.Background(), &empregabilidade.CandidaturaBloqueio{
 		CPF:                   "12345678900",
@@ -54,11 +67,32 @@ func TestCandidaturaBloqueioService_Create(t *testing.T) {
 
 func TestCandidaturaBloqueioService_Create_RepoError(t *testing.T) {
 	mockRepo := &mockCandidaturaBloqueioRepository{createErr: errors.New("db error")}
-	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo)
+	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo, vagaExistente())
 
 	id, err := service.Create(context.Background(), &empregabilidade.CandidaturaBloqueio{CPF: "12345678900"})
 
 	assert.Error(t, err)
+	assert.Equal(t, uuid.Nil, id)
+}
+
+func TestCandidaturaBloqueioService_Create_VagaInexistente(t *testing.T) {
+	mockRepo := &mockCandidaturaBloqueioRepository{}
+	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo, &mockVagaRepoForBloqueio{})
+
+	id, err := service.Create(context.Background(), &empregabilidade.CandidaturaBloqueio{CPF: "12345678900", IDVaga: uuid.New()})
+
+	assert.ErrorIs(t, err, services.ErrBloqueioVagaNaoEncontrada)
+	assert.Equal(t, uuid.Nil, id)
+}
+
+func TestCandidaturaBloqueioService_Create_ErroAoBuscarVaga(t *testing.T) {
+	mockRepo := &mockCandidaturaBloqueioRepository{}
+	dbErr := errors.New("db down")
+	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo, &mockVagaRepoForBloqueio{err: dbErr})
+
+	id, err := service.Create(context.Background(), &empregabilidade.CandidaturaBloqueio{CPF: "12345678900", IDVaga: uuid.New()})
+
+	assert.ErrorIs(t, err, dbErr)
 	assert.Equal(t, uuid.Nil, id)
 }
 
@@ -69,7 +103,7 @@ func TestCandidaturaBloqueioService_List(t *testing.T) {
 		{ID: uuid.New(), CPF: "98765432100", IDVaga: vagaID},
 	}
 	mockRepo := &mockCandidaturaBloqueioRepository{items: mockItems, total: 2}
-	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo)
+	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo, vagaExistente())
 
 	items, total, err := service.List(context.Background(), nil, 1, 10)
 
@@ -80,7 +114,7 @@ func TestCandidaturaBloqueioService_List(t *testing.T) {
 
 func TestCandidaturaBloqueioService_List_RepoError(t *testing.T) {
 	mockRepo := &mockCandidaturaBloqueioRepository{listErr: errors.New("db error")}
-	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo)
+	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo, vagaExistente())
 
 	items, total, err := service.List(context.Background(), nil, 1, 10)
 

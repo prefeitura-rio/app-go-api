@@ -477,7 +477,7 @@ func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, vagaID uuid.U
 				sendErr = s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), c)
 			}
 			if sendErr != nil {
-				log.Printf("[CandidaturaService] falha ao enviar email bulk para CPF %s: %v", cpf, sendErr)
+				log.Printf("[CandidaturaService] falha ao enviar email bulk para CPF %s: %v", utils.MaskCPFForLog(cpf), sendErr)
 			}
 		}
 	}()

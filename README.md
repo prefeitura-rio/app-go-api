@@ -54,7 +54,7 @@ erDiagram
 
 ## Requisitos
 
-- Go 1.22+
+- Go 1.27+
 - PostgreSQL 16+
 - Redis 7+
 - Docker e Docker Compose (opcional)

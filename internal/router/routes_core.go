@@ -2,11 +2,13 @@ package router
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
+	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
 
@@ -42,6 +44,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	courseOrgaoInjector := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOrgaoInjector())
 	courseDraftAuth := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseDraftAuthorization())
 	courseListFilter := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseListFilter())
+	courseOrgaoUpdateScope := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOrgaoUpdateScope())
 	enrollmentListAccess := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseEnrollmentListAccess(cursoLoader))
 
 	enrollmentCPFLoader := func(ctx context.Context, id uuid.UUID) (string, bool, error) {
@@ -65,7 +68,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courses.GET("/drafts", courseListFilter, app.CourseHandler.ListDrafts)
 		courses.GET("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.GetByID)
 		courses.DELETE("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.Delete)
-		courses.PUT("/:courseId", courseAuth, ownershipCheck, app.CourseHandler.Update)
+		courses.PUT("/:courseId", courseAuth, ownershipCheck, courseOrgaoUpdateScope, app.CourseHandler.Update)
 		courses.PUT("/:courseId/send-to-review", courseAuth, ownershipCheck, app.CourseHandler.SendToReview)
 		courses.PUT("/:courseId/approve", courseAuth, ownershipCheck, app.CourseHandler.Approve)
 		courses.PUT("/:courseId/request-changes", courseAuth, ownershipCheck, app.CourseHandler.RequestChanges)
@@ -82,7 +85,23 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 		courses.DELETE("/:courseId/enrollments/:enrollmentId", enrollmentSingleAccess, app.InscricaoHandler.Delete)
 	}
 
-	apiV1.Group("/jobs").GET("/:jobId/status", app.JobHandler.GetStatus)
+	jobCursoLoader := func(ctx context.Context, id uuid.UUID) (int, bool, error) {
+		job, err := app.JobService.GetByID(ctx, id)
+		if err != nil {
+			return 0, false, err
+		}
+		if job == nil {
+			return 0, false, nil
+		}
+		var metadata models.EnrollmentImportMetadata
+		if len(job.Metadata) == 0 || json.Unmarshal(job.Metadata, &metadata) != nil {
+			return 0, true, nil
+		}
+		return metadata.CursoID, true, nil
+	}
+	jobAccess := rbacMiddleware(cfg.App.RBACEnabled, middlewares.JobAccess(jobCursoLoader, cursoLoader))
+
+	apiV1.Group("/jobs").GET("/:jobId/status", jobAccess, app.JobHandler.GetStatus)
 	apiV1.Group("/users").GET("/:userId/courses", app.CourseHandler.ListByUser)
 	enrollments := apiV1.Group("/enrollments")
 	enrollments.GET("/user/:cpf", app.InscricaoHandler.ListByUser)

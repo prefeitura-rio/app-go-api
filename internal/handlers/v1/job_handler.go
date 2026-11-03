@@ -21,12 +21,13 @@ func NewJobHandler(service services.JobServiceInterface) *JobHandler {
 }
 
 // @Summary      Obter status de job
-// @Description  Retorna o status e progresso de um job em execução ou concluído
+// @Description  Retorna o status e progresso de um job em execução ou concluído. Exige o mesmo acesso da importação que criou o job: admin, go:cursos:casa_civil ou go:cursos:editor com escopo no órgão do curso do job. Em errors[].data, a linha com falha é identificada pelas iniciais do nome e pelo CPF mascarado.
 // @Tags         jobs
 // @Produce      json
 // @Param        jobId path      string  true  "ID do job (UUID)"
 // @Success      200   {object}  models.Job
 // @Failure      400   {object}  models.ErrorResponse
+// @Failure      403   {object}  models.ErrorResponse
 // @Failure      404   {object}  models.ErrorResponse
 // @Failure      500   {object}  models.ErrorResponse
 // @Router       /api/v1/jobs/{jobId}/status [get]
@@ -40,7 +41,7 @@ func (h *JobHandler) GetStatus(c *gin.Context) {
 
 	job, err := h.service.GetByID(c.Request.Context(), jobID)
 	if err != nil {
-		response.RespondError(c, err, "Erro ao buscar job")
+		response.FromError(c, err, "Erro ao buscar job")
 		return
 	}
 

@@ -41,7 +41,7 @@ type AppConfig struct {
 
 // EnrollmentSettings define configurações para inscrições em cursos
 type EnrollmentSettings struct {
-	ScheduleChangeDeadlineHours int // Horas antes do início para permitir troca de turma (default: 72)
+	ScheduleChangeDeadlineHours int // Horas antes do início para permitir troca de turma (default: 48)
 }
 
 // AppSettings define configurações gerais da aplicação
