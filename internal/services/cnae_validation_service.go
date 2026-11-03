@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
+	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
@@ -23,6 +24,21 @@ func NewCNAEValidationService(rmiClient RMIClientInterface, cache LegalEntitiesC
 		rmiClient: rmiClient,
 		cache:     cache,
 	}
+}
+
+// sameCNPJ reports whether a and b are the same CNPJ once formatting is
+// removed. Both the numeric and the alphanumeric CNPJ are compared whole,
+// letters included; a value that is not a well-formed CNPJ matches nothing.
+func sameCNPJ(a, b string) bool {
+	normalizedA, err := clients.NormalizeCNPJ(a)
+	if err != nil {
+		return false
+	}
+	normalizedB, err := clients.NormalizeCNPJ(b)
+	if err != nil {
+		return false
+	}
+	return normalizedA == normalizedB
 }
 
 // CheckCNPJOwnership checks if a CPF owns a specific CNPJ
@@ -47,11 +63,7 @@ func (s *CNAEValidationService) CheckCNPJOwnership(
 
 	// Find the CNPJ in user's legal entities
 	for i := range legalEntities {
-		// Normalize CNPJ for comparison (remove formatting)
-		normalizedCNPJ := utils.ExtractDigits(legalEntities[i].CNPJ)
-		normalizedProvidedCNPJ := utils.ExtractDigits(cnpj)
-
-		if normalizedCNPJ == normalizedProvidedCNPJ {
+		if sameCNPJ(legalEntities[i].CNPJ, cnpj) {
 			return true, nil
 		}
 	}
@@ -91,11 +103,7 @@ func (s *CNAEValidationService) ValidatePropostaForCNAE(
 	// 4. Find the CNPJ in user's legal entities
 	var foundEntity *models.LegalEntity
 	for i := range legalEntities {
-		// Normalize CNPJ for comparison (remove formatting)
-		normalizedCNPJ := utils.ExtractDigits(legalEntities[i].CNPJ)
-		normalizedProvidedCNPJ := utils.ExtractDigits(cnpj)
-
-		if normalizedCNPJ == normalizedProvidedCNPJ {
+		if sameCNPJ(legalEntities[i].CNPJ, cnpj) {
 			foundEntity = &legalEntities[i]
 			break
 		}

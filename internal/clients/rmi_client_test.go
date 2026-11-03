@@ -111,17 +111,56 @@ func TestNormalizeCNPJ(t *testing.T) {
 		}
 	})
 
-	t.Run("Invalid CNPJ - mixed letters and numbers", func(t *testing.T) {
-		_, err := NormalizeCNPJ("12.345.678/ABCD-95")
+}
 
-		if err == nil {
-			t.Error("Expected error for CNPJ with letters")
-		}
+func TestNormalizeCNPJ_Alphanumeric(t *testing.T) {
+	valid := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"alphanumeric without formatting", "12ABC34501DE35", "12ABC34501DE35"},
+		{"alphanumeric with standard formatting", "12.ABC.345/01DE-35", "12ABC34501DE35"},
+		{"alphanumeric lowercase is uppercased", "12.abc.345/01de-35", "12ABC34501DE35"},
+		{"alphanumeric with spaces", " 12 ABC 345 01DE 35 ", "12ABC34501DE35"},
+		{"letters in the order block", "12.345.678/ABCD-95", "12345678ABCD95"},
+		{"all twelve positions are letters", "ABCDEFGHIJKL80", "ABCDEFGHIJKL80"},
+	}
+	for _, tt := range valid {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NormalizeCNPJ(tt.input)
+			if err != nil {
+				t.Fatalf("NormalizeCNPJ(%q) returned error: %v", tt.input, err)
+			}
+			if got != tt.want {
+				t.Errorf("NormalizeCNPJ(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
 
-		if !errors.Is(err, ErrInvalidCNPJ) {
-			t.Errorf("Expected ErrInvalidCNPJ, got: %v", err)
-		}
-	})
+	invalid := []struct {
+		name  string
+		input string
+	}{
+		{"letter in the first check digit", "12ABC34501DEA5"},
+		{"letter in the second check digit", "12ABC34501DE3B"},
+		{"only letters", "ABCDEFGHIJKLMN"},
+		{"alphanumeric too short", "12ABC34501DE3"},
+		{"alphanumeric too long", "12ABC34501DE355"},
+		{"letter outside A-Z", "12ÇBC34501DE35"},
+		{"unicode digit", "12ABC34501DE3٥"},
+		{"symbol inside the body", "12ABC345#01DE35"},
+		{"underscore inside the body", "12ABC_34501DE35"},
+		{"digits plus trailing letter", "12345678000195X"},
+	}
+	for _, tt := range invalid {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NormalizeCNPJ(tt.input)
+			if !errors.Is(err, ErrInvalidCNPJ) {
+				t.Fatalf("NormalizeCNPJ(%q) = (%q, %v), want ErrInvalidCNPJ", tt.input, got, err)
+			}
+		})
+	}
 }
 
 func TestNewRMIClient(t *testing.T) {
@@ -940,6 +979,28 @@ func TestGetLegalEntityByCNPJ(t *testing.T) {
 
 		if entity.NomeFantasia == nil || *entity.NomeFantasia != "Test Inc" {
 			t.Error("Expected NomeFantasia to be 'Test Inc'")
+		}
+	})
+
+	t.Run("Success - alphanumeric CNPJ is sent normalized", func(t *testing.T) {
+		var gotPath string
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotPath = r.URL.Path
+			json.NewEncoder(w).Encode(models.LegalEntityFull{CNPJ: "12ABC34501DE35", RazaoSocial: "Empresa Sintetica"})
+		}))
+		defer mockServer.Close()
+
+		client := NewRMIClient(mockServer.URL, 5*time.Second)
+
+		entity, err := client.GetLegalEntityByCNPJ(context.Background(), "test-token", "12.abc.345/01de-35")
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if gotPath != "/v1/legal-entity/12ABC34501DE35" {
+			t.Errorf("Expected path '/v1/legal-entity/12ABC34501DE35', got '%s'", gotPath)
+		}
+		if entity.CNPJ != "12ABC34501DE35" {
+			t.Errorf("Expected CNPJ '12ABC34501DE35', got '%s'", entity.CNPJ)
 		}
 	})
 

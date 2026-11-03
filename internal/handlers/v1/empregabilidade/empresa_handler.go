@@ -176,7 +176,7 @@ func (h *EmpresaHandler) Delete(c *gin.Context) {
 // @Description  Consulta dados de uma empresa pelo CNPJ no RMI (Registro Mercantil Integrado)
 // @Tags         empregabilidade-empresas
 // @Produce      json
-// @Param        cnpj   path      string  true  "CNPJ da empresa (com ou sem formatação)"
+// @Param        cnpj   path      string  true  "CNPJ da empresa, numérico ou alfanumérico (com ou sem formatação)"
 // @Success      200    {object}  models.LegalEntityConsultaResponse
 // @Failure      400    {object}  map[string]string
 // @Failure      404    {object}  map[string]string
@@ -205,7 +205,7 @@ func (h *EmpresaHandler) ConsultaCNPJ(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, clients.ErrInvalidCNPJ) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "CNPJ inválido: deve conter 14 dígitos"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "CNPJ inválido: deve ter 14 caracteres, 12 letras ou dígitos seguidos de 2 dígitos verificadores"})
 			return
 		}
 		response.InternalError(c, err, "Erro ao consultar CNPJ")

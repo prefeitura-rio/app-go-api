@@ -562,19 +562,41 @@ func (c *RMIClient) fetchCPFSecretarias(ctx context.Context, serviceToken string
 	return response.CdUAs, nil
 }
 
-// NormalizeCNPJ removes formatting and validates that the CNPJ has 14 digits
+// cnpjLength is the size of a normalized CNPJ: 12 positions (root and order)
+// followed by 2 check digits.
+const cnpjLength = 14
+
+// NormalizeCNPJ removes formatting and validates the CNPJ shape. It accepts both
+// the numeric CNPJ and the alphanumeric one of the Receita Federal: the first 12
+// positions are ASCII letters (A-Z) or digits and the last 2 (check digits) are
+// digits. Dots, slashes, hyphens and whitespace are dropped and letters are
+// upper-cased; any other character, or a result that is not 14 characters long,
+// yields ErrInvalidCNPJ.
 func NormalizeCNPJ(cnpj string) (string, error) {
-	var digits strings.Builder
+	var normalized strings.Builder
+	normalized.Grow(cnpjLength)
 	for _, r := range cnpj {
-		if unicode.IsDigit(r) {
-			digits.WriteRune(r)
+		switch {
+		case r == '.' || r == '/' || r == '-' || unicode.IsSpace(r):
+			continue
+		case r >= '0' && r <= '9', r >= 'A' && r <= 'Z':
+			normalized.WriteRune(r)
+		case r >= 'a' && r <= 'z':
+			normalized.WriteRune(r - 'a' + 'A')
+		default:
+			return "", ErrInvalidCNPJ
 		}
 	}
 
-	normalized := digits.String()
-	if len(normalized) != 14 {
+	result := normalized.String()
+	if len(result) != cnpjLength {
 		return "", ErrInvalidCNPJ
 	}
+	for _, r := range result[cnpjLength-2:] {
+		if r < '0' || r > '9' {
+			return "", ErrInvalidCNPJ
+		}
+	}
 
-	return normalized, nil
+	return result, nil
 }
