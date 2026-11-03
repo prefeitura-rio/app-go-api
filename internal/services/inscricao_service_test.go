@@ -27,6 +27,7 @@ type MockInscricaoRepository struct {
 	GetSummaryByCursoIDFunc  func(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error)
 	ListByCPFFunc            func(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error)
 	UpdateCertificateFunc    func(ctx context.Context, inscricaoID uuid.UUID, certificateURL string) error
+	WithScheduleLockFunc     func(ctx context.Context, scheduleID uuid.UUID, fn func(ctx context.Context) error) error
 }
 
 func (m *MockInscricaoRepository) Create(ctx context.Context, inscricao *models.Inscricao) error {
@@ -105,6 +106,13 @@ func (m *MockInscricaoRepository) UpdateCertificate(ctx context.Context, inscric
 		return m.UpdateCertificateFunc(ctx, inscricaoID, certificateURL)
 	}
 	return nil
+}
+
+func (m *MockInscricaoRepository) WithScheduleLock(ctx context.Context, scheduleID uuid.UUID, fn func(ctx context.Context) error) error {
+	if m.WithScheduleLockFunc != nil {
+		return m.WithScheduleLockFunc(ctx, scheduleID, fn)
+	}
+	return fn(ctx)
 }
 
 // MockCitizenDataFetcher for testing

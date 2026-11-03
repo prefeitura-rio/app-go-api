@@ -166,6 +166,11 @@ type InscricaoRepositoryInterface interface {
 	GetSummaryByCursoID(ctx context.Context, cursoID int) (*models.EnrollmentSummary, error)
 	ListByCPF(ctx context.Context, cpf string, filter map[string]interface{}, offset, limit int) ([]*models.Inscricao, int, error)
 	UpdateCertificate(ctx context.Context, inscricaoID uuid.UUID, certificateURL string) error
+	// WithScheduleLock runs fn holding a lock on the turma scheduleID, so a vacancy
+	// count and the write that depends on it are not interleaved with another
+	// request for the same turma. Repository calls made with the ctx given to fn
+	// run in the same transaction; an error from fn undoes them.
+	WithScheduleLock(ctx context.Context, scheduleID uuid.UUID, fn func(ctx context.Context) error) error
 }
 
 // InscricaoServiceInterface defines the interface for Inscricao service

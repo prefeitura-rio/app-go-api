@@ -49,6 +49,9 @@ func (m *contactMockInscricaoRepo) ListByCPF(_ context.Context, _ string, _ map[
 func (m *contactMockInscricaoRepo) UpdateCertificate(_ context.Context, _ uuid.UUID, _ string) error {
 	return nil
 }
+func (m *contactMockInscricaoRepo) WithScheduleLock(ctx context.Context, _ uuid.UUID, fn func(ctx context.Context) error) error {
+	return fn(ctx)
+}
 
 // contactMockCursoRepo is a minimal CursoRepositoryInterface implementation. Only
 // ValidateForEnrollment is exercised (course closed, no auto-approve, no date window).
