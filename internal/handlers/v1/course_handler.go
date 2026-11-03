@@ -12,13 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
 	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
-	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type CourseHandler struct {
@@ -258,19 +256,7 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	// órgão adicional a aplicar aqui.
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
-		// Check if it's a validation error (not a database error)
-		if strings.Contains(err.Error(), "erro de validação") {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": strings.TrimPrefix(err.Error(), "erro de validação: "),
-			})
-			return
-		}
-		// Otherwise, treat as database error
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		response.FromError(c, err, "Erro ao criar curso")
 		return
 	}
 
@@ -334,19 +320,7 @@ func (h *CourseHandler) CreateDraft(c *gin.Context) {
 
 	id, err := h.cursoService.Create(c.Request.Context(), &curso)
 	if err != nil {
-		// Check if it's a validation error (not a database error)
-		if strings.Contains(err.Error(), "erro de validação") {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": strings.TrimPrefix(err.Error(), "erro de validação: "),
-			})
-			return
-		}
-		// Otherwise, treat as database error
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		response.FromError(c, err, "Erro ao criar rascunho")
 		return
 	}
 
@@ -454,24 +428,7 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.cursoService.Update(c.Request.Context(), &curso); err != nil {
-		// Check if it's a validation error (not a database error)
-		if strings.Contains(err.Error(), "erro de validação") {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": strings.TrimPrefix(err.Error(), "erro de validação: "),
-			})
-			return
-		}
-		// Domain errors (e.g. a turma with enrollments) carry their own status
-		if _, ok := apperrors.As(err); ok {
-			response.FromError(c, err, "Erro ao atualizar curso")
-			return
-		}
-		// Otherwise, treat as database error
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		response.FromError(c, err, "Erro ao atualizar curso")
 		return
 	}
 
@@ -1138,21 +1095,6 @@ func (h *CourseHandler) ListByUser(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func handleCursoTransitionError(c *gin.Context, err error) {
-	msg := err.Error()
-	switch {
-	case strings.Contains(msg, "não encontrado"):
-		c.JSON(http.StatusNotFound, gin.H{"error": msg})
-	case strings.Contains(msg, "não está em estado"):
-		c.JSON(http.StatusConflict, gin.H{"error": msg})
-	case strings.Contains(msg, "curso incompleto"):
-		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
-	default:
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{"error": dbErr.GetUserFriendlyMessage()})
-	}
-}
-
 func (h *CourseHandler) SendToReview(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("courseId"))
 	if err != nil {
@@ -1160,7 +1102,7 @@ func (h *CourseHandler) SendToReview(c *gin.Context) {
 		return
 	}
 	if err := h.cursoService.SendToReview(c.Request.Context(), id); err != nil {
-		handleCursoTransitionError(c, err)
+		response.FromError(c, err, "Erro ao enviar curso para revisão")
 		return
 	}
 	if h.courseCache != nil {
@@ -1176,7 +1118,7 @@ func (h *CourseHandler) Approve(c *gin.Context) {
 		return
 	}
 	if err := h.cursoService.Approve(c.Request.Context(), id); err != nil {
-		handleCursoTransitionError(c, err)
+		response.FromError(c, err, "Erro ao aprovar curso")
 		return
 	}
 	if h.courseCache != nil {
@@ -1192,7 +1134,7 @@ func (h *CourseHandler) RequestChanges(c *gin.Context) {
 		return
 	}
 	if err := h.cursoService.RequestChanges(c.Request.Context(), id); err != nil {
-		handleCursoTransitionError(c, err)
+		response.FromError(c, err, "Erro ao solicitar edição do curso")
 		return
 	}
 	if h.courseCache != nil {
@@ -1208,7 +1150,7 @@ func (h *CourseHandler) RequestDeletion(c *gin.Context) {
 		return
 	}
 	if err := h.cursoService.RequestDeletion(c.Request.Context(), id); err != nil {
-		handleCursoTransitionError(c, err)
+		response.FromError(c, err, "Erro ao solicitar exclusão do curso")
 		return
 	}
 	if h.courseCache != nil {

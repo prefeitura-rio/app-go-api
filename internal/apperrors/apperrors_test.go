@@ -1,4 +1,4 @@
-package apperrors_test
+package apperrors
 
 import (
 	"errors"
@@ -6,77 +6,117 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
-func TestConstructors_KindAndMessage(t *testing.T) {
-	tests := []struct {
-		name       string
-		err        *apperrors.Error
-		wantKind   apperrors.Kind
-		wantStatus int
-	}{
-		{"invalid", apperrors.Invalid("valor inválido"), apperrors.KindInvalid, http.StatusBadRequest},
-		{"forbidden", apperrors.Forbidden("acesso negado"), apperrors.KindForbidden, http.StatusForbidden},
-		{"not found", apperrors.NotFound("curso não encontrado"), apperrors.KindNotFound, http.StatusNotFound},
-		{"conflict", apperrors.Conflict("já existe"), apperrors.KindConflict, http.StatusConflict},
-		{"unavailable", apperrors.Unavailable("serviço fora"), apperrors.KindUnavailable, http.StatusServiceUnavailable},
-	}
+func TestError_Error_DoesNotExposeCause(t *testing.T) {
+	err := Wrap(KindInternal, "Erro ao criar curso", errors.New("sql: connection refused"))
+	assert.Equal(t, "Erro ao criar curso", err.Error())
+	assert.NotContains(t, err.Error(), "sql")
+	assert.NotContains(t, err.Error(), "connection")
+}
 
+func TestError_Unwrap(t *testing.T) {
+	cause := errors.New("root cause")
+	err := Wrap(KindNotFound, "não encontrado", cause)
+	assert.Equal(t, cause, errors.Unwrap(err))
+	assert.True(t, errors.Is(err, cause))
+}
+
+func TestError_Is_Sentinel(t *testing.T) {
+	sentinel := Conflict("já existe")
+	assert.True(t, errors.Is(Conflict("já existe"), sentinel))
+	assert.False(t, errors.Is(Conflict("outro"), sentinel))
+	assert.False(t, errors.Is(NotFound("já existe"), sentinel))
+}
+
+func TestConstructors_HTTPStatus(t *testing.T) {
+	tests := []struct {
+		name   string
+		err    *Error
+		status int
+	}{
+		{"invalid", Invalid("bad"), http.StatusBadRequest},
+		{"validation alias", Validation("bad"), http.StatusBadRequest},
+		{"forbidden", Forbidden("no"), http.StatusForbidden},
+		{"not found", NotFound("gone"), http.StatusNotFound},
+		{"conflict", Conflict("dup"), http.StatusConflict},
+		{"unavailable", Unavailable("down"), http.StatusServiceUnavailable},
+		{"internal", Internal("boom"), http.StatusInternalServerError},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantKind, tt.err.Kind)
-			assert.Equal(t, tt.wantStatus, tt.err.HTTPStatus())
-			assert.Equal(t, tt.err.Message, tt.err.Error())
+			assert.Equal(t, tt.status, tt.err.HTTPStatus())
+			assert.Equal(t, tt.status, kindStatus(tt.err.Kind))
 		})
 	}
 }
 
-func TestError_MessageIsPublicOnly(t *testing.T) {
-	cause := errors.New(`ERROR: relation "cursos" does not exist (SQLSTATE 42P01)`)
-	err := apperrors.Wrap(apperrors.KindUnavailable, "não foi possível validar seus CNPJs", cause)
-
-	assert.Equal(t, "não foi possível validar seus CNPJs", err.Error())
-	assert.NotContains(t, err.Error(), "SQLSTATE")
-	assert.ErrorIs(t, err, cause, "a causa continua disponível para o log do servidor")
+func TestValidation_EqualsInvalid(t *testing.T) {
+	assert.Equal(t, KindInvalid, KindValidation)
+	assert.True(t, IsKind(Validation("x"), KindInvalid))
+	assert.True(t, IsKind(Invalid("x"), KindValidation))
 }
 
-func TestAs_FindsWrappedDomainError(t *testing.T) {
-	domain := apperrors.NotFound("inscrição não encontrada")
-	wrapped := fmt.Errorf("camada de serviço: %w", domain)
-
-	got, ok := apperrors.As(wrapped)
-	assert.True(t, ok)
-	assert.Same(t, domain, got)
-
-	_, ok = apperrors.As(errors.New("erro qualquer"))
-	assert.False(t, ok)
-
-	_, ok = apperrors.As(nil)
-	assert.False(t, ok)
+func TestAs_And_IsKind(t *testing.T) {
+	err := fmt.Errorf("wrap: %w", NotFound("curso não encontrado"))
+	ae, ok := As(err)
+	require.True(t, ok)
+	assert.Equal(t, KindNotFound, ae.Kind)
+	assert.True(t, IsKind(err, KindNotFound))
+	assert.False(t, IsKind(err, KindConflict))
+	assert.False(t, IsKind(errors.New("plain"), KindNotFound))
 }
 
-func TestIsKind(t *testing.T) {
-	err := fmt.Errorf("x: %w", apperrors.Conflict("CPF já inscrito neste curso"))
-
-	assert.True(t, apperrors.IsKind(err, apperrors.KindConflict))
-	assert.False(t, apperrors.IsKind(err, apperrors.KindNotFound))
-	assert.False(t, apperrors.IsKind(errors.New("CPF já inscrito neste curso"), apperrors.KindConflict))
+func TestMap_TypedErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		err     error
+		status  int
+		message string
+	}{
+		{"nil", nil, http.StatusInternalServerError, MsgInternal},
+		{"invalid", Invalid("campo inválido"), http.StatusBadRequest, "campo inválido"},
+		{"validation", Validation("regra"), http.StatusBadRequest, "regra"},
+		{"forbidden", Forbidden("sem permissão"), http.StatusForbidden, "sem permissão"},
+		{"not found", NotFound("não existe"), http.StatusNotFound, "não existe"},
+		{"conflict", Conflict("duplicado"), http.StatusConflict, "duplicado"},
+		{"unavailable", Unavailable("fora"), http.StatusServiceUnavailable, "fora"},
+		{"internal", Internal("Erro ao listar"), http.StatusInternalServerError, "Erro ao listar"},
+		{"gorm not found", gorm.ErrRecordNotFound, http.StatusNotFound, msgRecordNotFound},
+		{"wrapped typed", fmt.Errorf("x: %w", Conflict("dup")), http.StatusConflict, "dup"},
+		{"unknown", errors.New("sql: secret details"), http.StatusInternalServerError, MsgInternal},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, message, field := Map(tt.err)
+			assert.Equal(t, tt.status, status)
+			assert.Equal(t, tt.message, message)
+			assert.Empty(t, field)
+			if tt.err != nil && !errors.Is(tt.err, gorm.ErrRecordNotFound) {
+				if _, ok := As(tt.err); !ok {
+					assert.NotContains(t, message, "sql")
+					assert.NotEqual(t, tt.err.Error(), message)
+				}
+			}
+		})
+	}
 }
 
-func TestErrorsIs_ComparesKindAndMessage(t *testing.T) {
-	sentinel := apperrors.NotFound("proposta não encontrada")
-	same := apperrors.NotFound("proposta não encontrada")
-	other := apperrors.NotFound("oportunidade não encontrada")
-
-	assert.ErrorIs(t, fmt.Errorf("w: %w", same), sentinel)
-	assert.NotErrorIs(t, other, sentinel)
-	assert.NotErrorIs(t, apperrors.Conflict("proposta não encontrada"), sentinel)
+func TestMap_PostgresUniqueViolation(t *testing.T) {
+	pqErr := &pq.Error{Code: "23505", Constraint: "idx_unique_email"}
+	status, message, field := Map(pqErr)
+	assert.Equal(t, http.StatusConflict, status)
+	assert.NotEmpty(t, message)
+	_ = field
 }
 
-func TestHTTPStatus_UnknownKindIs500(t *testing.T) {
-	err := &apperrors.Error{Kind: apperrors.Kind(99), Message: "x"}
-	assert.Equal(t, http.StatusInternalServerError, err.HTTPStatus())
+func TestMap_PostgresFKViolation(t *testing.T) {
+	pqErr := &pq.Error{Code: "23503"}
+	status, message, _ := Map(pqErr)
+	assert.Equal(t, http.StatusBadRequest, status)
+	assert.NotEmpty(t, message)
 }

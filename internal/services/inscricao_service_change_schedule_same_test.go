@@ -2,13 +2,13 @@ package services_test
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -115,9 +115,8 @@ func TestInscricaoService_ChangeSchedule_SameSchedule_RejectedAsAlreadyEnrolled(
 			if !strings.Contains(err.Error(), "não é possível trocar de turma") {
 				t.Fatalf("a mensagem deve seguir o padrão das recusas de troca (400), veio: %v", err)
 			}
-			var ruleErr *services.EnrollmentRuleError
-			if !errors.As(err, &ruleErr) {
-				t.Fatalf("esperava EnrollmentRuleError, veio %T: %v", err, err)
+			if !apperrors.IsKind(err, apperrors.KindValidation) {
+				t.Fatalf("esperava apperrors.Validation (handler responde 400), veio %T: %v", err, err)
 			}
 			if updated {
 				t.Fatal("a inscrição não deveria ser alterada")

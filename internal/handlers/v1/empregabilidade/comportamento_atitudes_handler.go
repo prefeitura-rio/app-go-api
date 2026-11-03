@@ -99,7 +99,7 @@ func (h *ComportamentoAtitudesHandler) GetComportamentoAtitudesByID(c *gin.Conte
 
 	item, err := h.comportamentoAtitudesService.GetComportamentoAtitudesByID(c.Request.Context(), id)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao buscar comportamento/atitude")
+		response.RespondError(c, err, "Erro ao buscar comportamento/atitude")
 		return
 	}
 	if item == nil {
@@ -209,7 +209,7 @@ func (h *ComportamentoAtitudesHandler) ListComportamentoAtitudes(c *gin.Context)
 
 	comportamentos, total, err := h.comportamentoAtitudesService.ListComportamentoAtitudes(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao buscar comportamentos/atitudes")
+		response.RespondError(c, err, "Erro ao buscar comportamentos/atitudes")
 		return
 	}
 

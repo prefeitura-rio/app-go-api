@@ -2,18 +2,18 @@ package empregabilidade
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
 
 // ErrEtapaNaoEncontrada indica que não há etapa com o id informado na vaga
 // informada (inexistente ou pertencente a outra vaga).
-var ErrEtapaNaoEncontrada = errors.New("etapa não encontrada")
+var ErrEtapaNaoEncontrada = apperrors.NotFound("Etapa não encontrada")
 
 type EtapaRepository struct {
 	db *gorm.DB

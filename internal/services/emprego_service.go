@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
@@ -24,7 +25,7 @@ func NewEmpregoServiceWithInterface(repo EmpregoRepositoryInterface) *EmpregoSer
 func (s *EmpregoService) Create(ctx context.Context, emprego *models.Emprego) (int, error) {
 	// Validar campos obrigatórios
 	if err := emprego.Validate(); err != nil {
-		return 0, err
+		return 0, apperrors.Validation(err.Error())
 	}
 	return s.repo.Create(ctx, emprego)
 }
@@ -36,7 +37,7 @@ func (s *EmpregoService) GetByID(ctx context.Context, id int) (*models.Emprego, 
 func (s *EmpregoService) Update(ctx context.Context, emprego *models.Emprego) error {
 	// Validar campos obrigatórios
 	if err := emprego.Validate(); err != nil {
-		return err
+		return apperrors.Validation(err.Error())
 	}
 	return s.repo.Update(ctx, emprego)
 }

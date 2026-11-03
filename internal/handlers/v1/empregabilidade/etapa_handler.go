@@ -1,11 +1,11 @@
 package empregabilidade
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
@@ -47,7 +47,7 @@ func (h *EtapaHandler) Create(c *gin.Context) {
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -75,7 +75,7 @@ func (h *EtapaHandler) ListByVaga(c *gin.Context) {
 
 	entities, err := h.service.ListByVaga(c.Request.Context(), vagaID)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -109,7 +109,7 @@ func (h *EtapaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *EtapaHandler) Update(c *gin.Context) {
 	entity.IDVaga = vagaID
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleEtapaWriteError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -189,20 +189,9 @@ func (h *EtapaHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), vagaID, etapaID); err != nil {
-		handleEtapaWriteError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Etapa excluída com sucesso"})
-}
-
-// handleEtapaWriteError responde 404 quando a etapa não existe na vaga do path
-// (a autorização da rota vale só para essa vaga) e delega o resto a
-// handleLookupError.
-func handleEtapaWriteError(c *gin.Context, err error) {
-	if errors.Is(err, services.ErrEtapaNaoEncontrada) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Etapa não encontrada"})
-		return
-	}
-	handleLookupError(c, err)
 }

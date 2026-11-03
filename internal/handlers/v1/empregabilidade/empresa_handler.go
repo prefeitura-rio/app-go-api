@@ -46,7 +46,7 @@ func (h *EmpresaHandler) Create(c *gin.Context) {
 
 	cnpj, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (h *EmpresaHandler) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -111,7 +111,7 @@ func (h *EmpresaHandler) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), cnpj)
 	if err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -146,7 +146,7 @@ func (h *EmpresaHandler) Update(c *gin.Context) {
 	entity.CNPJ = cnpj
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 
@@ -165,7 +165,7 @@ func (h *EmpresaHandler) Delete(c *gin.Context) {
 	cnpj := c.Param("cnpj")
 
 	if err := h.service.Delete(c.Request.Context(), cnpj); err != nil {
-		handleLookupError(c, err)
+		response.RespondError(c, err)
 		return
 	}
 

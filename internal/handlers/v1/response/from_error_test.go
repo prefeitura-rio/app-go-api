@@ -65,7 +65,7 @@ func TestFromError_TranslatesToHTTPStatus(t *testing.T) {
 		{"domain invalid", apperrors.Invalid("status inválido"), http.StatusBadRequest, "status inválido"},
 		{"domain forbidden", apperrors.Forbidden("CNPJ não pertence ao seu CPF"), http.StatusForbidden, "CNPJ não pertence ao seu CPF"},
 		{"domain unavailable keeps public message only", apperrors.Wrap(apperrors.KindUnavailable, "Serviço indisponível", opaque), http.StatusServiceUnavailable, "Serviço indisponível"},
-		{"gorm record not found", fmt.Errorf("erro ao buscar: %w", gorm.ErrRecordNotFound), http.StatusNotFound, "Registro não encontrado"},
+		{"gorm record not found", fmt.Errorf("erro ao buscar: %w", gorm.ErrRecordNotFound), http.StatusNotFound, "Recurso não encontrado"},
 		{"unique violation", uniqueViolation, http.StatusConflict, "Este CPF já está cadastrado no sistema."},
 		{"foreign key violation", fkViolation, http.StatusBadRequest, "A escolaridade especificada não existe. Verifique se o ID da escolaridade está correto."},
 		{"unknown error is generic 500", opaque, http.StatusInternalServerError, "Erro ao buscar formação"},

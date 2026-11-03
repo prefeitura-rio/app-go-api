@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prefeitura-rio/app-go-api/internal/cache"
-	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 type CRUDService[T any] interface {
@@ -43,17 +44,13 @@ func (h *CRUDHandler[T]) WithCache(cache *cache.ReferenceDataCache) *CRUDHandler
 func (h *CRUDHandler[T]) Create(c *gin.Context) {
 	var entity T
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
 	id, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -94,11 +91,7 @@ func (h *CRUDHandler[T]) GetByID(c *gin.Context) {
 
 	entity, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -124,7 +117,7 @@ func (h *CRUDHandler[T]) Update(c *gin.Context) {
 
 	var entity T
 	if err := c.ShouldBindJSON(&entity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos: " + err.Error()})
+		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
 
@@ -136,11 +129,7 @@ func (h *CRUDHandler[T]) Update(c *gin.Context) {
 	}
 
 	if err := h.service.Update(c.Request.Context(), &entity); err != nil {
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -160,11 +149,7 @@ func (h *CRUDHandler[T]) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		response.RespondError(c, err)
 		return
 	}
 
@@ -214,11 +199,7 @@ func (h *CRUDHandler[T]) List(c *gin.Context) {
 
 	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		dbErr := utils.ParseDatabaseError(err)
-		c.JSON(dbErr.GetHTTPStatusCode(), gin.H{
-			"error": dbErr.GetUserFriendlyMessage(),
-			"field": dbErr.Field,
-		})
+		response.RespondError(c, err)
 		return
 	}
 

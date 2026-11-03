@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
@@ -28,7 +29,7 @@ func NewCursoServiceWithInterface(repo CursoRepositoryInterface) *CursoService {
 
 func (s *CursoService) Create(ctx context.Context, curso *models.Curso) (int, error) {
 	if err := s.validateCurso(curso); err != nil {
-		return 0, fmt.Errorf("erro de validação: %w", err)
+		return 0, apperrors.Validation(err.Error())
 	}
 
 	s.normalizeCurso(curso)
@@ -84,7 +85,7 @@ func (s *CursoService) GetByID(ctx context.Context, id int) (*models.Curso, erro
 
 func (s *CursoService) Update(ctx context.Context, curso *models.Curso) error {
 	if err := s.validateCurso(curso); err != nil {
-		return fmt.Errorf("erro de validação: %w", err)
+		return apperrors.Validation(err.Error())
 	}
 
 	s.normalizeCurso(curso)
@@ -118,13 +119,13 @@ func (s *CursoService) SendToReview(ctx context.Context, id int) error {
 		return err
 	}
 	if curso == nil {
-		return fmt.Errorf("curso não encontrado")
+		return apperrors.NotFound("curso não encontrado")
 	}
 	if !curso.Status.CanTransitionTo(models.StatusCursoInReview) {
-		return fmt.Errorf("curso não está em estado válido para ser enviado para revisão")
+		return apperrors.Conflict("curso não está em estado válido para ser enviado para revisão")
 	}
 	if err := s.validatePublishedCurso(curso); err != nil {
-		return fmt.Errorf("curso incompleto para envio de revisão: %w", err)
+		return apperrors.Validation(fmt.Sprintf("curso incompleto para envio de revisão: %v", err))
 	}
 	return s.repo.UpdateStatus(ctx, id, models.StatusCursoInReview)
 }
@@ -135,10 +136,10 @@ func (s *CursoService) Approve(ctx context.Context, id int) error {
 		return err
 	}
 	if curso == nil {
-		return fmt.Errorf("curso não encontrado")
+		return apperrors.NotFound("curso não encontrado")
 	}
 	if !curso.Status.CanTransitionTo(models.StatusCursoPublished) {
-		return fmt.Errorf("curso não está em estado válido para aprovação")
+		return apperrors.Conflict("curso não está em estado válido para aprovação")
 	}
 	// Aprovação publica diretamente: in_review → published (ou approved → published para dados legados)
 	return s.repo.UpdateStatus(ctx, id, models.StatusCursoPublished)
@@ -150,10 +151,10 @@ func (s *CursoService) RequestChanges(ctx context.Context, id int) error {
 		return err
 	}
 	if curso == nil {
-		return fmt.Errorf("curso não encontrado")
+		return apperrors.NotFound("curso não encontrado")
 	}
 	if !curso.Status.CanTransitionTo(models.StatusCursoNeedsChanges) {
-		return fmt.Errorf("curso não está em estado válido para solicitação de edição")
+		return apperrors.Conflict("curso não está em estado válido para solicitação de edição")
 	}
 	return s.repo.UpdateStatus(ctx, id, models.StatusCursoNeedsChanges)
 }
@@ -164,10 +165,10 @@ func (s *CursoService) RequestDeletion(ctx context.Context, id int) error {
 		return err
 	}
 	if curso == nil {
-		return fmt.Errorf("curso não encontrado")
+		return apperrors.NotFound("curso não encontrado")
 	}
 	if !curso.Status.CanTransitionTo(models.StatusCursoPendingDeletion) {
-		return fmt.Errorf("curso não está em estado válido para solicitação de exclusão")
+		return apperrors.Conflict("curso não está em estado válido para solicitação de exclusão")
 	}
 	return s.repo.UpdateStatus(ctx, id, models.StatusCursoPendingDeletion)
 }

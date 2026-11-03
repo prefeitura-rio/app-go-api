@@ -5,12 +5,17 @@
 // interna (erro do GORM, do driver, de um serviço externo) fica em Err, só para
 // o log do servidor: Error() devolve apenas a mensagem pública.
 //
-// Os handlers traduzem esses erros para o status HTTP com response.FromError.
+// Os handlers traduzem esses erros para o status HTTP com response.FromError
+// ou response.RespondError (equivalentes).
 package apperrors
 
 import (
 	"errors"
 	"net/http"
+
+	"gorm.io/gorm"
+
+	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
 // Kind classifica um erro de domínio e define o status HTTP dele.
@@ -27,6 +32,11 @@ const (
 	KindConflict
 	// KindUnavailable é dependência externa indisponível (503).
 	KindUnavailable
+	// KindInternal é falha interna com mensagem pública estável (500).
+	KindInternal
+
+	// KindValidation is an alias of KindInvalid (same HTTP 400 mapping).
+	KindValidation = KindInvalid
 )
 
 // Error é um erro de domínio com mensagem pública.
@@ -38,11 +48,17 @@ type Error struct {
 
 // Error devolve só a mensagem pública, nunca a causa interna.
 func (e *Error) Error() string {
+	if e == nil {
+		return ""
+	}
 	return e.Message
 }
 
 // Unwrap expõe a causa interna para errors.Is/As e para o log.
 func (e *Error) Unwrap() error {
+	if e == nil {
+		return nil
+	}
 	return e.Err
 }
 
@@ -58,20 +74,10 @@ func (e *Error) Is(target error) bool {
 
 // HTTPStatus devolve o status HTTP do tipo do erro.
 func (e *Error) HTTPStatus() int {
-	switch e.Kind {
-	case KindInvalid:
-		return http.StatusBadRequest
-	case KindForbidden:
-		return http.StatusForbidden
-	case KindNotFound:
-		return http.StatusNotFound
-	case KindConflict:
-		return http.StatusConflict
-	case KindUnavailable:
-		return http.StatusServiceUnavailable
-	default:
+	if e == nil {
 		return http.StatusInternalServerError
 	}
+	return kindStatus(e.Kind)
 }
 
 // New cria um erro de domínio do tipo informado.
@@ -87,6 +93,9 @@ func Wrap(kind Kind, message string, cause error) *Error {
 // Invalid cria um erro de entrada inválida (400).
 func Invalid(message string) *Error { return New(KindInvalid, message) }
 
+// Validation is an alias of Invalid (400).
+func Validation(message string) *Error { return Invalid(message) }
+
 // Forbidden cria um erro de operação proibida (403).
 func Forbidden(message string) *Error { return New(KindForbidden, message) }
 
@@ -98,6 +107,9 @@ func Conflict(message string) *Error { return New(KindConflict, message) }
 
 // Unavailable cria um erro de dependência indisponível (503).
 func Unavailable(message string) *Error { return New(KindUnavailable, message) }
+
+// Internal cria um erro interno com mensagem pública estável (500).
+func Internal(message string) *Error { return New(KindInternal, message) }
 
 // As procura um erro de domínio na cadeia de err.
 func As(err error) (*Error, bool) {
@@ -112,4 +124,52 @@ func As(err error) (*Error, bool) {
 func IsKind(err error, kind Kind) bool {
 	appErr, ok := As(err)
 	return ok && appErr.Kind == kind
+}
+
+const (
+	// MsgInternal is the default client-safe message for unmapped 500s.
+	MsgInternal       = "Erro interno do servidor"
+	msgRecordNotFound = "Recurso não encontrado"
+)
+
+// Map translates err into an HTTP status, client-safe message, and optional field.
+// Never returns the raw err.Error() for unknown failures.
+func Map(err error) (status int, message string, field string) {
+	if err == nil {
+		return http.StatusInternalServerError, MsgInternal, ""
+	}
+
+	if ae, ok := As(err); ok {
+		return kindStatus(ae.Kind), ae.Message, ""
+	}
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return http.StatusNotFound, msgRecordNotFound, ""
+	}
+
+	dbErr := utils.ParseDatabaseError(err)
+	if dbErr != nil && dbErr.Type != utils.UnknownError {
+		return dbErr.GetHTTPStatusCode(), dbErr.GetUserFriendlyMessage(), dbErr.Field
+	}
+
+	return http.StatusInternalServerError, MsgInternal, ""
+}
+
+func kindStatus(kind Kind) int {
+	switch kind {
+	case KindInvalid: // also KindValidation
+		return http.StatusBadRequest
+	case KindForbidden:
+		return http.StatusForbidden
+	case KindNotFound:
+		return http.StatusNotFound
+	case KindConflict:
+		return http.StatusConflict
+	case KindUnavailable:
+		return http.StatusServiceUnavailable
+	case KindInternal:
+		return http.StatusInternalServerError
+	default:
+		return http.StatusInternalServerError
+	}
 }

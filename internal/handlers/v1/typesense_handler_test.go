@@ -278,7 +278,10 @@ func TestTypesenseHandler_SearchCursos_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar cursos")
+	assert.Contains(t, w.Body.String(), `"message":"Erro ao buscar cursos"`)
+	assert.Contains(t, w.Body.String(), `"code":500`)
+	assert.NotContains(t, w.Body.String(), "typesense connection error")
+	assert.NotContains(t, w.Body.String(), `"error"`)
 }
 
 // Test SearchCursos with valid parameters and success
@@ -396,7 +399,9 @@ func TestTypesenseHandler_SearchEmpregos_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar empregos")
+	assert.Contains(t, w.Body.String(), `"message":"Erro ao buscar empregos"`)
+	assert.Contains(t, w.Body.String(), `"code":500`)
+	assert.NotContains(t, w.Body.String(), "database timeout")
 }
 
 // Test SearchEmpregos with success
@@ -520,7 +525,9 @@ func TestTypesenseHandler_SearchDocuments_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao buscar documentos")
+	assert.Contains(t, w.Body.String(), `"message":"Erro ao buscar documentos"`)
+	assert.Contains(t, w.Body.String(), `"code":500`)
+	assert.NotContains(t, w.Body.String(), "collection not found")
 }
 
 // Test SearchDocuments with success
@@ -662,7 +669,9 @@ func TestTypesenseHandler_SearchMultiCollection_ServiceError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Erro ao realizar busca em múltiplas coleções")
+	assert.Contains(t, w.Body.String(), `"message":"Erro ao realizar busca em múltiplas coleções"`)
+	assert.Contains(t, w.Body.String(), `"code":500`)
+	assert.NotContains(t, w.Body.String(), "multi-search failed")
 }
 
 // Test SearchMultiCollection with success

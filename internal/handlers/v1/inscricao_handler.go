@@ -2,7 +2,6 @@ package v1
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -1032,23 +1031,7 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 
 	inscricao, err := h.service.ChangeSchedule(c.Request.Context(), enrollmentID, userCPF, &request)
 	if err != nil {
-		errMsg := err.Error()
-		var ruleErr *services.EnrollmentRuleError
-		switch {
-		case errors.As(err, &ruleErr):
-			// Turma de outro curso, fechada ou sem schedule_id: o cidadão resolve.
-			response.Error(c, http.StatusBadRequest, ruleErr.Error())
-		case errMsg == "inscrição não encontrada":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
-		case errMsg == "você só pode alterar suas próprias inscrições":
-			c.JSON(http.StatusForbidden, gin.H{"error": errMsg})
-		case strings.Contains(errMsg, "não é possível trocar de turma"):
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
-		case strings.Contains(errMsg, "não há vagas"):
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
-		default:
-			response.FromError(c, err, "Erro ao trocar de turma")
-		}
+		response.FromError(c, err, "Erro ao trocar de turma")
 		return
 	}
 
@@ -1060,15 +1043,8 @@ func (h *InscricaoHandler) ChangeSchedule(c *gin.Context) {
 }
 
 // respondCreateInscricaoError responde as falhas de criação de inscrição.
-// Regras de negócio (curso fechado, período encerrado, turma sem vagas) são do
-// cidadão resolver, não falha do servidor: 400 com a mensagem como veio, para o
-// portal mostrar. Duplicidade (409), curso inexistente (404) e os demais erros
-// seguem response.FromError.
+// Regras de negócio (Validation), duplicidade (Conflict) e ausência (NotFound)
+// seguem response.FromError — a mensagem pública chega íntegra ao portal.
 func respondCreateInscricaoError(c *gin.Context, err error) {
-	var ruleErr *services.EnrollmentRuleError
-	if errors.As(err, &ruleErr) {
-		response.Error(c, http.StatusBadRequest, ruleErr.Error())
-		return
-	}
 	response.FromError(c, err, "Erro ao criar inscrição")
 }

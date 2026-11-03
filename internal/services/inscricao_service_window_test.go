@@ -2,13 +2,13 @@ package services_test
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -161,9 +161,8 @@ func TestInscricaoService_Create_EnrollmentRuleErrorType(t *testing.T) {
 				t.Fatal("esperava erro de regra de negócio, veio nil")
 			}
 
-			var ruleErr *services.EnrollmentRuleError
-			if !errors.As(err, &ruleErr) {
-				t.Fatalf("esperava *services.EnrollmentRuleError (handler responde 400), veio %T: %v", err, err)
+			if !apperrors.IsKind(err, apperrors.KindValidation) {
+				t.Fatalf("esperava apperrors.Validation (handler responde 400), veio %T: %v", err, err)
 			}
 			if err.Error() != tc.wantMessage {
 				t.Fatalf("mensagem deve chegar íntegra ao cidadão: esperava %q, veio %q", tc.wantMessage, err.Error())

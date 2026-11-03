@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/jobs"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
@@ -1544,7 +1545,7 @@ func TestInscricaoHandler_ChangeSchedule_NotFound(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
-		Return(nil, errors.New("inscrição não encontrada"))
+		Return(nil, apperrors.NotFound("inscrição não encontrada"))
 
 	reqBody := map[string]interface{}{
 		"enrolled_unit": map[string]interface{}{
@@ -1581,7 +1582,7 @@ func TestInscricaoHandler_ChangeSchedule_Forbidden(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "98765432100", mock.AnythingOfType("*models.ScheduleChangeRequest")).
-		Return(nil, errors.New("você só pode alterar suas próprias inscrições"))
+		Return(nil, apperrors.Forbidden("você só pode alterar suas próprias inscrições"))
 
 	reqBody := map[string]interface{}{
 		"enrolled_unit": map[string]interface{}{
@@ -1618,7 +1619,7 @@ func TestInscricaoHandler_ChangeSchedule_NoVacancies(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
-		Return(nil, errors.New("não há vagas disponíveis para esta turma"))
+		Return(nil, apperrors.Validation("não há vagas disponíveis para esta turma"))
 
 	reqBody := map[string]interface{}{
 		"enrolled_unit": map[string]interface{}{
@@ -1656,7 +1657,7 @@ func TestInscricaoHandler_ChangeSchedule_TimingRestriction(t *testing.T) {
 	enrollmentID := uuid.New()
 
 	mockService.On("ChangeSchedule", mock.Anything, enrollmentID, "12345678901", mock.AnythingOfType("*models.ScheduleChangeRequest")).
-		Return(nil, errors.New("não é possível trocar de turma com menos de 72h de antecedência"))
+		Return(nil, apperrors.Validation("não é possível trocar de turma com menos de 72h de antecedência"))
 
 	reqBody := map[string]interface{}{
 		"enrolled_unit": map[string]interface{}{

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
@@ -180,9 +181,8 @@ func assertRuleError(t *testing.T, err error, want string) {
 	if err == nil {
 		t.Fatalf("expected error containing %q, got nil", want)
 	}
-	var ruleErr *services.EnrollmentRuleError
-	if !errors.As(err, &ruleErr) {
-		t.Errorf("expected *services.EnrollmentRuleError, got %T (%v)", err, err)
+	if !apperrors.IsKind(err, apperrors.KindValidation) {
+		t.Errorf("expected apperrors.Validation, got %T (%v)", err, err)
 	}
 	if !strings.Contains(err.Error(), want) {
 		t.Errorf("expected error containing %q, got %q", want, err.Error())

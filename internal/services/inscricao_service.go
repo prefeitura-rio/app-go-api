@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -16,24 +15,15 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/utils"
 )
 
-// EnrollmentRuleError marks a rejection the citizen can act on — the course is
-// not open, the enrollment window is closed, the turma is not accepting people.
-// These are not server faults, so handlers answer 400 instead of 500 and the
-// portal can show the reason verbatim.
-type EnrollmentRuleError struct {
-	msg string
-}
-
-func (e *EnrollmentRuleError) Error() string { return e.msg }
-
-// NewEnrollmentRuleError builds a business-rule rejection carrying a message
-// meant to be shown to the citizen as-is.
+// NewEnrollmentRuleError builds a business-rule rejection (HTTP 400) carrying a
+// message meant to be shown to the citizen as-is — course not open, enrollment
+// window closed, turma not accepting people, etc.
 func NewEnrollmentRuleError(msg string) error {
-	return &EnrollmentRuleError{msg: msg}
+	return apperrors.Validation(msg)
 }
 
 func enrollmentRuleErrorf(format string, args ...any) error {
-	return &EnrollmentRuleError{msg: fmt.Sprintf(format, args...)}
+	return apperrors.Validation(fmt.Sprintf(format, args...))
 }
 
 // Erros de domínio das inscrições. As mensagens são as mesmas de antes da
@@ -923,9 +913,8 @@ func (s *InscricaoService) EnrichMultipleWithPersonalInfo(ctx context.Context, i
 	}
 }
 
-// errSemVagasNaTurma refuses a turma change into a turma that is full. The
-// handler maps the message to 400.
-var errSemVagasNaTurma = errors.New("não há vagas disponíveis nesta turma")
+// errSemVagasNaTurma refuses a turma change into a turma that is full (HTTP 400).
+var errSemVagasNaTurma = apperrors.Validation("não há vagas disponíveis nesta turma")
 
 // moveToSchedule checks that the turma scheduleID still has a vacancy and moves
 // inscricao into it. ChangeSchedule calls it under the turma lock, with the
@@ -964,12 +953,12 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 
 	// Validate that the enrollment belongs to the user
 	if inscricao.CPF != userCPF {
-		return nil, fmt.Errorf("você só pode alterar suas próprias inscrições")
+		return nil, apperrors.Forbidden("você só pode alterar suas próprias inscrições")
 	}
 
 	// Validate status - cannot change if cancelled or concluded
 	if inscricao.Status == models.StatusInscricaoCancelled || inscricao.Status == models.StatusInscricaoConcluded {
-		return nil, fmt.Errorf("não é possível trocar de turma para inscrições com status '%s'", inscricao.Status)
+		return nil, apperrors.Validation(fmt.Sprintf("não é possível trocar de turma para inscrições com status '%s'", inscricao.Status))
 	}
 
 	// Moving to the turma the enrollment is already in changes nothing. Refuse it
@@ -985,10 +974,10 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 		return nil, fmt.Errorf("erro ao buscar curso: %w", err)
 	}
 	if curso == nil {
-		return nil, fmt.Errorf("curso não encontrado")
+		return nil, ErrCursoNaoEncontrado
 	}
 	if countCourseSchedules(curso) <= 1 {
-		return nil, fmt.Errorf("não é possível trocar de turma: este curso possui apenas uma turma disponível")
+		return nil, apperrors.Validation("não é possível trocar de turma: este curso possui apenas uma turma disponível")
 	}
 
 	// The new turma comes only from a schedule_id of this enrollment's course.
@@ -1021,7 +1010,7 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 	}
 	deadline := time.Now().Add(time.Duration(deadlineHours) * time.Hour)
 	if newScheduleStartDate.Before(deadline) {
-		return nil, fmt.Errorf("não é possível trocar de turma com menos de %d horas do início da aula", deadlineHours)
+		return nil, apperrors.Validation(fmt.Sprintf("não é possível trocar de turma com menos de %d horas do início da aula", deadlineHours))
 	}
 
 	// Validate that the new schedule has available vacancies (limit from the

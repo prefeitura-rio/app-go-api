@@ -1,10 +1,10 @@
 package empregabilidade
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
@@ -43,8 +43,7 @@ func (h *OnboardingHandler) IsFirstLogin(c *gin.Context) {
 
 	isFirstLogin, err := h.service.IsFirstLogin(c.Request.Context(), cpf)
 	if err != nil {
-		log.Printf("[OnboardingHandler] IsFirstLogin failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao verificar onboarding"})
+		response.RespondError(c, err, "Erro ao verificar onboarding")
 		return
 	}
 
@@ -76,8 +75,7 @@ func (h *OnboardingHandler) MarkFirstLoginCompleted(c *gin.Context) {
 	}
 
 	if err := h.service.MarkFirstLoginCompleted(c.Request.Context(), cpf); err != nil {
-		log.Printf("[OnboardingHandler] MarkFirstLoginCompleted failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao concluir onboarding"})
+		response.RespondError(c, err, "Erro ao concluir onboarding")
 		return
 	}
 

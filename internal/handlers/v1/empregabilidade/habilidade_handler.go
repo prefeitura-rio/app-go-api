@@ -107,7 +107,7 @@ func (h *HabilidadeHandler) GetHabilidadeByID(c *gin.Context) {
 
 	item, err := h.habilidadeService.GetHabilidadeByID(c.Request.Context(), id)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao buscar habilidade")
+		response.RespondError(c, err, "Erro ao buscar habilidade")
 		return
 	}
 	if item == nil {
@@ -217,7 +217,7 @@ func (h *HabilidadeHandler) ListHabilidades(c *gin.Context) {
 
 	habilidades, total, err := h.habilidadeService.ListHabilidades(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao buscar habilidades")
+		response.RespondError(c, err, "Erro ao buscar habilidades")
 		return
 	}
 
@@ -391,7 +391,7 @@ func (h *HabilidadeHandler) GetAreaAtuacaoByID(c *gin.Context) {
 
 	item, err := h.habilidadeService.GetAreaAtuacaoByID(c.Request.Context(), id)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao buscar área de atuação")
+		response.RespondError(c, err, "Erro ao buscar área de atuação")
 		return
 	}
 	if item == nil {
@@ -501,7 +501,7 @@ func (h *HabilidadeHandler) ListAreasAtuacao(c *gin.Context) {
 
 	areas, total, err := h.habilidadeService.ListAreasAtuacao(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Erro ao buscar áreas de atuação")
+		response.RespondError(c, err, "Erro ao buscar áreas de atuação")
 		return
 	}
 
@@ -521,11 +521,7 @@ func (h *HabilidadeHandler) ListAreaAtuacaoHabilidades(c *gin.Context) {
 		c.Request.Context(),
 	)
 	if err != nil {
-		response.Error(
-			c,
-			http.StatusInternalServerError,
-			"Erro ao buscar áreas de atuação e habilidades",
-		)
+		response.RespondError(c, err, "Erro ao buscar áreas de atuação e habilidades")
 		return
 	}
 
