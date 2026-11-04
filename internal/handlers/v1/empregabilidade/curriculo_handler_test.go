@@ -2,6 +2,7 @@ package empregabilidade_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -34,6 +36,12 @@ type mockCurriculoRepoH struct {
 	err              error
 	writeErr         error // returned by Update*/Delete* when err is nil
 	mock.Mock
+
+	replaceCalled           bool
+	replaceCPF              string
+	replaceAreaID           *int64
+	replacePivotIDs         []int64
+	replaceComportamentoIDs []int64
 }
 
 // Formação
@@ -257,7 +265,12 @@ func (m *mockCurriculoRepoH) ExistingComportamentoIDs(_ context.Context, _ []int
 	return m.comportamentoIDs, nil
 }
 
-func (m *mockCurriculoRepoH) ReplaceHabilidadesCompetencias(_ context.Context, _ string, _ *int64, _, _ []int64) error {
+func (m *mockCurriculoRepoH) ReplaceHabilidadesCompetencias(_ context.Context, cpf string, areaID *int64, pivotIDs, comportamentoIDs []int64) error {
+	m.replaceCalled = true
+	m.replaceCPF = cpf
+	m.replaceAreaID = areaID
+	m.replacePivotIDs = append([]int64(nil), pivotIDs...)
+	m.replaceComportamentoIDs = append([]int64(nil), comportamentoIDs...)
 	return m.err
 }
 
@@ -297,13 +310,9 @@ func (m *mockCurriculoRepoH) GetPerfilByCPF(_ context.Context, _ string) (*empmo
 func setupCurriculoRouter(repo services.CurriculoRepositoryInterface, cpf string, isAdmin bool) *gin.Engine {
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
-		if cpf == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			c.Abort()
-			return
+		if cpf != "" {
+			c.Set(middlewares.UserCPFKey, cpf)
 		}
-
-		c.Set(middlewares.UserCPFKey, cpf)
 		if isAdmin {
 			c.Set(middlewares.UserRoleKey, "ADMIN")
 		}
@@ -957,12 +966,90 @@ func TestCurriculoHandler_GetHabilidadesCompetencias_Success(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Engenharia")
 }
 
+func TestCurriculoHandler_GetHabilidadesCompetencias_Empty(t *testing.T) {
+	r := setupCurriculoRouter(&mockCurriculoRepoH{}, "12345678900", false)
+	req := httptest.NewRequest(http.MethodGet, "/curriculo/habilidades-competencias", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var got empmodels.HabilidadesCompetencias
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	assert.Nil(t, got.AreaAtuacao)
+	assert.Empty(t, got.Conhecimentos)
+	assert.Empty(t, got.ComportamentosAtitudes)
+}
+
+func TestCurriculoHandler_GetHabilidadesCompetencias_ServiceError(t *testing.T) {
+	r := setupCurriculoRouter(&mockCurriculoRepoH{err: errTest}, "12345678900", false)
+	req := httptest.NewRequest(http.MethodGet, "/curriculo/habilidades-competencias", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
 func TestCurriculoHandler_GetHabilidadesCompetencias_Unauthorized(t *testing.T) {
 	r := setupCurriculoRouter(&mockCurriculoRepoH{}, "", false)
 	req := httptest.NewRequest(http.MethodGet, "/curriculo/habilidades-competencias", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "Usuário não autenticado")
+}
+
+func TestCurriculoHandler_SaveHabilidadesCompetencias_Success(t *testing.T) {
+	areaID := int64(10)
+	repo := &mockCurriculoRepoH{
+		areaExists:       true,
+		pivots:           map[int64]int64{1: 100},
+		comportamentoIDs: []int64{4},
+		habilidades: &empmodels.HabilidadesCompetencias{
+			AreaAtuacao:            &empmodels.CatalogoItem{ID: areaID, Nome: "Engenharia"},
+			Conhecimentos:          []*empmodels.CatalogoItem{{ID: 1, Nome: "Gestão de projetos"}},
+			ComportamentosAtitudes: []*empmodels.CatalogoItem{{ID: 4, Nome: "Proatividade"}},
+		},
+	}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{"id_area_atuacao":10,"habilidade_ids":[1],"comportamento_atitudes_ids":[4]}`)
+	req := httptest.NewRequest(http.MethodPut, "/curriculo/habilidades-competencias", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var got empmodels.HabilidadesCompetencias
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	require.NotNil(t, got.AreaAtuacao)
+	assert.Equal(t, "Engenharia", got.AreaAtuacao.Nome)
+	require.Len(t, got.Conhecimentos, 1)
+	require.Len(t, got.ComportamentosAtitudes, 1)
+	require.True(t, repo.replaceCalled)
+	assert.Equal(t, "12345678900", repo.replaceCPF)
+	require.NotNil(t, repo.replaceAreaID)
+	assert.Equal(t, areaID, *repo.replaceAreaID)
+	assert.Equal(t, []int64{100}, repo.replacePivotIDs)
+	assert.Equal(t, []int64{4}, repo.replaceComportamentoIDs)
+}
+
+func TestCurriculoHandler_SaveHabilidadesCompetencias_Unauthorized(t *testing.T) {
+	r := setupCurriculoRouter(&mockCurriculoRepoH{}, "", false)
+	body := bodyOf(`{"id_area_atuacao":10,"habilidade_ids":[],"comportamento_atitudes_ids":[]}`)
+	req := httptest.NewRequest(http.MethodPut, "/curriculo/habilidades-competencias", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "Usuário não autenticado")
+}
+
+func TestCurriculoHandler_SaveHabilidadesCompetencias_InvalidJSON(t *testing.T) {
+	r := setupCurriculoRouter(&mockCurriculoRepoH{}, "12345678900", false)
+	body := bodyOf(`{`)
+	req := httptest.NewRequest(http.MethodPut, "/curriculo/habilidades-competencias", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestCurriculoHandler_SaveHabilidadesCompetencias_TagForaDaArea(t *testing.T) {
@@ -975,16 +1062,32 @@ func TestCurriculoHandler_SaveHabilidadesCompetencias_TagForaDaArea(t *testing.T
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Contains(t, w.Body.String(), "conhecimento não pertence à área de atuação")
+	assert.False(t, repo.replaceCalled)
 }
 
 func TestCurriculoHandler_SaveHabilidadesCompetencias_AreaInexistente(t *testing.T) {
-	r := setupCurriculoRouter(&mockCurriculoRepoH{}, "12345678900", false)
+	repo := &mockCurriculoRepoH{}
+	r := setupCurriculoRouter(repo, "12345678900", false)
 	body := bodyOf(`{"id_area_atuacao":10,"habilidade_ids":[],"comportamento_atitudes_ids":[]}`)
 	req := httptest.NewRequest(http.MethodPut, "/curriculo/habilidades-competencias", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoHandler_SaveHabilidadesCompetencias_ComportamentoInexistente(t *testing.T) {
+	repo := &mockCurriculoRepoH{areaExists: true, pivots: map[int64]int64{}, comportamentoIDs: []int64{}}
+	r := setupCurriculoRouter(repo, "12345678900", false)
+	body := bodyOf(`{"id_area_atuacao":10,"habilidade_ids":[],"comportamento_atitudes_ids":[4]}`)
+	req := httptest.NewRequest(http.MethodPut, "/curriculo/habilidades-competencias", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Contains(t, w.Body.String(), "Comportamento/atitude não encontrado")
+	assert.False(t, repo.replaceCalled)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

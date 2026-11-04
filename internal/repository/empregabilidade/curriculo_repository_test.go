@@ -1823,6 +1823,9 @@ func TestCurriculoRepository_ReplaceHabilidadesCompetencias(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectExec(`INSERT INTO "emp_curriculos"`).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT cpf FROM emp_curriculos WHERE cpf = $1 FOR UPDATE`)).
+		WithArgs(cpf).
+		WillReturnRows(sqlmock.NewRows([]string{"cpf"}).AddRow(cpf))
 	mock.ExpectExec(`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(`INSERT INTO "emp_curriculo_area_atuacao"`).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery(`INSERT INTO "emp_curriculo_area_atuacao_habilidade"`).
@@ -1837,6 +1840,28 @@ func TestCurriculoRepository_ReplaceHabilidadesCompetencias(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestCurriculoRepository_ReplaceHabilidadesCompetencias_NullArea(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+	repo := NewCurriculoRepository(db)
+	ctx := context.Background()
+	cpf := "12345678900"
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`INSERT INTO "emp_curriculos"`).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT cpf FROM emp_curriculos WHERE cpf = $1 FOR UPDATE`)).
+		WithArgs(cpf).
+		WillReturnRows(sqlmock.NewRows([]string{"cpf"}).AddRow(cpf))
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_area_atuacao_habilidade"`).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_area_atuacao"`).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`DELETE FROM "emp_curriculo_comportamento_atitudes"`).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	err := repo.ReplaceHabilidadesCompetencias(ctx, cpf, nil, nil, nil)
+	require.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestCurriculoRepository_GetHabilidadesCompetencias_Empty(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()
@@ -1844,8 +1869,6 @@ func TestCurriculoRepository_GetHabilidadesCompetencias_Empty(t *testing.T) {
 
 	mock.ExpectQuery(`SELECT \* FROM "emp_curriculo_area_atuacao"`).
 		WillReturnError(gorm.ErrRecordNotFound)
-	mock.ExpectQuery(`SELECT emp_habilidades.id, emp_habilidades.nome FROM "emp_habilidades"`).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "nome"}))
 	mock.ExpectQuery(`SELECT emp_comportamento_atitudes.id, emp_comportamento_atitudes.nome FROM "emp_comportamento_atitudes"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "nome"}))
 
@@ -1854,5 +1877,98 @@ func TestCurriculoRepository_GetHabilidadesCompetencias_Empty(t *testing.T) {
 	assert.Nil(t, got.AreaAtuacao)
 	assert.Empty(t, got.Conhecimentos)
 	assert.Empty(t, got.ComportamentosAtitudes)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurriculoRepository_AreaAtuacaoExists(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+	repo := NewCurriculoRepository(db)
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_areas_atuacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	ok, err := repo.AreaAtuacaoExists(context.Background(), 10)
+	require.NoError(t, err)
+	assert.True(t, ok)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurriculoRepository_PivotIDsDaArea(t *testing.T) {
+	t.Run("empty ids", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		got, err := repo.PivotIDsDaArea(context.Background(), 10, nil)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("maps habilidade to pivot", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		mock.ExpectQuery(`SELECT \* FROM "area_atuacao_habilidade"`).
+			WillReturnRows(sqlmock.NewRows([]string{"id", "id_habilidade", "id_area_atuacao"}).
+				AddRow(100, 1, 10))
+
+		got, err := repo.PivotIDsDaArea(context.Background(), 10, []int64{1})
+		require.NoError(t, err)
+		assert.Equal(t, map[int64]int64{1: 100}, got)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestCurriculoRepository_ExistingComportamentoIDs(t *testing.T) {
+	t.Run("empty ids", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		got, err := repo.ExistingComportamentoIDs(context.Background(), nil)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("pluck ids", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		mock.ExpectQuery(`SELECT "id" FROM "emp_comportamento_atitudes"`).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(4))
+
+		got, err := repo.ExistingComportamentoIDs(context.Background(), []int64{4})
+		require.NoError(t, err)
+		assert.Equal(t, []int64{4}, got)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestCurriculoRepository_GetHabilidadesCompetencias_WithArea(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+	repo := NewCurriculoRepository(db)
+
+	mock.ExpectQuery(`SELECT \* FROM "emp_curriculo_area_atuacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"cpf", "id_area_atuacao"}).
+			AddRow("12345678900", 10))
+	mock.ExpectQuery(`SELECT \* FROM "emp_areas_atuacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "nome"}).AddRow(10, "Engenharia"))
+	mock.ExpectQuery(`SELECT emp_habilidades.id, emp_habilidades.nome FROM "emp_habilidades"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "nome"}).AddRow(1, "Gestão de projetos"))
+	mock.ExpectQuery(`SELECT emp_comportamento_atitudes.id, emp_comportamento_atitudes.nome FROM "emp_comportamento_atitudes"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "nome"}).AddRow(4, "Proatividade"))
+
+	got, err := repo.GetHabilidadesCompetencias(context.Background(), "12345678900")
+	require.NoError(t, err)
+	require.NotNil(t, got.AreaAtuacao)
+	assert.Equal(t, int64(10), got.AreaAtuacao.ID)
+	require.Len(t, got.Conhecimentos, 1)
+	require.Len(t, got.ComportamentosAtitudes, 1)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

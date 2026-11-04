@@ -27,7 +27,7 @@ func (r *HabilidadeRepository) CreateHabilidade(ctx context.Context, entity *emp
 	return entity.ID, nil
 }
 
-// GetHabilidadeByID traz a habilidade carregando suas áreas de atuação vinculadas
+// GetHabilidadeByID busca a habilidade pelo ID, sem Preload de áreas.
 func (r *HabilidadeRepository) GetHabilidadeByID(ctx context.Context, id int64) (*empregabilidade.Habilidade, error) {
 	var entity empregabilidade.Habilidade
 
@@ -160,7 +160,7 @@ func (r *HabilidadeRepository) ListHabilidadesDaArea(ctx context.Context, areaID
 	return items, total, nil
 }
 
-// ListHabilidades faz a paginação, busca por nome/área e carrega as Áreas de Atuação
+// ListHabilidades faz a paginação e a busca por nome, sem Preload de áreas.
 func (r *HabilidadeRepository) ListHabilidades(ctx context.Context, filter empregabilidade.HabilidadeFilter, limit, offset int) ([]*empregabilidade.Habilidade, int64, error) {
 	var entities []*empregabilidade.Habilidade
 	var total int64
@@ -209,7 +209,7 @@ func (r *HabilidadeRepository) CreateAreaAtuacao(ctx context.Context, entity *em
 	return entity.ID, nil
 }
 
-// GetAreaAtuacaoByID traz a área de atuação carregando suas habilidades vinculadas
+// GetAreaAtuacaoByID busca a área de atuação pelo ID, sem Preload de conhecimentos.
 func (r *HabilidadeRepository) GetAreaAtuacaoByID(ctx context.Context, id int64) (*empregabilidade.AreaAtuacao, error) {
 	var entity empregabilidade.AreaAtuacao
 
@@ -278,7 +278,6 @@ func (r *HabilidadeRepository) ListAreasAtuacao(ctx context.Context, filter empr
 		return nil, 0, fmt.Errorf("erro ao contar áreas de atuação: %w", err)
 	}
 
-	// Carrega as áreas de atuação com Preload na relação Habilidades
 	findDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.AreaAtuacao{}))
 	result := findDB.
 		Order("emp_areas_atuacao.nome ASC").
@@ -292,4 +291,3 @@ func (r *HabilidadeRepository) ListAreasAtuacao(ctx context.Context, filter empr
 
 	return entities, total, nil
 }
-

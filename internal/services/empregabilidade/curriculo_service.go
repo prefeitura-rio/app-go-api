@@ -156,8 +156,14 @@ func (s *CurriculoService) SaveHabilidadesCompetencias(ctx context.Context, cpf 
 		return nil, apperrors.Validation("nenhuma modificação foi solicitada pelo usuário")
 	}
 
-	habilidadeIDs := dedupePositiveIDs(in.HabilidadeIDs)
-	comportamentoIDs := dedupePositiveIDs(in.ComportamentoAtitudesIDs)
+	habilidadeIDs, err := dedupeIDs(in.HabilidadeIDs)
+	if err != nil {
+		return nil, err
+	}
+	comportamentoIDs, err := dedupeIDs(in.ComportamentoAtitudesIDs)
+	if err != nil {
+		return nil, err
+	}
 
 	var areaID *int64
 	if in.IDAreaAtuacao != nil {
@@ -208,15 +214,15 @@ func (s *CurriculoService) SaveHabilidadesCompetencias(ctx context.Context, cpf 
 	return s.repo.GetHabilidadesCompetencias(ctx, cleanCPF)
 }
 
-func dedupePositiveIDs(ids []int64) []int64 {
+func dedupeIDs(ids []int64) ([]int64, error) {
 	if len(ids) == 0 {
-		return []int64{}
+		return []int64{}, nil
 	}
 	seen := make(map[int64]struct{}, len(ids))
 	out := make([]int64, 0, len(ids))
 	for _, id := range ids {
 		if id <= 0 {
-			continue
+			return nil, apperrors.Validation("id inválido")
 		}
 		if _, ok := seen[id]; ok {
 			continue
@@ -224,7 +230,7 @@ func dedupePositiveIDs(ids []int64) []int64 {
 		seen[id] = struct{}{}
 		out = append(out, id)
 	}
-	return out
+	return out, nil
 }
 
 // --- Métodos de Substituição em Lote (Bulk Save) ---

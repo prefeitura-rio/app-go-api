@@ -72,6 +72,7 @@ func TestParseDatabaseError_UniqueViolation(t *testing.T) {
 	}{
 		{"users_email_key", "email", "Este email já está cadastrado"},
 		{"cpf_unique", "cpf", "Este CPF já está cadastrado"},
+		{"uk_emp_curriculo_aah_cpf_habilidade", "", "Já existe um registro"},
 		{"categorias_nome_key", "nome", "Este nome já está cadastrado"},
 		{"other_unique", "", "Já existe um registro"},
 	}
@@ -154,6 +155,7 @@ func TestDatabaseError_GetHTTPStatusCode(t *testing.T) {
 		{UniqueViolation, 409},
 		{NotNullViolation, 400},
 		{CheckViolation, 400},
+		{StringTooLong, 400},
 		{UnknownError, 500},
 	}
 	for _, tt := range tests {
@@ -223,6 +225,23 @@ func TestParseCheckViolationError_AllConstraints(t *testing.T) {
 				t.Errorf("Message %q should contain %q", out.Message, tt.wantInMsg)
 			}
 		})
+	}
+}
+
+func TestParseDatabaseError_StringTooLong(t *testing.T) {
+	err := &pq.Error{Code: pq.ErrorCode("22001"), Message: "value too long"}
+	out := ParseDatabaseError(err)
+	if out == nil {
+		t.Fatal("expected non-nil")
+	}
+	if out.Type != StringTooLong {
+		t.Errorf("expected StringTooLong, got %d", out.Type)
+	}
+	if out.GetHTTPStatusCode() != 400 {
+		t.Errorf("expected HTTP 400, got %d", out.GetHTTPStatusCode())
+	}
+	if out.Message != "Valor excede o tamanho máximo permitido." {
+		t.Errorf("unexpected Message: %s", out.Message)
 	}
 }
 

@@ -293,7 +293,9 @@ definitions:
   empregabilidade.CurriculoCompleto:
     properties:
       area_atuacao:
-        $ref: '#/definitions/empregabilidade.CatalogoItem'
+        allOf:
+        - $ref: '#/definitions/empregabilidade.CatalogoItem'
+        x-nullable: true
       comportamentos_atitudes:
         items:
           $ref: '#/definitions/empregabilidade.CatalogoItem'
@@ -554,7 +556,9 @@ definitions:
   empregabilidade.HabilidadesCompetencias:
     properties:
       area_atuacao:
-        $ref: '#/definitions/empregabilidade.CatalogoItem'
+        allOf:
+        - $ref: '#/definitions/empregabilidade.CatalogoItem'
+        x-nullable: true
       comportamentos_atitudes:
         items:
           $ref: '#/definitions/empregabilidade.CatalogoItem'
@@ -576,6 +580,7 @@ definitions:
         type: array
       id_area_atuacao:
         type: integer
+        x-nullable: true
     type: object
   empregabilidade.Idioma:
     properties:
@@ -4474,6 +4479,10 @@ paths:
           description: Dados inválidos
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "409":
           description: Nome já cadastrado
           schema:
@@ -4506,6 +4515,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: ID inválido
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "404":
@@ -4579,6 +4592,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "404":
@@ -6778,6 +6795,10 @@ paths:
           description: Dados inválidos
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "409":
           description: Nome já cadastrado
           schema:
@@ -6810,6 +6831,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: ID inválido
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "404":
@@ -6882,6 +6907,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "404":
@@ -6958,6 +6987,10 @@ paths:
           description: Dados inválidos
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "409":
           description: Nome já cadastrado
           schema:
@@ -6990,6 +7023,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: ID inválido
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "404":
@@ -7062,6 +7099,10 @@ paths:
             $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "404":
@@ -7157,12 +7198,20 @@ paths:
           description: Dados inválidos
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "404":
           description: Área ou conhecimento não encontrado
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "409":
           description: Conhecimento já vinculado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao vincular conhecimento à área
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
@@ -7198,8 +7247,16 @@ paths:
           description: ID inválido
           schema:
             $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Sem permissão
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "404":
           description: Vínculo não encontrado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao desvincular conhecimento da área
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:

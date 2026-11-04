@@ -697,6 +697,92 @@ func TestHabilidadeRepository_UpdateDelete_NoRowsAffected_ReturnsNotFound(t *tes
 	}
 }
 
+func TestHabilidadeRepository_DetachHabilidadeDaArea_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "area_atuacao_habilidade"`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	err := repo.DetachHabilidadeDaArea(context.Background(), 10, 2)
+	require.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_DetachHabilidadeDaArea_NotFound(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`DELETE FROM "area_atuacao_habilidade"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
+
+	err := repo.DetachHabilidadeDaArea(context.Background(), 10, 2)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperrors.NotFound("Conhecimento não vinculado a esta área de atuação"))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_AttachHabilidadeNaArea_Success(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_areas_atuacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_habilidades"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "area_atuacao_habilidade"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectBegin()
+	mock.ExpectQuery(`INSERT INTO "area_atuacao_habilidade"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(100))
+	mock.ExpectCommit()
+
+	err := repo.AttachHabilidadeNaArea(context.Background(), 10, 2)
+	require.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_AttachHabilidadeNaArea_HabilidadeNotFound(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_areas_atuacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_habilidades"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+	err := repo.AttachHabilidadeNaArea(context.Background(), 10, 2)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperrors.NotFound("Conhecimento não encontrado"))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestHabilidadeRepository_AttachHabilidadeNaArea_AlreadyLinked(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+	repo := repoEmpregabilidade.NewHabilidadeRepository(db)
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_areas_atuacao"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "emp_habilidades"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "area_atuacao_habilidade"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	err := repo.AttachHabilidadeNaArea(context.Background(), 10, 2)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperrors.Conflict("Conhecimento já vinculado a esta área de atuação"))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestHabilidadeRepository_AttachHabilidadeNaArea_AreaNotFound(t *testing.T) {
 	db, mock, cleanup := repository.SetupMockDB(t)
 	defer cleanup()

@@ -437,6 +437,11 @@ func (r *CurriculoRepository) ReplaceHabilidadesCompetencias(ctx context.Context
 		if err := ensureCurriculo(tx, cpf); err != nil {
 			return err
 		}
+		var curriculo empregabilidade.Curriculo
+		if err := tx.Raw("SELECT cpf FROM emp_curriculos WHERE cpf = ? FOR UPDATE", cpf).
+			Scan(&curriculo).Error; err != nil {
+			return fmt.Errorf("erro ao obter lock no currículo: %w", err)
+		}
 		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoAreaAtuacaoHabilidade{}).Error; err != nil {
 			return fmt.Errorf("erro ao remover conhecimentos do currículo: %w", err)
 		}
@@ -499,20 +504,19 @@ func (r *CurriculoRepository) GetHabilidadesCompetencias(ctx context.Context, cp
 	}
 	if err == nil && area.AreaAtuacao != nil {
 		out.AreaAtuacao = &empregabilidade.CatalogoItem{ID: area.AreaAtuacao.ID, Nome: area.AreaAtuacao.Nome}
-	}
-
-	if err := r.db.WithContext(ctx).
-		Table("emp_habilidades").
-		Select("emp_habilidades.id, emp_habilidades.nome").
-		Joins("JOIN area_atuacao_habilidade aah ON aah.id_habilidade = emp_habilidades.id").
-		Joins("JOIN emp_curriculo_area_atuacao_habilidade c ON c.id_area_atuacao_habilidade = aah.id").
-		Where("c.cpf = ?", cpf).
-		Order("emp_habilidades.nome ASC").
-		Scan(&out.Conhecimentos).Error; err != nil {
-		return nil, fmt.Errorf("erro ao buscar conhecimentos do currículo: %w", err)
-	}
-	if out.Conhecimentos == nil {
-		out.Conhecimentos = []*empregabilidade.CatalogoItem{}
+		if err := r.db.WithContext(ctx).
+			Table("emp_habilidades").
+			Select("emp_habilidades.id, emp_habilidades.nome").
+			Joins("JOIN area_atuacao_habilidade aah ON aah.id_habilidade = emp_habilidades.id").
+			Joins("JOIN emp_curriculo_area_atuacao_habilidade c ON c.id_area_atuacao_habilidade = aah.id").
+			Where("c.cpf = ? AND aah.id_area_atuacao = ?", cpf, area.IDAreaAtuacao).
+			Order("emp_habilidades.nome ASC").
+			Scan(&out.Conhecimentos).Error; err != nil {
+			return nil, fmt.Errorf("erro ao buscar conhecimentos do currículo: %w", err)
+		}
+		if out.Conhecimentos == nil {
+			out.Conhecimentos = []*empregabilidade.CatalogoItem{}
+		}
 	}
 
 	if err := r.db.WithContext(ctx).
@@ -621,4 +625,3 @@ func (r *CurriculoRepository) GetSituacaoInteressesByCPF(ctx context.Context, cp
 	}
 	return &entity, nil
 }
-

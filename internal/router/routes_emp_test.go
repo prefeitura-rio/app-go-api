@@ -361,6 +361,31 @@ func TestRegisterEmpregabilidadeRoutes(t *testing.T) {
 		}
 	})
 
+	t.Run("Habilidades e competencias routes registration", func(t *testing.T) {
+		router := gin.New()
+		apiV1 := router.Group("/api/v1")
+		apiPublic := router.Group("/api/public")
+
+		app := createMockAppContainer()
+		cfg := newTestEmpConfig()
+		registerEmpregabilidadeRoutes(apiV1, apiPublic, app, cfg)
+
+		routes := router.Routes()
+
+		if !routeExists(routes, "GET", "/api/v1/empregabilidade/curriculo/habilidades-competencias") {
+			t.Error("Expected GET /api/v1/empregabilidade/curriculo/habilidades-competencias route")
+		}
+		if !routeExists(routes, "PUT", "/api/v1/empregabilidade/curriculo/habilidades-competencias") {
+			t.Error("Expected PUT /api/v1/empregabilidade/curriculo/habilidades-competencias route")
+		}
+		if !routeExists(routes, "POST", "/api/v1/empregabilidade/habilidades/areas-atuacao/:id/habilidades") {
+			t.Error("Expected POST /api/v1/empregabilidade/habilidades/areas-atuacao/:id/habilidades route")
+		}
+		if !routeExists(routes, "DELETE", "/api/v1/empregabilidade/habilidades/areas-atuacao/:id/habilidades/:habilidadeId") {
+			t.Error("Expected DELETE /api/v1/empregabilidade/habilidades/areas-atuacao/:id/habilidades/:habilidadeId route")
+		}
+	})
+
 	t.Run("Public API routes registration", func(t *testing.T) {
 		router := gin.New()
 		apiV1 := router.Group("/api/v1")

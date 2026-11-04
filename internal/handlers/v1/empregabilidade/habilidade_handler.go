@@ -22,7 +22,7 @@ type UpdateHabilidadeRequest struct {
 }
 
 type AddHabilidadeRequest struct {
-	IDHabilidade int64 `json:"id_habilidade" binding:"required" example:"10"`
+	IDHabilidade int64 `json:"id_habilidade" binding:"required,gt=0" example:"10"`
 }
 
 type CreateAreaAtuacaoRequest struct {
@@ -103,6 +103,7 @@ func NewHabilidadeHandler(hService *service.HabilidadeService, cService *service
 // @Param        request  body      CreateHabilidadeRequest  true  "Dados da habilidade"
 // @Success      201      {object}  map[string]int64
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao criar habilidade"
 // @Security     BearerAuth
@@ -170,6 +171,7 @@ func (h *HabilidadeHandler) GetHabilidadeByID(c *gin.Context) {
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
 // @Failure      404      {object}  response.ErrorResponse "Habilidade não encontrada"
+// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar habilidade"
 // @Security     BearerAuth
@@ -209,6 +211,7 @@ func (h *HabilidadeHandler) UpdateHabilidade(c *gin.Context) {
 // @Param        id   path      int  true  "ID da Habilidade" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
+// @Failure      403  {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404  {object}  response.ErrorResponse "Habilidade não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir habilidade"
 // @Security     BearerAuth
@@ -301,8 +304,10 @@ func (h *HabilidadeHandler) ListHabilidadesDaArea(c *gin.Context) {
 // @Param        request  body      AddHabilidadeRequest  true  "ID do conhecimento"
 // @Success      201      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404      {object}  response.ErrorResponse "Área ou conhecimento não encontrado"
 // @Failure      409      {object}  response.ErrorResponse "Conhecimento já vinculado"
+// @Failure      500      {object}  response.ErrorResponse "Erro ao vincular conhecimento à área"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id}/habilidades [post]
 func (h *HabilidadeHandler) AttachHabilidadeNaArea(c *gin.Context) {
@@ -332,7 +337,9 @@ func (h *HabilidadeHandler) AttachHabilidadeNaArea(c *gin.Context) {
 // @Param        habilidadeId   path      int  true  "ID do conhecimento" example(2)
 // @Success      200            {object}  response.SuccessResponse
 // @Failure      400            {object}  response.ErrorResponse "ID inválido"
+// @Failure      403            {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404            {object}  response.ErrorResponse "Vínculo não encontrado"
+// @Failure      500            {object}  response.ErrorResponse "Erro ao desvincular conhecimento da área"
 // @Security     BearerAuth
 // @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id}/habilidades/{habilidadeId} [delete]
 func (h *HabilidadeHandler) DetachHabilidadeDaArea(c *gin.Context) {
@@ -366,6 +373,7 @@ func (h *HabilidadeHandler) DetachHabilidadeDaArea(c *gin.Context) {
 // @Param        request  body      CreateAreaAtuacaoRequest  true  "Dados da área de atuação"
 // @Success      201      {object}  map[string]int64
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao criar área de atuação"
 // @Security     BearerAuth
@@ -432,6 +440,7 @@ func (h *HabilidadeHandler) GetAreaAtuacaoByID(c *gin.Context) {
 // @Param        request  body      UpdateAreaAtuacaoRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404      {object}  response.ErrorResponse "Área de atuação não encontrada"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar área de atuação"
@@ -472,6 +481,7 @@ func (h *HabilidadeHandler) UpdateAreaAtuacao(c *gin.Context) {
 // @Param        id   path      int  true  "ID da Área de Atuação" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
+// @Failure      403  {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404  {object}  response.ErrorResponse "Área de atuação não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir área de atuação"
 // @Security     BearerAuth

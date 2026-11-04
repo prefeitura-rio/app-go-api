@@ -3440,6 +3440,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem permissão",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "409": {
                         "description": "Nome já cadastrado",
                         "schema": {
@@ -3551,6 +3557,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem permissão",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Comportamento/atitude não encontrado",
                         "schema": {
@@ -3604,6 +3616,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "ID inválido",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem permissão",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -6891,6 +6909,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem permissão",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "409": {
                         "description": "Nome já cadastrado",
                         "schema": {
@@ -6994,6 +7018,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Dados inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem permissão",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -7109,6 +7139,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem permissão",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Área de atuação não encontrada",
                         "schema": {
@@ -7162,6 +7198,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "ID inválido",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem permissão",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -7297,6 +7339,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem permissão",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Área ou conhecimento não encontrado",
                         "schema": {
@@ -7305,6 +7353,12 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conhecimento já vinculado",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao vincular conhecimento à área",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -7358,8 +7412,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem permissão",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Vínculo não encontrado",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao desvincular conhecimento da área",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -7463,6 +7529,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem permissão",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Habilidade não encontrada",
                         "schema": {
@@ -7516,6 +7588,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "ID inválido",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem permissão",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -13504,7 +13582,12 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "area_atuacao": {
-                    "$ref": "#/definitions/empregabilidade.CatalogoItem"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.CatalogoItem"
+                        }
+                    ],
+                    "x-nullable": true
                 },
                 "comportamentos_atitudes": {
                     "type": "array",
@@ -13912,7 +13995,12 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "area_atuacao": {
-                    "$ref": "#/definitions/empregabilidade.CatalogoItem"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/empregabilidade.CatalogoItem"
+                        }
+                    ],
+                    "x-nullable": true
                 },
                 "comportamentos_atitudes": {
                     "type": "array",
@@ -13944,7 +14032,8 @@ const docTemplate = `{
                     }
                 },
                 "id_area_atuacao": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },

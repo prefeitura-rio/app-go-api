@@ -118,6 +118,14 @@ func TestHabilidadeService_CreateHabilidade(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	})
 
+	t.Run("nome vazio", func(t *testing.T) {
+		mockRepo := new(MockHabilidadeRepository)
+		svc := NewHabilidadeServiceWithInterface(mockRepo)
+		_, err := svc.CreateHabilidade(ctx, &empregabilidade.Habilidade{Nome: "  "})
+		assert.EqualError(t, err, "nome é obrigatório")
+		mockRepo.AssertNotCalled(t, "CreateHabilidade")
+	})
+
 	t.Run("Error", func(t *testing.T) {
 		mockRepo := new(MockHabilidadeRepository)
 		svc := NewHabilidadeServiceWithInterface(mockRepo)
@@ -182,6 +190,14 @@ func TestHabilidadeService_UpdateHabilidade(t *testing.T) {
 
 		assert.NoError(t, err)
 		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("nome vazio", func(t *testing.T) {
+		mockRepo := new(MockHabilidadeRepository)
+		svc := NewHabilidadeServiceWithInterface(mockRepo)
+		err := svc.UpdateHabilidade(ctx, &empregabilidade.Habilidade{ID: 20, Nome: ""})
+		assert.EqualError(t, err, "nome é obrigatório")
+		mockRepo.AssertNotCalled(t, "UpdateHabilidade")
 	})
 
 	t.Run("Error", func(t *testing.T) {
@@ -294,6 +310,14 @@ func TestHabilidadeService_CreateAreaAtuacao(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	})
 
+	t.Run("nome vazio", func(t *testing.T) {
+		mockRepo := new(MockHabilidadeRepository)
+		svc := NewHabilidadeServiceWithInterface(mockRepo)
+		_, err := svc.CreateAreaAtuacao(ctx, &empregabilidade.AreaAtuacao{Nome: ""})
+		assert.EqualError(t, err, "nome é obrigatório")
+		mockRepo.AssertNotCalled(t, "CreateAreaAtuacao")
+	})
+
 	t.Run("Error", func(t *testing.T) {
 		mockRepo := new(MockHabilidadeRepository)
 		svc := NewHabilidadeServiceWithInterface(mockRepo)
@@ -358,6 +382,14 @@ func TestHabilidadeService_UpdateAreaAtuacao(t *testing.T) {
 
 		assert.NoError(t, err)
 		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("nome vazio", func(t *testing.T) {
+		mockRepo := new(MockHabilidadeRepository)
+		svc := NewHabilidadeServiceWithInterface(mockRepo)
+		err := svc.UpdateAreaAtuacao(ctx, &empregabilidade.AreaAtuacao{ID: 100, Nome: " "})
+		assert.EqualError(t, err, "nome é obrigatório")
+		mockRepo.AssertNotCalled(t, "UpdateAreaAtuacao")
 	})
 
 	t.Run("Error", func(t *testing.T) {
@@ -447,7 +479,25 @@ func TestHabilidadeService_AttachHabilidadeNaArea(t *testing.T) {
 
 	t.Run("id invalido", func(t *testing.T) {
 		err := service.AttachHabilidadeNaArea(ctx, 0, 2)
-		assert.Error(t, err)
+		assert.EqualError(t, err, "id inválido")
+	})
+}
+
+func TestHabilidadeService_DetachHabilidadeDaArea(t *testing.T) {
+	mockRepo := new(MockHabilidadeRepository)
+	service := NewHabilidadeServiceWithInterface(mockRepo)
+	ctx := context.Background()
+
+	t.Run("sucesso", func(t *testing.T) {
+		mockRepo.On("DetachHabilidadeDaArea", ctx, int64(2), int64(1)).Return(nil).Once()
+		err := service.DetachHabilidadeDaArea(ctx, 2, 1)
+		assert.NoError(t, err)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("id invalido", func(t *testing.T) {
+		err := service.DetachHabilidadeDaArea(ctx, 2, -1)
+		assert.EqualError(t, err, "id inválido")
 	})
 }
 
@@ -462,4 +512,7 @@ func TestHabilidadeService_ListHabilidadesDaArea(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), total)
 	assert.Equal(t, expected, result)
+
+	_, _, err = svc.ListHabilidadesDaArea(ctx, 0, empregabilidade.HabilidadeFilter{}, 1, 20)
+	assert.EqualError(t, err, "id_area_atuacao inválido")
 }

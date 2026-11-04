@@ -21,7 +21,6 @@ type UpdateComportamentoAtitudesRequest struct {
 	Nome string `json:"nome" binding:"required" example:"Trabalho em Equipe e Colaboração"`
 }
 
-
 // Estrutura do Handler
 
 type ComportamentoAtitudesHandler struct {
@@ -47,6 +46,7 @@ func NewComportamentoAtitudesHandler(caService *service.ComportamentoAtitudesSer
 // @Param        request  body      CreateComportamentoAtitudesRequest  true  "Dados do comportamento/atitude"
 // @Success      201      {object}  map[string]int64
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao criar comportamento/atitude"
 // @Security     BearerAuth
@@ -113,6 +113,7 @@ func (h *ComportamentoAtitudesHandler) GetComportamentoAtitudesByID(c *gin.Conte
 // @Param        request  body      UpdateComportamentoAtitudesRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404      {object}  response.ErrorResponse "Comportamento/atitude não encontrado"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar comportamento/atitude"
@@ -153,6 +154,7 @@ func (h *ComportamentoAtitudesHandler) UpdateComportamentoAtitudes(c *gin.Contex
 // @Param        id   path      int  true  "ID do Comportamento/Atitude" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
+// @Failure      403  {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404  {object}  response.ErrorResponse "Comportamento/atitude não encontrado"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir comportamento/atitude"
 // @Security     BearerAuth

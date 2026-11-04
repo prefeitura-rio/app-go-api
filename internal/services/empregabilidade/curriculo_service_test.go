@@ -35,6 +35,12 @@ type mockCurriculoRepo struct {
 	situacao         *empregabilidade.CurriculoSituacaoInteresses
 	perfil           *empregabilidade.CurriculoPerfil
 	err              error
+
+	replaceCalled           bool
+	replaceCPF              string
+	replaceAreaID           *int64
+	replacePivotIDs         []int64
+	replaceComportamentoIDs []int64
 }
 
 func (m *mockCurriculoRepo) CreateFormacao(_ context.Context, _ *empregabilidade.CurriculoFormacao) (uuid.UUID, error) {
@@ -199,7 +205,12 @@ func (m *mockCurriculoRepo) ExistingComportamentoIDs(_ context.Context, _ []int6
 	return m.comportamentoIDs, nil
 }
 
-func (m *mockCurriculoRepo) ReplaceHabilidadesCompetencias(_ context.Context, _ string, _ *int64, _, _ []int64) error {
+func (m *mockCurriculoRepo) ReplaceHabilidadesCompetencias(_ context.Context, cpf string, areaID *int64, pivotIDs, comportamentoIDs []int64) error {
+	m.replaceCalled = true
+	m.replaceCPF = cpf
+	m.replaceAreaID = areaID
+	m.replacePivotIDs = append([]int64(nil), pivotIDs...)
+	m.replaceComportamentoIDs = append([]int64(nil), comportamentoIDs...)
 	return m.err
 }
 
@@ -425,6 +436,27 @@ func TestCurriculoService_ListIdiomasByCPF(t *testing.T) {
 	assert.Len(t, result, 1)
 }
 
+func TestCurriculoService_GetHabilidadesCompetencias(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		saved := &empregabilidade.HabilidadesCompetencias{
+			AreaAtuacao: &empregabilidade.CatalogoItem{ID: 10, Nome: "Engenharia"},
+		}
+		repo := &mockCurriculoRepo{habilidades: saved}
+		svc := services.NewCurriculoServiceWithInterface(repo)
+		got, err := svc.GetHabilidadesCompetencias(context.Background(), " 12345678900 ")
+		require.NoError(t, err)
+		require.NotNil(t, got.AreaAtuacao)
+		assert.Equal(t, "Engenharia", got.AreaAtuacao.Nome)
+	})
+
+	t.Run("cpf vazio", func(t *testing.T) {
+		repo := &mockCurriculoRepo{}
+		svc := services.NewCurriculoServiceWithInterface(repo)
+		_, err := svc.GetHabilidadesCompetencias(context.Background(), "  ")
+		assert.EqualError(t, err, "CPF é obrigatório")
+	})
+}
+
 func TestCurriculoService_SaveHabilidadesCompetencias(t *testing.T) {
 	areaID := int64(10)
 	saved := &empregabilidade.HabilidadesCompetencias{
@@ -449,6 +481,12 @@ func TestCurriculoService_SaveHabilidadesCompetencias(t *testing.T) {
 	require.NotNil(t, result.AreaAtuacao)
 	assert.Equal(t, "Engenharia", result.AreaAtuacao.Nome)
 	require.Len(t, result.Conhecimentos, 1)
+	require.True(t, repo.replaceCalled)
+	assert.Equal(t, "12345678900", repo.replaceCPF)
+	require.NotNil(t, repo.replaceAreaID)
+	assert.Equal(t, areaID, *repo.replaceAreaID)
+	assert.Equal(t, []int64{100}, repo.replacePivotIDs)
+	assert.Equal(t, []int64{4}, repo.replaceComportamentoIDs)
 }
 
 func TestCurriculoService_SaveHabilidadesCompetencias_TagForaDaArea(t *testing.T) {
@@ -461,6 +499,7 @@ func TestCurriculoService_SaveHabilidadesCompetencias_TagForaDaArea(t *testing.T
 	})
 	assert.Nil(t, result)
 	assert.EqualError(t, err, "conhecimento não pertence à área de atuação")
+	assert.False(t, repo.replaceCalled)
 }
 
 func TestCurriculoService_SaveHabilidadesCompetencias_AreaInexistente(t *testing.T) {
@@ -472,6 +511,7 @@ func TestCurriculoService_SaveHabilidadesCompetencias_AreaInexistente(t *testing
 	})
 	assert.Nil(t, result)
 	assert.EqualError(t, err, "Área de atuação não encontrada")
+	assert.False(t, repo.replaceCalled)
 }
 
 func TestCurriculoService_SaveHabilidadesCompetencias_ComportamentoInexistente(t *testing.T) {
@@ -484,6 +524,15 @@ func TestCurriculoService_SaveHabilidadesCompetencias_ComportamentoInexistente(t
 	})
 	assert.Nil(t, result)
 	assert.EqualError(t, err, "Comportamento/atitude não encontrado")
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_NilInput(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	_, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", nil)
+	assert.EqualError(t, err, "nenhuma modificação foi solicitada pelo usuário")
+	assert.False(t, repo.replaceCalled)
 }
 
 func TestCurriculoService_SaveHabilidadesCompetencias_CPFVazio(t *testing.T) {
@@ -491,6 +540,70 @@ func TestCurriculoService_SaveHabilidadesCompetencias_CPFVazio(t *testing.T) {
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	_, err := svc.SaveHabilidadesCompetencias(context.Background(), "   ", &empregabilidade.HabilidadesCompetenciasSave{})
 	assert.EqualError(t, err, "CPF é obrigatório")
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_AreaNulaComTags(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		HabilidadeIDs: []int64{1},
+	})
+	assert.Nil(t, result)
+	assert.EqualError(t, err, "selecione uma área de atuação para gravar conhecimentos")
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_LimpaSecao(t *testing.T) {
+	repo := &mockCurriculoRepo{
+		habilidades: &empregabilidade.HabilidadesCompetencias{
+			Conhecimentos:          []*empregabilidade.CatalogoItem{},
+			ComportamentosAtitudes: []*empregabilidade.CatalogoItem{},
+		},
+	}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		HabilidadeIDs:            []int64{},
+		ComportamentoAtitudesIDs: []int64{},
+	})
+	require.NoError(t, err)
+	assert.Nil(t, result.AreaAtuacao)
+	require.True(t, repo.replaceCalled)
+	assert.Nil(t, repo.replaceAreaID)
+	assert.Empty(t, repo.replacePivotIDs)
+	assert.Empty(t, repo.replaceComportamentoIDs)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_AreaIDInvalido(t *testing.T) {
+	areaID := int64(0)
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		IDAreaAtuacao: &areaID,
+	})
+	assert.Nil(t, result)
+	assert.EqualError(t, err, "id_area_atuacao inválido")
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_IDsNaoPositivos(t *testing.T) {
+	areaID := int64(10)
+	repo := &mockCurriculoRepo{areaExists: true, pivots: map[int64]int64{1: 100}}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		IDAreaAtuacao: &areaID,
+		HabilidadeIDs: []int64{1, 0},
+	})
+	assert.Nil(t, result)
+	assert.EqualError(t, err, "id inválido")
+	assert.False(t, repo.replaceCalled)
+
+	result, err = svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		ComportamentoAtitudesIDs: []int64{-4},
+	})
+	assert.Nil(t, result)
+	assert.EqualError(t, err, "id inválido")
+	assert.False(t, repo.replaceCalled)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

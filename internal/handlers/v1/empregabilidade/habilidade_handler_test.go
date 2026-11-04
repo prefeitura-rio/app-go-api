@@ -674,6 +674,18 @@ func TestAttachHabilidadeNaArea_InvalidAreaID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
+func TestAttachHabilidadeNaArea_NegativeHabilidadeID(t *testing.T) {
+	repo := &mockHabilidadeRepo{}
+	r := setupHabilidadeRouter(repo)
+
+	body := bytes.NewBufferString(`{"id_habilidade":-1}`)
+	req := httptest.NewRequest(http.MethodPost, "/habilidades/areas-atuacao/10/habilidades", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 func TestDetachHabilidadeDaArea_Success(t *testing.T) {
 	repo := &mockHabilidadeRepo{}
 	r := setupHabilidadeRouter(repo)
