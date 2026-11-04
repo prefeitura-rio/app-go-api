@@ -135,10 +135,10 @@ func TestSearchCursos_ParameterConversion(t *testing.T) {
 		// Verify filters are properly constructed
 		expectedFilters := []string{
 			"action:=read",
-			"record.orgao_id:=org-123",
+			"record.orgao_id:=`org-123`",
 			"record.instituicao_id:=5",
-			"record.status:=ativo",
-			"record.modalidade:=presencial",
+			"record.status:=`ativo`",
+			"record.modalidade:=`presencial`",
 		}
 
 		for _, expected := range expectedFilters {
@@ -230,11 +230,11 @@ func TestSearchEmpregos_ParameterConversion(t *testing.T) {
 		// Verify filters
 		expectedFilters := []string{
 			"action:=read",
-			"record.orgao_id:=org-456",
+			"record.orgao_id:=`org-456`",
 			"record.empresa_id:=10",
 			"record.escolaridade_id:=3",
-			"record.status:=aberto",
-			"record.tipo_contratacao:=CLT",
+			"record.status:=`aberto`",
+			"record.tipo_contratacao:=`CLT`",
 			"record.salario_min:>=5000",
 			"record.salario_max:<=10000",
 		}

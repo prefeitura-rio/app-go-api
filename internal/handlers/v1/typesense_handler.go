@@ -76,6 +76,11 @@ func (h *TypesenseHandler) SearchCursos(c *gin.Context) {
 		return
 	}
 
+	if err := params.Validate(); err != nil {
+		handleError(c, http.StatusBadRequest, "Parâmetros de busca inválidos", err)
+		return
+	}
+
 	// Executar busca específica para cursos
 	results, err := h.service.SearchCursos(c.Request.Context(), params)
 	if err != nil {
@@ -107,6 +112,11 @@ func (h *TypesenseHandler) SearchEmpregos(c *gin.Context) {
 	// Validar termo de busca obrigatório
 	if params.Q == "" {
 		handleError(c, http.StatusBadRequest, "Termo de busca (q) é obrigatório", nil)
+		return
+	}
+
+	if err := params.Validate(); err != nil {
+		handleError(c, http.StatusBadRequest, "Parâmetros de busca inválidos", err)
 		return
 	}
 

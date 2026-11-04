@@ -1,9 +1,39 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// ErrInvalidSearchFilter indica um valor de filtro de busca que não pode entrar
+// no filter_by do Typesense.
+var ErrInvalidSearchFilter = errors.New("valor de filtro inválido")
+
+// typesenseFilterLiteral devolve o valor como literal do Typesense (entre
+// crases), para que operadores como "||", "&&", parênteses, colchetes e
+// vírgulas sejam lidos como texto e não alterem a expressão do filter_by. O
+// Typesense não tem escape de crase dentro do literal, então ela é removida
+// (Validate já a recusa na borda HTTP; aqui é defesa em profundidade).
+func typesenseFilterLiteral(value string) string {
+	return "`" + strings.ReplaceAll(value, "`", "") + "`"
+}
+
+// textFilterExact monta "<campo>:=`<valor>`" com o valor como literal.
+func textFilterExact(field, value string) string {
+	return field + ":=" + typesenseFilterLiteral(value)
+}
+
+// validateTextFilters recusa valores de filtro com crase, que fechariam o
+// literal do Typesense.
+func validateTextFilters(fields [][2]string) error {
+	for _, f := range fields {
+		if strings.Contains(f[1], "`") {
+			return fmt.Errorf("%w: %s não pode conter crase (`)", ErrInvalidSearchFilter, f[0])
+		}
+	}
+	return nil
+}
 
 // Documento genérico do Typesense
 type Document map[string]interface{}
@@ -51,6 +81,17 @@ type CursoSearchParameters struct {
 	ExcludeFields string `json:"exclude_fields,omitempty"` // Campos a excluir
 }
 
+// Validate recusa valores de filtro de texto que não podem entrar no filter_by.
+func (c *CursoSearchParameters) Validate() error {
+	return validateTextFilters([][2]string{
+		{"orgao_id", c.OrgaoID},
+		{"status", c.Status},
+		{"modalidade", c.Modalidade},
+		{"turno", c.Turno},
+		{"formato_aula", c.FormatoAula},
+	})
+}
+
 // ToSearchParameters converte CursoSearchParameters para SearchParameters
 func (c *CursoSearchParameters) ToSearchParameters() SearchParameters {
 	// Campos do record para busca textual
@@ -63,7 +104,7 @@ func (c *CursoSearchParameters) ToSearchParameters() SearchParameters {
 	filters = append(filters, "action:=read")
 
 	if c.OrgaoID != "" {
-		filters = append(filters, fmt.Sprintf("record.orgao_id:=%s", c.OrgaoID))
+		filters = append(filters, textFilterExact("record.orgao_id", c.OrgaoID))
 	}
 
 	if c.InstituicaoID > 0 {
@@ -71,19 +112,19 @@ func (c *CursoSearchParameters) ToSearchParameters() SearchParameters {
 	}
 
 	if c.Status != "" {
-		filters = append(filters, fmt.Sprintf("record.status:=%s", c.Status))
+		filters = append(filters, textFilterExact("record.status", c.Status))
 	}
 
 	if c.Modalidade != "" {
-		filters = append(filters, fmt.Sprintf("record.modalidade:=%s", c.Modalidade))
+		filters = append(filters, textFilterExact("record.modalidade", c.Modalidade))
 	}
 
 	if c.Turno != "" {
-		filters = append(filters, fmt.Sprintf("record.turno:=%s", c.Turno))
+		filters = append(filters, textFilterExact("record.turno", c.Turno))
 	}
 
 	if c.FormatoAula != "" {
-		filters = append(filters, fmt.Sprintf("record.formato_aula:=%s", c.FormatoAula))
+		filters = append(filters, textFilterExact("record.formato_aula", c.FormatoAula))
 	}
 
 	filterBy := ""
@@ -130,6 +171,17 @@ type EmpregoSearchParameters struct {
 	ExcludeFields   string `json:"exclude_fields,omitempty"`   // Campos a excluir
 }
 
+// Validate recusa valores de filtro de texto que não podem entrar no filter_by.
+func (e *EmpregoSearchParameters) Validate() error {
+	return validateTextFilters([][2]string{
+		{"orgao_id", e.OrgaoID},
+		{"status", e.Status},
+		{"tipo_contratacao", e.TipoContratacao},
+		{"jornada_trabalho", e.JornadaTrabalho},
+		{"turno", e.Turno},
+	})
+}
+
 // ToSearchParameters converte EmpregoSearchParameters para SearchParameters
 func (e *EmpregoSearchParameters) ToSearchParameters() SearchParameters {
 	// Campos do record para busca textual
@@ -142,7 +194,7 @@ func (e *EmpregoSearchParameters) ToSearchParameters() SearchParameters {
 	filters = append(filters, "action:=read")
 
 	if e.OrgaoID != "" {
-		filters = append(filters, fmt.Sprintf("record.orgao_id:=%s", e.OrgaoID))
+		filters = append(filters, textFilterExact("record.orgao_id", e.OrgaoID))
 	}
 
 	if e.EmpresaID > 0 {
@@ -154,19 +206,19 @@ func (e *EmpregoSearchParameters) ToSearchParameters() SearchParameters {
 	}
 
 	if e.Status != "" {
-		filters = append(filters, fmt.Sprintf("record.status:=%s", e.Status))
+		filters = append(filters, textFilterExact("record.status", e.Status))
 	}
 
 	if e.TipoContratacao != "" {
-		filters = append(filters, fmt.Sprintf("record.tipo_contratacao:=%s", e.TipoContratacao))
+		filters = append(filters, textFilterExact("record.tipo_contratacao", e.TipoContratacao))
 	}
 
 	if e.JornadaTrabalho != "" {
-		filters = append(filters, fmt.Sprintf("record.jornada_trabalho:=%s", e.JornadaTrabalho))
+		filters = append(filters, textFilterExact("record.jornada_trabalho", e.JornadaTrabalho))
 	}
 
 	if e.Turno != "" {
-		filters = append(filters, fmt.Sprintf("record.turno:=%s", e.Turno))
+		filters = append(filters, textFilterExact("record.turno", e.Turno))
 	}
 
 	// Filtros por faixa salarial
