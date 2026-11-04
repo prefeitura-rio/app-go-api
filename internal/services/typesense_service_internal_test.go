@@ -699,7 +699,7 @@ func TestSearchParameters_Construction(t *testing.T) {
 			t.Error("Expected action filter")
 		}
 
-		if !containsSubstring(searchParams.FilterBy, "record.orgao_id:=org-123") {
+		if !containsSubstring(searchParams.FilterBy, "record.orgao_id:=`org-123`") {
 			t.Error("Expected orgao_id filter")
 		}
 

@@ -876,3 +876,83 @@ func TestTypesenseHandler_SearchMultiCollection_BackendFailure_MaskedEndToEnd(t 
 		})
 	}
 }
+
+// Valor de filtro com crase fecharia o literal do Typesense: o handler recusa
+// com 400 sem chamar o serviço.
+func TestTypesenseHandler_SearchCursos_BacktickInFilter_BadRequest(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	called := false
+	mockSvc := &mockTypesenseService{
+		searchCursosFunc: func(ctx context.Context, params models.CursoSearchParameters) (*models.SearchDocumentsResponse, error) {
+			called = true
+			return &models.SearchDocumentsResponse{}, nil
+		},
+	}
+
+	h := v1.NewTypesenseHandlerWithService(mockSvc)
+	r.POST("/api/v1/typesense/cursos/search", h.SearchCursos)
+
+	body := []byte("{\"q\": \"curso\", \"orgao_id\": \"x` || action:=write || record.orgao_id:=`y\"}")
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/typesense/cursos/search", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.False(t, called, "o serviço não deve ser chamado com filtro inválido")
+	assert.Contains(t, w.Body.String(), "orgao_id")
+}
+
+func TestTypesenseHandler_SearchEmpregos_BacktickInFilter_BadRequest(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	called := false
+	mockSvc := &mockTypesenseService{
+		searchEmpregosFunc: func(ctx context.Context, params models.EmpregoSearchParameters) (*models.SearchDocumentsResponse, error) {
+			called = true
+			return &models.SearchDocumentsResponse{}, nil
+		},
+	}
+
+	h := v1.NewTypesenseHandlerWithService(mockSvc)
+	r.POST("/api/v1/typesense/empregos/search", h.SearchEmpregos)
+
+	body := []byte("{\"q\": \"vaga\", \"jornada_trabalho\": \"`\"}")
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/typesense/empregos/search", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.False(t, called, "o serviço não deve ser chamado com filtro inválido")
+	assert.Contains(t, w.Body.String(), "jornada_trabalho")
+}
+
+// Operadores sem crase são aceitos: viram literal no filter_by (ver models).
+func TestTypesenseHandler_SearchCursos_OperatorInFilter_PassesThrough(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	var captured models.CursoSearchParameters
+	mockSvc := &mockTypesenseService{
+		searchCursosFunc: func(ctx context.Context, params models.CursoSearchParameters) (*models.SearchDocumentsResponse, error) {
+			captured = params
+			return &models.SearchDocumentsResponse{}, nil
+		},
+	}
+
+	h := v1.NewTypesenseHandlerWithService(mockSvc)
+	r.POST("/api/v1/typesense/cursos/search", h.SearchCursos)
+
+	body := []byte(`{"q": "curso", "orgao_id": "x || action:=write"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/typesense/cursos/search", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "action:=read && record.orgao_id:=`x || action:=write`", captured.ToSearchParameters().FilterBy)
+}

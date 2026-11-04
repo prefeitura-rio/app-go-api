@@ -57,7 +57,7 @@ func TestCursoSearchParameters_ToSearchParameters(t *testing.T) {
 		}
 
 		// Should contain action:=read and orgao_id filter
-		expectedFilters := "action:=read && record.orgao_id:=org-123"
+		expectedFilters := "action:=read && record.orgao_id:=`org-123`"
 		if searchParams.FilterBy != expectedFilters {
 			t.Errorf("expected filters '%s', got '%s'", expectedFilters, searchParams.FilterBy)
 		}
@@ -85,12 +85,12 @@ func TestCursoSearchParameters_ToSearchParameters(t *testing.T) {
 		filters := searchParams.FilterBy
 		expectedSubstrings := []string{
 			"action:=read",
-			"record.orgao_id:=org-123",
+			"record.orgao_id:=`org-123`",
 			"record.instituicao_id:=5",
-			"record.status:=ativo",
-			"record.modalidade:=presencial",
-			"record.turno:=manhã",
-			"record.formato_aula:=teórico",
+			"record.status:=`ativo`",
+			"record.modalidade:=`presencial`",
+			"record.turno:=`manhã`",
+			"record.formato_aula:=`teórico`",
 		}
 
 		for _, substr := range expectedSubstrings {
@@ -195,7 +195,7 @@ func TestEmpregoSearchParameters_ToSearchParameters(t *testing.T) {
 		filters := searchParams.FilterBy
 		expectedSubstrings := []string{
 			"action:=read",
-			"record.orgao_id:=org-456",
+			"record.orgao_id:=`org-456`",
 			"record.empresa_id:=10",
 		}
 
@@ -221,10 +221,10 @@ func TestEmpregoSearchParameters_ToSearchParameters(t *testing.T) {
 		filters := searchParams.FilterBy
 		expectedSubstrings := []string{
 			"action:=read",
-			"record.status:=aberto",
-			"record.tipo_contratacao:=CLT",
-			"record.jornada_trabalho:=integral",
-			"record.turno:=comercial",
+			"record.status:=`aberto`",
+			"record.tipo_contratacao:=`CLT`",
+			"record.jornada_trabalho:=`integral`",
+			"record.turno:=`comercial`",
 			"record.escolaridade_id:=3",
 		}
 
@@ -320,13 +320,13 @@ func TestEmpregoSearchParameters_ToSearchParameters(t *testing.T) {
 		filters := searchParams.FilterBy
 		expectedSubstrings := []string{
 			"action:=read",
-			"record.orgao_id:=org-789",
+			"record.orgao_id:=`org-789`",
 			"record.empresa_id:=15",
 			"record.escolaridade_id:=4",
-			"record.status:=ativo",
-			"record.tipo_contratacao:=PJ",
-			"record.jornada_trabalho:=parcial",
-			"record.turno:=noite",
+			"record.status:=`ativo`",
+			"record.tipo_contratacao:=`PJ`",
+			"record.jornada_trabalho:=`parcial`",
+			"record.turno:=`noite`",
 			"record.salario_min:>=3000",
 			"record.salario_max:<=8000",
 		}
