@@ -3,6 +3,7 @@ package empregabilidade_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -91,15 +92,19 @@ func TestEmpresaHandler_Create_CNPJInvalido_BadRequest(t *testing.T) {
 }
 
 // DEV-261: CNPJ válido, numérico ou alfanumérico, com ou sem formatação, é
-// gravado como o cliente enviou.
-func TestEmpresaHandler_Create_CNPJValido_Created(t *testing.T) {
+// gravado e devolvido na forma canônica: 14 caracteres, maiúsculas, sem
+// pontuação. Assim a chave cabe na coluna e é alcançável por /empresas/:cnpj.
+func TestEmpresaHandler_Create_CNPJValido_GravaFormaCanonica(t *testing.T) {
 	tests := []struct {
-		name string
-		cnpj string
+		name      string
+		cnpj      string
+		canonical string
 	}{
-		{"numérico", "11222333000181"},
-		{"numérico formatado", "11.222.333/0001-81"},
-		{"alfanumérico", cnpjAlfanumericoSintetico},
+		{"numérico", "11222333000181", "11222333000181"},
+		{"numérico formatado", "11.222.333/0001-81", "11222333000181"},
+		{"espaços em excesso", "      11 222 333 0001 81        ", "11222333000181"},
+		{"alfanumérico", cnpjAlfanumericoSintetico, cnpjAlfanumericoSintetico},
+		{"alfanumérico formatado em minúsculas", "12.abc.345/01de-35", cnpjAlfanumericoSintetico},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -110,10 +115,77 @@ func TestEmpresaHandler_Create_CNPJValido_Created(t *testing.T) {
 			if w.Code != http.StatusCreated {
 				t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 			}
-			if len(repo.created) != 1 || repo.created[0].CNPJ != tt.cnpj {
-				t.Fatalf("expected one Create with cnpj %q, got %+v", tt.cnpj, repo.created)
+			if len(repo.created) != 1 || repo.created[0].CNPJ != tt.canonical {
+				t.Fatalf("expected one Create with cnpj %q, got %+v", tt.canonical, repo.created)
+			}
+			var body empmodels.Empresa
+			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+				t.Fatalf("invalid JSON body: %v", err)
+			}
+			if body.CNPJ != tt.canonical {
+				t.Errorf("expected cnpj %q in response, got %q", tt.canonical, body.CNPJ)
 			}
 		})
+	}
+}
+
+// mapEmpresaRepo guarda as empresas por chave, como a tabela, para provar que o
+// que o POST grava é alcançado por GET, PUT e DELETE /empresas/:cnpj.
+type mapEmpresaRepo struct {
+	rows map[string]*empmodels.Empresa
+}
+
+func (m *mapEmpresaRepo) Create(_ context.Context, e *empmodels.Empresa) (string, error) {
+	copied := *e
+	m.rows[e.CNPJ] = &copied
+	return e.CNPJ, nil
+}
+func (m *mapEmpresaRepo) GetByID(_ context.Context, cnpj string) (*empmodels.Empresa, error) {
+	return m.rows[cnpj], nil
+}
+func (m *mapEmpresaRepo) Update(_ context.Context, e *empmodels.Empresa) error {
+	if row, ok := m.rows[e.CNPJ]; ok {
+		row.RazaoSocial = e.RazaoSocial
+	}
+	return nil
+}
+func (m *mapEmpresaRepo) Delete(_ context.Context, cnpj string) error {
+	delete(m.rows, cnpj)
+	return nil
+}
+func (m *mapEmpresaRepo) List(_ context.Context, _ empmodels.EmpresaFilter, _, _ int) ([]*empmodels.Empresa, int, error) {
+	return nil, 0, nil
+}
+func (m *mapEmpresaRepo) Upsert(_ context.Context, _ *empmodels.Empresa) error { return nil }
+
+func TestEmpresaHandler_CNPJFormatado_AlcancavelPorGetPutDelete(t *testing.T) {
+	repo := &mapEmpresaRepo{rows: map[string]*empmodels.Empresa{}}
+	r := setupEmpresaHandlerRouter(repo)
+
+	w := doEmpresaRequest(r, http.MethodPost, "/empresas", `{"cnpj":"11.222.333/0001-81","razao_social":"Empresa Sintetica"}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST: expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var created empmodels.Empresa
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
+		t.Fatalf("POST: invalid JSON body: %v", err)
+	}
+	path := "/empresas/" + created.CNPJ
+
+	if w := doEmpresaRequest(r, http.MethodGet, path, ""); w.Code != http.StatusOK {
+		t.Fatalf("GET %s: expected 200, got %d: %s", path, w.Code, w.Body.String())
+	}
+	if w := doEmpresaRequest(r, http.MethodPut, path, `{"razao_social":"Empresa Sintetica 2"}`); w.Code != http.StatusOK {
+		t.Fatalf("PUT %s: expected 200, got %d: %s", path, w.Code, w.Body.String())
+	}
+	if got := repo.rows[created.CNPJ]; got == nil || got.RazaoSocial != "Empresa Sintetica 2" {
+		t.Fatalf("PUT %s did not reach the stored row: %+v", path, got)
+	}
+	if w := doEmpresaRequest(r, http.MethodDelete, path, ""); w.Code != http.StatusOK {
+		t.Fatalf("DELETE %s: expected 200, got %d: %s", path, w.Code, w.Body.String())
+	}
+	if len(repo.rows) != 0 {
+		t.Fatalf("DELETE %s left rows behind: %v", path, repo.rows)
 	}
 }
 
@@ -146,16 +218,28 @@ func TestEmpresaHandler_Update_CNPJInvalido_BadRequest(t *testing.T) {
 	}
 }
 
-// DEV-261: o CNPJ do path manda; um cnpj vazio no corpo não troca a chave.
-func TestEmpresaHandler_Update_CNPJValido_UsaPath(t *testing.T) {
-	repo := &recordingEmpresaRepo{}
-	w := doEmpresaRequest(newEmpresaRecordingRouter(repo), http.MethodPut, "/empresas/11222333000181",
-		`{"cnpj":"","razao_social":"Nova"}`)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+// DEV-261: o CNPJ do path manda, na forma canônica; um cnpj vazio no corpo não
+// troca a chave.
+func TestEmpresaHandler_Update_CNPJValido_UsaPathCanonico(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{"numérico", "/empresas/11222333000181", "11222333000181"},
+		{"alfanumérico em minúsculas", "/empresas/12abc34501de35", cnpjAlfanumericoSintetico},
 	}
-	if len(repo.updated) != 1 || repo.updated[0].CNPJ != "11222333000181" {
-		t.Fatalf("expected one Update with cnpj from path, got %+v", repo.updated)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &recordingEmpresaRepo{}
+			w := doEmpresaRequest(newEmpresaRecordingRouter(repo), http.MethodPut, tt.path, `{"cnpj":"","razao_social":"Nova"}`)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+			}
+			if len(repo.updated) != 1 || repo.updated[0].CNPJ != tt.want {
+				t.Fatalf("expected one Update with cnpj %q, got %+v", tt.want, repo.updated)
+			}
+		})
 	}
 }

@@ -29,7 +29,7 @@ func (h *EmpresaHandler) WithCNPJConsulta(cnpjConsultaService *services.CNPJCons
 }
 
 // @Summary      Criar empresa
-// @Description  Cria uma nova empresa. O CNPJ é obrigatório: numérico ou alfanumérico, com ou sem formatação, com dígitos verificadores válidos; é gravado como enviado.
+// @Description  Cria uma nova empresa. O CNPJ é obrigatório: numérico ou alfanumérico, com ou sem formatação, com dígitos verificadores válidos; é gravado e devolvido na forma canônica (14 caracteres, maiúsculas, sem pontuação).
 // @Tags         empregabilidade-empresas
 // @Accept       json
 // @Produce      json
@@ -46,10 +46,12 @@ func (h *EmpresaHandler) Create(c *gin.Context) {
 		return
 	}
 
-	if err := clients.ValidateCNPJ(entity.CNPJ); err != nil {
+	canonical, err := clients.ValidateCNPJ(entity.CNPJ)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": cnpjInvalidoErro})
 		return
 	}
+	entity.CNPJ = canonical
 
 	cnpj, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
@@ -131,7 +133,7 @@ func (h *EmpresaHandler) GetByID(c *gin.Context) {
 }
 
 // @Summary      Atualizar empresa
-// @Description  Atualiza uma empresa existente. O CNPJ do path precisa ser válido (dígitos verificadores conferidos).
+// @Description  Atualiza uma empresa existente. O CNPJ do path precisa ser válido (dígitos verificadores conferidos) e é usado na forma canônica.
 // @Tags         empregabilidade-empresas
 // @Accept       json
 // @Produce      json
@@ -142,8 +144,8 @@ func (h *EmpresaHandler) GetByID(c *gin.Context) {
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/empresas/{cnpj} [put]
 func (h *EmpresaHandler) Update(c *gin.Context) {
-	cnpj := c.Param("cnpj")
-	if err := clients.ValidateCNPJ(cnpj); err != nil {
+	cnpj, err := clients.ValidateCNPJ(c.Param("cnpj"))
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": cnpjInvalidoErro})
 		return
 	}
