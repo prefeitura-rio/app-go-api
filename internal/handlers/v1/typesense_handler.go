@@ -52,6 +52,17 @@ func handleError(c *gin.Context, status int, message string, err error) {
 	c.JSON(status, body)
 }
 
+// SearchCursos busca cursos no índice do Typesense
+// @Summary      Buscar cursos
+// @Description  Busca cursos na coleção cursos do Typesense. O termo q é obrigatório; os demais campos filtram por órgão, instituição, status, modalidade, turno e formato de aula. Sem sort_by, ordena pelos mais recentes.
+// @Tags         search
+// @Accept       json
+// @Produce      json
+// @Param        params  body      models.CursoSearchParameters  true  "Parâmetros de busca de cursos"
+// @Success      200     {object}  models.SearchDocumentsResponse
+// @Failure      400     {object}  models.ErrorResponse
+// @Failure      500     {object}  models.ErrorResponse
+// @Router       /api/v1/typesense/cursos/search [post]
 func (h *TypesenseHandler) SearchCursos(c *gin.Context) {
 	var params models.CursoSearchParameters
 	if err := c.ShouldBindJSON(&params); err != nil {
@@ -75,6 +86,17 @@ func (h *TypesenseHandler) SearchCursos(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
+// SearchEmpregos busca empregos no índice do Typesense
+// @Summary      Buscar empregos
+// @Description  Busca empregos na coleção empregos do Typesense. O termo q é obrigatório; os demais campos filtram por órgão, empresa, escolaridade, status, tipo de contratação, jornada, turno e faixa salarial. Sem sort_by, ordena pelos mais recentes.
+// @Tags         search
+// @Accept       json
+// @Produce      json
+// @Param        params  body      models.EmpregoSearchParameters  true  "Parâmetros de busca de empregos"
+// @Success      200     {object}  models.SearchDocumentsResponse
+// @Failure      400     {object}  models.ErrorResponse
+// @Failure      500     {object}  models.ErrorResponse
+// @Router       /api/v1/typesense/empregos/search [post]
 func (h *TypesenseHandler) SearchEmpregos(c *gin.Context) {
 	var params models.EmpregoSearchParameters
 	if err := c.ShouldBindJSON(&params); err != nil {
