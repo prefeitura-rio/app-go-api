@@ -424,6 +424,11 @@ func (s *EmailNotificationService) SendCandidaturaAprovadaEmail(ctx context.Cont
 		return nil
 	}
 
+	if candidatura.Vaga == nil {
+		log.Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping approved application email", candidatura.ID)
+		return nil
+	}
+
 	email := s.resolveEmail(ctx, &models.Inscricao{
 		Email: *candidatura.Email,
 		CPF:   candidatura.CPF,
@@ -462,6 +467,11 @@ func (s *EmailNotificationService) SendCandidaturaReprovadaEmail(ctx context.Con
 
 	if candidatura.Email == nil || *candidatura.Email == "" {
 		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
+		return nil
+	}
+
+	if candidatura.Vaga == nil {
+		log.Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping failed application email", candidatura.ID)
 		return nil
 	}
 

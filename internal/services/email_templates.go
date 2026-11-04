@@ -317,20 +317,20 @@ func GetCandidaturaEnviadaEmailTemplate(candidatura *empregabilidade.Candidatura
 
 // GetCandidaturaAprovadaEmailTemplate returns email template for approved applications
 func GetCandidaturaAprovadaEmailTemplate(candidatura *empregabilidade.Candidatura, vaga *empregabilidade.Vaga, empresa *empregabilidade.Empresa) EmailTemplate {
-	subject := fmt.Sprintf(`Parabéns! 🎉Candidatura aprovada - "%s"`, vaga.Titulo)
+	vagaTitulo := tituloVaga(vaga)
+	subject := fmt.Sprintf(`Parabéns! 🎉Candidatura aprovada - "%s"`, vagaTitulo)
 
 	var companyName string
 
-	if empresa.NomeFantasia != "" {
-		companyName = empresa.NomeFantasia
-	} else {
-		companyName = empresa.RazaoSocial
+	if empresa != nil {
+		if empresa.NomeFantasia != "" {
+			companyName = empresa.NomeFantasia
+		} else {
+			companyName = empresa.RazaoSocial
+		}
 	}
 
-	nome := ""
-	if candidatura.Nome != nil {
-		nome = *candidatura.Nome
-	}
+	nome := nomeCandidatura(candidatura)
 
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html>
@@ -350,7 +350,7 @@ func GetCandidaturaAprovadaEmailTemplate(candidatura *empregabilidade.Candidatur
 </body>
 </html>`,
 		html.EscapeString(nome),
-		html.EscapeString(vaga.Titulo),
+		html.EscapeString(vagaTitulo),
 		html.EscapeString(companyName),
 	)
 
@@ -363,13 +363,11 @@ func GetCandidaturaAprovadaEmailTemplate(candidatura *empregabilidade.Candidatur
 
 // GetCandidaturaReprovadaEmailTemplate returns email template for failed applications
 func GetCandidaturaReprovadaEmailTemplate(candidatura *empregabilidade.Candidatura, vaga *empregabilidade.Vaga, prefrioDomain string) EmailTemplate {
-	subject := fmt.Sprintf(`Informações sobre sua candidatura - %s`, vaga.Titulo)
+	vagaTitulo := tituloVaga(vaga)
+	subject := fmt.Sprintf(`Informações sobre sua candidatura - %s`, vagaTitulo)
 	vagasURL := fmt.Sprintf("https://%s/servicos/trabalho", prefrioDomain)
 
-	nome := ""
-	if candidatura.Nome != nil {
-		nome = *candidatura.Nome
-	}
+	nome := nomeCandidatura(candidatura)
 
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html>
@@ -391,7 +389,7 @@ func GetCandidaturaReprovadaEmailTemplate(candidatura *empregabilidade.Candidatu
 </body>
 </html>`,
 		html.EscapeString(nome),
-		html.EscapeString(vaga.Titulo),
+		html.EscapeString(vagaTitulo),
 		html.EscapeString(vagasURL),
 		html.EscapeString(vagasURL),
 	)
@@ -487,4 +485,18 @@ func getScheduleInfoString(scheduleInfo *ScheduleInfo, curso *models.Curso) stri
 		scheduleInfoStr = "⏰ Horário de início: a confirmar"
 	}
 	return scheduleInfoStr
+}
+
+func tituloVaga(vaga *empregabilidade.Vaga) string {
+	if vaga == nil {
+		return ""
+	}
+	return vaga.Titulo
+}
+
+func nomeCandidatura(candidatura *empregabilidade.Candidatura) string {
+	if candidatura == nil || candidatura.Nome == nil {
+		return ""
+	}
+	return *candidatura.Nome
 }

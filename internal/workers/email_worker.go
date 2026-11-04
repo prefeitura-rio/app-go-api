@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -25,6 +26,11 @@ const (
 	emailWorkerCount       = 2
 	emailRetryPollInterval = 1 * time.Second
 )
+
+// errEmailTaskPanicked marks a task whose processing panicked. The panic is
+// deterministic for the same payload, so the task goes straight to the dead-letter
+// queue instead of being retried.
+var errEmailTaskPanicked = errors.New("email task panicked")
 
 type emailTaskType string
 
@@ -62,7 +68,7 @@ type candidaturaPayload struct {
 // EmailWorker processes email notifications asynchronously via a Redis List queue.
 type EmailWorker struct {
 	redis        *redis.Client
-	emailService *services.EmailNotificationService
+	emailService services.EmailNotifier
 	retryDelay   func(attempts int) time.Duration // nil = use default exponential backoff
 }
 
@@ -198,6 +204,12 @@ func (w *EmailWorker) consume(ctx context.Context) {
 
 			task.Attempts++
 
+			if errors.Is(err, errEmailTaskPanicked) {
+				log.Printf("[EmailWorker] task %s moved to dead-letter after panic: %v", task.Type, err)
+				w.pushToKey(ctx, emailDeadLetterKey, &task)
+				continue
+			}
+
 			if task.Attempts >= emailMaxRetries {
 				log.Printf("[EmailWorker] task %s exhausted retries, moving to dead-letter: %v", task.Type, err)
 				w.pushToKey(ctx, emailDeadLetterKey, &task)
@@ -255,7 +267,16 @@ func (w *EmailWorker) addToDelayedQueue(ctx context.Context, task *emailTask) {
 	}
 }
 
-func (w *EmailWorker) dispatch(ctx context.Context, task *emailTask) error {
+// dispatch processes one task. A panic while handling it is recovered and returned
+// as errEmailTaskPanicked so a single bad item cannot crash the whole process.
+func (w *EmailWorker) dispatch(ctx context.Context, task *emailTask) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[EmailWorker] panic while processing task %s: %v\n%s", task.Type, r, debug.Stack())
+			err = fmt.Errorf("%w: task %s: %v", errEmailTaskPanicked, task.Type, r)
+		}
+	}()
+
 	switch task.Type {
 	case taskEnrollmentCreated:
 		var p enrollmentPayload
