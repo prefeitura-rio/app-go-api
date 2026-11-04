@@ -12,6 +12,8 @@ import (
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
+const cnpjInvalidoErro = "CNPJ inválido: deve ter 14 caracteres, 12 letras ou dígitos seguidos de 2 dígitos verificadores válidos"
+
 type EmpresaHandler struct {
 	service             *services.EmpresaService
 	cnpjConsultaService *services.CNPJConsultaService
@@ -27,7 +29,7 @@ func (h *EmpresaHandler) WithCNPJConsulta(cnpjConsultaService *services.CNPJCons
 }
 
 // @Summary      Criar empresa
-// @Description  Cria uma nova empresa
+// @Description  Cria uma nova empresa. O CNPJ é obrigatório: numérico ou alfanumérico, com ou sem formatação, com dígitos verificadores válidos; é gravado e devolvido na forma canônica (14 caracteres, maiúsculas, sem pontuação).
 // @Tags         empregabilidade-empresas
 // @Accept       json
 // @Produce      json
@@ -43,6 +45,13 @@ func (h *EmpresaHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	canonical, err := clients.ValidateCNPJ(entity.CNPJ)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": cnpjInvalidoErro})
+		return
+	}
+	entity.CNPJ = canonical
 
 	cnpj, err := h.service.Create(c.Request.Context(), &entity)
 	if err != nil {
@@ -124,7 +133,7 @@ func (h *EmpresaHandler) GetByID(c *gin.Context) {
 }
 
 // @Summary      Atualizar empresa
-// @Description  Atualiza uma empresa existente
+// @Description  Atualiza uma empresa existente. O CNPJ do path precisa ser válido (dígitos verificadores conferidos) e é usado na forma canônica.
 // @Tags         empregabilidade-empresas
 // @Accept       json
 // @Produce      json
@@ -135,7 +144,11 @@ func (h *EmpresaHandler) GetByID(c *gin.Context) {
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/empresas/{cnpj} [put]
 func (h *EmpresaHandler) Update(c *gin.Context) {
-	cnpj := c.Param("cnpj")
+	cnpj, err := clients.ValidateCNPJ(c.Param("cnpj"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": cnpjInvalidoErro})
+		return
+	}
 
 	var entity empregabilidade.Empresa
 	if err := c.ShouldBindJSON(&entity); err != nil {
