@@ -928,6 +928,9 @@ func TestCandidaturaRepository_BulkGetByCPFs(t *testing.T) {
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidaturas"`)).
 			WillReturnRows(rows)
 
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_vagas"`)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
 		candidaturas, err := repo.BulkGetByCPFs(ctx, vagaID, cpfs)
 		assert.NoError(t, err)
 		assert.Len(t, candidaturas, 2)
