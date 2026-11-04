@@ -187,8 +187,11 @@ func (r *CandidaturaRepository) UpdateStatus(ctx context.Context, id uuid.UUID, 
 
 func (r *CandidaturaRepository) BulkGetByCPFs(ctx context.Context, vagaID uuid.UUID, cpfs []string) ([]*empregabilidade.Candidatura, error) {
 	var candidaturas []*empregabilidade.Candidatura
+	// Vaga e Contratante são lidos pelos e-mails de aprovação/reprovação em lote.
 	if err := r.db.WithContext(ctx).
 		Model(&empregabilidade.Candidatura{}).
+		Preload("Vaga").
+		Preload("Vaga.Contratante").
 		Where("id_vaga = ? AND cpf IN ?", vagaID, cpfs).
 		Find(&candidaturas).Error; err != nil {
 		return nil, fmt.Errorf("erro ao buscar candidaturas: %w", err)
