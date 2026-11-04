@@ -600,3 +600,39 @@ func NormalizeCNPJ(cnpj string) (string, error) {
 
 	return result, nil
 }
+
+// cnpjCheckWeights are the Receita Federal weights for the second check digit;
+// the first check digit uses the same list without its first element.
+var cnpjCheckWeights = []int{6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2}
+
+// ValidateCNPJ checks that cnpj is a well-formed CNPJ (see NormalizeCNPJ) whose
+// two check digits match the Receita Federal modulo-11 algorithm, in which each
+// position is worth its ASCII code minus 48. That rule covers both the numeric
+// and the alphanumeric CNPJ. A CNPJ made of one repeated character is rejected
+// even though its check digits add up. Any failure yields ErrInvalidCNPJ.
+func ValidateCNPJ(cnpj string) error {
+	normalized, err := NormalizeCNPJ(cnpj)
+	if err != nil {
+		return err
+	}
+	if strings.Count(normalized, normalized[:1]) == cnpjLength {
+		return ErrInvalidCNPJ
+	}
+
+	for position := cnpjLength - 2; position < cnpjLength; position++ {
+		weights := cnpjCheckWeights[len(cnpjCheckWeights)-position:]
+		sum := 0
+		for i, weight := range weights {
+			sum += int(normalized[i]-'0') * weight
+		}
+		expected := 0
+		if remainder := sum % 11; remainder >= 2 {
+			expected = 11 - remainder
+		}
+		if int(normalized[position]-'0') != expected {
+			return ErrInvalidCNPJ
+		}
+	}
+
+	return nil
+}

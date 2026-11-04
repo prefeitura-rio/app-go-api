@@ -12,6 +12,8 @@ import (
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
+const cnpjInvalidoErro = "CNPJ inválido: deve ter 14 caracteres, 12 letras ou dígitos seguidos de 2 dígitos verificadores válidos"
+
 type EmpresaHandler struct {
 	service             *services.EmpresaService
 	cnpjConsultaService *services.CNPJConsultaService
@@ -27,7 +29,7 @@ func (h *EmpresaHandler) WithCNPJConsulta(cnpjConsultaService *services.CNPJCons
 }
 
 // @Summary      Criar empresa
-// @Description  Cria uma nova empresa
+// @Description  Cria uma nova empresa. O CNPJ é obrigatório: numérico ou alfanumérico, com ou sem formatação, com dígitos verificadores válidos; é gravado como enviado.
 // @Tags         empregabilidade-empresas
 // @Accept       json
 // @Produce      json
@@ -41,6 +43,11 @@ func (h *EmpresaHandler) Create(c *gin.Context) {
 	var entity empregabilidade.Empresa
 	if err := c.ShouldBindJSON(&entity); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := clients.ValidateCNPJ(entity.CNPJ); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": cnpjInvalidoErro})
 		return
 	}
 
@@ -124,7 +131,7 @@ func (h *EmpresaHandler) GetByID(c *gin.Context) {
 }
 
 // @Summary      Atualizar empresa
-// @Description  Atualiza uma empresa existente
+// @Description  Atualiza uma empresa existente. O CNPJ do path precisa ser válido (dígitos verificadores conferidos).
 // @Tags         empregabilidade-empresas
 // @Accept       json
 // @Produce      json
@@ -136,6 +143,10 @@ func (h *EmpresaHandler) GetByID(c *gin.Context) {
 // @Router       /api/v1/empregabilidade/empresas/{cnpj} [put]
 func (h *EmpresaHandler) Update(c *gin.Context) {
 	cnpj := c.Param("cnpj")
+	if err := clients.ValidateCNPJ(cnpj); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": cnpjInvalidoErro})
+		return
+	}
 
 	var entity empregabilidade.Empresa
 	if err := c.ShouldBindJSON(&entity); err != nil {

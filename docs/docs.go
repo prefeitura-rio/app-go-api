@@ -6565,7 +6565,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Cria uma nova empresa",
+                "description": "Cria uma nova empresa. O CNPJ é obrigatório: numérico ou alfanumérico, com ou sem formatação, com dígitos verificadores válidos; é gravado como enviado.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6727,7 +6727,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza uma empresa existente",
+                "description": "Atualiza uma empresa existente. O CNPJ do path precisa ser válido (dígitos verificadores conferidos).",
                 "consumes": [
                     "application/json"
                 ],
