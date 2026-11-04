@@ -13120,6 +13120,98 @@
                 }
             }
         },
+        "/api/v1/typesense/cursos/search": {
+            "post": {
+                "description": "Busca cursos na coleção cursos do Typesense. O termo q é obrigatório; os demais campos filtram por órgão, instituição, status, modalidade, turno e formato de aula. Sem sort_by, ordena pelos mais recentes.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Buscar cursos",
+                "parameters": [
+                    {
+                        "description": "Parâmetros de busca de cursos",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CursoSearchParameters"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SearchDocumentsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/typesense/empregos/search": {
+            "post": {
+                "description": "Busca empregos na coleção empregos do Typesense. O termo q é obrigatório; os demais campos filtram por órgão, empresa, escolaridade, status, tipo de contratação, jornada, turno e faixa salarial. Sem sort_by, ordena pelos mais recentes.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Buscar empregos",
+                "parameters": [
+                    {
+                        "description": "Parâmetros de busca de empregos",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.EmpregoSearchParameters"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SearchDocumentsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/typesense/multi-search": {
             "post": {
                 "description": "Realiza busca em várias coleções simultaneamente",
@@ -15169,6 +15261,59 @@
                 }
             }
         },
+        "models.CursoSearchParameters": {
+            "type": "object",
+            "properties": {
+                "exclude_fields": {
+                    "description": "Campos a excluir",
+                    "type": "string"
+                },
+                "formato_aula": {
+                    "description": "Formato da aula",
+                    "type": "string"
+                },
+                "include_fields": {
+                    "description": "Campos a incluir",
+                    "type": "string"
+                },
+                "instituicao_id": {
+                    "description": "ID da instituição",
+                    "type": "integer"
+                },
+                "modalidade": {
+                    "description": "Modalidade",
+                    "type": "string"
+                },
+                "orgao_id": {
+                    "description": "ID do órgão (external reference)",
+                    "type": "string"
+                },
+                "page": {
+                    "description": "Página",
+                    "type": "integer"
+                },
+                "per_page": {
+                    "description": "Itens por página",
+                    "type": "integer"
+                },
+                "q": {
+                    "description": "Termo de busca",
+                    "type": "string"
+                },
+                "sort_by": {
+                    "description": "Campo para ordenação",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status do curso",
+                    "type": "string"
+                },
+                "turno": {
+                    "description": "Turno",
+                    "type": "string"
+                }
+            }
+        },
         "models.Emprego": {
             "type": "object",
             "properties": {
@@ -15247,6 +15392,71 @@
                     "$ref": "#/definitions/models.Turno"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.EmpregoSearchParameters": {
+            "type": "object",
+            "properties": {
+                "empresa_id": {
+                    "description": "ID da empresa",
+                    "type": "integer"
+                },
+                "escolaridade_id": {
+                    "description": "ID da escolaridade",
+                    "type": "integer"
+                },
+                "exclude_fields": {
+                    "description": "Campos a excluir",
+                    "type": "string"
+                },
+                "include_fields": {
+                    "description": "Campos a incluir",
+                    "type": "string"
+                },
+                "jornada_trabalho": {
+                    "description": "Jornada de trabalho",
+                    "type": "string"
+                },
+                "orgao_id": {
+                    "description": "ID do órgão (external reference)",
+                    "type": "string"
+                },
+                "page": {
+                    "description": "Página",
+                    "type": "integer"
+                },
+                "per_page": {
+                    "description": "Itens por página",
+                    "type": "integer"
+                },
+                "q": {
+                    "description": "Termo de busca",
+                    "type": "string"
+                },
+                "salario_max": {
+                    "description": "Salário máximo",
+                    "type": "integer"
+                },
+                "salario_min": {
+                    "description": "Salário mínimo",
+                    "type": "integer"
+                },
+                "sort_by": {
+                    "description": "Campo para ordenação",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status do emprego",
+                    "type": "string"
+                },
+                "tipo_contratacao": {
+                    "description": "Tipo de contratação",
+                    "type": "string"
+                },
+                "turno": {
+                    "description": "Turno",
                     "type": "string"
                 }
             }

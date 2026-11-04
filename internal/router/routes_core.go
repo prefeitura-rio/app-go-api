@@ -7,10 +7,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
+	v1 "github.com/prefeitura-rio/app-go-api/internal/handlers/v1"
 	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/wire"
 )
+
+// registerTypesenseRoutes registers the Typesense search routes. Every route
+// here must carry a Swagger @Router annotation: Heimdall builds its
+// endpoint→action mappings from the generated spec and denies unmapped routes.
+func registerTypesenseRoutes(apiV1 *gin.RouterGroup, h *v1.TypesenseHandler) {
+	apiV1.POST("/typesense/multi-search", h.SearchMultiCollection)
+	apiV1.POST("/typesense/cursos/search", h.SearchCursos)
+	apiV1.POST("/typesense/empregos/search", h.SearchEmpregos)
+	apiV1.Group("/typesense/collections").POST("/:collection/documents/search", h.SearchDocuments)
+}
 
 // registerCoreRoutes registers all core (non-empregabilidade) API routes.
 func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.ApplicationContainer, cfg *config.AppConfig) {
@@ -22,10 +33,7 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	registerLookup(apiV1.Group("/instituicoes"), app.InstituicaoHandler)
 
 	if app.TypesenseHandler != nil {
-		apiV1.POST("/typesense/multi-search", app.TypesenseHandler.SearchMultiCollection)
-		apiV1.POST("/typesense/cursos/search", app.TypesenseHandler.SearchCursos)
-		apiV1.POST("/typesense/empregos/search", app.TypesenseHandler.SearchEmpregos)
-		apiV1.Group("/typesense/collections").POST("/:collection/documents/search", app.TypesenseHandler.SearchDocuments)
+		registerTypesenseRoutes(apiV1, app.TypesenseHandler)
 	}
 
 	cursoLoader := func(ctx context.Context, id int) (orgaoID string, found bool, err error) {
