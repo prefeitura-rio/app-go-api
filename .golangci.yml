@@ -9,6 +9,7 @@ linters:
   enable:
     - errcheck
     - govet
+    - gosec
     - sqlclosecheck
     - rowserrcheck
 
@@ -45,6 +46,7 @@ linters:
         linters:
           - errcheck
           - govet
+          - gosec
           - sqlclosecheck
           - rowserrcheck
 
