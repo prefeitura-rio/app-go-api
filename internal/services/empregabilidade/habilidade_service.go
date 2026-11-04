@@ -67,31 +67,27 @@ func (s *HabilidadeService) ListAreasAtuacao(ctx context.Context, filter emprega
 	return s.repo.ListAreasAtuacao(ctx, filter, pageSize, offset)
 }
 
-// AttachAreaAtuacao vincula uma área de atuação a uma habilidade
-func (s *HabilidadeService) AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
-	if habilidadeID <= 0 || areaID <= 0 {
-		return fmt.Errorf("IDs inválidos: habilidadeID=%d, areaID=%d", habilidadeID, areaID)
+// ListHabilidadesDaArea lista os conhecimentos de uma área.
+func (s *HabilidadeService) ListHabilidadesDaArea(ctx context.Context, areaID int64, filter empregabilidade.HabilidadeFilter, page, pageSize int) ([]*empregabilidade.CatalogoItem, int64, error) {
+	if areaID <= 0 {
+		return nil, 0, fmt.Errorf("ID de área de atuação inválido: %d", areaID)
 	}
-	return s.repo.AttachAreaAtuacao(ctx, habilidadeID, areaID)
+	offset := (page - 1) * pageSize
+	return s.repo.ListHabilidadesDaArea(ctx, areaID, filter, pageSize, offset)
 }
 
-// DetachAreaAtuacao desvincula uma área de atuação de uma habilidade
-func (s *HabilidadeService) DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
-	if habilidadeID <= 0 || areaID <= 0 {
-		return fmt.Errorf("IDs inválidos: habilidadeID=%d, areaID=%d", habilidadeID, areaID)
+// AttachHabilidadeNaArea vincula um conhecimento existente a uma área.
+func (s *HabilidadeService) AttachHabilidadeNaArea(ctx context.Context, areaID, habilidadeID int64) error {
+	if areaID <= 0 || habilidadeID <= 0 {
+		return fmt.Errorf("IDs inválidos: areaID=%d, habilidadeID=%d", areaID, habilidadeID)
 	}
-	return s.repo.DetachAreaAtuacao(ctx, habilidadeID, areaID)
+	return s.repo.AttachHabilidadeNaArea(ctx, areaID, habilidadeID)
 }
 
-// ListAreaAtuacaoHabilidades lista todos os vínculos entre áreas de atuação e habilidades.
-func (s *HabilidadeService) ListAreaAtuacaoHabilidades(ctx context.Context) ([]*empregabilidade.AreaAtuacaoHabilidade, error) {
-	return s.repo.ListAreaAtuacaoHabilidades(ctx)
-}
-
-// ReplaceAreasAtuacao substitui a lista inteira de áreas de atuação de uma habilidade
-func (s *HabilidadeService) ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error {
-	if habilidadeID <= 0 {
-		return fmt.Errorf("ID de habilidade inválido: %d", habilidadeID)
+// DetachHabilidadeDaArea remove o conhecimento de uma área.
+func (s *HabilidadeService) DetachHabilidadeDaArea(ctx context.Context, areaID, habilidadeID int64) error {
+	if areaID <= 0 || habilidadeID <= 0 {
+		return fmt.Errorf("IDs inválidos: areaID=%d, habilidadeID=%d", areaID, habilidadeID)
 	}
-	return s.repo.ReplaceAreasAtuacao(ctx, habilidadeID, areaIDs)
+	return s.repo.DetachHabilidadeDaArea(ctx, areaID, habilidadeID)
 }

@@ -10,52 +10,13 @@ definitions:
     - AcessibilidadeParaPCD
     - AcessibilidadePreferencialPCD
     - AcessibilidadeExclusivoPCD
-  empregabilidade.AddAreaAtuacaoHabilidadeRequest:
+  empregabilidade.AddHabilidadeRequest:
     properties:
-      id_area_atuacao_habilidade:
-        type: integer
-    required:
-    - id_area_atuacao_habilidade
-    type: object
-  empregabilidade.AddComportamentoAtitudesRequest:
-    properties:
-      id_comportamento_atitudes:
+      id_habilidade:
         example: 10
         type: integer
     required:
-    - id_comportamento_atitudes
-    type: object
-  empregabilidade.AreaAtuacao:
-    properties:
-      created_at:
-        type: string
-      habilidades:
-        items:
-          $ref: '#/definitions/empregabilidade.Habilidade'
-        type: array
-      id:
-        type: integer
-      nome:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  empregabilidade.AreaAtuacaoHabilidade:
-    properties:
-      area_atuacao:
-        $ref: '#/definitions/empregabilidade.AreaAtuacao'
-      created_at:
-        type: string
-      habilidade:
-        $ref: '#/definitions/empregabilidade.Habilidade'
-      id:
-        type: integer
-      id_area_atuacao:
-        type: integer
-      id_habilidade:
-        type: integer
-      updated_at:
-        type: string
+    - id_habilidade
     type: object
   empregabilidade.AssociacaoRecusadaResponse:
     properties:
@@ -298,15 +259,11 @@ definitions:
       id_vaga:
         type: string
     type: object
-  empregabilidade.ComportamentoAtitudes:
+  empregabilidade.CatalogoItem:
     properties:
-      created_at:
-        type: string
       id:
         type: integer
       nome:
-        type: string
-      updated_at:
         type: string
     type: object
   empregabilidade.CreateAreaAtuacaoRequest:
@@ -333,30 +290,17 @@ definitions:
     required:
     - nome
     type: object
-  empregabilidade.CurriculoAreaAtuacaoHabilidade:
-    properties:
-      area_atuacao_habilidade:
-        $ref: '#/definitions/empregabilidade.AreaAtuacaoHabilidade'
-      cpf:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: integer
-      id_area_atuacao_habilidade:
-        type: integer
-      updated_at:
-        type: string
-    type: object
   empregabilidade.CurriculoCompleto:
     properties:
-      area_atuacao_habilidade:
+      area_atuacao:
+        $ref: '#/definitions/empregabilidade.CatalogoItem'
+      comportamentos_atitudes:
         items:
-          $ref: '#/definitions/empregabilidade.CurriculoAreaAtuacaoHabilidade'
+          $ref: '#/definitions/empregabilidade.CatalogoItem'
         type: array
-      comportamento_atitudes:
+      conhecimentos:
         items:
-          $ref: '#/definitions/empregabilidade.CurriculoComportamentoAtitudes'
+          $ref: '#/definitions/empregabilidade.CatalogoItem'
         type: array
       conquistas:
         items:
@@ -382,21 +326,6 @@ definitions:
         type: string
       situacao_interesses:
         $ref: '#/definitions/empregabilidade.CurriculoSituacaoInteresses'
-    type: object
-  empregabilidade.CurriculoComportamentoAtitudes:
-    properties:
-      comportamento_atitudes:
-        $ref: '#/definitions/empregabilidade.ComportamentoAtitudes'
-      cpf:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: integer
-      id_comportamento_atitudes:
-        type: integer
-      updated_at:
-        type: string
     type: object
   empregabilidade.CurriculoConquista:
     properties:
@@ -504,17 +433,6 @@ definitions:
         $ref: '#/definitions/empregabilidade.NivelIdioma'
       updated_at:
         type: string
-    type: object
-  empregabilidade.CurriculoItensReplaceAll:
-    properties:
-      area_atuacao_habilidade_ids:
-        items:
-          type: integer
-        type: array
-      comportamento_atitudes_ids:
-        items:
-          type: integer
-        type: array
     type: object
   empregabilidade.CurriculoSituacaoInteresses:
     properties:
@@ -633,20 +551,31 @@ definitions:
           $ref: '#/definitions/empregabilidade.CurriculoIdioma'
         type: array
     type: object
-  empregabilidade.Habilidade:
+  empregabilidade.HabilidadesCompetencias:
     properties:
-      areas:
+      area_atuacao:
+        $ref: '#/definitions/empregabilidade.CatalogoItem'
+      comportamentos_atitudes:
         items:
-          $ref: '#/definitions/empregabilidade.AreaAtuacao'
+          $ref: '#/definitions/empregabilidade.CatalogoItem'
         type: array
-      created_at:
-        type: string
-      id:
+      conhecimentos:
+        items:
+          $ref: '#/definitions/empregabilidade.CatalogoItem'
+        type: array
+    type: object
+  empregabilidade.HabilidadesCompetenciasSave:
+    properties:
+      comportamento_atitudes_ids:
+        items:
+          type: integer
+        type: array
+      habilidade_ids:
+        items:
+          type: integer
+        type: array
+      id_area_atuacao:
         type: integer
-      nome:
-        type: string
-      updated_at:
-        type: string
     type: object
   empregabilidade.Idioma:
     properties:
@@ -758,19 +687,6 @@ definitions:
         type: string
       updated_at:
         type: string
-    type: object
-  empregabilidade.ReplaceAreasHabilidadeRequest:
-    properties:
-      area_ids:
-        example:
-        - 1
-        - 2
-        - 3
-        items:
-          type: integer
-        type: array
-    required:
-    - area_ids
     type: object
   empregabilidade.RespostaInfoComplementar:
     properties:
@@ -2162,7 +2078,23 @@ definitions:
     properties:
       data:
         items:
-          $ref: '#/definitions/empregabilidade.AreaAtuacao'
+          $ref: '#/definitions/empregabilidade.CatalogoItem'
+        type: array
+      page:
+        example: 1
+        type: integer
+      pageSize:
+        example: 20
+        type: integer
+      total:
+        example: 42
+        type: integer
+    type: object
+  response.ListCatalogoPaginatedResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/empregabilidade.CatalogoItem'
         type: array
       page:
         example: 1
@@ -2178,7 +2110,7 @@ definitions:
     properties:
       data:
         items:
-          $ref: '#/definitions/empregabilidade.ComportamentoAtitudes'
+          $ref: '#/definitions/empregabilidade.CatalogoItem'
         type: array
       page:
         example: 1
@@ -2194,7 +2126,7 @@ definitions:
     properties:
       data:
         items:
-          $ref: '#/definitions/empregabilidade.Habilidade'
+          $ref: '#/definitions/empregabilidade.CatalogoItem'
         type: array
       page:
         example: 1
@@ -4605,7 +4537,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/empregabilidade.ComportamentoAtitudes'
+            $ref: '#/definitions/empregabilidade.CatalogoItem'
         "400":
           description: ID inválido
           schema:
@@ -4666,48 +4598,6 @@ paths:
       summary: Atualizar Comportamento e Atitude
       tags:
       - empregabilidade-comportamentos-atitudes
-  /api/v1/empregabilidade/curriculo:
-    put:
-      consumes:
-      - application/json
-      description: Remove as habilidades e comportamentos/atitudes antigos e insere
-        os IDs informados em uma transação
-      parameters:
-      - description: Lista de IDs de áreas atuaçãoXhabilidades e comportamentos/atitudes
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/empregabilidade.CurriculoItensReplaceAll'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Substituir itens do curriculo por CPF
-      tags:
-      - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/{cpf}:
     get:
       description: Retorna o currículo completo de um usuário
@@ -5266,208 +5156,6 @@ paths:
               type: string
             type: object
       summary: Buscar situação e interesses por CPF
-      tags:
-      - empregabilidade-curriculo
-  /api/v1/empregabilidade/curriculo/areas-atuacao-habilidades:
-    get:
-      description: Retorna os vínculos entre áreas de atuação e habilidades associados
-        ao currículo do usuário autenticado via JWT
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/empregabilidade.CurriculoAreaAtuacaoHabilidade'
-            type: array
-        "401":
-          description: Usuário não autenticado
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao buscar áreas de atuação/habilidades do currículo
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Listar áreas de atuação/habilidades do currículo
-      tags:
-      - empregabilidade-curriculo
-    post:
-      consumes:
-      - application/json
-      description: Vincula uma combinação específica de área de atuação e habilidade
-        ao currículo do usuário autenticado via JWT
-      parameters:
-      - description: ID do vínculo entre área de atuação e habilidade
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/empregabilidade.AddAreaAtuacaoHabilidadeRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/empregabilidade.CurriculoAreaAtuacaoHabilidade'
-        "400":
-          description: Dados inválidos
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Usuário não autenticado
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao adicionar área de atuação/habilidade ao currículo
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Adicionar área de atuação/habilidade ao currículo
-      tags:
-      - empregabilidade-curriculo
-  /api/v1/empregabilidade/curriculo/areas-atuacao-habilidades/{id}:
-    delete:
-      description: Remove o vínculo de uma área de atuação/habilidade do currículo
-        do usuário autenticado
-      parameters:
-      - description: ID do vínculo (emp_curriculo_area_atuacao_habilidade)
-        example: 10
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/response.SuccessResponse'
-        "400":
-          description: ID inválido
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Usuário não autenticado
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Vínculo não encontrado ou não pertence ao usuário
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao remover área de atuação/habilidade do currículo
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Remover área de atuação/habilidade do currículo
-      tags:
-      - empregabilidade-curriculo
-  /api/v1/empregabilidade/curriculo/comportamentos-atitudes:
-    get:
-      description: Retorna os comportamentos e atitudes vinculados ao currículo do
-        usuário autenticado via JWT
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/empregabilidade.CurriculoComportamentoAtitudes'
-            type: array
-        "401":
-          description: Usuário não autenticado
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao buscar comportamentos/atitudes do currículo
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Listar comportamentos/atitudes do currículo
-      tags:
-      - empregabilidade-curriculo
-    post:
-      consumes:
-      - application/json
-      description: Vincula um comportamento/atitude específico ao currículo do usuário
-        autenticado via JWT
-      parameters:
-      - description: ID do comportamento/atitude a ser vinculado
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/empregabilidade.AddComportamentoAtitudesRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/empregabilidade.CurriculoComportamentoAtitudes'
-        "400":
-          description: Dados inválidos
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Usuário não autenticado
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao adicionar comportamento/atitude ao currículo
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Adicionar comportamento/atitude ao currículo
-      tags:
-      - empregabilidade-curriculo
-  /api/v1/empregabilidade/curriculo/comportamentos-atitudes/{id}:
-    delete:
-      description: Remove o vínculo de um comportamento/atitude do currículo do usuário
-        autenticado
-      parameters:
-      - description: ID do vínculo (emp_curriculo_comportamento_atitudes)
-        example: 10
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/response.SuccessResponse'
-        "400":
-          description: ID inválido
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Usuário não autenticado
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Vínculo não encontrado ou não pertence ao usuário
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao remover comportamento/atitude do currículo
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Remover comportamento/atitude do currículo
       tags:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/conquistas:
@@ -6201,6 +5889,70 @@ paths:
               type: string
             type: object
       summary: Atualizar formação
+      tags:
+      - empregabilidade-curriculo
+  /api/v1/empregabilidade/curriculo/habilidades-competencias:
+    get:
+      description: Retorna a área única, os conhecimentos dessa área e os comportamentos
+        marcados. Listas vazias não são 404
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.HabilidadesCompetencias'
+        "401":
+          description: Usuário não autenticado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao buscar habilidades e competências
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Obter habilidades e competências do currículo
+      tags:
+      - empregabilidade-curriculo
+    put:
+      consumes:
+      - application/json
+      description: Substitui a área, os conhecimentos dessa área e os comportamentos.
+        Tag fora da área responde 400 e não grava nada
+      parameters:
+      - description: Formulário completo
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.HabilidadesCompetenciasSave'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/empregabilidade.HabilidadesCompetencias'
+        "400":
+          description: Tag fora da área ou body inválido
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Usuário não autenticado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Área ou comportamento inexistente
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao salvar habilidades e competências
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Salvar habilidades e competências do currículo
       tags:
       - empregabilidade-curriculo
   /api/v1/empregabilidade/curriculo/idiomas:
@@ -7085,7 +6837,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/empregabilidade.Habilidade'
+            $ref: '#/definitions/empregabilidade.CatalogoItem'
         "400":
           description: ID inválido
           schema:
@@ -7144,122 +6896,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Atualizar Habilidade
-      tags:
-      - empregabilidade-habilidades
-  /api/v1/empregabilidade/habilidades/{id}/areas-atuacao:
-    put:
-      consumes:
-      - application/json
-      description: |-
-        Substitui em lote o conjunto de áreas de atuação associadas a uma habilidade global
-
-        **Atenção para o campo `area_ids`:**
-        - Funciona como **substituição total (Replace)** para as áreas de atuação vinculadas a cada habilidade.
-        - Enviar `[1, 2, 3]` substitui todas as áreas existentes dessa habilidade pelas IDs fornecidas.
-        - Enviar array vazio `[]` ou omitir remove todos os vínculos de área de atuação da habilidade.
-      parameters:
-      - description: ID da Habilidade
-        example: 10
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Lista de IDs das áreas de atuação
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/empregabilidade.ReplaceAreasHabilidadeRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/response.SuccessResponse'
-        "400":
-          description: Dados ou ID inválidos
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao substituir áreas de atuação
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Substituir Áreas de Atuação da Habilidade
-      tags:
-      - empregabilidade-habilidades
-  /api/v1/empregabilidade/habilidades/{id}/areas-atuacao/{areaId}:
-    delete:
-      description: Remove a relação N:M entre uma habilidade e uma área de atuação
-        sem excluir as entidades
-      parameters:
-      - description: ID da Habilidade
-        example: 10
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ID da Área de Atuação
-        example: 2
-        in: path
-        name: areaId
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/response.SuccessResponse'
-        "400":
-          description: IDs inválidos
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao desvincular área de atuação
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Desvincular Área de Atuação da Habilidade
-      tags:
-      - empregabilidade-habilidades
-    post:
-      description: Associa uma área de atuação existente a uma habilidade global especificada
-      parameters:
-      - description: ID da Habilidade
-        example: 10
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ID da Área de Atuação
-        example: 2
-        in: path
-        name: areaId
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/response.SuccessResponse'
-        "400":
-          description: IDs inválidos
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Erro ao vincular área de atuação
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Vincular Área de Atuação à Habilidade
       tags:
       - empregabilidade-habilidades
   /api/v1/empregabilidade/habilidades/areas-atuacao:
@@ -7332,26 +6968,6 @@ paths:
       summary: Criar Área de Atuação
       tags:
       - empregabilidade-habilidades
-  /api/v1/empregabilidade/habilidades/areas-atuacao-habilidades:
-    get:
-      description: Retorna todos os vínculos cadastrados entre áreas de atuação e
-        habilidades
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/empregabilidade.AreaAtuacaoHabilidade'
-            type: array
-        "500":
-          description: Erro ao buscar áreas de atuação e habilidades
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      summary: Listar vínculos entre Áreas de Atuação e Habilidades
-      tags:
-      - empregabilidade-habilidades
   /api/v1/empregabilidade/habilidades/areas-atuacao/{id}:
     delete:
       description: Remove uma área de atuação cadastrada pelo ID
@@ -7401,7 +7017,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/empregabilidade.AreaAtuacao'
+            $ref: '#/definitions/empregabilidade.CatalogoItem'
         "400":
           description: ID inválido
           schema:
@@ -7460,6 +7076,132 @@ paths:
       security:
       - BearerAuth: []
       summary: Atualizar Área de Atuação
+      tags:
+      - empregabilidade-habilidades
+  /api/v1/empregabilidade/habilidades/areas-atuacao/{id}/habilidades:
+    get:
+      description: Retorna os conhecimentos vinculados à área, com paginação e busca
+        sem acento
+      parameters:
+      - description: ID da Área de Atuação
+        example: 10
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Termo de busca
+        in: query
+        name: q
+        type: string
+      - default: 1
+        description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 'Tamanho da página (default: 20, max: 100)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ListCatalogoPaginatedResponse'
+        "400":
+          description: ID inválido
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Área de atuação não encontrada
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Erro ao buscar conhecimentos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Listar conhecimentos de uma área
+      tags:
+      - empregabilidade-habilidades
+    post:
+      consumes:
+      - application/json
+      description: Cria o par área × conhecimento. O texto do conhecimento continua
+        global
+      parameters:
+      - description: ID da Área de Atuação
+        example: 10
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID do conhecimento
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/empregabilidade.AddHabilidadeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Dados inválidos
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Área ou conhecimento não encontrado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conhecimento já vinculado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Vincular conhecimento à área
+      tags:
+      - empregabilidade-habilidades
+  /api/v1/empregabilidade/habilidades/areas-atuacao/{id}/habilidades/{habilidadeId}:
+    delete:
+      description: Remove o par. Currículos que marcaram esse par perdem o vínculo
+        em cascata
+      parameters:
+      - description: ID da Área de Atuação
+        example: 10
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID do conhecimento
+        example: 2
+        in: path
+        name: habilidadeId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: ID inválido
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Vínculo não encontrado
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Desvincular conhecimento da área
       tags:
       - empregabilidade-habilidades
   /api/v1/empregabilidade/idiomas:

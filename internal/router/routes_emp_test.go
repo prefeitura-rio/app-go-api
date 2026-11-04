@@ -587,11 +587,10 @@ func TestEmpCurriculoSectionRouteCount(t *testing.T) {
 		// 5 sections × 6 routes = 30 routes
 		// Plus 2 routes for situacao-interesses: PUT, GET/:cpf
 		// Plus 1 route for GET/:cpf (curriculo completo)
-		// Plus 1 route for PUT/:cpf (curriculo completo)
 		// Plus 2 routes for banco-curriculos: GET/:cpf, PUT/:cpf
-		// Total: 30 + 2 + 2 + 2 = 36 routes
-		if len(routes) != 36 {
-			t.Errorf("Expected 36 curriculo routes, got %d", len(routes))
+		// Total: 30 + 2 + 1 + 2 = 35 routes
+		if len(routes) != 35 {
+			t.Errorf("Expected 35 curriculo routes, got %d", len(routes))
 		}
 	})
 }
