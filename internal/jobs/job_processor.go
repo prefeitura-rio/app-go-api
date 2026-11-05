@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -14,13 +15,20 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
+// defaultHeartbeatInterval is how often a running job renews updated_at when
+// SetHeartbeatInterval is not called.
+const defaultHeartbeatInterval = time.Minute
+
 type JobProcessor struct {
-	db               *gorm.DB
-	jobService       *services.JobService
-	inscricaoService *services.InscricaoService
-	cursoService     *services.CursoService
-	activeJobs       map[uuid.UUID]context.CancelFunc
-	mu               sync.RWMutex
+	db                *gorm.DB
+	jobService        *services.JobService
+	inscricaoService  *services.InscricaoService
+	cursoService      *services.CursoService
+	activeJobs        map[uuid.UUID]context.CancelFunc
+	mu                sync.RWMutex
+	heartbeatInterval time.Duration
+	// processors runs each job type; tests replace an entry to control a run.
+	processors map[models.JobType]func(context.Context, *models.Job) error
 }
 
 func NewJobProcessor(
@@ -29,12 +37,25 @@ func NewJobProcessor(
 	inscricaoService *services.InscricaoService,
 	cursoService *services.CursoService,
 ) *JobProcessor {
-	return &JobProcessor{
-		db:               db,
-		jobService:       jobService,
-		inscricaoService: inscricaoService,
-		cursoService:     cursoService,
-		activeJobs:       make(map[uuid.UUID]context.CancelFunc),
+	p := &JobProcessor{
+		db:                db,
+		jobService:        jobService,
+		inscricaoService:  inscricaoService,
+		cursoService:      cursoService,
+		activeJobs:        make(map[uuid.UUID]context.CancelFunc),
+		heartbeatInterval: defaultHeartbeatInterval,
+	}
+	p.processors = map[models.JobType]func(context.Context, *models.Job) error{
+		models.JobTypeEnrollmentImport: p.processEnrollmentImport,
+	}
+	return p
+}
+
+// SetHeartbeatInterval sets how often a running job renews updated_at. Call it
+// before starting jobs; a non-positive value keeps the current interval.
+func (p *JobProcessor) SetHeartbeatInterval(interval time.Duration) {
+	if interval > 0 {
+		p.heartbeatInterval = interval
 	}
 }
 
@@ -67,12 +88,24 @@ func (p *JobProcessor) ProcessJob(jobID uuid.UUID) error {
 	}
 	job.Status = models.JobStatusProcessing
 
+	// Renew the job while it runs, so the stale job reaper of any pod can tell
+	// it apart from a job whose pod stopped in the middle.
+	heartbeatCtx, stopHeartbeat := context.WithCancel(ctx)
+	heartbeatDone := make(chan struct{})
+	go func() {
+		defer close(heartbeatDone)
+		p.heartbeat(heartbeatCtx, jobID, p.heartbeatInterval)
+	}()
+	defer func() {
+		stopHeartbeat()
+		<-heartbeatDone
+	}()
+
 	var processingErr error
 
-	switch job.Type {
-	case models.JobTypeEnrollmentImport:
-		processingErr = p.processEnrollmentImport(ctx, job)
-	default:
+	if process, ok := p.processors[job.Type]; ok {
+		processingErr = process(ctx, job)
+	} else {
 		processingErr = fmt.Errorf("tipo de job desconhecido: %s", job.Type)
 	}
 
@@ -113,6 +146,66 @@ func (p *JobProcessor) processEnrollmentImport(ctx context.Context, job *models.
 		p.cursoService,
 	)
 	return processor.Process(ctx, job)
+}
+
+// heartbeat renews the job every interval until ctx is cancelled.
+func (p *JobProcessor) heartbeat(ctx context.Context, jobID uuid.UUID, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := p.jobService.Heartbeat(ctx, jobID); err != nil && ctx.Err() == nil {
+				log.Printf("Erro ao renovar job %s: %v", jobID, err)
+			}
+		}
+	}
+}
+
+// ReapStaleJobs closes as failed the pending or processing jobs not renewed
+// within staleAfter: their pod stopped before finishing (deploy, restart, OOM,
+// scale down), so they would otherwise stay "processing" forever.
+func (p *JobProcessor) ReapStaleJobs(ctx context.Context, staleAfter time.Duration) (int64, error) {
+	return p.jobService.FailStaleJobs(ctx, staleAfter)
+}
+
+// RunStaleJobReaper runs ReapStaleJobs at startup and then every interval
+// until ctx is cancelled. Every pod may run it: the update is conditional.
+func (p *JobProcessor) RunStaleJobReaper(ctx context.Context, interval, staleAfter time.Duration) {
+	if interval <= 0 || staleAfter <= 0 {
+		log.Printf("[JobReaper] desativado: intervalo (%s) e limite (%s) devem ser positivos", interval, staleAfter)
+		return
+	}
+
+	reap := func() {
+		n, err := p.ReapStaleJobs(ctx, staleAfter)
+		if err != nil {
+			if ctx.Err() == nil {
+				log.Printf("[JobReaper] erro ao encerrar jobs interrompidos: %v", err)
+			}
+			return
+		}
+		if n > 0 {
+			log.Printf("[JobReaper] %d job(s) interrompido(s) marcado(s) como failed", n)
+		}
+	}
+
+	reap()
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			reap()
+		}
+	}
 }
 
 // StartJob is a helper to start a job in a goroutine

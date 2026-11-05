@@ -111,6 +111,11 @@ func SetupRouter(ctx context.Context, cfg *config.AppConfig) (*gin.Engine, error
 	}
 
 	jobs.InitializeJobProcessor(app.DB, app.JobRepo, app.InscricaoRepo, app.CursoRepo)
+	jobs.GlobalJobProcessor.SetHeartbeatInterval(cfg.Jobs.HeartbeatInterval)
+	// Close as failed the import jobs whose pod stopped in the middle (deploy,
+	// restart, OOM, scale down) instead of leaving them "processing" forever.
+	go jobs.GlobalJobProcessor.RunStaleJobReaper(ctx, cfg.Jobs.ReaperInterval, cfg.Jobs.StaleAfter)
+	log.Printf("[Router] Stale job reaper started (interval: %v, stale after: %v)", cfg.Jobs.ReaperInterval, cfg.Jobs.StaleAfter)
 
 	apiV1 := r.Group("/api/v1")
 	apiV1.Use(middlewares.ExtractUserContext(cfg.Heimdall.BaseURL))

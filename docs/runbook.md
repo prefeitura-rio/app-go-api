@@ -232,11 +232,15 @@ continuar compatível com o schema novo (expand/contract). Veja a seção 4.3 an
 - O arquivo é salvo num temporário **do próprio pod** e processado numa goroutine **do mesmo pod**.
   Status na tabela `jobs`: `pending` → `processing` → `completed` | `failed`, com `progress`,
   `success_count`, `error_count`, erros por linha em `errors` e o resumo em `result`.
-- Se o pod morrer no meio (deploy, reinício, OOM, escala para baixo), o job **fica em `processing`
-  para sempre** e o arquivo se perde. Não há retomada automática.
+- Se o pod morrer no meio (deploy, reinício, OOM, escala para baixo), o arquivo se perde e não há
+  retomada. O job em execução renova `updated_at` a cada `JOB_HEARTBEAT_INTERVAL` (1 min); a varredura
+  de jobs interrompidos (`[JobReaper]` nos logs, na inicialização de cada pod e a cada
+  `JOB_REAPER_INTERVAL`, 2 min) marca como `failed` os jobs `pending`/`processing` sem renovação há mais
+  de `JOB_STALE_AFTER` (10 min), com `completed_at` e o motivo "Processamento interrompido…" em `errors`
+  (`line` 0).
 - **Reprocessar:** peça a quem importou para reenviar o mesmo arquivo. As linhas já importadas voltam
   como erro "CPF já inscrito neste curso" (contadas em `duplicate_count`) e não duplicam inscrição.
-- Para achar jobs presos (consulta de leitura, sem dados pessoais):
+- Para achar jobs presos que a varredura ainda não encerrou (consulta de leitura, sem dados pessoais):
 
   ```sql
   SELECT id, status, progress, total_records, success_count, error_count, updated_at

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -94,6 +95,45 @@ func (r *JobRepository) UpdateProgress(ctx context.Context, id uuid.UUID, progre
 	}
 
 	return nil
+}
+
+// Touch renews updated_at of a job that is still processing. It is the
+// heartbeat that tells FailStale the job is alive in some pod.
+func (r *JobRepository) Touch(ctx context.Context, id uuid.UUID) error {
+	result := r.db.WithContext(ctx).
+		Model(&models.Job{}).
+		Where("id = ? AND status = ?", id, models.JobStatusProcessing).
+		UpdateColumn("updated_at", time.Now())
+
+	if result.Error != nil {
+		return fmt.Errorf("erro ao renovar job: %w", result.Error)
+	}
+
+	return nil
+}
+
+// FailStale marks as failed, in a single conditional UPDATE, every pending or
+// processing job not updated since cutoff (its pod stopped before finishing),
+// recording jobErrors as the reason. It is safe to run from several pods at
+// once and returns how many jobs it closed.
+func (r *JobRepository) FailStale(ctx context.Context, cutoff time.Time, jobErrors datatypes.JSON) (int64, error) {
+	now := time.Now()
+	result := r.db.WithContext(ctx).
+		Model(&models.Job{}).
+		Where("status IN ?", []models.JobStatus{models.JobStatusPending, models.JobStatusProcessing}).
+		Where("updated_at < ?", cutoff).
+		Updates(map[string]interface{}{
+			"status":       models.JobStatusFailed,
+			"errors":       jobErrors,
+			"completed_at": &now,
+			"updated_at":   now,
+		})
+
+	if result.Error != nil {
+		return 0, fmt.Errorf("erro ao encerrar jobs interrompidos: %w", result.Error)
+	}
+
+	return result.RowsAffected, nil
 }
 
 func (r *JobRepository) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Job, int, error) {
