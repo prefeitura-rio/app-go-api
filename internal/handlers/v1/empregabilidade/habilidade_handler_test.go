@@ -112,23 +112,18 @@ func (m *mockHabilidadeRepo) ListAreasAtuacao(_ context.Context, _ empmodels.Are
 	return m.areasAtuacao, m.totalArea, nil
 }
 
-func (m *mockHabilidadeRepo) AttachAreaAtuacao(_ context.Context, _, _ int64) error {
-	return m.err
-}
-
-func (m *mockHabilidadeRepo) DetachAreaAtuacao(_ context.Context, _, _ int64) error {
-	return m.err
-}
-
-func (m *mockHabilidadeRepo) ListAreaAtuacaoHabilidades(_ context.Context) ([]*empmodels.AreaAtuacaoHabilidade, error) {
+func (m *mockHabilidadeRepo) ListHabilidadesDaArea(_ context.Context, _ int64, _ empmodels.HabilidadeFilter, _, _ int) ([]*empmodels.CatalogoItem, int64, error) {
 	if m.err != nil {
-		return nil, m.err
+		return nil, 0, m.err
 	}
-
-	return m.areaAtuacaoHabilidades, nil
+	return []*empmodels.CatalogoItem{{ID: 1, Nome: "Comunicação"}}, 1, nil
 }
 
-func (m *mockHabilidadeRepo) ReplaceAreasAtuacao(_ context.Context, _ int64, _ []int64) error {
+func (m *mockHabilidadeRepo) AttachHabilidadeNaArea(_ context.Context, _, _ int64) error {
+	return m.err
+}
+
+func (m *mockHabilidadeRepo) DetachHabilidadeDaArea(_ context.Context, _, _ int64) error {
 	return m.err
 }
 
@@ -151,14 +146,13 @@ func setupHabilidadeRouter(hRepo services.HabilidadeRepositoryInterface) *gin.En
 	r.DELETE("/habilidades/:id", h.DeleteHabilidade)
 
 	r.POST("/habilidades/areas-atuacao", h.CreateAreaAtuacao)
-	r.POST("/habilidades/:id/areas-atuacao/:areaId", h.AttachAreaAtuacao)
 	r.GET("/habilidades/areas-atuacao", h.ListAreasAtuacao)
-	r.GET("/habilidades/areas-atuacao-habilidades", h.ListAreaAtuacaoHabilidades)
 	r.GET("/habilidades/areas-atuacao/:id", h.GetAreaAtuacaoByID)
+	r.GET("/habilidades/areas-atuacao/:id/habilidades", h.ListHabilidadesDaArea)
+	r.POST("/habilidades/areas-atuacao/:id/habilidades", h.AttachHabilidadeNaArea)
 	r.PUT("/habilidades/areas-atuacao/:id", h.UpdateAreaAtuacao)
-	r.PUT("/habilidades/:id/areas-atuacao", h.ReplaceAreasAtuacao)
 	r.DELETE("/habilidades/areas-atuacao/:id", h.DeleteAreaAtuacao)
-	r.DELETE("/habilidades/:id/areas-atuacao/:areaId", h.DetachAreaAtuacao)
+	r.DELETE("/habilidades/areas-atuacao/:id/habilidades/:habilidadeId", h.DetachHabilidadeDaArea)
 
 	return r
 }
@@ -280,59 +274,35 @@ func TestGetHabilidadeByID_InternalServerError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
-func TestDetachAreaAtuacao_InvalidHabilidadeID(t *testing.T) {
+func TestDetachHabilidadeDaArea_InvalidAreaID(t *testing.T) {
 	repo := &mockHabilidadeRepo{}
 	r := setupHabilidadeRouter(repo)
 
-	req := httptest.NewRequest(
-		http.MethodDelete,
-		"/habilidades/abc/areas-atuacao/2",
-		nil,
-	)
+	req := httptest.NewRequest(http.MethodDelete, "/habilidades/areas-atuacao/abc/habilidades/2", nil)
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(
-		t,
-		w.Body.String(),
-		"ID de habilidade inválido",
-	)
+	assert.Contains(t, w.Body.String(), "ID inválido")
 }
 
-func TestDetachAreaAtuacao_InvalidAreaAtuacaoID(t *testing.T) {
+func TestDetachHabilidadeDaArea_InvalidHabilidadeID(t *testing.T) {
 	repo := &mockHabilidadeRepo{}
 	r := setupHabilidadeRouter(repo)
 
-	req := httptest.NewRequest(
-		http.MethodDelete,
-		"/habilidades/10/areas-atuacao/abc",
-		nil,
-	)
+	req := httptest.NewRequest(http.MethodDelete, "/habilidades/areas-atuacao/10/habilidades/abc", nil)
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(
-		t,
-		w.Body.String(),
-		"ID de área de atuação inválido",
-	)
+	assert.Contains(t, w.Body.String(), "ID de conhecimento inválido")
 }
 
-func TestDetachAreaAtuacao_InternalServerError(t *testing.T) {
-	repo := &mockHabilidadeRepo{
-		err: errors.New("erro ao desvincular área de atuação"),
-	}
+func TestDetachHabilidadeDaArea_InternalServerError(t *testing.T) {
+	repo := &mockHabilidadeRepo{err: errors.New("erro ao desvincular")}
 	r := setupHabilidadeRouter(repo)
 
-	req := httptest.NewRequest(
-		http.MethodDelete,
-		"/habilidades/10/areas-atuacao/2",
-		nil,
-	)
+	req := httptest.NewRequest(http.MethodDelete, "/habilidades/areas-atuacao/10/habilidades/2", nil)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -341,7 +311,7 @@ func TestDetachAreaAtuacao_InternalServerError(t *testing.T) {
 	assert.Contains(
 		t,
 		w.Body.String(),
-		"Erro ao desvincular área de atuação",
+		"Erro ao desvincular conhecimento da área",
 	)
 }
 
@@ -680,173 +650,77 @@ func TestDeleteAreaAtuacao_InternalServerError(t *testing.T) {
 // Tests: Relacionamentos (Habilidade <-> Área de Atuação)
 // ──────────────────────────────────────────────────────────────────────────────
 
-func TestAttachAreaAtuacao_Success(t *testing.T) {
+func TestAttachHabilidadeNaArea_Success(t *testing.T) {
 	repo := &mockHabilidadeRepo{}
 	r := setupHabilidadeRouter(repo)
 
-	req := httptest.NewRequest(http.MethodPost, "/habilidades/10/areas-atuacao/2", nil)
+	body := bytes.NewBufferString(`{"id_habilidade":2}`)
+	req := httptest.NewRequest(http.MethodPost, "/habilidades/areas-atuacao/10/habilidades", body)
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
-func TestAttachAreaAtuacao_InvalidHabilidadeID(t *testing.T) {
+func TestAttachHabilidadeNaArea_InvalidAreaID(t *testing.T) {
 	repo := &mockHabilidadeRepo{}
 	r := setupHabilidadeRouter(repo)
 
-	req := httptest.NewRequest(http.MethodPost, "/habilidades/abc/areas-atuacao/2", nil)
+	body := bytes.NewBufferString(`{"id_habilidade":2}`)
+	req := httptest.NewRequest(http.MethodPost, "/habilidades/areas-atuacao/abc/habilidades", body)
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestDetachAreaAtuacao_Success(t *testing.T) {
+func TestAttachHabilidadeNaArea_NegativeHabilidadeID(t *testing.T) {
 	repo := &mockHabilidadeRepo{}
 	r := setupHabilidadeRouter(repo)
 
-	req := httptest.NewRequest(http.MethodDelete, "/habilidades/10/areas-atuacao/2", nil)
+	body := bytes.NewBufferString(`{"id_habilidade":-1}`)
+	req := httptest.NewRequest(http.MethodPost, "/habilidades/areas-atuacao/10/habilidades", body)
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestAttachAreaAtuacao_InvalidAreaAtuacaoID(t *testing.T) {
-	repo := &mockHabilidadeRepo{}
-	r := setupHabilidadeRouter(repo)
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/habilidades/10/areas-atuacao/abc",
-		nil,
-	)
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(
-		t,
-		w.Body.String(),
-		"ID de área de atuação inválido",
-	)
 }
 
-func TestAttachAreaAtuacao_InternalServerError(t *testing.T) {
-	repo := &mockHabilidadeRepo{
-		err: errors.New("erro ao vincular área de atuação"),
-	}
-	r := setupHabilidadeRouter(repo)
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/habilidades/10/areas-atuacao/2",
-		nil,
-	)
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(
-		t,
-		w.Body.String(),
-		"Erro ao vincular área de atuação",
-	)
-}
-
-func TestReplaceAreasAtuacao_Success(t *testing.T) {
+func TestDetachHabilidadeDaArea_Success(t *testing.T) {
 	repo := &mockHabilidadeRepo{}
 	r := setupHabilidadeRouter(repo)
 
-	body := bytes.NewBufferString(`{"area_ids": [1, 2, 3]}`)
-	req := httptest.NewRequest(http.MethodPut, "/habilidades/10/areas-atuacao", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequest(http.MethodDelete, "/habilidades/areas-atuacao/10/habilidades/2", nil)
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestReplaceAreasAtuacao_Error(t *testing.T) {
-	repo := &mockHabilidadeRepo{err: fmt.Errorf("db error")}
+func TestListHabilidadesDaArea_Success(t *testing.T) {
+	repo := &mockHabilidadeRepo{}
 	r := setupHabilidadeRouter(repo)
 
-	body := bytes.NewBufferString(`{"area_ids": [1, 2]}`)
-	req := httptest.NewRequest(http.MethodPut, "/habilidades/10/areas-atuacao", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequest(http.MethodGet, "/habilidades/areas-atuacao/10/habilidades?q=cao", nil)
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestListAreaAtuacaoHabilidades_Success(t *testing.T) {
-	repo := &mockHabilidadeRepo{
-		areaAtuacaoHabilidades: []*empmodels.AreaAtuacaoHabilidade{
-			{
-				ID:            1,
-				IDHabilidade:  10,
-				IDAreaAtuacao: 20,
-			},
-			{
-				ID:            2,
-				IDHabilidade:  11,
-				IDAreaAtuacao: 20,
-			},
-		},
-	}
-
-	r := setupHabilidadeRouter(repo)
-
-	req := httptest.NewRequest(
-		http.MethodGet,
-		"/habilidades/areas-atuacao-habilidades",
-		nil,
-	)
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
 	require.Equal(t, http.StatusOK, w.Code)
 
-	var response []*empmodels.AreaAtuacaoHabilidade
-
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	require.NoError(t, err)
-	require.Len(t, response, 2)
-
-	assert.Equal(t, int64(1), response[0].ID)
-	assert.Equal(t, int64(10), response[0].IDHabilidade)
-	assert.Equal(t, int64(20), response[0].IDAreaAtuacao)
-
-	assert.Equal(t, int64(2), response[1].ID)
-	assert.Equal(t, int64(11), response[1].IDHabilidade)
-	assert.Equal(t, int64(20), response[1].IDAreaAtuacao)
+	var response struct {
+		Data []empmodels.CatalogoItem `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	require.Len(t, response.Data, 1)
+	assert.Equal(t, int64(1), response.Data[0].ID)
+	assert.Equal(t, "Comunicação", response.Data[0].Nome)
 }
 
-func TestListAreaAtuacaoHabilidades_InternalServerError(t *testing.T) {
-	repo := &mockHabilidadeRepo{
-		err: errors.New("erro de banco"),
-	}
-
+func TestListHabilidadesDaArea_InternalServerError(t *testing.T) {
+	repo := &mockHabilidadeRepo{err: errors.New("erro de banco")}
 	r := setupHabilidadeRouter(repo)
 
-	req := httptest.NewRequest(
-		http.MethodGet,
-		"/habilidades/areas-atuacao-habilidades",
-		nil,
-	)
+	req := httptest.NewRequest(http.MethodGet, "/habilidades/areas-atuacao/10/habilidades", nil)
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
-
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(
-		t,
-		w.Body.String(),
-		"Erro ao buscar áreas de atuação e habilidades",
-	)
+	assert.Contains(t, w.Body.String(), "Erro ao buscar conhecimentos da área")
 }

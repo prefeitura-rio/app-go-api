@@ -275,9 +275,9 @@ type HabilidadeRepositoryInterface interface {
 	ListAreasAtuacao(ctx context.Context, filter modelsEmp.AreaAtuacaoFilter, limit, offset int) ([]*modelsEmp.AreaAtuacao, int64, error)
 
 	// Relacionamento N:N entre Habilidade e Área de Atuação
-	AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
-	DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error
-	ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error
+	ListHabilidadesDaArea(ctx context.Context, areaID int64, filter modelsEmp.HabilidadeFilter, limit, offset int) ([]*modelsEmp.CatalogoItem, int64, error)
+	AttachHabilidadeNaArea(ctx context.Context, areaID, habilidadeID int64) error
+	DetachHabilidadeDaArea(ctx context.Context, areaID, habilidadeID int64) error
 }
 
 // ComportamentoAtitudesRepositoryInterface defines the interface for Comportamento e Atitudes Service

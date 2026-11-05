@@ -21,14 +21,6 @@ type UpdateComportamentoAtitudesRequest struct {
 	Nome string `json:"nome" binding:"required" example:"Trabalho em Equipe e Colaboração"`
 }
 
-type AddComportamentoAtitudesRequest struct {
-	IDComportamentoAtitudes int64 `json:"id_comportamento_atitudes" binding:"required" example:"10"`
-}
-
-type ReplaceComportamentoAtitudesRequest struct {
-	Comportamentos []*empregabilidade.CurriculoComportamentoAtitudes `json:"comportamentos" binding:"required"`
-}
-
 // Estrutura do Handler
 
 type ComportamentoAtitudesHandler struct {
@@ -54,6 +46,7 @@ func NewComportamentoAtitudesHandler(caService *service.ComportamentoAtitudesSer
 // @Param        request  body      CreateComportamentoAtitudesRequest  true  "Dados do comportamento/atitude"
 // @Success      201      {object}  map[string]int64
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao criar comportamento/atitude"
 // @Security     BearerAuth
@@ -84,7 +77,7 @@ func (h *ComportamentoAtitudesHandler) CreateComportamentoAtitudes(c *gin.Contex
 // @Tags         empregabilidade-comportamentos-atitudes
 // @Produce      json
 // @Param        id   path      int  true  "ID do Comportamento/Atitude" example(10)
-// @Success      200  {object}  empregabilidade.ComportamentoAtitudes
+// @Success      200  {object}  empregabilidade.CatalogoItem
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      404  {object}  response.ErrorResponse "Comportamento/atitude não encontrado"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao buscar comportamento/atitude"
@@ -107,7 +100,7 @@ func (h *ComportamentoAtitudesHandler) GetComportamentoAtitudesByID(c *gin.Conte
 		return
 	}
 
-	c.JSON(http.StatusOK, item)
+	c.JSON(http.StatusOK, empregabilidade.CatalogoItem{ID: item.ID, Nome: item.Nome})
 }
 
 // UpdateComportamentoAtitudes atualiza os dados de um comportamento/atitude global.
@@ -120,6 +113,7 @@ func (h *ComportamentoAtitudesHandler) GetComportamentoAtitudesByID(c *gin.Conte
 // @Param        request  body      UpdateComportamentoAtitudesRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
+// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404      {object}  response.ErrorResponse "Comportamento/atitude não encontrado"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar comportamento/atitude"
@@ -160,6 +154,7 @@ func (h *ComportamentoAtitudesHandler) UpdateComportamentoAtitudes(c *gin.Contex
 // @Param        id   path      int  true  "ID do Comportamento/Atitude" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
+// @Failure      403  {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404  {object}  response.ErrorResponse "Comportamento/atitude não encontrado"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir comportamento/atitude"
 // @Security     BearerAuth
@@ -192,20 +187,8 @@ func (h *ComportamentoAtitudesHandler) DeleteComportamentoAtitudes(c *gin.Contex
 // @Failure      500       {object}  response.ErrorResponse "Erro ao buscar comportamentos/atitudes"
 // @Router       /api/v1/empregabilidade/comportamentos-atitudes [get]
 func (h *ComportamentoAtitudesHandler) ListComportamentoAtitudes(c *gin.Context) {
-	termo := c.Query("q")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
-
-	filter := empregabilidade.ComportamentoAtitudesFilter{
-		Search: termo,
-	}
+	page, pageSize := parsePage(c)
+	filter := empregabilidade.ComportamentoAtitudesFilter{Search: c.Query("q")}
 
 	comportamentos, total, err := h.comportamentoAtitudesService.ListComportamentoAtitudes(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
@@ -213,5 +196,5 @@ func (h *ComportamentoAtitudesHandler) ListComportamentoAtitudes(c *gin.Context)
 		return
 	}
 
-	response.PaginatedJSON(c, http.StatusOK, comportamentos, total, page, pageSize)
+	response.PaginatedJSON(c, http.StatusOK, catalogoFromComportamentos(comportamentos), total, page, pageSize)
 }
