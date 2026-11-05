@@ -23,16 +23,24 @@ func TestNewCurriculoService(t *testing.T) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 type mockCurriculoRepo struct {
-	formacoes               []*empregabilidade.CurriculoFormacao
-	idiomas                 []*empregabilidade.CurriculoIdioma
-	area_atuacao_habilidade []*empregabilidade.CurriculoAreaAtuacaoHabilidade
-	comportamento_atitudes  []*empregabilidade.CurriculoComportamentoAtitudes
-	cursos                  []*empregabilidade.CurriculoCursoComplementar
-	experiencias            []*empregabilidade.CurriculoExperiencia
-	conquistas              []*empregabilidade.CurriculoConquista
-	situacao                *empregabilidade.CurriculoSituacaoInteresses
-	perfil                  *empregabilidade.CurriculoPerfil
-	err                     error
+	formacoes        []*empregabilidade.CurriculoFormacao
+	idiomas          []*empregabilidade.CurriculoIdioma
+	habilidades      *empregabilidade.HabilidadesCompetencias
+	areaExists       bool
+	pivots           map[int64]int64
+	comportamentoIDs []int64
+	cursos           []*empregabilidade.CurriculoCursoComplementar
+	experiencias     []*empregabilidade.CurriculoExperiencia
+	conquistas       []*empregabilidade.CurriculoConquista
+	situacao         *empregabilidade.CurriculoSituacaoInteresses
+	perfil           *empregabilidade.CurriculoPerfil
+	err              error
+
+	replaceCalled           bool
+	replaceCPF              string
+	replaceAreaID           *int64
+	replacePivotIDs         []int64
+	replaceComportamentoIDs []int64
 }
 
 func (m *mockCurriculoRepo) CreateFormacao(_ context.Context, _ *empregabilidade.CurriculoFormacao) (uuid.UUID, error) {
@@ -179,23 +187,47 @@ func (m *mockCurriculoRepo) ReplaceAllIdiomasByCPF(_ context.Context, _ string, 
 	return m.err
 }
 
-func (m *mockCurriculoRepo) ReplaceAllItensCurriculoByCPF(_ context.Context, _ string, _ *empregabilidade.CurriculoItensReplaceAll) error {
+func (m *mockCurriculoRepo) AreaAtuacaoExists(_ context.Context, _ int64) (bool, error) {
+	return m.areaExists, nil
+}
+
+func (m *mockCurriculoRepo) PivotIDsDaArea(_ context.Context, _ int64, _ []int64) (map[int64]int64, error) {
+	if m.pivots == nil {
+		return map[int64]int64{}, m.err
+	}
+	return m.pivots, nil
+}
+
+func (m *mockCurriculoRepo) ExistingComportamentoIDs(_ context.Context, _ []int64) ([]int64, error) {
+	if m.comportamentoIDs == nil {
+		return []int64{}, nil
+	}
+	return m.comportamentoIDs, nil
+}
+
+func (m *mockCurriculoRepo) ReplaceHabilidadesCompetencias(_ context.Context, cpf string, areaID *int64, pivotIDs, comportamentoIDs []int64) error {
+	m.replaceCalled = true
+	m.replaceCPF = cpf
+	m.replaceAreaID = areaID
+	m.replacePivotIDs = append([]int64(nil), pivotIDs...)
+	m.replaceComportamentoIDs = append([]int64(nil), comportamentoIDs...)
 	return m.err
+}
+
+func (m *mockCurriculoRepo) GetHabilidadesCompetencias(_ context.Context, _ string) (*empregabilidade.HabilidadesCompetencias, error) {
+	if m.habilidades != nil {
+		return m.habilidades, m.err
+	}
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &empregabilidade.HabilidadesCompetencias{
+		Conhecimentos:          []*empregabilidade.CatalogoItem{},
+		ComportamentosAtitudes: []*empregabilidade.CatalogoItem{},
+	}, nil
 }
 
 func (m *mockCurriculoRepo) ReplaceAllCursosComplementaresByCPF(_ context.Context, _ string, _ []*empregabilidade.CurriculoCursoComplementar) error {
-	return m.err
-}
-
-func (m *mockCurriculoRepo) ListAreaAtuacaoHabilidadeDoCurriculoByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoAreaAtuacaoHabilidade, error) {
-	return m.area_atuacao_habilidade, m.err
-}
-
-func (m *mockCurriculoRepo) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(_ context.Context, _ *empregabilidade.CurriculoAreaAtuacaoHabilidade) error {
-	return m.err
-}
-
-func (m *mockCurriculoRepo) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(_ context.Context, _ int64, _ string) error {
 	return m.err
 }
 
@@ -209,18 +241,6 @@ func (m *mockCurriculoRepo) GetSituacaoInteressesByCPF(_ context.Context, _ stri
 
 func (m *mockCurriculoRepo) GetPerfilByCPF(_ context.Context, _ string) (*empregabilidade.CurriculoPerfil, error) {
 	return m.perfil, m.err
-}
-
-func (m *mockCurriculoRepo) AddComportamentoAtitudesAoCurriculo(_ context.Context, _ *empregabilidade.CurriculoComportamentoAtitudes) error {
-	return m.err
-}
-
-func (m *mockCurriculoRepo) DetachComportamentoAtitudesDoCurriculo(_ context.Context, _ *empregabilidade.CurriculoComportamentoAtitudes) error {
-	return m.err
-}
-
-func (m *mockCurriculoRepo) ListComportamentoAtitudesByCPF(_ context.Context, _ string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
-	return m.comportamento_atitudes, m.err
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -274,19 +294,11 @@ func (m *mockCurriculoRepoWithSequentialErrors) GetSituacaoInteressesByCPF(ctx c
 	return m.mockCurriculoRepo.GetSituacaoInteressesByCPF(ctx, cpf)
 }
 
-func (m *mockCurriculoRepoWithSequentialErrors) ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoAreaAtuacaoHabilidade, error) {
-	if m.step == 7 {
-		return nil, errors.New("área de atuação/habilidade error")
+func (m *mockCurriculoRepoWithSequentialErrors) GetHabilidadesCompetencias(ctx context.Context, cpf string) (*empregabilidade.HabilidadesCompetencias, error) {
+	if m.step == 7 || m.step == 8 {
+		return nil, errors.New("habilidades e competências error")
 	}
-
-	return m.mockCurriculoRepo.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, cpf)
-}
-
-func (m *mockCurriculoRepoWithSequentialErrors) ListComportamentoAtitudesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
-	if m.step == 8 {
-		return nil, errors.New("comportamento error")
-	}
-	return m.mockCurriculoRepo.ListComportamentoAtitudesByCPF(ctx, cpf)
+	return m.mockCurriculoRepo.GetHabilidadesCompetencias(ctx, cpf)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -424,186 +436,174 @@ func TestCurriculoService_ListIdiomasByCPF(t *testing.T) {
 	assert.Len(t, result, 1)
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Tests: Habilidades e Comportamentos
-// ──────────────────────────────────────────────────────────────────────────────
+func TestCurriculoService_GetHabilidadesCompetencias(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		saved := &empregabilidade.HabilidadesCompetencias{
+			AreaAtuacao: &empregabilidade.CatalogoItem{ID: 10, Nome: "Engenharia"},
+		}
+		repo := &mockCurriculoRepo{habilidades: saved}
+		svc := services.NewCurriculoServiceWithInterface(repo)
+		got, err := svc.GetHabilidadesCompetencias(context.Background(), " 12345678900 ")
+		require.NoError(t, err)
+		require.NotNil(t, got.AreaAtuacao)
+		assert.Equal(t, "Engenharia", got.AreaAtuacao.Nome)
+	})
 
-func TestCurriculoService_ListAreaAtuacaoHabilidadeDoCurriculoByCPF(t *testing.T) {
-	areaAtuacaoHabilidadeMock := []*empregabilidade.CurriculoAreaAtuacaoHabilidade{
-		{
-			CPF:                     "12345678900",
-			IDAreaAtuacaoHabilidade: 10,
+	t.Run("cpf vazio", func(t *testing.T) {
+		repo := &mockCurriculoRepo{}
+		svc := services.NewCurriculoServiceWithInterface(repo)
+		_, err := svc.GetHabilidadesCompetencias(context.Background(), "  ")
+		assert.EqualError(t, err, "CPF é obrigatório")
+	})
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias(t *testing.T) {
+	areaID := int64(10)
+	saved := &empregabilidade.HabilidadesCompetencias{
+		AreaAtuacao:            &empregabilidade.CatalogoItem{ID: areaID, Nome: "Engenharia"},
+		Conhecimentos:          []*empregabilidade.CatalogoItem{{ID: 1, Nome: "Gestão de projetos"}},
+		ComportamentosAtitudes: []*empregabilidade.CatalogoItem{{ID: 4, Nome: "Proatividade"}},
+	}
+	repo := &mockCurriculoRepo{
+		areaExists:       true,
+		pivots:           map[int64]int64{1: 100},
+		comportamentoIDs: []int64{4},
+		habilidades:      saved,
+	}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		IDAreaAtuacao:            &areaID,
+		HabilidadeIDs:            []int64{1, 1},
+		ComportamentoAtitudesIDs: []int64{4},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result.AreaAtuacao)
+	assert.Equal(t, "Engenharia", result.AreaAtuacao.Nome)
+	require.Len(t, result.Conhecimentos, 1)
+	require.True(t, repo.replaceCalled)
+	assert.Equal(t, "12345678900", repo.replaceCPF)
+	require.NotNil(t, repo.replaceAreaID)
+	assert.Equal(t, areaID, *repo.replaceAreaID)
+	assert.Equal(t, []int64{100}, repo.replacePivotIDs)
+	assert.Equal(t, []int64{4}, repo.replaceComportamentoIDs)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_TagForaDaArea(t *testing.T) {
+	areaID := int64(10)
+	repo := &mockCurriculoRepo{areaExists: true, pivots: map[int64]int64{}}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		IDAreaAtuacao: &areaID,
+		HabilidadeIDs: []int64{99},
+	})
+	assert.Nil(t, result)
+	assert.EqualError(t, err, "conhecimento não pertence à área de atuação")
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_AreaInexistente(t *testing.T) {
+	areaID := int64(10)
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		IDAreaAtuacao: &areaID,
+	})
+	assert.Nil(t, result)
+	assert.EqualError(t, err, "Área de atuação não encontrada")
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_ComportamentoInexistente(t *testing.T) {
+	areaID := int64(10)
+	repo := &mockCurriculoRepo{areaExists: true, pivots: map[int64]int64{}, comportamentoIDs: []int64{}}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		IDAreaAtuacao:            &areaID,
+		ComportamentoAtitudesIDs: []int64{4},
+	})
+	assert.Nil(t, result)
+	assert.EqualError(t, err, "Comportamento/atitude não encontrado")
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_NilInput(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	_, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", nil)
+	assert.EqualError(t, err, "nenhuma modificação foi solicitada pelo usuário")
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_CPFVazio(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	_, err := svc.SaveHabilidadesCompetencias(context.Background(), "   ", &empregabilidade.HabilidadesCompetenciasSave{})
+	assert.EqualError(t, err, "CPF é obrigatório")
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_AreaNulaComTags(t *testing.T) {
+	repo := &mockCurriculoRepo{}
+	svc := services.NewCurriculoServiceWithInterface(repo)
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		HabilidadeIDs: []int64{1},
+	})
+	assert.Nil(t, result)
+	assert.EqualError(t, err, "selecione uma área de atuação para gravar conhecimentos")
+	assert.False(t, repo.replaceCalled)
+}
+
+func TestCurriculoService_SaveHabilidadesCompetencias_LimpaSecao(t *testing.T) {
+	repo := &mockCurriculoRepo{
+		habilidades: &empregabilidade.HabilidadesCompetencias{
+			Conhecimentos:          []*empregabilidade.CatalogoItem{},
+			ComportamentosAtitudes: []*empregabilidade.CatalogoItem{},
 		},
 	}
-
-	repo := &mockCurriculoRepo{
-		area_atuacao_habilidade: areaAtuacaoHabilidadeMock,
-	}
-
 	svc := services.NewCurriculoServiceWithInterface(repo)
-
-	result, err := svc.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(
-		context.Background(),
-		"12345678900",
-	)
-
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		HabilidadeIDs:            []int64{},
+		ComportamentoAtitudesIDs: []int64{},
+	})
 	require.NoError(t, err)
-	require.Len(t, result, 1)
-
-	assert.Equal(t, "12345678900", result[0].CPF)
-	assert.Equal(t, int64(10), result[0].IDAreaAtuacaoHabilidade)
+	assert.Nil(t, result.AreaAtuacao)
+	require.True(t, repo.replaceCalled)
+	assert.Nil(t, repo.replaceAreaID)
+	assert.Empty(t, repo.replacePivotIDs)
+	assert.Empty(t, repo.replaceComportamentoIDs)
 }
 
-func TestCurriculoService_ReplaceAllItensCurriculoByCPF(t *testing.T) {
+func TestCurriculoService_SaveHabilidadesCompetencias_AreaIDInvalido(t *testing.T) {
+	areaID := int64(0)
 	repo := &mockCurriculoRepo{}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-
-	itens := &empregabilidade.CurriculoItensReplaceAll{
-		AreaAtuacaoHabilidadeIDs: []int64{10, 20},
-		ComportamentoAtitudesIDs: []int64{100},
-	}
-
-	err := svc.ReplaceAllItensCurriculoByCPF(
-		context.Background(),
-		"12345678900",
-		itens,
-	)
-
-	assert.NoError(t, err)
-}
-
-func TestCurriculoService_AddAreaAtuacaoHabilidadeAoCurriculo(t *testing.T) {
-	repo := &mockCurriculoRepo{}
-	svc := services.NewCurriculoServiceWithInterface(repo)
-
-	vinculo := &empregabilidade.CurriculoAreaAtuacaoHabilidade{
-		CPF:                     "12345678900",
-		IDAreaAtuacaoHabilidade: 10,
-	}
-
-	err := svc.AddAreaAtuacaoHabilidadeAoCurriculoByCPF(
-		context.Background(),
-		vinculo,
-	)
-
-	assert.NoError(t, err)
-}
-
-func TestCurriculoService_DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(t *testing.T) {
-	repo := &mockCurriculoRepo{}
-	svc := services.NewCurriculoServiceWithInterface(repo)
-
-	err := svc.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(
-		context.Background(),
-		1,
-		"12345678901",
-	)
-
-	assert.NoError(t, err)
-}
-
-func TestCurriculoService_ListAreaAtuacaoHabilidadeDoCurriculoByCPF_Error(t *testing.T) {
-	repo := &mockCurriculoRepo{
-		err: errors.New("database error"),
-	}
-
-	svc := services.NewCurriculoServiceWithInterface(repo)
-
-	result, err := svc.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(
-		context.Background(),
-		"12345678900",
-	)
-
-	assert.Error(t, err)
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		IDAreaAtuacao: &areaID,
+	})
 	assert.Nil(t, result)
+	assert.EqualError(t, err, "id_area_atuacao inválido")
+	assert.False(t, repo.replaceCalled)
 }
 
-func TestCurriculoService_ReplaceAllItensCurriculoByCPF_Error(t *testing.T) {
-	repo := &mockCurriculoRepo{
-		err: errors.New("database error"),
-	}
-
+func TestCurriculoService_SaveHabilidadesCompetencias_IDsNaoPositivos(t *testing.T) {
+	areaID := int64(10)
+	repo := &mockCurriculoRepo{areaExists: true, pivots: map[int64]int64{1: 100}}
 	svc := services.NewCurriculoServiceWithInterface(repo)
-
-	itens := &empregabilidade.CurriculoItensReplaceAll{
-		AreaAtuacaoHabilidadeIDs: []int64{10, 20},
-		ComportamentoAtitudesIDs: []int64{100},
-	}
-
-	err := svc.ReplaceAllItensCurriculoByCPF(
-		context.Background(),
-		"12345678900",
-		itens,
-	)
-
-	assert.Error(t, err)
-}
-
-func TestCurriculoService_ReplaceAllItensCurriculoByCPF_CPFVazio(t *testing.T) {
-	repo := &mockCurriculoRepo{}
-	svc := services.NewCurriculoServiceWithInterface(repo)
-
-	itens := &empregabilidade.CurriculoItensReplaceAll{
-		AreaAtuacaoHabilidadeIDs: []int64{10, 20},
-		ComportamentoAtitudesIDs: []int64{100},
-	}
-
-	err := svc.ReplaceAllItensCurriculoByCPF(
-		context.Background(),
-		"   ",
-		itens,
-	)
-
-	assert.EqualError(t, err, "CPF é obrigatório")
-}
-
-func TestCurriculoService_ReplaceAllItensCurriculoByCPF_ItensNil(t *testing.T) {
-	repo := &mockCurriculoRepo{}
-	svc := services.NewCurriculoServiceWithInterface(repo)
-
-	err := svc.ReplaceAllItensCurriculoByCPF(
-		context.Background(),
-		"12345678900",
-		nil,
-	)
-
-	assert.EqualError(
-		t,
-		err,
-		"nenhuma modificação foi solicitada pelo usuário",
-	)
-}
-
-func TestCurriculoService_ListComportamentoAtitudesByCPF(t *testing.T) {
-	repo := &mockCurriculoRepo{}
-	svc := services.NewCurriculoServiceWithInterface(repo)
-	result, err := svc.ListComportamentoAtitudesPorCPF(context.Background(), "12345678900")
-	assert.NoError(t, err)
+	result, err := svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		IDAreaAtuacao: &areaID,
+		HabilidadeIDs: []int64{1, 0},
+	})
 	assert.Nil(t, result)
-}
+	assert.EqualError(t, err, "id inválido")
+	assert.False(t, repo.replaceCalled)
 
-func TestCurriculoService_AddComportamentoAtitudesAoCurriculo(t *testing.T) {
-	repo := &mockCurriculoRepo{}
-	svc := services.NewCurriculoServiceWithInterface(repo)
-	err := svc.AddComportamentoAtitudesAoCurriculo(context.Background(), &empregabilidade.CurriculoComportamentoAtitudes{CPF: "12345678900"})
-	assert.NoError(t, err)
-}
-
-func TestCurriculoService_DetachComportamentoAtitudesDoCurriculo(t *testing.T) {
-	repo := &mockCurriculoRepo{}
-	svc := services.NewCurriculoServiceWithInterface(repo)
-
-	vinculo := &empregabilidade.CurriculoComportamentoAtitudes{
-		ID:  1,
-		CPF: "12345678901",
-	}
-
-	err := svc.DetachComportamentoAtitudesDoCurriculo(
-		context.Background(),
-		vinculo,
-	)
-
-	assert.NoError(t, err)
+	result, err = svc.SaveHabilidadesCompetencias(context.Background(), "12345678900", &empregabilidade.HabilidadesCompetenciasSave{
+		ComportamentoAtitudesIDs: []int64{-4},
+	})
+	assert.Nil(t, result)
+	assert.EqualError(t, err, "id inválido")
+	assert.False(t, repo.replaceCalled)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -823,14 +823,11 @@ func TestCurriculoService_GetSituacaoInteressesByCPF_Found(t *testing.T) {
 
 func TestCurriculoService_GetCurriculoCompleto_Success(t *testing.T) {
 	repo := &mockCurriculoRepo{
-		formacoes:               []*empregabilidade.CurriculoFormacao{},
-		idiomas:                 []*empregabilidade.CurriculoIdioma{},
-		cursos:                  []*empregabilidade.CurriculoCursoComplementar{},
-		experiencias:            []*empregabilidade.CurriculoExperiencia{},
-		conquistas:              []*empregabilidade.CurriculoConquista{},
-		area_atuacao_habilidade: []*empregabilidade.CurriculoAreaAtuacaoHabilidade{},
-		comportamento_atitudes:  []*empregabilidade.CurriculoComportamentoAtitudes{},
-		situacao:                nil,
+		formacoes:    []*empregabilidade.CurriculoFormacao{},
+		idiomas:      []*empregabilidade.CurriculoIdioma{},
+		cursos:       []*empregabilidade.CurriculoCursoComplementar{},
+		experiencias: []*empregabilidade.CurriculoExperiencia{},
+		conquistas:   []*empregabilidade.CurriculoConquista{},
 	}
 	svc := services.NewCurriculoServiceWithInterface(repo)
 	result, err := svc.GetCurriculoCompleto(context.Background(), "12345678900")
