@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -213,7 +214,13 @@ func (h *EmpresaHandler) ConsultaCNPJ(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "CNPJ não encontrado"})
 			return
 		}
+		if errors.Is(err, clients.ErrRMIGatewayDenied) {
+			log.Printf("[EmpresaHandler] ConsultaCNPJ forbidden: %v", err)
+			c.JSON(http.StatusForbidden, gin.H{"error": "Consulta ao RMI recusada pelo controle de acesso do gateway (ext_authz), não pela regra de acesso ao CNPJ"})
+			return
+		}
 		if errors.Is(err, clients.ErrCNPJAccessDenied) {
+			log.Printf("[EmpresaHandler] ConsultaCNPJ forbidden: %v", err)
 			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado ao CNPJ"})
 			return
 		}

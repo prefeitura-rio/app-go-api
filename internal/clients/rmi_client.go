@@ -23,6 +23,12 @@ var (
 	ErrCNPJAccessDenied = errors.New("acesso negado ao CNPJ")
 	ErrInvalidCNPJ      = errors.New("CNPJ inválido")
 
+	// ErrRMIGatewayDenied is the 403 of the mesh in front of the RMI (Istio
+	// ext_authz: cerbos-ext-authz/Heimdall, or Istio RBAC), which answers before
+	// the RMI handler runs. ErrCNPJAccessDenied is kept for the RMI's own
+	// ownership refusal.
+	ErrRMIGatewayDenied = errors.New("acesso ao RMI negado pelo gateway da malha (ext_authz)")
+
 	// ErrCitizenNotFound is returned by GetCitizenByCPF when the RMI answers 404
 	// for the CPF: an expected business result, not an infrastructure failure.
 	ErrCitizenNotFound = errors.New("citizen not found")
@@ -42,6 +48,28 @@ func (e *RMIStatusError) Error() string {
 		return fmt.Sprintf("RMI API returned status %d: %s", e.StatusCode, e.Snippet)
 	}
 	return fmt.Sprintf("RMI API returned status %d", e.StatusCode)
+}
+
+// CNPJForbiddenError is the error for a 403 of GET /v1/legal-entity/{cnpj}.
+// Cause is ErrRMIGatewayDenied when the refusal came from the mesh (plain-text
+// body, such as "denied by ext_authz: ..." or "RBAC: access denied") and
+// ErrCNPJAccessDenied when it came from the RMI handler (JSON body) or the body
+// is empty. Detail is the sanitized body, without the CNPJ, empty when nothing
+// of it is safe to keep.
+type CNPJForbiddenError struct {
+	Cause  error
+	Detail string
+}
+
+func (e *CNPJForbiddenError) Error() string {
+	if e.Detail != "" {
+		return fmt.Sprintf("%v: %s", e.Cause, e.Detail)
+	}
+	return e.Cause.Error()
+}
+
+func (e *CNPJForbiddenError) Unwrap() error {
+	return e.Cause
 }
 
 const (
@@ -398,7 +426,7 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 	}
 
 	if resp.StatusCode == http.StatusForbidden {
-		return nil, ErrCNPJAccessDenied
+		return nil, cnpjForbiddenError(resp, normalizedCNPJ)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -436,6 +464,34 @@ var (
 func rmiStatusError(resp *http.Response) error {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, rmiErrorBodyDrainLimit))
 	return &RMIStatusError{StatusCode: resp.StatusCode, Snippet: sanitizeRMIErrorBody(body)}
+}
+
+// cnpjForbiddenError classifies a 403 of the legal-entity lookup by its body:
+// the RMI handler always answers JSON, while the mesh (ext_authz, Istio RBAC)
+// answers plain text. The body may echo the CNPJ, which the digit-run pattern
+// misses in the alphanumeric format, so it is redacted before sanitizing.
+func cnpjForbiddenError(resp *http.Response, normalizedCNPJ string) error {
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, rmiErrorBodyDrainLimit))
+	body = redactCNPJ(bytes.TrimSpace(body), normalizedCNPJ)
+
+	if len(body) > 0 && !json.Valid(body) {
+		return &CNPJForbiddenError{Cause: ErrRMIGatewayDenied, Detail: sanitizeRMIErrorText(string(body))}
+	}
+	return &CNPJForbiddenError{Cause: ErrCNPJAccessDenied, Detail: sanitizeRMIErrorBody(body)}
+}
+
+// redactCNPJ replaces the CNPJ in any formatting (case-insensitive, with an
+// optional ".", "-", "/" or space between characters) by "[omitido]".
+func redactCNPJ(body []byte, normalizedCNPJ string) []byte {
+	if normalizedCNPJ == "" {
+		return body
+	}
+	chars := make([]string, 0, len(normalizedCNPJ))
+	for _, r := range normalizedCNPJ {
+		chars = append(chars, regexp.QuoteMeta(string(r)))
+	}
+	pattern := regexp.MustCompile(`(?i)` + strings.Join(chars, `[.\-/ ]?`))
+	return pattern.ReplaceAll(body, []byte("[omitido]"))
 }
 
 // sanitizeRMIErrorBody returns a single-line excerpt of an RMI error body that
