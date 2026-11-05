@@ -166,6 +166,19 @@ func (CurriculoSituacaoInteresses) TableName() string {
 	return "emp_curriculo_situacao_interesses"
 }
 
+// CurriculoAreaAtuacao é a única área de atuação escolhida pelo cidadão.
+type CurriculoAreaAtuacao struct {
+	CPF           string       `json:"cpf" gorm:"type:char(11);primaryKey"`
+	IDAreaAtuacao int64        `json:"id_area_atuacao" gorm:"not null"`
+	CreatedAt     time.Time    `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt     time.Time    `json:"updated_at" gorm:"autoUpdateTime"`
+	AreaAtuacao   *AreaAtuacao `json:"area_atuacao,omitempty" gorm:"foreignKey:IDAreaAtuacao;references:ID"`
+}
+
+func (CurriculoAreaAtuacao) TableName() string {
+	return "emp_curriculo_area_atuacao"
+}
+
 // CurriculoAreaAtuacaoHabilidade representa o vínculo do candidato (CPF) com uma habilidade associada a uma área de atuação
 type CurriculoAreaAtuacaoHabilidade struct {
 	ID                      int64                  `json:"id" gorm:"primaryKey;autoIncrement"`
