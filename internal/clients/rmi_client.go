@@ -426,7 +426,7 @@ func (c *RMIClient) GetLegalEntityByCNPJ(ctx context.Context, serviceToken strin
 	}
 
 	if resp.StatusCode == http.StatusForbidden {
-		return nil, cnpjForbiddenError(resp, cnpj, normalizedCNPJ)
+		return nil, cnpjForbiddenError(resp, normalizedCNPJ)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -470,9 +470,9 @@ func rmiStatusError(resp *http.Response) error {
 // the RMI handler always answers JSON, while the mesh (ext_authz, Istio RBAC)
 // answers plain text. The body may echo the CNPJ, which the digit-run pattern
 // misses in the alphanumeric format, so it is redacted before sanitizing.
-func cnpjForbiddenError(resp *http.Response, cnpjVariants ...string) error {
+func cnpjForbiddenError(resp *http.Response, normalizedCNPJ string) error {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, rmiErrorBodyDrainLimit))
-	body = redactCNPJ(bytes.TrimSpace(body), cnpjVariants)
+	body = redactCNPJ(bytes.TrimSpace(body), normalizedCNPJ)
 
 	if len(body) > 0 && !json.Valid(body) {
 		return &CNPJForbiddenError{Cause: ErrRMIGatewayDenied, Detail: sanitizeRMIErrorText(string(body))}
@@ -480,15 +480,18 @@ func cnpjForbiddenError(resp *http.Response, cnpjVariants ...string) error {
 	return &CNPJForbiddenError{Cause: ErrCNPJAccessDenied, Detail: sanitizeRMIErrorBody(body)}
 }
 
-func redactCNPJ(body []byte, variants []string) []byte {
-	for _, variant := range variants {
-		if variant == "" {
-			continue
-		}
-		pattern := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(variant))
-		body = pattern.ReplaceAll(body, []byte("[omitido]"))
+// redactCNPJ replaces the CNPJ in any formatting (case-insensitive, with an
+// optional ".", "-", "/" or space between characters) by "[omitido]".
+func redactCNPJ(body []byte, normalizedCNPJ string) []byte {
+	if normalizedCNPJ == "" {
+		return body
 	}
-	return body
+	chars := make([]string, 0, len(normalizedCNPJ))
+	for _, r := range normalizedCNPJ {
+		chars = append(chars, regexp.QuoteMeta(string(r)))
+	}
+	pattern := regexp.MustCompile(`(?i)` + strings.Join(chars, `[.\-/ ]?`))
+	return pattern.ReplaceAll(body, []byte("[omitido]"))
 }
 
 // sanitizeRMIErrorBody returns a single-line excerpt of an RMI error body that

@@ -60,6 +60,13 @@ func TestEmpresaHandler_ConsultaCNPJ_Forbidden_DistinguishesOrigin(t *testing.T)
 			wantLogParts: []string{"ConsultaCNPJ", "gateway da malha (ext_authz)", "denied by ext_authz: no action mapping found for endpoint"},
 		},
 		{
+			name:         "ext_authz que ecoa o CNPJ formatado",
+			contentType:  "text/plain",
+			body:         "denied by ext_authz: authorization error for 12.ABC.345/01DE-35",
+			wantError:    "Consulta ao RMI recusada pelo controle de acesso do gateway (ext_authz), não pela regra de acesso ao CNPJ",
+			wantLogParts: []string{"ConsultaCNPJ", "gateway da malha (ext_authz)", "authorization error for [omitido]"},
+		},
+		{
 			name:         "regra de posse do RMI",
 			contentType:  "application/json",
 			body:         `{"error":"Access denied - you are not authorized to view this legal entity"}`,
@@ -96,8 +103,10 @@ func TestEmpresaHandler_ConsultaCNPJ_Forbidden_DistinguishesOrigin(t *testing.T)
 					t.Errorf("expected log to contain %q, got %q", part, logged)
 				}
 			}
-			if strings.Contains(strings.ToUpper(logged), cnpjAlfanumericoSintetico) {
-				t.Errorf("log leaks the CNPJ: %q", logged)
+			for _, leak := range []string{cnpjAlfanumericoSintetico, "12.ABC.345/01DE-35"} {
+				if strings.Contains(strings.ToUpper(logged), leak) {
+					t.Errorf("log leaks the CNPJ %q: %q", leak, logged)
+				}
 			}
 		})
 	}
