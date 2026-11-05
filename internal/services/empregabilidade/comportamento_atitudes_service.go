@@ -3,6 +3,7 @@ package empregabilidade
 import (
 	"context"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
 
@@ -16,6 +17,14 @@ func NewComportamentoAtitudesService(repo ComportamentoAtitudesRepositoryInterfa
 
 // CreateComportamentoAtitudes cria um novo comportamento/atitude e retorna o ID gerado (int64)
 func (s *ComportamentoAtitudesService) CreateComportamentoAtitudes(ctx context.Context, entity *empregabilidade.ComportamentoAtitudes) (int64, error) {
+	if entity == nil {
+		return 0, apperrors.Validation("nome é obrigatório")
+	}
+	nome, err := normalizeCatalogoNome(entity.Nome)
+	if err != nil {
+		return 0, err
+	}
+	entity.Nome = nome
 	return s.repo.CreateComportamentoAtitudes(ctx, entity)
 }
 
@@ -26,6 +35,14 @@ func (s *ComportamentoAtitudesService) GetComportamentoAtitudesByID(ctx context.
 
 // UpdateComportamentoAtitudes atualiza um comportamento/atitude existente
 func (s *ComportamentoAtitudesService) UpdateComportamentoAtitudes(ctx context.Context, entity *empregabilidade.ComportamentoAtitudes) error {
+	if entity == nil {
+		return apperrors.Validation("nome é obrigatório")
+	}
+	nome, err := normalizeCatalogoNome(entity.Nome)
+	if err != nil {
+		return err
+	}
+	entity.Nome = nome
 	return s.repo.UpdateComportamentoAtitudes(ctx, entity)
 }
 

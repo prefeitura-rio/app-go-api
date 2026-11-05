@@ -61,7 +61,7 @@ func setupEmpresaHandlerRouter(repo services.EmpresaRepositoryInterface) *gin.En
 func TestEmpresaHandler_Create_Success(t *testing.T) {
 	repo := &mockEmpresaRepoEmpH{}
 	r := setupEmpresaHandlerRouter(repo)
-	body := bytes.NewBufferString(`{"cnpj":"12345678000100","razao_social":"Empresa Teste"}`)
+	body := bytes.NewBufferString(`{"cnpj":"11222333000181","razao_social":"Empresa Teste"}`)
 	req := httptest.NewRequest(http.MethodPost, "/empresas", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -87,7 +87,7 @@ func TestEmpresaHandler_Create_BadJSON(t *testing.T) {
 func TestEmpresaHandler_Create_Error(t *testing.T) {
 	repo := &mockEmpresaRepoEmpH{err: fmt.Errorf("db error")}
 	r := setupEmpresaHandlerRouter(repo)
-	body := bytes.NewBufferString(`{"cnpj":"12345678000100"}`)
+	body := bytes.NewBufferString(`{"cnpj":"11222333000181"}`)
 	req := httptest.NewRequest(http.MethodPost, "/empresas", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -100,7 +100,7 @@ func TestEmpresaHandler_Create_Error(t *testing.T) {
 func TestEmpresaHandler_Create_UniqueViolation_Returns409(t *testing.T) {
 	repo := &mockEmpresaRepoEmpH{err: uniqueViolationErr("empresas_cnpj_key")}
 	r := setupEmpresaHandlerRouter(repo)
-	body := bytes.NewBufferString(`{"cnpj":"12345678000100","razao_social":"Empresa Teste"}`)
+	body := bytes.NewBufferString(`{"cnpj":"11222333000181","razao_social":"Empresa Teste"}`)
 	req := httptest.NewRequest(http.MethodPost, "/empresas", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -113,7 +113,7 @@ func TestEmpresaHandler_Create_UniqueViolation_Returns409(t *testing.T) {
 func TestEmpresaHandler_Create_NotNullViolation_Returns400(t *testing.T) {
 	repo := &mockEmpresaRepoEmpH{err: notNullViolationErr("razao_social")}
 	r := setupEmpresaHandlerRouter(repo)
-	body := bytes.NewBufferString(`{"cnpj":"12345678000100"}`)
+	body := bytes.NewBufferString(`{"cnpj":"11222333000181"}`)
 	req := httptest.NewRequest(http.MethodPost, "/empresas", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -196,7 +196,7 @@ func TestEmpresaHandler_Update_Success(t *testing.T) {
 	repo := &mockEmpresaRepoEmpH{}
 	r := setupEmpresaHandlerRouter(repo)
 	body := bytes.NewBufferString(`{"razao_social":"Nova Razao"}`)
-	req := httptest.NewRequest(http.MethodPut, "/empresas/12345678000100", body)
+	req := httptest.NewRequest(http.MethodPut, "/empresas/11222333000181", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -209,7 +209,7 @@ func TestEmpresaHandler_Update_BadJSON(t *testing.T) {
 	repo := &mockEmpresaRepoEmpH{}
 	r := setupEmpresaHandlerRouter(repo)
 	body := bytes.NewBufferString(`invalid json`)
-	req := httptest.NewRequest(http.MethodPut, "/empresas/12345678000100", body)
+	req := httptest.NewRequest(http.MethodPut, "/empresas/11222333000181", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -222,7 +222,7 @@ func TestEmpresaHandler_Update_Error(t *testing.T) {
 	repo := &mockEmpresaRepoEmpH{err: fmt.Errorf("db error")}
 	r := setupEmpresaHandlerRouter(repo)
 	body := bytes.NewBufferString(`{"razao_social":"Nova"}`)
-	req := httptest.NewRequest(http.MethodPut, "/empresas/12345678000100", body)
+	req := httptest.NewRequest(http.MethodPut, "/empresas/11222333000181", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
