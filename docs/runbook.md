@@ -176,6 +176,10 @@ continuar compatível com o schema novo (expand/contract). Veja a seção 4.3 an
   gh run watch <run-id-da-release-anterior>
   ```
 
+  O GitHub só reexecuta runs de até 30 dias. Para uma versão mais antiga, publique uma release nova
+  a partir do commit da tag anterior (por exemplo `gh release create v<X.Y.Z+1> --target <sha-da-tag-anterior>`),
+  o que dispara o mesmo `release.yaml` com aquele código.
+
   Alternativa mais rápida, se a imagem anterior estiver identificada pelo digest: aplicar no
   Application `go` o mesmo patch que o workflow faz, com o digest anterior
   (`kubectl patch application go -n argocd --type=json -p='[{"op":"replace","path":"/spec/source/kustomize/images/0","value":"ghcr.io/prefeitura-rio/app-go-api:stable@sha256:<digest-anterior>"}]'`).
