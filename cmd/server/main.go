@@ -154,7 +154,10 @@ func main() {
 		shutdownTimeout = 30 * time.Second
 	}
 
-	srv := &http.Server{Handler: r}
+	srv := &http.Server{
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 	if err := gracefulServe(ctx, srv, ln, shutdownTimeout); err != nil {
 		log.Fatalf("Erro no servidor HTTP: %v", err)
 	}

@@ -237,6 +237,12 @@ security-scan:
     @just docker-build scan
     @trivy image --severity HIGH,CRITICAL app-go-api:scan
 
+# Fail on Go vulnerabilities reachable from this module's code (same as PR gate).
+# Needs a Go toolchain matching go.mod (nix/direnv, or unset GOROOT if using GVM).
+govulncheck:
+    go install golang.org/x/vuln/cmd/govulncheck@latest
+    govulncheck ./...
+
 # ==============================================================================
 # Dependencies
 # ==============================================================================

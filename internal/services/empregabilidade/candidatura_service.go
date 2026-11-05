@@ -217,6 +217,7 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 	}
 
 	candidaturaForEmail := *entity
+	//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 	go func() {
 		if err := s.emailNotificationService.SendCandidaturaEnviadaEmail(context.Background(), &candidaturaForEmail); err != nil {
 			log.Printf("[CandidaturaService] falha ao enviar email de candidatura enviada: %v", err)
@@ -299,12 +300,14 @@ func (s *CandidaturaService) UpdateStatus(ctx context.Context, id uuid.UUID, sta
 
 	switch status {
 	case empregabilidade.StatusCandidaturaAprovada:
+		//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 		go func() {
 			if err := s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), existing); err != nil {
 				log.Printf("[CandidaturaService] falha ao enviar email de candidatura aprovada: %v", err)
 			}
 		}()
 	case empregabilidade.StatusCandidaturaReprovada:
+		//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 		go func() {
 			if err := s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), existing); err != nil {
 				log.Printf("[CandidaturaService] falha ao enviar email de candidatura reprovada: %v", err)
@@ -365,6 +368,7 @@ func (s *CandidaturaService) UpdateEtapa(ctx context.Context, id uuid.UUID, etap
 		candidaturaForEmail.Vaga = vaga
 		candidaturaForEmail.EtapaAtual = nextEtapa
 		etapaNome := nextEtapa.Titulo
+		//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 		go func() {
 			if err := s.emailNotificationService.SendCandidaturaProximaEtapaEmail(context.Background(), &candidaturaForEmail, etapaNome); err != nil {
 				log.Printf("[CandidaturaService] falha ao enviar email de próxima etapa: %v", err)
@@ -406,6 +410,7 @@ func (s *CandidaturaService) Approve(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
+	//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 	go func() {
 		if err := s.emailNotificationService.SendCandidaturaAprovadaEmail(context.Background(), existing); err != nil {
 			log.Printf("[CandidaturaService] falha ao enviar email de candidatura aprovada: %v", err)
@@ -463,6 +468,7 @@ func (s *CandidaturaService) BulkUpdateStatus(ctx context.Context, vagaID uuid.U
 		failedAtRepo[cpf] = struct{}{}
 	}
 
+	//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 	go func() {
 		for _, cpf := range allowedCPFs {
 			if _, failed := failedAtRepo[cpf]; failed {
@@ -585,6 +591,7 @@ func (s *CandidaturaService) BulkUpdateEtapa(ctx context.Context, vagaID uuid.UU
 
 	if len(toNotify) > 0 && nextEtapa != nil {
 		etapaNome := nextEtapa.Titulo
+		//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 		go func() {
 			for _, c := range toNotify {
 				if err := s.emailNotificationService.SendCandidaturaProximaEtapaEmail(context.Background(), c, etapaNome); err != nil {
@@ -614,6 +621,7 @@ func (s *CandidaturaService) Reject(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
+	//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 	go func() {
 		if err := s.emailNotificationService.SendCandidaturaReprovadaEmail(context.Background(), existing); err != nil {
 			log.Printf("[CandidaturaService] falha ao enviar email de candidatura reprovada: %v", err)

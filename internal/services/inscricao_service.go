@@ -188,6 +188,7 @@ func (s *InscricaoService) Create(ctx context.Context, inscricao *models.Inscric
 	if s.emailNotificationService != nil {
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err == nil && curso != nil {
+			//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 			go func() {
 				var emailErr error
 				if autoApprove {
@@ -269,6 +270,7 @@ func (s *InscricaoService) CreateByAdmin(ctx context.Context, inscricao *models.
 	if s.emailNotificationService != nil {
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err == nil && curso != nil {
+			//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 			go func() {
 				var emailErr error
 				if autoApprove {
@@ -341,6 +343,7 @@ func (s *InscricaoService) CreateManual(ctx context.Context, inscricao *models.I
 	if s.emailNotificationService != nil {
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err == nil && curso != nil {
+			//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 			go func() {
 				var emailErr error
 				if autoApprove {
@@ -445,6 +448,7 @@ func (s *InscricaoService) UpdateStatus(ctx context.Context, inscricaoID uuid.UU
 			inscricao.Reason = reason
 
 			// Send email asynchronously
+			//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 			go func() {
 				var emailErr error
 				switch status {
@@ -502,6 +506,7 @@ func (s *InscricaoService) UpdateMultipleStatus(ctx context.Context, inscricaoID
 		newStatus := status
 		newReason := reason
 
+		//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 		go func() {
 			for _, data := range enrollmentsForEmail {
 				// Skip if status didn't change
@@ -1038,6 +1043,7 @@ func (s *InscricaoService) ChangeSchedule(ctx context.Context, inscricaoID uuid.
 	if s.emailNotificationService != nil {
 		curso, err := s.cursoRepo.GetByID(ctx, inscricao.CursoID)
 		if err == nil && curso != nil {
+			//nolint:gosec // G118: side-effect async; must outlive request-scoped ctx
 			go func() {
 				if err := s.emailNotificationService.SendScheduleChangedEmail(context.Background(), inscricao, curso); err != nil {
 					log.Printf("[InscricaoService] falha ao enviar email de alteração de horário: %v", err)

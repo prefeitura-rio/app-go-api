@@ -100,7 +100,10 @@ func WithRetryBackoff(base, maxDelay time.Duration) RMIClientOption {
 func WithCircuitBreaker(failureThreshold int, openTimeout time.Duration) RMIClientOption {
 	return func(o *rmiClientOptions) {
 		if failureThreshold > 0 {
-			o.breakerThreshold = uint32(failureThreshold)
+			if failureThreshold > int(^uint32(0)) {
+				failureThreshold = int(^uint32(0))
+			}
+			o.breakerThreshold = uint32(failureThreshold) //nolint:gosec // G115: clamped to uint32 max above
 		}
 		if openTimeout > 0 {
 			o.breakerOpenTimeout = openTimeout
