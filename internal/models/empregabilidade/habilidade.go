@@ -4,12 +4,6 @@ import (
 	"time"
 )
 
-// CatalogoItem é o contrato enxuto de área, conhecimento e comportamento.
-type CatalogoItem struct {
-	ID   int64  `json:"id"`
-	Nome string `json:"nome"`
-}
-
 // AreaAtuacaoHabilidade representa a tabela pivô 'area_atuacao_habilidade'
 type AreaAtuacaoHabilidade struct {
 	ID            int64 `json:"id" gorm:"primaryKey;autoIncrement"`

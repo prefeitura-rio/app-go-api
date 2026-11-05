@@ -44,14 +44,15 @@ func (cr catalogoRequest) newRequest() *http.Request {
 }
 
 var habilidadeMutations = map[string]catalogoRequest{
-	"CreateHabilidade":       {http.MethodPost, "/habilidades", `{"nome":"Go"}`},
-	"UpdateHabilidade":       {http.MethodPut, "/habilidades/10", `{"nome":"Go"}`},
-	"DeleteHabilidade":       {http.MethodDelete, "/habilidades/10", ""},
-	"CreateAreaAtuacao":      {http.MethodPost, "/habilidades/areas-atuacao", `{"nome":"TI"}`},
-	"UpdateAreaAtuacao":      {http.MethodPut, "/habilidades/areas-atuacao/2", `{"nome":"TI"}`},
-	"DeleteAreaAtuacao":      {http.MethodDelete, "/habilidades/areas-atuacao/2", ""},
-	"AttachHabilidadeNaArea": {http.MethodPost, "/habilidades/areas-atuacao/10/habilidades", `{"id_habilidade":2}`},
-	"DetachHabilidadeDaArea": {http.MethodDelete, "/habilidades/areas-atuacao/10/habilidades/2", ""},
+	"CreateHabilidade":    {http.MethodPost, "/habilidades", `{"nome":"Go"}`},
+	"UpdateHabilidade":    {http.MethodPut, "/habilidades/10", `{"nome":"Go"}`},
+	"DeleteHabilidade":    {http.MethodDelete, "/habilidades/10", ""},
+	"CreateAreaAtuacao":   {http.MethodPost, "/habilidades/areas-atuacao", `{"nome":"TI"}`},
+	"UpdateAreaAtuacao":   {http.MethodPut, "/habilidades/areas-atuacao/2", `{"nome":"TI"}`},
+	"DeleteAreaAtuacao":   {http.MethodDelete, "/habilidades/areas-atuacao/2", ""},
+	"AttachAreaAtuacao":   {http.MethodPost, "/habilidades/10/areas-atuacao/2", ""},
+	"DetachAreaAtuacao":   {http.MethodDelete, "/habilidades/10/areas-atuacao/2", ""},
+	"ReplaceAreasAtuacao": {http.MethodPut, "/habilidades/10/areas-atuacao", `{"area_ids":[1,2]}`},
 }
 
 var comportamentoMutations = map[string]catalogoRequest{
@@ -139,10 +140,11 @@ func TestCatalogoHandlers_UnknownError_StillInternalServerErrorWithoutLeak(t *te
 // IDs de rota não positivos são entrada inválida (400), não erro interno.
 func TestHabilidadeHandler_NonPositiveRouteIDs_ReturnBadRequest(t *testing.T) {
 	cases := map[string]catalogoRequest{
-		"Attach area 0":        {http.MethodPost, "/habilidades/areas-atuacao/0/habilidades", `{"id_habilidade":2}`},
-		"Attach area -1":       {http.MethodPost, "/habilidades/areas-atuacao/-1/habilidades", `{"id_habilidade":2}`},
-		"Detach habilidade -5": {http.MethodDelete, "/habilidades/areas-atuacao/10/habilidades/-5", ""},
-		"Detach area 0":        {http.MethodDelete, "/habilidades/areas-atuacao/0/habilidades/2", ""},
+		"Attach habilidade 0":  {http.MethodPost, "/habilidades/0/areas-atuacao/2", ""},
+		"Attach area -1":       {http.MethodPost, "/habilidades/10/areas-atuacao/-1", ""},
+		"Detach habilidade -5": {http.MethodDelete, "/habilidades/-5/areas-atuacao/2", ""},
+		"Detach area 0":        {http.MethodDelete, "/habilidades/10/areas-atuacao/0", ""},
+		"Replace habilidade 0": {http.MethodPut, "/habilidades/0/areas-atuacao", `{"area_ids":[1]}`},
 	}
 	for name, cr := range cases {
 		t.Run(name, func(t *testing.T) {

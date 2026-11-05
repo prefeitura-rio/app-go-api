@@ -2,7 +2,6 @@ package empregabilidade
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -393,145 +392,86 @@ func (r *CurriculoRepository) ReplaceAllExperienciaProfissionalAccordionByCPF(ct
 	})
 }
 
-func (r *CurriculoRepository) AreaAtuacaoExists(ctx context.Context, id int64) (bool, error) {
-	var count int64
-	if err := r.db.WithContext(ctx).Model(&empregabilidade.AreaAtuacao{}).Where("id = ?", id).Count(&count).Error; err != nil {
-		return false, fmt.Errorf("erro ao buscar área de atuação: %w", err)
+func replaceCurriculoItemsSync[T any](
+	tx *gorm.DB,
+	cpf string,
+	ids []int64,
+	newEntityFunc func(cpf string, id int64) *T,
+	entityName string,
+) error {
+	var empty T
+	if err := tx.Where("cpf = ?", cpf).Delete(&empty).Error; err != nil {
+		return fmt.Errorf("erro ao remover %s do currículo: %w", entityName, err)
 	}
-	return count > 0, nil
-}
 
-func (r *CurriculoRepository) PivotIDsDaArea(ctx context.Context, areaID int64, habilidadeIDs []int64) (map[int64]int64, error) {
-	out := make(map[int64]int64, len(habilidadeIDs))
-	if len(habilidadeIDs) == 0 {
-		return out, nil
-	}
-	var rows []empregabilidade.AreaAtuacaoHabilidade
-	if err := r.db.WithContext(ctx).
-		Where("id_area_atuacao = ? AND id_habilidade IN ?", areaID, habilidadeIDs).
-		Find(&rows).Error; err != nil {
-		return nil, fmt.Errorf("erro ao buscar conhecimentos da área: %w", err)
-	}
-	for _, row := range rows {
-		out[row.IDHabilidade] = row.ID
-	}
-	return out, nil
-}
-
-func (r *CurriculoRepository) ExistingComportamentoIDs(ctx context.Context, ids []int64) ([]int64, error) {
 	if len(ids) == 0 {
-		return []int64{}, nil
+		return nil
 	}
-	var found []int64
-	if err := r.db.WithContext(ctx).
-		Model(&empregabilidade.ComportamentoAtitudes{}).
-		Where("id IN ?", ids).
-		Pluck("id", &found).Error; err != nil {
-		return nil, fmt.Errorf("erro ao buscar comportamentos/atitudes: %w", err)
+
+	entities := make([]*T, len(ids))
+	for i, id := range ids {
+		entities[i] = newEntityFunc(cpf, id)
 	}
-	return found, nil
+
+	if err := tx.Create(&entities).Error; err != nil {
+		return fmt.Errorf("erro ao salvar novos(as) %s: %w", entityName, err)
+	}
+
+	return nil
 }
 
-func (r *CurriculoRepository) ReplaceHabilidadesCompetencias(ctx context.Context, cpf string, areaID *int64, pivotIDs, comportamentoIDs []int64) error {
+func (r *CurriculoRepository) ReplaceAllItensCurriculoByCPF(
+	ctx context.Context,
+	cpf string,
+	itens *empregabilidade.CurriculoItensReplaceAll,
+) error {
+	if itens == nil {
+		return fmt.Errorf("Nenhuma modificação foi solicitada pelo usuário")
+	}
+
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := ensureCurriculo(tx, cpf); err != nil {
 			return err
 		}
-		var curriculo empregabilidade.Curriculo
-		if err := tx.Raw("SELECT cpf FROM emp_curriculos WHERE cpf = ? FOR UPDATE", cpf).
-			Scan(&curriculo).Error; err != nil {
-			return fmt.Errorf("erro ao obter lock no currículo: %w", err)
-		}
-		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoAreaAtuacaoHabilidade{}).Error; err != nil {
-			return fmt.Errorf("erro ao remover conhecimentos do currículo: %w", err)
-		}
-		if areaID == nil {
-			if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoAreaAtuacao{}).Error; err != nil {
-				return fmt.Errorf("erro ao remover área de atuação do currículo: %w", err)
-			}
-		} else if err := tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "cpf"}},
-			DoUpdates: clause.AssignmentColumns([]string{"id_area_atuacao", "updated_at"}),
-		}).Create(&empregabilidade.CurriculoAreaAtuacao{
-			CPF:           cpf,
-			IDAreaAtuacao: *areaID,
-		}).Error; err != nil {
-			return fmt.Errorf("erro ao gravar área de atuação do currículo: %w", err)
-		}
 
-		if len(pivotIDs) > 0 {
-			links := make([]*empregabilidade.CurriculoAreaAtuacaoHabilidade, len(pivotIDs))
-			for i, id := range pivotIDs {
-				links[i] = &empregabilidade.CurriculoAreaAtuacaoHabilidade{
+		// 1. Processar Áreas de Atuação/Habilidades
+		err := replaceCurriculoItemsSync(
+			tx,
+			cpf,
+			itens.AreaAtuacaoHabilidadeIDs,
+			func(cpf string, id int64) *empregabilidade.CurriculoAreaAtuacaoHabilidade {
+				return &empregabilidade.CurriculoAreaAtuacaoHabilidade{
 					CPF:                     cpf,
 					IDAreaAtuacaoHabilidade: id,
 				}
-			}
-			if err := tx.Create(&links).Error; err != nil {
-				return fmt.Errorf("erro ao gravar conhecimentos do currículo: %w", err)
-			}
+			},
+			"áreas de atuação/habilidades",
+		)
+		if err != nil {
+			return err
 		}
 
-		if err := tx.Where("cpf = ?", cpf).Delete(&empregabilidade.CurriculoComportamentoAtitudes{}).Error; err != nil {
-			return fmt.Errorf("erro ao remover comportamentos/atitudes do currículo: %w", err)
-		}
-		if len(comportamentoIDs) > 0 {
-			links := make([]*empregabilidade.CurriculoComportamentoAtitudes, len(comportamentoIDs))
-			for i, id := range comportamentoIDs {
-				links[i] = &empregabilidade.CurriculoComportamentoAtitudes{
+		// 2. Processar Comportamentos/Atitudes
+		err = replaceCurriculoItemsSync(
+			tx,
+			cpf,
+			itens.ComportamentoAtitudesIDs,
+			func(cpf string, id int64) *empregabilidade.CurriculoComportamentoAtitudes {
+				return &empregabilidade.CurriculoComportamentoAtitudes{
 					CPF:                     cpf,
 					IDComportamentoAtitudes: id,
 				}
-			}
-			if err := tx.Create(&links).Error; err != nil {
-				return fmt.Errorf("erro ao gravar comportamentos/atitudes do currículo: %w", err)
-			}
+			},
+			"comportamentos/atitudes",
+		)
+		if err != nil {
+			return err
 		}
+
+		// *** Processar os próximos aqui *** //
+
 		return nil
 	})
-}
-
-func (r *CurriculoRepository) GetHabilidadesCompetencias(ctx context.Context, cpf string) (*empregabilidade.HabilidadesCompetencias, error) {
-	out := &empregabilidade.HabilidadesCompetencias{
-		Conhecimentos:          []*empregabilidade.CatalogoItem{},
-		ComportamentosAtitudes: []*empregabilidade.CatalogoItem{},
-	}
-
-	var area empregabilidade.CurriculoAreaAtuacao
-	err := r.db.WithContext(ctx).Preload("AreaAtuacao").Where("cpf = ?", cpf).First(&area).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("erro ao buscar área de atuação do currículo: %w", err)
-	}
-	if err == nil && area.AreaAtuacao != nil {
-		out.AreaAtuacao = &empregabilidade.CatalogoItem{ID: area.AreaAtuacao.ID, Nome: area.AreaAtuacao.Nome}
-		if err := r.db.WithContext(ctx).
-			Table("emp_habilidades").
-			Select("emp_habilidades.id, emp_habilidades.nome").
-			Joins("JOIN area_atuacao_habilidade aah ON aah.id_habilidade = emp_habilidades.id").
-			Joins("JOIN emp_curriculo_area_atuacao_habilidade c ON c.id_area_atuacao_habilidade = aah.id").
-			Where("c.cpf = ? AND aah.id_area_atuacao = ?", cpf, area.IDAreaAtuacao).
-			Order("emp_habilidades.nome ASC").
-			Scan(&out.Conhecimentos).Error; err != nil {
-			return nil, fmt.Errorf("erro ao buscar conhecimentos do currículo: %w", err)
-		}
-		if out.Conhecimentos == nil {
-			out.Conhecimentos = []*empregabilidade.CatalogoItem{}
-		}
-	}
-
-	if err := r.db.WithContext(ctx).
-		Table("emp_comportamento_atitudes").
-		Select("emp_comportamento_atitudes.id, emp_comportamento_atitudes.nome").
-		Joins("JOIN emp_curriculo_comportamento_atitudes c ON c.id_comportamento_atitudes = emp_comportamento_atitudes.id").
-		Where("c.cpf = ?", cpf).
-		Order("emp_comportamento_atitudes.nome ASC").
-		Scan(&out.ComportamentosAtitudes).Error; err != nil {
-		return nil, fmt.Errorf("erro ao buscar comportamentos/atitudes do currículo: %w", err)
-	}
-	if out.ComportamentosAtitudes == nil {
-		out.ComportamentosAtitudes = []*empregabilidade.CatalogoItem{}
-	}
-	return out, nil
 }
 
 func (r *CurriculoRepository) ReplaceAllConquistasByCPF(ctx context.Context, cpf string, items []*empregabilidade.CurriculoConquista) error {
@@ -624,4 +564,140 @@ func (r *CurriculoRepository) GetSituacaoInteressesByCPF(ctx context.Context, cp
 		return nil, fmt.Errorf("erro ao buscar situação e interesses: %w", result.Error)
 	}
 	return &entity, nil
+}
+
+// Area atuação c/ habilidade
+
+// ListAreaAtuacaoHabilidadeByCPF retorna todos os vínculos de área de atuação/habilidade associados ao CPF do candidato.
+func (r *CurriculoRepository) ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoAreaAtuacaoHabilidade, error) {
+	var entities []*empregabilidade.CurriculoAreaAtuacaoHabilidade
+
+	result := r.db.WithContext(ctx).
+		Preload("AreaAtuacaoHabilidade").
+		Preload("AreaAtuacaoHabilidade.Habilidade").
+		Preload("AreaAtuacaoHabilidade.AreaAtuacao").
+		Where("cpf = ?", cpf).
+		Order("created_at DESC").
+		Find(&entities)
+
+	if result.Error != nil {
+		return nil, fmt.Errorf(
+			"erro ao listar áreas de atuação/habilidades do currículo: %w",
+			result.Error,
+		)
+	}
+
+	return entities, nil
+}
+
+// AddAreaAtuacaoHabilidadeAoCurriculo vincula uma combinação de área de atuação/habilidade ao candidato sem permitir duplicidade.
+func (r *CurriculoRepository) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx context.Context, entity *empregabilidade.CurriculoAreaAtuacaoHabilidade) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureCurriculo(tx, entity.CPF); err != nil {
+			return err
+		}
+
+		result := tx.
+			Clauses(clause.OnConflict{
+				Columns: []clause.Column{
+					{Name: "cpf"},
+					{Name: "id_area_atuacao_habilidade"},
+				},
+				DoNothing: true,
+			}).
+			Create(entity)
+
+		if result.Error != nil {
+			return fmt.Errorf(
+				"erro ao vincular área de atuação/habilidade ao currículo: %w",
+				result.Error,
+			)
+		}
+
+		return nil
+	})
+}
+
+// DetachAreaAtuacaoHabilidadeDoCurriculo remove apenas o vínculo
+// entre o currículo e a combinação área de atuação/habilidade,
+// preservando as tabelas mestre.
+func (r *CurriculoRepository) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, id int64, cpf string) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND cpf = ?", id, cpf).
+		Delete(&empregabilidade.CurriculoAreaAtuacaoHabilidade{})
+
+	if result.Error != nil {
+		return fmt.Errorf(
+			"erro ao remover área de atuação/habilidade do currículo: %w",
+			result.Error,
+		)
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+// Comportamento e atitudes
+
+// ListComportamentoAtitudesByCPF retorna todas as habilidades vinculadas ao CPF do candidato
+func (r *CurriculoRepository) ListComportamentoAtitudesByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
+	var entities []*empregabilidade.CurriculoComportamentoAtitudes
+	result := r.db.WithContext(ctx).
+		Preload("ComportamentoAtitudes").
+		Where("cpf = ?", cpf).
+		Order("created_at DESC").
+		Find(&entities)
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("erro ao listar comportamentos e atitudes do currículo: %w", result.Error)
+	}
+	return entities, nil
+}
+
+// AddComportamentoAtitudesAoCurriculo vincula um comportamento/atitide ao candidato sem permitir duplicidade
+func (r *CurriculoRepository) AddComportamentoAtitudesAoCurriculo(ctx context.Context, entity *empregabilidade.CurriculoComportamentoAtitudes) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureCurriculo(tx, entity.CPF); err != nil {
+			return err
+		}
+
+		result := tx.
+			Clauses(clause.OnConflict{
+				Columns: []clause.Column{
+					{Name: "cpf"},
+					{Name: "id_comportamento_atitudes"},
+				},
+				DoNothing: true,
+			}).
+			Create(entity)
+
+		if result.Error != nil {
+			return fmt.Errorf(
+				"erro ao vincular um comportamento/atitude ao currículo: %w",
+				result.Error,
+			)
+		}
+
+		return nil
+	})
+}
+
+// DetachComportamentoAtitudesDoCurriculo remove apenas o vínculo com o currículo (preserva a tabela mestre)
+func (r *CurriculoRepository) DetachComportamentoAtitudesDoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND cpf = ?", vinculo.ID, vinculo.CPF).
+		Delete(&empregabilidade.CurriculoComportamentoAtitudes{})
+
+	if result.Error != nil {
+		return fmt.Errorf("erro ao desvincular comportamento do currículo: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }

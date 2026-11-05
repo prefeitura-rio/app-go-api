@@ -22,7 +22,7 @@ type UpdateHabilidadeRequest struct {
 }
 
 type AddHabilidadeRequest struct {
-	IDHabilidade int64 `json:"id_habilidade" binding:"required,gt=0" example:"10"`
+	IDHabilidade int64 `json:"id_habilidade" binding:"required" example:"10"`
 }
 
 type CreateAreaAtuacaoRequest struct {
@@ -33,49 +33,8 @@ type UpdateAreaAtuacaoRequest struct {
 	Nome string `json:"nome" binding:"required" example:"Tecnologia da Informação e Comunicação"`
 }
 
-func catalogoFromHabilidades(items []*empregabilidade.Habilidade) []empregabilidade.CatalogoItem {
-	out := make([]empregabilidade.CatalogoItem, 0, len(items))
-	for _, item := range items {
-		if item == nil {
-			continue
-		}
-		out = append(out, empregabilidade.CatalogoItem{ID: item.ID, Nome: item.Nome})
-	}
-	return out
-}
-
-func catalogoFromAreas(items []*empregabilidade.AreaAtuacao) []empregabilidade.CatalogoItem {
-	out := make([]empregabilidade.CatalogoItem, 0, len(items))
-	for _, item := range items {
-		if item == nil {
-			continue
-		}
-		out = append(out, empregabilidade.CatalogoItem{ID: item.ID, Nome: item.Nome})
-	}
-	return out
-}
-
-func catalogoFromComportamentos(items []*empregabilidade.ComportamentoAtitudes) []empregabilidade.CatalogoItem {
-	out := make([]empregabilidade.CatalogoItem, 0, len(items))
-	for _, item := range items {
-		if item == nil {
-			continue
-		}
-		out = append(out, empregabilidade.CatalogoItem{ID: item.ID, Nome: item.Nome})
-	}
-	return out
-}
-
-func parsePage(c *gin.Context) (int, int) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
-	return page, pageSize
+type ReplaceAreasHabilidadeRequest struct {
+	AreaIDs []int64 `json:"area_ids" binding:"required" example:"1,2,3"`
 }
 
 // Estrutura do Handler
@@ -103,7 +62,6 @@ func NewHabilidadeHandler(hService *service.HabilidadeService, cService *service
 // @Param        request  body      CreateHabilidadeRequest  true  "Dados da habilidade"
 // @Success      201      {object}  map[string]int64
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
-// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao criar habilidade"
 // @Security     BearerAuth
@@ -134,7 +92,7 @@ func (h *HabilidadeHandler) CreateHabilidade(c *gin.Context) {
 // @Tags         empregabilidade-habilidades
 // @Produce      json
 // @Param        id   path      int  true  "ID da Habilidade" example(10)
-// @Success      200  {object}  empregabilidade.CatalogoItem
+// @Success      200  {object}  empregabilidade.Habilidade
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      404  {object}  response.ErrorResponse "Habilidade não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao buscar habilidade"
@@ -157,7 +115,7 @@ func (h *HabilidadeHandler) GetHabilidadeByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, empregabilidade.CatalogoItem{ID: item.ID, Nome: item.Nome})
+	c.JSON(http.StatusOK, item)
 }
 
 // UpdateHabilidade atualiza os dados de uma habilidade global.
@@ -171,7 +129,6 @@ func (h *HabilidadeHandler) GetHabilidadeByID(c *gin.Context) {
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
 // @Failure      404      {object}  response.ErrorResponse "Habilidade não encontrada"
-// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar habilidade"
 // @Security     BearerAuth
@@ -211,7 +168,6 @@ func (h *HabilidadeHandler) UpdateHabilidade(c *gin.Context) {
 // @Param        id   path      int  true  "ID da Habilidade" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
-// @Failure      403  {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404  {object}  response.ErrorResponse "Habilidade não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir habilidade"
 // @Security     BearerAuth
@@ -244,8 +200,20 @@ func (h *HabilidadeHandler) DeleteHabilidade(c *gin.Context) {
 // @Failure      500       {object}  response.ErrorResponse "Erro ao buscar habilidades"
 // @Router       /api/v1/empregabilidade/habilidades [get]
 func (h *HabilidadeHandler) ListHabilidades(c *gin.Context) {
-	page, pageSize := parsePage(c)
-	filter := empregabilidade.HabilidadeFilter{Search: c.Query("q")}
+	termo := c.Query("q")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	filter := empregabilidade.HabilidadeFilter{
+		Search: termo,
+	}
 
 	habilidades, total, err := h.habilidadeService.ListHabilidades(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
@@ -253,111 +221,116 @@ func (h *HabilidadeHandler) ListHabilidades(c *gin.Context) {
 		return
 	}
 
-	response.PaginatedJSON(c, http.StatusOK, catalogoFromHabilidades(habilidades), total, page, pageSize)
+	response.PaginatedJSON(c, http.StatusOK, habilidades, total, page, pageSize)
 }
 
-// ListHabilidadesDaArea lista os conhecimentos de uma área de atuação.
-// @Summary      Listar conhecimentos de uma área
-// @Description  Retorna os conhecimentos vinculados à área, com paginação e busca sem acento
+// ==========================================
+// RELACIONAMENTOS: HABILIDADE <-> ÁREA DE ATUAÇÃO
+// ==========================================
+
+// AttachAreaAtuacao vincula uma área de atuação a uma habilidade global.
+// @Summary      Vincular Área de Atuação à Habilidade
+// @Description  Associa uma área de atuação existente a uma habilidade global especificada
 // @Tags         empregabilidade-habilidades
 // @Produce      json
-// @Param        id        path      int     true   "ID da Área de Atuação" example(10)
-// @Param        q         query     string  false  "Termo de busca"
-// @Param        page      query     int     false  "Número da página (default: 1)" default(1)
-// @Param        pageSize  query     int     false  "Tamanho da página (default: 20, max: 100)" default(20)
-// @Success      200       {object}  response.ListCatalogoPaginatedResponse
-// @Failure      400       {object}  response.ErrorResponse "ID inválido"
-// @Failure      404       {object}  response.ErrorResponse "Área de atuação não encontrada"
-// @Failure      500       {object}  response.ErrorResponse "Erro ao buscar conhecimentos"
-// @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id}/habilidades [get]
-func (h *HabilidadeHandler) ListHabilidadesDaArea(c *gin.Context) {
-	areaID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// @Param        id      path      int  true  "ID da Habilidade" example(10)
+// @Param        areaId  path      int  true  "ID da Área de Atuação" example(2)
+// @Success      200     {object}  response.SuccessResponse
+// @Failure      400     {object}  response.ErrorResponse "IDs inválidos"
+// @Failure      500     {object}  response.ErrorResponse "Erro ao vincular área de atuação"
+// @Security     BearerAuth
+// @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao/{areaId} [post]
+func (h *HabilidadeHandler) AttachAreaAtuacao(c *gin.Context) {
+	habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || habilidadeID <= 0 {
+		response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
+		return
+	}
+
+	areaID, err := strconv.ParseInt(c.Param("areaId"), 10, 64)
 	if err != nil || areaID <= 0 {
-		response.Error(c, http.StatusBadRequest, "ID inválido")
+		response.Error(c, http.StatusBadRequest, "ID de área de atuação inválido")
 		return
 	}
-	page, pageSize := parsePage(c)
-	items, total, err := h.habilidadeService.ListHabilidadesDaArea(
-		c.Request.Context(),
-		areaID,
-		empregabilidade.HabilidadeFilter{Search: c.Query("q")},
-		page,
-		pageSize,
-	)
-	if err != nil {
-		response.RespondError(c, err, "Erro ao buscar conhecimentos da área")
+
+	if err := h.habilidadeService.AttachAreaAtuacao(c.Request.Context(), habilidadeID, areaID); err != nil {
+		respondCatalogoError(c, err, "Erro ao vincular área de atuação")
 		return
 	}
-	if items == nil {
-		items = []*empregabilidade.CatalogoItem{}
-	}
-	response.PaginatedJSON(c, http.StatusOK, items, total, page, pageSize)
+
+	response.Success(c, http.StatusOK, "Área de atuação vinculada com sucesso")
 }
 
-// AttachHabilidadeNaArea vincula um conhecimento existente a uma área.
-// @Summary      Vincular conhecimento à área
-// @Description  Cria o par área × conhecimento. O texto do conhecimento continua global
+// DetachAreaAtuacao remove a associação entre uma área de atuação e uma habilidade global.
+// @Summary      Desvincular Área de Atuação da Habilidade
+// @Description  Remove a relação N:M entre uma habilidade e uma área de atuação sem excluir as entidades
+// @Tags         empregabilidade-habilidades
+// @Produce      json
+// @Param        id      path      int  true  "ID da Habilidade" example(10)
+// @Param        areaId  path      int  true  "ID da Área de Atuação" example(2)
+// @Success      200     {object}  response.SuccessResponse
+// @Failure      400     {object}  response.ErrorResponse "IDs inválidos"
+// @Failure      500     {object}  response.ErrorResponse "Erro ao desvincular área de atuação"
+// @Security     BearerAuth
+// @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao/{areaId} [delete]
+func (h *HabilidadeHandler) DetachAreaAtuacao(c *gin.Context) {
+	habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || habilidadeID <= 0 {
+		response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
+		return
+	}
+
+	areaID, err := strconv.ParseInt(c.Param("areaId"), 10, 64)
+	if err != nil || areaID <= 0 {
+		response.Error(c, http.StatusBadRequest, "ID de área de atuação inválido")
+		return
+	}
+
+	if err := h.habilidadeService.DetachAreaAtuacao(c.Request.Context(), habilidadeID, areaID); err != nil {
+		respondCatalogoError(c, err, "Erro ao desvincular área de atuação")
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Área de atuação desvinculada com sucesso")
+}
+
+// ReplaceAreasAtuacao substitui todas as áreas de atuação vinculadas a uma habilidade.
+// @Summary      Substituir Áreas de Atuação da Habilidade
+// @Description  Substitui em lote o conjunto de áreas de atuação associadas a uma habilidade global
+// @Description
+// @Description  **Atenção para o campo `area_ids`:**
+// @Description  - Funciona como **substituição total (Replace)** para as áreas de atuação vinculadas a cada habilidade.
+// @Description  - Enviar `[1, 2, 3]` substitui todas as áreas existentes dessa habilidade pelas IDs fornecidas.
+// @Description  - Enviar array vazio `[]` ou omitir remove todos os vínculos de área de atuação da habilidade.
 // @Tags         empregabilidade-habilidades
 // @Accept       json
 // @Produce      json
-// @Param        id       path      int                   true  "ID da Área de Atuação" example(10)
-// @Param        request  body      AddHabilidadeRequest  true  "ID do conhecimento"
-// @Success      201      {object}  response.SuccessResponse
-// @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
-// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
-// @Failure      404      {object}  response.ErrorResponse "Área ou conhecimento não encontrado"
-// @Failure      409      {object}  response.ErrorResponse "Conhecimento já vinculado"
-// @Failure      500      {object}  response.ErrorResponse "Erro ao vincular conhecimento à área"
+// @Param        id       path      int                            true  "ID da Habilidade" example(10)
+// @Param        request  body      ReplaceAreasHabilidadeRequest  true  "Lista de IDs das áreas de atuação"
+// @Success      200      {object}  response.SuccessResponse
+// @Failure      400      {object}  response.ErrorResponse "Dados ou ID inválidos"
+// @Failure      500      {object}  response.ErrorResponse "Erro ao substituir áreas de atuação"
 // @Security     BearerAuth
-// @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id}/habilidades [post]
-func (h *HabilidadeHandler) AttachHabilidadeNaArea(c *gin.Context) {
-	areaID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || areaID <= 0 {
-		response.Error(c, http.StatusBadRequest, "ID inválido")
+// @Router       /api/v1/empregabilidade/habilidades/{id}/areas-atuacao [put]
+func (h *HabilidadeHandler) ReplaceAreasAtuacao(c *gin.Context) {
+	habilidadeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || habilidadeID <= 0 {
+		response.Error(c, http.StatusBadRequest, "ID de habilidade inválido")
 		return
 	}
-	var req AddHabilidadeRequest
+
+	var req ReplaceAreasHabilidadeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "Dados inválidos: "+err.Error())
 		return
 	}
-	if err := h.habilidadeService.AttachHabilidadeNaArea(c.Request.Context(), areaID, req.IDHabilidade); err != nil {
-		respondCatalogoError(c, err, "Erro ao vincular conhecimento à área")
-		return
-	}
-	response.Success(c, http.StatusCreated, "Conhecimento vinculado à área de atuação")
-}
 
-// DetachHabilidadeDaArea remove um conhecimento de uma área.
-// @Summary      Desvincular conhecimento da área
-// @Description  Remove o par. Currículos que marcaram esse par perdem o vínculo em cascata
-// @Tags         empregabilidade-habilidades
-// @Produce      json
-// @Param        id             path      int  true  "ID da Área de Atuação" example(10)
-// @Param        habilidadeId   path      int  true  "ID do conhecimento" example(2)
-// @Success      200            {object}  response.SuccessResponse
-// @Failure      400            {object}  response.ErrorResponse "ID inválido"
-// @Failure      403            {object}  response.ErrorResponse "Sem permissão"
-// @Failure      404            {object}  response.ErrorResponse "Vínculo não encontrado"
-// @Failure      500            {object}  response.ErrorResponse "Erro ao desvincular conhecimento da área"
-// @Security     BearerAuth
-// @Router       /api/v1/empregabilidade/habilidades/areas-atuacao/{id}/habilidades/{habilidadeId} [delete]
-func (h *HabilidadeHandler) DetachHabilidadeDaArea(c *gin.Context) {
-	areaID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || areaID <= 0 {
-		response.Error(c, http.StatusBadRequest, "ID inválido")
+	if err := h.habilidadeService.ReplaceAreasAtuacao(c.Request.Context(), habilidadeID, req.AreaIDs); err != nil {
+		respondCatalogoError(c, err, "Erro ao substituir áreas de atuação")
 		return
 	}
-	habilidadeID, err := strconv.ParseInt(c.Param("habilidadeId"), 10, 64)
-	if err != nil || habilidadeID <= 0 {
-		response.Error(c, http.StatusBadRequest, "ID de conhecimento inválido")
-		return
-	}
-	if err := h.habilidadeService.DetachHabilidadeDaArea(c.Request.Context(), areaID, habilidadeID); err != nil {
-		respondCatalogoError(c, err, "Erro ao desvincular conhecimento da área")
-		return
-	}
-	response.Success(c, http.StatusOK, "Conhecimento desvinculado da área de atuação")
+
+	response.Success(c, http.StatusOK, "Áreas de atuação da habilidade atualizadas com sucesso")
 }
 
 // ==========================================
@@ -373,7 +346,6 @@ func (h *HabilidadeHandler) DetachHabilidadeDaArea(c *gin.Context) {
 // @Param        request  body      CreateAreaAtuacaoRequest  true  "Dados da área de atuação"
 // @Success      201      {object}  map[string]int64
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
-// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao criar área de atuação"
 // @Security     BearerAuth
@@ -404,7 +376,7 @@ func (h *HabilidadeHandler) CreateAreaAtuacao(c *gin.Context) {
 // @Tags         empregabilidade-habilidades
 // @Produce      json
 // @Param        id   path      int  true  "ID da Área de Atuação" example(10)
-// @Success      200  {object}  empregabilidade.CatalogoItem
+// @Success      200  {object}  empregabilidade.AreaAtuacao
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      404  {object}  response.ErrorResponse "Área de atuação não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao buscar área de atuação"
@@ -427,7 +399,7 @@ func (h *HabilidadeHandler) GetAreaAtuacaoByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, empregabilidade.CatalogoItem{ID: item.ID, Nome: item.Nome})
+	c.JSON(http.StatusOK, item)
 }
 
 // UpdateAreaAtuacao atualiza os dados de uma área de atuação.
@@ -440,7 +412,6 @@ func (h *HabilidadeHandler) GetAreaAtuacaoByID(c *gin.Context) {
 // @Param        request  body      UpdateAreaAtuacaoRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
-// @Failure      403      {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404      {object}  response.ErrorResponse "Área de atuação não encontrada"
 // @Failure      409      {object}  response.ErrorResponse "Nome já cadastrado"
 // @Failure      500      {object}  response.ErrorResponse "Erro ao atualizar área de atuação"
@@ -481,7 +452,6 @@ func (h *HabilidadeHandler) UpdateAreaAtuacao(c *gin.Context) {
 // @Param        id   path      int  true  "ID da Área de Atuação" example(10)
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
-// @Failure      403  {object}  response.ErrorResponse "Sem permissão"
 // @Failure      404  {object}  response.ErrorResponse "Área de atuação não encontrada"
 // @Failure      500  {object}  response.ErrorResponse "Erro ao excluir área de atuação"
 // @Security     BearerAuth
@@ -514,8 +484,20 @@ func (h *HabilidadeHandler) DeleteAreaAtuacao(c *gin.Context) {
 // @Failure      500       {object}  response.ErrorResponse "Erro ao buscar áreas de atuação"
 // @Router       /api/v1/empregabilidade/habilidades/areas-atuacao [get]
 func (h *HabilidadeHandler) ListAreasAtuacao(c *gin.Context) {
-	page, pageSize := parsePage(c)
-	filter := empregabilidade.AreaAtuacaoFilter{Search: c.Query("q")}
+	termo := c.Query("q")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	filter := empregabilidade.AreaAtuacaoFilter{
+		Search: termo,
+	}
 
 	areas, total, err := h.habilidadeService.ListAreasAtuacao(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
@@ -523,5 +505,25 @@ func (h *HabilidadeHandler) ListAreasAtuacao(c *gin.Context) {
 		return
 	}
 
-	response.PaginatedJSON(c, http.StatusOK, catalogoFromAreas(areas), total, page, pageSize)
+	response.PaginatedJSON(c, http.StatusOK, areas, total, page, pageSize)
+}
+
+// ListAreaAtuacaoHabilidades lista todos os vínculos entre áreas de atuação e habilidades.
+// @Summary      Listar vínculos entre Áreas de Atuação e Habilidades
+// @Description  Retorna todos os vínculos cadastrados entre áreas de atuação e habilidades
+// @Tags         empregabilidade-habilidades
+// @Produce      json
+// @Success      200  {array}   empregabilidade.AreaAtuacaoHabilidade
+// @Failure      500  {object}  response.ErrorResponse "Erro ao buscar áreas de atuação e habilidades"
+// @Router       /api/v1/empregabilidade/habilidades/areas-atuacao-habilidades [get]
+func (h *HabilidadeHandler) ListAreaAtuacaoHabilidades(c *gin.Context) {
+	areasAtuacaoHabilidades, err := h.habilidadeService.ListAreaAtuacaoHabilidades(
+		c.Request.Context(),
+	)
+	if err != nil {
+		response.RespondError(c, err, "Erro ao buscar áreas de atuação e habilidades")
+		return
+	}
+
+	c.JSON(http.StatusOK, areasAtuacaoHabilidades)
 }

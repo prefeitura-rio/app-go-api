@@ -137,100 +137,67 @@ func (s *CurriculoService) ListConquistasByCPF(ctx context.Context, cpf string) 
 	return s.repo.ListConquistasByCPF(ctx, strings.TrimSpace(cpf))
 }
 
-// GetHabilidadesCompetencias devolve a área, os conhecimentos e os comportamentos do CPF.
-func (s *CurriculoService) GetHabilidadesCompetencias(ctx context.Context, cpf string) (*empregabilidade.HabilidadesCompetencias, error) {
-	cleanCPF := strings.TrimSpace(cpf)
-	if cleanCPF == "" {
-		return nil, apperrors.Validation("CPF é obrigatório")
-	}
-	return s.repo.GetHabilidadesCompetencias(ctx, cleanCPF)
+// --- Áreas atuação c/ Habilidade ---
+
+// ListAreaAtuacaoHabilidadeByCPF lista áreas de atuação/habilidade do currículo do candidato.
+func (s *CurriculoService) ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoAreaAtuacaoHabilidade, error) {
+	return s.repo.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(
+		ctx,
+		strings.TrimSpace(cpf),
+	)
 }
 
-// SaveHabilidadesCompetencias grava área, conhecimentos e comportamentos numa transação.
-func (s *CurriculoService) SaveHabilidadesCompetencias(ctx context.Context, cpf string, in *empregabilidade.HabilidadesCompetenciasSave) (*empregabilidade.HabilidadesCompetencias, error) {
-	cleanCPF := strings.TrimSpace(cpf)
-	if cleanCPF == "" {
-		return nil, apperrors.Validation("CPF é obrigatório")
-	}
-	if in == nil {
-		return nil, apperrors.Validation("nenhuma modificação foi solicitada pelo usuário")
-	}
-
-	habilidadeIDs, err := dedupeIDs(in.HabilidadeIDs)
-	if err != nil {
-		return nil, err
-	}
-	comportamentoIDs, err := dedupeIDs(in.ComportamentoAtitudesIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	var areaID *int64
-	if in.IDAreaAtuacao != nil {
-		if *in.IDAreaAtuacao <= 0 {
-			return nil, apperrors.Validation("id_area_atuacao inválido")
-		}
-		areaID = in.IDAreaAtuacao
-	}
-	if areaID == nil && len(habilidadeIDs) > 0 {
-		return nil, apperrors.Validation("selecione uma área de atuação para gravar conhecimentos")
-	}
-
-	var pivotIDs []int64
-	if areaID != nil {
-		exists, err := s.repo.AreaAtuacaoExists(ctx, *areaID)
-		if err != nil {
-			return nil, err
-		}
-		if !exists {
-			return nil, apperrors.NotFound("Área de atuação não encontrada")
-		}
-		pivots, err := s.repo.PivotIDsDaArea(ctx, *areaID, habilidadeIDs)
-		if err != nil {
-			return nil, err
-		}
-		if len(pivots) != len(habilidadeIDs) {
-			return nil, apperrors.Validation("conhecimento não pertence à área de atuação")
-		}
-		pivotIDs = make([]int64, len(habilidadeIDs))
-		for i, id := range habilidadeIDs {
-			pivotIDs[i] = pivots[id]
-		}
-	}
-
-	if len(comportamentoIDs) > 0 {
-		found, err := s.repo.ExistingComportamentoIDs(ctx, comportamentoIDs)
-		if err != nil {
-			return nil, err
-		}
-		if len(found) != len(comportamentoIDs) {
-			return nil, apperrors.NotFound("Comportamento/atitude não encontrado")
-		}
-	}
-
-	if err := s.repo.ReplaceHabilidadesCompetencias(ctx, cleanCPF, areaID, pivotIDs, comportamentoIDs); err != nil {
-		return nil, err
-	}
-	return s.repo.GetHabilidadesCompetencias(ctx, cleanCPF)
+// AddAreaAtuacaoHabilidadeAoCurriculo vincula uma combinação de área de atuação/habilidade do currículo do candidato.
+func (s *CurriculoService) AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx context.Context, vinculo *empregabilidade.CurriculoAreaAtuacaoHabilidade) error {
+	return s.repo.AddAreaAtuacaoHabilidadeAoCurriculoByCPF(ctx, vinculo)
 }
 
-func dedupeIDs(ids []int64) ([]int64, error) {
-	if len(ids) == 0 {
-		return []int64{}, nil
+// DetachAreaAtuacaoHabilidadeDoCurriculo desvincula uma combinação de área de atuação/habilidade do currículo do candidato.
+func (s *CurriculoService) DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(
+	ctx context.Context,
+	id int64,
+	cpf string,
+) error {
+	return s.repo.DetachAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, id, cpf)
+}
+
+// --- Comportamentos e Atitudes ---
+
+// AddComportamentoAtitudesAoCurriculo vincula um comportamento/atitude ao currículo (CPF)
+func (s *CurriculoService) AddComportamentoAtitudesAoCurriculo(ctx context.Context, vinculo *empregabilidade.CurriculoComportamentoAtitudes) error {
+	return s.repo.AddComportamentoAtitudesAoCurriculo(ctx, vinculo)
+}
+
+// ReplaceAllItensCurriculoByCPF substitui os itens do currículo do candidato.
+func (s *CurriculoService) ReplaceAllItensCurriculoByCPF(ctx context.Context, cpf string, itensCurriculo *empregabilidade.CurriculoItensReplaceAll) error {
+	cleanCPF := strings.TrimSpace(cpf)
+
+	if cleanCPF == "" {
+		return apperrors.Validation("CPF é obrigatório")
 	}
-	seen := make(map[int64]struct{}, len(ids))
-	out := make([]int64, 0, len(ids))
-	for _, id := range ids {
-		if id <= 0 {
-			return nil, apperrors.Validation("id inválido")
-		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		out = append(out, id)
+
+	if itensCurriculo == nil {
+		return apperrors.Validation("nenhuma modificação foi solicitada pelo usuário")
 	}
-	return out, nil
+
+	return s.repo.ReplaceAllItensCurriculoByCPF(
+		ctx,
+		cleanCPF,
+		itensCurriculo,
+	)
+}
+
+// DetachComportamentoAtitudesDoCurriculo remove o vínculo de um comportamento/atitude do currículo (CPF)
+func (s *CurriculoService) DetachComportamentoAtitudesDoCurriculo(
+	ctx context.Context,
+	vinculo *empregabilidade.CurriculoComportamentoAtitudes,
+) error {
+	return s.repo.DetachComportamentoAtitudesDoCurriculo(ctx, vinculo)
+}
+
+// ListComportamentoAtitudesPorCPF busca todos os comportamentos/atitudes associados a um CPF
+func (s *CurriculoService) ListComportamentoAtitudesPorCPF(ctx context.Context, cpf string) ([]*empregabilidade.CurriculoComportamentoAtitudes, error) {
+	return s.repo.ListComportamentoAtitudesByCPF(ctx, cpf)
 }
 
 // --- Métodos de Substituição em Lote (Bulk Save) ---
@@ -298,7 +265,12 @@ func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string)
 		return nil, err
 	}
 
-	habilidades, err := s.repo.GetHabilidadesCompetencias(ctx, cpf)
+	comportamentos_atitudes, err := s.repo.ListComportamentoAtitudesByCPF(ctx, cpf)
+	if err != nil {
+		return nil, err
+	}
+
+	area_atuacao_habilidade, err := s.repo.ListAreaAtuacaoHabilidadeDoCurriculoByCPF(ctx, cpf)
 	if err != nil {
 		return nil, err
 	}
@@ -334,15 +306,14 @@ func (s *CurriculoService) GetCurriculoCompleto(ctx context.Context, cpf string)
 	}
 
 	return &empregabilidade.CurriculoCompleto{
-		Formacoes:              formacoes,
-		Idiomas:                idiomas,
-		AreaAtuacao:            habilidades.AreaAtuacao,
-		Conhecimentos:          habilidades.Conhecimentos,
-		ComportamentosAtitudes: habilidades.ComportamentosAtitudes,
-		CursosComplementares:   cursos,
-		Experiencias:           experiencias,
-		Conquistas:             conquistas,
-		SituacaoInteresses:     situacao,
-		ResumoProfissional:     resumoProfissional,
+		Formacoes:             formacoes,
+		Idiomas:               idiomas,
+		ComportamentoAtitudes: comportamentos_atitudes,
+		AreaAtuacaoHabilidade: area_atuacao_habilidade,
+		CursosComplementares:  cursos,
+		Experiencias:          experiencias,
+		Conquistas:            conquistas,
+		SituacaoInteresses:    situacao,
+		ResumoProfissional:    resumoProfissional,
 	}, nil
 }

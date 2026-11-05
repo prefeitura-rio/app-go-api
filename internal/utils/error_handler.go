@@ -23,7 +23,6 @@ const (
 	UniqueViolation
 	NotNullViolation
 	CheckViolation
-	StringTooLong
 	UnknownError
 )
 
@@ -80,11 +79,6 @@ func ParseDatabaseError(err error) *DatabaseError {
 		return parseNotNullError(fields.Column)
 	case "23514": // check_violation
 		return parseCheckViolationError(fields.Constraint)
-	case "22001": // string_data_right_truncation
-		return &DatabaseError{
-			Type:    StringTooLong,
-			Message: "Valor excede o tamanho máximo permitido.",
-		}
 	default:
 		return &DatabaseError{
 			Type:    UnknownError,
@@ -141,11 +135,6 @@ func parseUniqueViolationError(constraint string) *DatabaseError {
 			Type:    UniqueViolation,
 			Message: "Este email já está cadastrado no sistema.",
 			Field:   "email",
-		}
-	case strings.Contains(constraint, "uk_emp_curriculo_aah"):
-		return &DatabaseError{
-			Type:    UniqueViolation,
-			Message: "Já existe um registro com essas informações no sistema.",
 		}
 	case strings.Contains(constraint, "cpf"):
 		return &DatabaseError{
@@ -229,7 +218,7 @@ func (de *DatabaseError) GetHTTPStatusCode() int {
 	}
 
 	switch de.Type {
-	case ForeignKeyViolation, NotNullViolation, CheckViolation, StringTooLong:
+	case ForeignKeyViolation, NotNullViolation, CheckViolation:
 		return 400 // Bad Request
 	case UniqueViolation:
 		return 409 // Conflict

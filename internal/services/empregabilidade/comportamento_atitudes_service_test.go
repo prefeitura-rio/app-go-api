@@ -82,14 +82,6 @@ func TestComportamentoAtitudesService_CreateComportamentoAtitudes(t *testing.T) 
 		mockRepo.AssertExpectations(t)
 	})
 
-	t.Run("nome vazio", func(t *testing.T) {
-		mockRepo := new(MockComportamentoAtitudesRepository)
-		svc := service.NewComportamentoAtitudesService(mockRepo)
-		_, err := svc.CreateComportamentoAtitudes(ctx, &empregabilidade.ComportamentoAtitudes{Nome: " "})
-		assert.EqualError(t, err, "nome é obrigatório")
-		mockRepo.AssertNotCalled(t, "CreateComportamentoAtitudes")
-	})
-
 	t.Run("Error", func(t *testing.T) {
 		mockRepo := new(MockComportamentoAtitudesRepository)
 		svc := service.NewComportamentoAtitudesService(mockRepo)
@@ -154,14 +146,6 @@ func TestComportamentoAtitudesService_UpdateComportamentoAtitudes(t *testing.T) 
 
 		assert.NoError(t, err)
 		mockRepo.AssertExpectations(t)
-	})
-
-	t.Run("nome vazio", func(t *testing.T) {
-		mockRepo := new(MockComportamentoAtitudesRepository)
-		svc := service.NewComportamentoAtitudesService(mockRepo)
-		err := svc.UpdateComportamentoAtitudes(ctx, &empregabilidade.ComportamentoAtitudes{ID: 20, Nome: ""})
-		assert.EqualError(t, err, "nome é obrigatório")
-		mockRepo.AssertNotCalled(t, "UpdateComportamentoAtitudes")
 	})
 
 	t.Run("Error", func(t *testing.T) {
