@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -13,6 +14,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/datatypes"
 )
 
 type mockJobRepoForHandler struct {
@@ -49,6 +51,14 @@ func (m *mockJobRepoForHandler) UpdateProgress(_ context.Context, _ uuid.UUID, _
 
 func (m *mockJobRepoForHandler) UpdateStatus(_ context.Context, _ uuid.UUID, _ models.JobStatus) error {
 	return nil
+}
+
+func (m *mockJobRepoForHandler) Touch(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (m *mockJobRepoForHandler) FailStale(_ context.Context, _ time.Time, _ datatypes.JSON) (int64, error) {
+	return 0, nil
 }
 
 func setupJobRouter(repo services.JobRepositoryInterface) *gin.Engine {

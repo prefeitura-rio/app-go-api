@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	modelsEmp "github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	"gorm.io/datatypes"
 )
 
 // Suppress unused import - modelsEmp is used below for OportunidadeMEI interface
@@ -46,6 +47,8 @@ type JobRepositoryInterface interface {
 	Update(ctx context.Context, job *models.Job) error
 	UpdateStatus(ctx context.Context, id uuid.UUID, status models.JobStatus) error
 	UpdateProgress(ctx context.Context, id uuid.UUID, progress, successCount, errorCount int) error
+	Touch(ctx context.Context, id uuid.UUID) error
+	FailStale(ctx context.Context, cutoff time.Time, jobErrors datatypes.JSON) (int64, error)
 	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*models.Job, int, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 }

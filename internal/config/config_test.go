@@ -1094,3 +1094,85 @@ func TestInitialize(t *testing.T) {
 		assert.NotNil(t, v)
 	}
 }
+
+func TestLoad_JobRecoverySettings(t *testing.T) {
+	envVars := []string{
+		"JOB_HEARTBEAT_INTERVAL",
+		"JOB_STALE_AFTER",
+		"JOB_REAPER_INTERVAL",
+		"DB_HOST", "DB_PORT",
+		"SERVER_HOST", "SERVER_PORT",
+	}
+	originalEnv := make(map[string]string)
+	for _, key := range envVars {
+		originalEnv[key] = os.Getenv(key)
+		os.Unsetenv(key)
+	}
+	reset := func() {
+		instance = nil
+		once = sync.Once{}
+		v = nil
+	}
+	defer func() {
+		for key, value := range originalEnv {
+			if value == "" {
+				os.Unsetenv(key)
+			} else {
+				os.Setenv(key, value)
+			}
+		}
+		reset()
+	}()
+
+	os.Setenv("DB_HOST", "localhost")
+	os.Setenv("DB_PORT", "5432")
+	os.Setenv("SERVER_HOST", "0.0.0.0")
+	os.Setenv("SERVER_PORT", "8080")
+
+	reset()
+	defaults, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, 1*time.Minute, defaults.Jobs.HeartbeatInterval)
+	assert.Equal(t, 10*time.Minute, defaults.Jobs.StaleAfter)
+	assert.Equal(t, 2*time.Minute, defaults.Jobs.ReaperInterval)
+
+	os.Setenv("JOB_HEARTBEAT_INTERVAL", "30s")
+	os.Setenv("JOB_STALE_AFTER", "5m")
+	os.Setenv("JOB_REAPER_INTERVAL", "1m")
+	reset()
+	custom, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, 30*time.Second, custom.Jobs.HeartbeatInterval)
+	assert.Equal(t, 5*time.Minute, custom.Jobs.StaleAfter)
+	assert.Equal(t, 1*time.Minute, custom.Jobs.ReaperInterval)
+}
+
+func TestJobSettings_Normalize(t *testing.T) {
+	tests := []struct {
+		name string
+		in   JobSettings
+		want JobSettings
+	}{
+		{
+			name: "valid settings unchanged",
+			in:   JobSettings{HeartbeatInterval: 30 * time.Second, StaleAfter: 5 * time.Minute, ReaperInterval: time.Minute},
+			want: JobSettings{HeartbeatInterval: 30 * time.Second, StaleAfter: 5 * time.Minute, ReaperInterval: time.Minute},
+		},
+		{
+			name: "non-positive values fall back to defaults",
+			in:   JobSettings{HeartbeatInterval: 0, StaleAfter: -time.Minute, ReaperInterval: 0},
+			want: JobSettings{HeartbeatInterval: time.Minute, StaleAfter: 10 * time.Minute, ReaperInterval: 2 * time.Minute},
+		},
+		{
+			name: "stale threshold below three heartbeats is raised so a live job is never reaped",
+			in:   JobSettings{HeartbeatInterval: 2 * time.Minute, StaleAfter: 3 * time.Minute, ReaperInterval: time.Minute},
+			want: JobSettings{HeartbeatInterval: 2 * time.Minute, StaleAfter: 6 * time.Minute, ReaperInterval: time.Minute},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.in.normalized())
+		})
+	}
+}

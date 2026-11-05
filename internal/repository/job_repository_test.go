@@ -4,11 +4,13 @@ import (
 	"context"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/datatypes"
 )
 
 func TestJobRepository_Create(t *testing.T) {
@@ -331,5 +333,72 @@ func TestJobRepository_Delete(t *testing.T) {
 		err := repo.Delete(ctx, id)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "erro ao deletar job")
+	})
+}
+
+func TestJobRepository_Touch(t *testing.T) {
+	db, mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewJobRepository(db)
+	ctx := context.Background()
+
+	t.Run("renews updated_at only while processing", func(t *testing.T) {
+		id := uuid.New()
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "jobs" SET "updated_at"=\$1 WHERE id = \$2 AND status = \$3`).
+			WithArgs(sqlmock.AnyArg(), id, models.JobStatusProcessing).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
+		err := repo.Touch(ctx, id)
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("touch error", func(t *testing.T) {
+		id := uuid.New()
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "jobs"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		err := repo.Touch(ctx, id)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "erro ao renovar job")
+	})
+}
+
+func TestJobRepository_FailStale(t *testing.T) {
+	db, mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewJobRepository(db)
+	ctx := context.Background()
+	cutoff := time.Now().Add(-10 * time.Minute)
+	jobErrors := datatypes.JSON(`[{"line":0,"message":"processamento interrompido"}]`)
+
+	t.Run("fails only unfinished jobs not updated since the cutoff", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "jobs" SET .* WHERE status IN \(\$\d+,\$\d+\) AND updated_at < \$\d+`).
+			WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectCommit()
+
+		n, err := repo.FailStale(ctx, cutoff, jobErrors)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2), n)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("fail stale error", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "jobs"`)).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+
+		n, err := repo.FailStale(ctx, cutoff, jobErrors)
+		assert.Error(t, err)
+		assert.Equal(t, int64(0), n)
+		assert.Contains(t, err.Error(), "erro ao encerrar jobs interrompidos")
 	})
 }
