@@ -141,7 +141,7 @@ func (h *HabilidadeHandler) CreateHabilidade(c *gin.Context) {
 // @Description  Retorna os detalhes de uma habilidade global cadastrada pelo ID
 // @Tags         empregabilidade-habilidades
 // @Produce      json
-// @Param        id   path      int  true  "ID da Habilidade" example(10)
+// @Param        id   path      int  true  "ID da Habilidade (ex.: 10)"
 // @Success      200  {object}  empregabilidade.CatalogoItem
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      404  {object}  response.ErrorResponse "Habilidade não encontrada"
@@ -174,7 +174,7 @@ func (h *HabilidadeHandler) GetHabilidadeByID(c *gin.Context) {
 // @Tags         empregabilidade-habilidades
 // @Accept       json
 // @Produce      json
-// @Param        id       path      int                      true  "ID da Habilidade" example(10)
+// @Param        id       path      int                      true  "ID da Habilidade (ex.: 10)"
 // @Param        request  body      UpdateHabilidadeRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
@@ -216,7 +216,7 @@ func (h *HabilidadeHandler) UpdateHabilidade(c *gin.Context) {
 // @Description  Remove uma habilidade global cadastrada pelo ID
 // @Tags         empregabilidade-habilidades
 // @Produce      json
-// @Param        id   path      int  true  "ID da Habilidade" example(10)
+// @Param        id   path      int  true  "ID da Habilidade (ex.: 10)"
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      403  {object}  response.ErrorResponse "Sem permissão"
@@ -269,7 +269,7 @@ func (h *HabilidadeHandler) ListHabilidades(c *gin.Context) {
 // @Description  Retorna os conhecimentos vinculados à área, com paginação e busca sem acento
 // @Tags         empregabilidade-habilidades
 // @Produce      json
-// @Param        id        path      int     true   "ID da Área de Atuação" example(10)
+// @Param        id        path      int     true   "ID da Área de Atuação (ex.: 10)"
 // @Param        q         query     string  false  "Termo de busca"
 // @Param        page      query     int     false  "Número da página (default: 1)" default(1)
 // @Param        pageSize  query     int     false  "Tamanho da página (default: 20, max: 100)" default(20)
@@ -308,7 +308,7 @@ func (h *HabilidadeHandler) ListHabilidadesDaArea(c *gin.Context) {
 // @Tags         empregabilidade-habilidades
 // @Accept       json
 // @Produce      json
-// @Param        id       path      int                   true  "ID da Área de Atuação" example(10)
+// @Param        id       path      int                   true  "ID da Área de Atuação (ex.: 10)"
 // @Param        request  body      AddHabilidadeRequest  true  "ID do conhecimento"
 // @Success      201      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
@@ -341,8 +341,8 @@ func (h *HabilidadeHandler) AttachHabilidadeNaArea(c *gin.Context) {
 // @Description  Remove o par. Currículos que marcaram esse par perdem o vínculo em cascata
 // @Tags         empregabilidade-habilidades
 // @Produce      json
-// @Param        id             path      int  true  "ID da Área de Atuação" example(10)
-// @Param        habilidadeId   path      int  true  "ID do conhecimento" example(2)
+// @Param        id             path      int  true  "ID da Área de Atuação (ex.: 10)"
+// @Param        habilidadeId   path      int  true  "ID do conhecimento (ex.: 2)"
 // @Success      200            {object}  response.SuccessResponse
 // @Failure      400            {object}  response.ErrorResponse "ID inválido"
 // @Failure      403            {object}  response.ErrorResponse "Sem permissão"
@@ -411,7 +411,7 @@ func (h *HabilidadeHandler) CreateAreaAtuacao(c *gin.Context) {
 // @Description  Retorna os detalhes de uma área de atuação cadastrada pelo ID
 // @Tags         empregabilidade-habilidades
 // @Produce      json
-// @Param        id   path      int  true  "ID da Área de Atuação" example(10)
+// @Param        id   path      int  true  "ID da Área de Atuação (ex.: 10)"
 // @Success      200  {object}  empregabilidade.CatalogoItem
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      404  {object}  response.ErrorResponse "Área de atuação não encontrada"
@@ -444,7 +444,7 @@ func (h *HabilidadeHandler) GetAreaAtuacaoByID(c *gin.Context) {
 // @Tags         empregabilidade-habilidades
 // @Accept       json
 // @Produce      json
-// @Param        id       path      int                       true  "ID da Área de Atuação" example(10)
+// @Param        id       path      int                       true  "ID da Área de Atuação (ex.: 10)"
 // @Param        request  body      UpdateAreaAtuacaoRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
@@ -486,7 +486,7 @@ func (h *HabilidadeHandler) UpdateAreaAtuacao(c *gin.Context) {
 // @Description  Remove uma área de atuação cadastrada pelo ID
 // @Tags         empregabilidade-habilidades
 // @Produce      json
-// @Param        id   path      int  true  "ID da Área de Atuação" example(10)
+// @Param        id   path      int  true  "ID da Área de Atuação (ex.: 10)"
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      403  {object}  response.ErrorResponse "Sem permissão"

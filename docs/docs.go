@@ -3474,8 +3474,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID do Comportamento/Atitude",
+                        "description": "ID do Comportamento/Atitude (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3528,8 +3527,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID do Comportamento/Atitude",
+                        "description": "ID do Comportamento/Atitude (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3600,8 +3598,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID do Comportamento/Atitude",
+                        "description": "ID do Comportamento/Atitude (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -7056,8 +7053,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID da Área de Atuação",
+                        "description": "ID da Área de Atuação (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -7110,8 +7106,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID da Área de Atuação",
+                        "description": "ID da Área de Atuação (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -7182,8 +7177,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID da Área de Atuação",
+                        "description": "ID da Área de Atuação (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -7236,8 +7230,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID da Área de Atuação",
+                        "description": "ID da Área de Atuação (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -7310,8 +7303,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID da Área de Atuação",
+                        "description": "ID da Área de Atuação (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -7384,16 +7376,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID da Área de Atuação",
+                        "description": "ID da Área de Atuação (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "integer",
-                        "example": 2,
-                        "description": "ID do conhecimento",
+                        "description": "ID do conhecimento (ex.: 2)",
                         "name": "habilidadeId",
                         "in": "path",
                         "required": true
@@ -7446,8 +7436,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID da Habilidade",
+                        "description": "ID da Habilidade (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -7500,8 +7489,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID da Habilidade",
+                        "description": "ID da Habilidade (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -7572,8 +7560,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "ID da Habilidade",
+                        "description": "ID da Habilidade (ex.: 10)",
                         "name": "id",
                         "in": "path",
                         "required": true

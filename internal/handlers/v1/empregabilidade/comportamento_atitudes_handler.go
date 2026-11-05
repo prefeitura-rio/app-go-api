@@ -76,7 +76,7 @@ func (h *ComportamentoAtitudesHandler) CreateComportamentoAtitudes(c *gin.Contex
 // @Description  Retorna os detalhes de um comportamento/atitude global cadastrado pelo ID
 // @Tags         empregabilidade-comportamentos-atitudes
 // @Produce      json
-// @Param        id   path      int  true  "ID do Comportamento/Atitude" example(10)
+// @Param        id   path      int  true  "ID do Comportamento/Atitude (ex.: 10)"
 // @Success      200  {object}  empregabilidade.CatalogoItem
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      404  {object}  response.ErrorResponse "Comportamento/atitude não encontrado"
@@ -109,7 +109,7 @@ func (h *ComportamentoAtitudesHandler) GetComportamentoAtitudesByID(c *gin.Conte
 // @Tags         empregabilidade-comportamentos-atitudes
 // @Accept       json
 // @Produce      json
-// @Param        id       path      int                                 true  "ID do Comportamento/Atitude" example(10)
+// @Param        id       path      int                                 true  "ID do Comportamento/Atitude (ex.: 10)"
 // @Param        request  body      UpdateComportamentoAtitudesRequest  true  "Dados para atualização"
 // @Success      200      {object}  response.SuccessResponse
 // @Failure      400      {object}  response.ErrorResponse "Dados inválidos"
@@ -151,7 +151,7 @@ func (h *ComportamentoAtitudesHandler) UpdateComportamentoAtitudes(c *gin.Contex
 // @Description  Remove um comportamento/atitude global cadastrado pelo ID
 // @Tags         empregabilidade-comportamentos-atitudes
 // @Produce      json
-// @Param        id   path      int  true  "ID do Comportamento/Atitude" example(10)
+// @Param        id   path      int  true  "ID do Comportamento/Atitude (ex.: 10)"
 // @Success      200  {object}  response.SuccessResponse
 // @Failure      400  {object}  response.ErrorResponse "ID inválido"
 // @Failure      403  {object}  response.ErrorResponse "Sem permissão"
