@@ -66,14 +66,22 @@ func catalogoFromComportamentos(items []*empregabilidade.ComportamentoAtitudes) 
 	return out
 }
 
+const (
+	catalogoDefaultPageSize = 20
+	catalogoMaxPageSize     = 100
+)
+
 func parsePage(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", strconv.Itoa(catalogoDefaultPageSize)))
 	if page < 1 {
 		page = 1
 	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
+	if pageSize < 1 {
+		pageSize = catalogoDefaultPageSize
+	}
+	if pageSize > catalogoMaxPageSize {
+		pageSize = catalogoMaxPageSize
 	}
 	return page, pageSize
 }
