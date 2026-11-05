@@ -4500,8 +4500,7 @@ paths:
     delete:
       description: Remove um comportamento/atitude global cadastrado pelo ID
       parameters:
-      - description: ID do Comportamento/Atitude
-        example: 10
+      - description: 'ID do Comportamento/Atitude (ex.: 10)'
         in: path
         name: id
         required: true
@@ -4538,8 +4537,7 @@ paths:
       description: Retorna os detalhes de um comportamento/atitude global cadastrado
         pelo ID
       parameters:
-      - description: ID do Comportamento/Atitude
-        example: 10
+      - description: 'ID do Comportamento/Atitude (ex.: 10)'
         in: path
         name: id
         required: true
@@ -4571,8 +4569,7 @@ paths:
       - application/json
       description: Atualiza os dados de um comportamento/atitude existente no sistema
       parameters:
-      - description: ID do Comportamento/Atitude
-        example: 10
+      - description: 'ID do Comportamento/Atitude (ex.: 10)'
         in: path
         name: id
         required: true
@@ -6816,8 +6813,7 @@ paths:
     delete:
       description: Remove uma habilidade global cadastrada pelo ID
       parameters:
-      - description: ID da Habilidade
-        example: 10
+      - description: 'ID da Habilidade (ex.: 10)'
         in: path
         name: id
         required: true
@@ -6853,8 +6849,7 @@ paths:
     get:
       description: Retorna os detalhes de uma habilidade global cadastrada pelo ID
       parameters:
-      - description: ID da Habilidade
-        example: 10
+      - description: 'ID da Habilidade (ex.: 10)'
         in: path
         name: id
         required: true
@@ -6886,8 +6881,7 @@ paths:
       - application/json
       description: Atualiza os dados de uma habilidade existente no sistema
       parameters:
-      - description: ID da Habilidade
-        example: 10
+      - description: 'ID da Habilidade (ex.: 10)'
         in: path
         name: id
         required: true
@@ -7008,8 +7002,7 @@ paths:
     delete:
       description: Remove uma área de atuação cadastrada pelo ID
       parameters:
-      - description: ID da Área de Atuação
-        example: 10
+      - description: 'ID da Área de Atuação (ex.: 10)'
         in: path
         name: id
         required: true
@@ -7045,8 +7038,7 @@ paths:
     get:
       description: Retorna os detalhes de uma área de atuação cadastrada pelo ID
       parameters:
-      - description: ID da Área de Atuação
-        example: 10
+      - description: 'ID da Área de Atuação (ex.: 10)'
         in: path
         name: id
         required: true
@@ -7078,8 +7070,7 @@ paths:
       - application/json
       description: Atualiza os dados de uma área de atuação existente
       parameters:
-      - description: ID da Área de Atuação
-        example: 10
+      - description: 'ID da Área de Atuação (ex.: 10)'
         in: path
         name: id
         required: true
@@ -7127,8 +7118,7 @@ paths:
       description: Retorna os conhecimentos vinculados à área, com paginação e busca
         sem acento
       parameters:
-      - description: ID da Área de Atuação
-        example: 10
+      - description: 'ID da Área de Atuação (ex.: 10)'
         in: path
         name: id
         required: true
@@ -7175,8 +7165,7 @@ paths:
       description: Cria o par área × conhecimento. O texto do conhecimento continua
         global
       parameters:
-      - description: ID da Área de Atuação
-        example: 10
+      - description: 'ID da Área de Atuação (ex.: 10)'
         in: path
         name: id
         required: true
@@ -7224,14 +7213,12 @@ paths:
       description: Remove o par. Currículos que marcaram esse par perdem o vínculo
         em cascata
       parameters:
-      - description: ID da Área de Atuação
-        example: 10
+      - description: 'ID da Área de Atuação (ex.: 10)'
         in: path
         name: id
         required: true
         type: integer
-      - description: ID do conhecimento
-        example: 2
+      - description: 'ID do conhecimento (ex.: 2)'
         in: path
         name: habilidadeId
         required: true
