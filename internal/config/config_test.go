@@ -425,6 +425,8 @@ func TestLoad_DefaultValues(t *testing.T) {
 		"APP_ENV", "APP_DEBUG", "LOG_LEVEL", "API_PREFIX", "RBAC_ENABLED",
 		"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME",
 		"SERVER_HOST", "SERVER_PORT",
+		"SERVER_REQUEST_TIMEOUT", "SERVER_READ_HEADER_TIMEOUT",
+		"SERVER_READ_TIMEOUT", "SERVER_IDLE_TIMEOUT",
 	}
 	originalEnv := make(map[string]string)
 	for _, key := range envVars {
@@ -465,6 +467,53 @@ func TestLoad_DefaultValues(t *testing.T) {
 	// Verify default Server settings
 	assert.Equal(t, "0.0.0.0", config.Server.Host)
 	assert.Equal(t, 8080, config.Server.Port)
+	assert.Equal(t, 30, config.Server.RequestTimeout)
+	assert.Equal(t, 10, config.Server.ReadHeaderTimeout)
+	assert.Equal(t, 30, config.Server.ReadTimeout)
+	assert.Equal(t, 120, config.Server.IdleTimeout)
+}
+
+func TestLoad_ServerHTTPTimeoutsFromEnv(t *testing.T) {
+	envVars := []string{
+		"SERVER_HOST", "SERVER_PORT",
+		"SERVER_REQUEST_TIMEOUT",
+		"SERVER_READ_HEADER_TIMEOUT", "SERVER_READ_TIMEOUT", "SERVER_IDLE_TIMEOUT",
+		"DB_HOST", "DB_PORT",
+	}
+	originalEnv := make(map[string]string)
+	for _, key := range envVars {
+		originalEnv[key] = os.Getenv(key)
+	}
+	defer func() {
+		for key, value := range originalEnv {
+			if value == "" {
+				os.Unsetenv(key)
+			} else {
+				os.Setenv(key, value)
+			}
+		}
+		instance = nil
+		once = sync.Once{}
+		v = nil
+	}()
+
+	os.Setenv("SERVER_HOST", "0.0.0.0")
+	os.Setenv("SERVER_PORT", "8080")
+	os.Setenv("DB_HOST", "localhost")
+	os.Setenv("DB_PORT", "5432")
+	os.Setenv("SERVER_READ_HEADER_TIMEOUT", "5")
+	os.Setenv("SERVER_READ_TIMEOUT", "15")
+	os.Setenv("SERVER_IDLE_TIMEOUT", "60")
+
+	instance = nil
+	once = sync.Once{}
+	v = nil
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, 5, cfg.Server.ReadHeaderTimeout)
+	assert.Equal(t, 15, cfg.Server.ReadTimeout)
+	assert.Equal(t, 60, cfg.Server.IdleTimeout)
 }
 
 func TestGet_Singleton(t *testing.T) {
