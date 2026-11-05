@@ -2,8 +2,8 @@ package empregabilidade
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
 
@@ -17,6 +17,14 @@ func NewHabilidadeServiceWithInterface(repo HabilidadeRepositoryInterface) *Habi
 
 // CreateHabilidade cria uma nova habilidade e retorna o ID gerado (int64)
 func (s *HabilidadeService) CreateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) (int64, error) {
+	if entity == nil {
+		return 0, apperrors.Validation("nome é obrigatório")
+	}
+	nome, err := normalizeCatalogoNome(entity.Nome)
+	if err != nil {
+		return 0, err
+	}
+	entity.Nome = nome
 	return s.repo.CreateHabilidade(ctx, entity)
 }
 
@@ -27,6 +35,14 @@ func (s *HabilidadeService) GetHabilidadeByID(ctx context.Context, id int64) (*e
 
 // UpdateHabilidade atualiza os dados de uma habilidade
 func (s *HabilidadeService) UpdateHabilidade(ctx context.Context, entity *empregabilidade.Habilidade) error {
+	if entity == nil {
+		return apperrors.Validation("nome é obrigatório")
+	}
+	nome, err := normalizeCatalogoNome(entity.Nome)
+	if err != nil {
+		return err
+	}
+	entity.Nome = nome
 	return s.repo.UpdateHabilidade(ctx, entity)
 }
 
@@ -43,6 +59,14 @@ func (s *HabilidadeService) ListHabilidades(ctx context.Context, filter empregab
 
 // CreateAreaAtuacao cria uma nova área de atuação e retorna o ID gerado (int64)
 func (s *HabilidadeService) CreateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) (int64, error) {
+	if entity == nil {
+		return 0, apperrors.Validation("nome é obrigatório")
+	}
+	nome, err := normalizeCatalogoNome(entity.Nome)
+	if err != nil {
+		return 0, err
+	}
+	entity.Nome = nome
 	return s.repo.CreateAreaAtuacao(ctx, entity)
 }
 
@@ -53,6 +77,14 @@ func (s *HabilidadeService) GetAreaAtuacaoByID(ctx context.Context, id int64) (*
 
 // UpdateAreaAtuacao atualiza os dados de uma área de atuação
 func (s *HabilidadeService) UpdateAreaAtuacao(ctx context.Context, entity *empregabilidade.AreaAtuacao) error {
+	if entity == nil {
+		return apperrors.Validation("nome é obrigatório")
+	}
+	nome, err := normalizeCatalogoNome(entity.Nome)
+	if err != nil {
+		return err
+	}
+	entity.Nome = nome
 	return s.repo.UpdateAreaAtuacao(ctx, entity)
 }
 
@@ -67,31 +99,27 @@ func (s *HabilidadeService) ListAreasAtuacao(ctx context.Context, filter emprega
 	return s.repo.ListAreasAtuacao(ctx, filter, pageSize, offset)
 }
 
-// AttachAreaAtuacao vincula uma área de atuação a uma habilidade
-func (s *HabilidadeService) AttachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
-	if habilidadeID <= 0 || areaID <= 0 {
-		return fmt.Errorf("IDs inválidos: habilidadeID=%d, areaID=%d", habilidadeID, areaID)
+// ListHabilidadesDaArea lista os conhecimentos de uma área.
+func (s *HabilidadeService) ListHabilidadesDaArea(ctx context.Context, areaID int64, filter empregabilidade.HabilidadeFilter, page, pageSize int) ([]*empregabilidade.CatalogoItem, int64, error) {
+	if areaID <= 0 {
+		return nil, 0, apperrors.Validation("id_area_atuacao inválido")
 	}
-	return s.repo.AttachAreaAtuacao(ctx, habilidadeID, areaID)
+	offset := (page - 1) * pageSize
+	return s.repo.ListHabilidadesDaArea(ctx, areaID, filter, pageSize, offset)
 }
 
-// DetachAreaAtuacao desvincula uma área de atuação de uma habilidade
-func (s *HabilidadeService) DetachAreaAtuacao(ctx context.Context, habilidadeID, areaID int64) error {
-	if habilidadeID <= 0 || areaID <= 0 {
-		return fmt.Errorf("IDs inválidos: habilidadeID=%d, areaID=%d", habilidadeID, areaID)
+// AttachHabilidadeNaArea vincula um conhecimento existente a uma área.
+func (s *HabilidadeService) AttachHabilidadeNaArea(ctx context.Context, areaID, habilidadeID int64) error {
+	if areaID <= 0 || habilidadeID <= 0 {
+		return apperrors.Validation("id inválido")
 	}
-	return s.repo.DetachAreaAtuacao(ctx, habilidadeID, areaID)
+	return s.repo.AttachHabilidadeNaArea(ctx, areaID, habilidadeID)
 }
 
-// ListAreaAtuacaoHabilidades lista todos os vínculos entre áreas de atuação e habilidades.
-func (s *HabilidadeService) ListAreaAtuacaoHabilidades(ctx context.Context) ([]*empregabilidade.AreaAtuacaoHabilidade, error) {
-	return s.repo.ListAreaAtuacaoHabilidades(ctx)
-}
-
-// ReplaceAreasAtuacao substitui a lista inteira de áreas de atuação de uma habilidade
-func (s *HabilidadeService) ReplaceAreasAtuacao(ctx context.Context, habilidadeID int64, areaIDs []int64) error {
-	if habilidadeID <= 0 {
-		return fmt.Errorf("ID de habilidade inválido: %d", habilidadeID)
+// DetachHabilidadeDaArea remove o conhecimento de uma área.
+func (s *HabilidadeService) DetachHabilidadeDaArea(ctx context.Context, areaID, habilidadeID int64) error {
+	if areaID <= 0 || habilidadeID <= 0 {
+		return apperrors.Validation("id inválido")
 	}
-	return s.repo.ReplaceAreasAtuacao(ctx, habilidadeID, areaIDs)
+	return s.repo.DetachHabilidadeDaArea(ctx, areaID, habilidadeID)
 }
