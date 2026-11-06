@@ -2645,3 +2645,121 @@ func TestVagaRepository_ExistsByID(t *testing.T) {
 		})
 	}
 }
+
+// nullArg casa só com o NULL do SQL (nil no driver), nunca com o JSON "null".
+type nullArg struct{}
+
+func (nullArg) Match(v driver.Value) bool { return v == nil }
+
+func TestVagaRepository_Update_CriteriosBloqueio(t *testing.T) {
+	tests := []struct {
+		name     string
+		criterio []empregabilidade.CriterioBloqueio
+		arg      sqlmock.Argument
+	}{
+		{
+			name:     "critérios ligados chegam como JSON",
+			criterio: []empregabilidade.CriterioBloqueio{empregabilidade.CriterioBloqueioEscolaridade, empregabilidade.CriterioBloqueioIdioma},
+			arg:      jsonStringSliceArg{want: []string{"escolaridade", "idioma"}},
+		},
+		{name: "nenhum critério ligado grava NULL", criterio: nil, arg: nullArg{}},
+		{name: "lista vazia grava NULL", criterio: []empregabilidade.CriterioBloqueio{}, arg: nullArg{}},
+	}
+
+	for _, tt := range tests {
+		for _, metodo := range []string{"Update", "UpdateWithAssociations"} {
+			t.Run(metodo+"/"+tt.name, func(t *testing.T) {
+				db, mock, cleanup := repository.SetupMockDB(t)
+				defer cleanup()
+
+				repo := NewVagaRepository(db)
+				vaga := &empregabilidade.Vaga{
+					ID:                  uuid.New(),
+					Titulo:              "Desenvolvedor Go",
+					Descricao:           "Vaga para desenvolvedor Go",
+					IDContratante:       "12345678000190",
+					IDRegimeContratacao: uuid.New(),
+					IDModeloTrabalho:    uuid.New(),
+					Status:              empregabilidade.StatusVagaEmEdicao,
+					CriteriosBloqueio:   tt.criterio,
+				}
+
+				// As colunas do map entram em ordem alfabética. Com bairros e
+				// áreas vazios (o GORM os escreve como (NULL), sem argumento),
+				// criterios_bloqueio é o 4º argumento.
+				mock.ExpectBegin()
+				mock.ExpectExec(`(?s)UPDATE "emp_vagas" SET .*"beneficios"=\$3,"criterios_bloqueio"=\$4,.*WHERE id = \$22`).
+					WithArgs(
+						sqlmock.AnyArg(), // acessibilidade_pcd
+						sqlmock.AnyArg(), // bairro
+						sqlmock.AnyArg(), // beneficios
+						tt.arg,           // criterios_bloqueio
+						sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+						sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+						sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), // ... updated_at
+						vaga.ID,
+					).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+
+				var err error
+				if metodo == "Update" {
+					err = repo.Update(context.Background(), vaga)
+				} else {
+					err = repo.UpdateWithAssociations(context.Background(), vaga)
+				}
+				assert.NoError(t, err)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			})
+		}
+	}
+}
+
+func TestVagaRepository_Create_CriteriosBloqueio(t *testing.T) {
+	tests := []struct {
+		name     string
+		criterio []empregabilidade.CriterioBloqueio
+		arg      sqlmock.Argument
+	}{
+		{name: "sem critério ligado grava NULL", criterio: nil, arg: nullArg{}},
+		{
+			name:     "critério ligado grava JSON",
+			criterio: []empregabilidade.CriterioBloqueio{empregabilidade.CriterioBloqueioIdioma},
+			arg:      jsonStringSliceArg{want: []string{"idioma"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, cleanup := repository.SetupMockDB(t)
+			defer cleanup()
+
+			vaga := &empregabilidade.Vaga{
+				Titulo:              "Desenvolvedor Go",
+				Descricao:           "Vaga para desenvolvedor Go",
+				IDContratante:       "12345678000190",
+				IDRegimeContratacao: uuid.New(),
+				IDModeloTrabalho:    uuid.New(),
+				Status:              empregabilidade.StatusVagaEmEdicao,
+				CriteriosBloqueio:   tt.criterio,
+			}
+
+			// criterios_bloqueio é a última das 25 colunas do INSERT.
+			args := make([]driver.Value, 0, 25)
+			for i := 0; i < 24; i++ {
+				args = append(args, sqlmock.AnyArg())
+			}
+			args = append(args, tt.arg)
+
+			mock.ExpectBegin()
+			mock.ExpectQuery(`INSERT INTO "emp_vagas" \(.*"criterios_bloqueio"\) VALUES .*\$25\)`).
+				WithArgs(args...).
+				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+			mock.ExpectCommit()
+
+			_, err := NewVagaRepository(db).Create(context.Background(), vaga)
+			assert.NoError(t, err)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
