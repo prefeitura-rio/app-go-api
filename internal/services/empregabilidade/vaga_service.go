@@ -3,6 +3,7 @@ package empregabilidade
 import (
 	"context"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -100,6 +101,23 @@ func normalizarCriteriosBloqueio(criterios []empregabilidade.CriterioBloqueio) (
 	return normalizados, nil
 }
 
+// validarExperienciaCarteira confere o tempo de experiência em carteira
+// exigido: "" vale como sem exigência, valor desconhecido é recusado e o
+// bloqueio experiencia_carteira ligado exige o tempo. criterios são os
+// critérios de bloqueio já normalizados que a vaga terá depois da escrita.
+func validarExperienciaCarteira(entity *empregabilidade.Vaga, criterios []empregabilidade.CriterioBloqueio) error {
+	if entity.ExperienciaCarteira != nil && *entity.ExperienciaCarteira == "" {
+		entity.ExperienciaCarteira = nil
+	}
+	if entity.ExperienciaCarteira != nil && !entity.ExperienciaCarteira.IsValid() {
+		return apperrors.Validation("experiencia_carteira inválida: deve ser qualquer_tempo ou minimo_6_meses")
+	}
+	if entity.ExperienciaCarteira == nil && slices.Contains(criterios, empregabilidade.CriterioBloqueioExperienciaCarteira) {
+		return apperrors.Validation(empregabilidade.MsgExperienciaCarteiraObrigatoria)
+	}
+	return nil
+}
+
 // resolverOpcaoPCD valida a opção PcD e deixa opcao_pcd e o campo antigo
 // acessibilidade_pcd coerentes. Com opcao_pcd enviada, ela vale e o campo
 // antigo é gravado a partir dela; sem ela (cliente antigo), a opção sai do
@@ -126,6 +144,9 @@ func resolverOpcaoPCD(entity *empregabilidade.Vaga, qtdTipos int) error {
 func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
 	criterios, err := normalizarCriteriosBloqueio(entity.CriteriosBloqueio)
 	if err != nil {
+		return uuid.Nil, err
+	}
+	if err := validarExperienciaCarteira(entity, criterios); err != nil {
 		return uuid.Nil, err
 	}
 	if err := resolverOpcaoPCD(entity, len(entity.TiposPCD)); err != nil {
@@ -220,6 +241,13 @@ func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) 
 		return err
 	}
 	entity.CriteriosBloqueio = criterios
+	// experiencia_carteira ausente no body mantém o valor gravado; "" remove.
+	if entity.ExperienciaCarteira == nil {
+		entity.ExperienciaCarteira = existing.ExperienciaCarteira
+	}
+	if err := validarExperienciaCarteira(entity, criterios); err != nil {
+		return err
+	}
 	// tipos_pcd ausente no body mantém os tipos gravados; [] remove todos.
 	tipos := entity.TiposPCD
 	if tipos == nil {

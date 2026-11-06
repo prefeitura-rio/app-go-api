@@ -174,3 +174,68 @@ func TestRequisitosNaoAtendidos_JuntaTodasAsFaltas(t *testing.T) {
 		"Idioma Inglês — nível Básico ou superior",
 	}, faltas)
 }
+
+func TestRequisitosNaoAtendidos_ExperienciaCarteira(t *testing.T) {
+	seisMeses := empregabilidade.ExperienciaCarteiraMinimo6Meses
+	qualquer := empregabilidade.ExperienciaCarteiraQualquerTempo
+	ligado := []empregabilidade.CriterioBloqueio{empregabilidade.CriterioBloqueioExperienciaCarteira}
+	tempo := func(m int) *int { return &m }
+	comCarteira := func(exps ...*empregabilidade.CurriculoExperiencia) candidatoElegibilidade {
+		return candidatoElegibilidade{curriculo: &empregabilidade.CurriculoCompleto{Experiencias: exps}}
+	}
+	cincoMeses := comCarteira(
+		&empregabilidade.CurriculoExperiencia{ExperienciaComprovadaCT: true, TempoExperienciaMeses: tempo(3)},
+		&empregabilidade.CurriculoExperiencia{ExperienciaComprovadaCT: true, TempoExperienciaMeses: tempo(2)},
+		&empregabilidade.CurriculoExperiencia{ExperienciaComprovadaCT: false, TempoExperienciaMeses: tempo(40)},
+	)
+	seisMesesSomados := comCarteira(
+		&empregabilidade.CurriculoExperiencia{ExperienciaComprovadaCT: true, TempoExperienciaMeses: tempo(3)},
+		&empregabilidade.CurriculoExperiencia{ExperienciaComprovadaCT: true, TempoExperienciaMeses: tempo(3)},
+	)
+
+	cases := []struct {
+		name      string
+		vaga      *empregabilidade.Vaga
+		candidato candidatoElegibilidade
+		faltas    []string
+	}{
+		{
+			name:      "mínimo de 6 meses com 5 somados não atende",
+			vaga:      &empregabilidade.Vaga{ExperienciaCarteira: &seisMeses, CriteriosBloqueio: ligado},
+			candidato: cincoMeses,
+			faltas:    []string{"Experiência comprovada em carteira — mínimo de 6 meses"},
+		},
+		{
+			name:      "mínimo de 6 meses somados atende",
+			vaga:      &empregabilidade.Vaga{ExperienciaCarteira: &seisMeses, CriteriosBloqueio: ligado},
+			candidato: seisMesesSomados,
+		},
+		{
+			name:      "qualquer tempo com uma experiência em carteira atende",
+			vaga:      &empregabilidade.Vaga{ExperienciaCarteira: &qualquer, CriteriosBloqueio: ligado},
+			candidato: cincoMeses,
+		},
+		{
+			name:      "qualquer tempo sem currículo não atende",
+			vaga:      &empregabilidade.Vaga{ExperienciaCarteira: &qualquer, CriteriosBloqueio: ligado},
+			candidato: candidatoElegibilidade{},
+			faltas:    []string{"Experiência comprovada em carteira"},
+		},
+		{
+			name:      "bloqueio desligado não exige experiência",
+			vaga:      &empregabilidade.Vaga{ExperienciaCarteira: &seisMeses},
+			candidato: candidatoElegibilidade{},
+		},
+		{
+			name:      "bloqueio ligado sem opção não exige nada",
+			vaga:      &empregabilidade.Vaga{CriteriosBloqueio: ligado},
+			candidato: candidatoElegibilidade{},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.faltas, requisitosNaoAtendidos(tc.vaga, tc.candidato, refsTeste, hojeTeste))
+		})
+	}
+}

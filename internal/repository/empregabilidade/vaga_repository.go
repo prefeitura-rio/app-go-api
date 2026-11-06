@@ -107,6 +107,15 @@ func opcaoPCDValue(opcao empregabilidade.OpcaoPCD) string {
 	return string(opcao)
 }
 
+// experienciaCarteiraValue grava o tempo exigido como texto, ou NULL quando a
+// vaga não exige experiência em carteira.
+func experienciaCarteiraValue(exigencia *empregabilidade.ExperienciaCarteira) interface{} {
+	if exigencia == nil || *exigencia == "" {
+		return nil
+	}
+	return string(*exigencia)
+}
+
 func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
 	updates := map[string]interface{}{
 		"titulo":                           entity.Titulo,
@@ -131,6 +140,7 @@ func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vag
 		"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
 		"areas_formacao_elegibilidade":     jsonbStringSlice(entity.AreasFormacaoElegibilidade),
 		"opcao_pcd":                        opcaoPCDValue(entity.OpcaoPCD),
+		"experiencia_carteira":             experienciaCarteiraValue(entity.ExperienciaCarteira),
 	}
 	criterios, err := criteriosBloqueioValue(entity.CriteriosBloqueio)
 	if err != nil {
@@ -173,6 +183,7 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
 			"areas_formacao_elegibilidade":     jsonbStringSlice(entity.AreasFormacaoElegibilidade),
 			"opcao_pcd":                        opcaoPCDValue(entity.OpcaoPCD),
+			"experiencia_carteira":             experienciaCarteiraValue(entity.ExperienciaCarteira),
 		}
 		criterios, err := criteriosBloqueioValue(entity.CriteriosBloqueio)
 		if err != nil {

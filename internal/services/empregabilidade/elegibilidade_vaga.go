@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -28,8 +29,8 @@ type candidatoElegibilidade struct {
 }
 
 // requisitosNaoAtendidos aplica os critérios de elegibilidade da vaga — idade
-// mínima, escolaridade mínima e idiomas — e devolve o que o candidato não
-// atende, com o mesmo texto que o app mostra. É a mesma régua do app do
+// mínima, escolaridade mínima, idiomas e, com o bloqueio ligado, a
+// experiência em carteira — e devolve o que o candidato não atende, com o mesmo texto que o app mostra. É a mesma régua do app do
 // cidadão (superapp, src/lib/eligibility-utils.ts), repetida aqui porque a
 // associação pelo backoffice não passa pelo app.
 func requisitosNaoAtendidos(vaga *empregabilidade.Vaga, candidato candidatoElegibilidade, refs referenciasElegibilidade, agora time.Time) []string {
@@ -54,6 +55,17 @@ func requisitosNaoAtendidos(vaga *empregabilidade.Vaga, candidato candidatoElegi
 		if !atendeIdioma(requisito, candidato.curriculo, refs) {
 			faltas = append(faltas, fmt.Sprintf("Idioma %s — nível %s ou superior",
 				nomeIdioma(refs.idiomas, requisito.IDIdioma), nomeNivel(refs.niveisIdioma, requisito.IDNivelMinimo)))
+		}
+	}
+
+	if vaga.ExperienciaCarteira != nil &&
+		slices.Contains(vaga.CriteriosBloqueio, empregabilidade.CriterioBloqueioExperienciaCarteira) {
+		var experiencias []*empregabilidade.CurriculoExperiencia
+		if candidato.curriculo != nil {
+			experiencias = candidato.curriculo.Experiencias
+		}
+		if !vaga.ExperienciaCarteira.Atende(experiencias) {
+			faltas = append(faltas, vaga.ExperienciaCarteira.Requisito())
 		}
 	}
 
