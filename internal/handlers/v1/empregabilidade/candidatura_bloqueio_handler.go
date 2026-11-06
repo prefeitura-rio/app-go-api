@@ -33,6 +33,7 @@ func NewCandidaturaBloqueioHandler(service *services.CandidaturaBloqueioService)
 
 // @Summary      Registrar bloqueio de candidatura
 // @Description  Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.
+// @Description  criterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima, escolaridade, idioma e pcd (vaga exclusiva para PcD).
 // @Description  Para o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.
 // @Tags         empregabilidade-candidatura-bloqueios
 // @Accept       json

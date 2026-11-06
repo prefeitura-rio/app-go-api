@@ -71,7 +71,8 @@ func TestNormalizarCriteriosBloqueio(t *testing.T) {
 func TestCriterioBloqueio_IsValid(t *testing.T) {
 	assert.True(t, empregabilidade.CriterioBloqueioEscolaridade.IsValid())
 	assert.True(t, empregabilidade.CriterioBloqueioIdioma.IsValid())
-	assert.False(t, empregabilidade.CriterioBloqueio("pcd").IsValid())
+	assert.True(t, empregabilidade.CriterioBloqueioPCD.IsValid())
+	assert.False(t, empregabilidade.CriterioBloqueio("altura").IsValid())
 	assert.False(t, empregabilidade.CriterioBloqueio("").IsValid())
 }
 

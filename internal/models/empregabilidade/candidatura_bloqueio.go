@@ -10,6 +10,8 @@ import (
 // que foi bloqueada por não atender a um ou mais critérios de elegibilidade
 // configurados na vaga. Não há Candidatura associada nesse fluxo (o candidato
 // nunca chega a se candidatar de fato), por isso IDVaga não possui FK.
+// CriteriosNaoAtendidos leva os slugs dos critérios barrados: idade_minima,
+// escolaridade, idioma e pcd (vaga exclusiva para PcD, DEV-407).
 type CandidaturaBloqueio struct {
 	ID                    uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	CPF                   string    `json:"cpf" gorm:"type:varchar(14);not null"`

@@ -35,6 +35,7 @@ type MockVagaRepoForService struct {
 	// createdCriteriosBloqueio guarda os critérios de bloqueio como chegaram ao
 	// Create, antes de o service preparar a resposta.
 	createdCriteriosBloqueio map[uuid.UUID][]empregabilidade.CriterioBloqueio
+	updateTiposPCDCalls      [][]uuid.UUID
 }
 
 type updateZonasCall struct {
@@ -127,6 +128,7 @@ func (m *MockVagaRepoForService) List(ctx context.Context, filter empregabilidad
 }
 
 func (m *MockVagaRepoForService) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error {
+	m.updateTiposPCDCalls = append(m.updateTiposPCDCalls, tiposPCDIDs)
 	return nil
 }
 
