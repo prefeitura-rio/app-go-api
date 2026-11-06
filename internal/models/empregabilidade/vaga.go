@@ -179,7 +179,7 @@ type Vaga struct {
 	IDRegimeContratacao            uuid.UUID          `json:"id_regime_contratacao" gorm:"type:uuid;not null"`
 	IDModeloTrabalho               uuid.UUID          `json:"id_modelo_trabalho" gorm:"type:uuid;not null"`
 	AcessibilidadePCD              *AcessibilidadePCD `json:"acessibilidade_pcd,omitempty" gorm:"type:acessibilidade_pcd_enum"`
-	OpcaoPCD                       OpcaoPCD           `json:"opcao_pcd" gorm:"type:varchar(20);not null" enums:"aberta,preferencial,exclusiva"`
+	OpcaoPCD                       OpcaoPCD           `json:"opcao_pcd" gorm:"type:varchar(20);not null"`
 	ValorVaga                      *float64           `json:"valor_vaga" gorm:"type:decimal(12,2)" extensions:"x-nullable"`
 	QuantidadeEstimadaContratacoes *int               `json:"quantidade_estimada_contratacoes,omitempty" gorm:"type:integer"`
 	Bairro                         string             `json:"bairro" gorm:"type:varchar(255)"`
