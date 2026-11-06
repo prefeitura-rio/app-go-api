@@ -154,10 +154,7 @@ func main() {
 		shutdownTimeout = 30 * time.Second
 	}
 
-	srv := &http.Server{
-		Handler:           r,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
+	srv := newHTTPServer(r, cfg.Server)
 	if err := gracefulServe(ctx, srv, ln, shutdownTimeout); err != nil {
 		log.Fatalf("Erro no servidor HTTP: %v", err)
 	}
@@ -165,6 +162,18 @@ func main() {
 	// Flush any pending spans only after all in-flight HTTP requests have
 	// finished. Running this as a defer would race with the drain window.
 	observability.ShutdownTracer()
+}
+
+// newHTTPServer builds an http.Server with timeouts from ServerSettings.
+// Defaults (via config): ReadHeaderTimeout 10s, ReadTimeout 30s, IdleTimeout 120s
+// — aligned with Istio idle connection behaviour and gosec G112.
+func newHTTPServer(handler http.Handler, cfg config.ServerSettings) *http.Server {
+	return &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: time.Duration(cfg.ReadHeaderTimeout) * time.Second,
+		ReadTimeout:       time.Duration(cfg.ReadTimeout) * time.Second,
+		IdleTimeout:       time.Duration(cfg.IdleTimeout) * time.Second,
+	}
 }
 
 // gracefulServe serves on the pre-bound ln and blocks until ctx is cancelled,
