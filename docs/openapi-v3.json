@@ -18,7 +18,7 @@
   "paths": {
     "/api/public/courses": {
       "get": {
-        "description": "Retorna lista paginada de cursos públicos. Exclui rascunhos e cursos marcados como não visíveis publicamente (is_visible=false); estes continuam acessíveis por link direto via GET /api/public/courses/{id}. Com status: filtra pelos status informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.",
+        "description": "Retorna lista paginada de cursos públicos. Nunca inclui cursos em curadoria (draft, in_review, needs_changes, approved, pending_deletion), os mesmos que GET /api/public/courses/{id} responde com 404; pedir esses status em status é ignorado. Exclui também os cursos marcados como não visíveis publicamente (is_visible=false); estes continuam acessíveis por link direto via GET /api/public/courses/{id}. Com status: filtra pelos status públicos informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.",
         "tags": [
           "courses"
         ],
@@ -41,7 +41,7 @@
             }
           },
           {
-            "description": "Filtrar por status (CSV, ex: draft,published,in_review)",
+            "description": "Filtrar por status públicos (CSV, ex: published,accepting_enrollments,closed). Status de curadoria são ignorados.",
             "name": "status",
             "in": "query",
             "schema": {
@@ -17606,6 +17606,17 @@
           }
         }
       },
+      "empregabilidade.CriterioBloqueio": {
+        "type": "string",
+        "enum": [
+          "escolaridade",
+          "idioma"
+        ],
+        "x-enum-varnames": [
+          "CriterioBloqueioEscolaridade",
+          "CriterioBloqueioIdioma"
+        ]
+      },
       "empregabilidade.CurriculoCompleto": {
         "type": "object",
         "properties": {
@@ -18514,6 +18525,13 @@
           },
           "created_at": {
             "type": "string"
+          },
+          "criterios_bloqueio": {
+            "description": "CriteriosBloqueio lista os critérios com bloqueio de candidatura ligado;\nos ausentes estão desligados. Sempre devolvido ([] quando nenhum). No\nPUT, o campo ausente mantém o estado gravado e [] desliga todos.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/empregabilidade.CriterioBloqueio"
+            }
           },
           "data_limite": {
             "type": "string",

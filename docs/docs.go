@@ -13564,6 +13564,17 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.CriterioBloqueio": {
+            "type": "string",
+            "enum": [
+                "escolaridade",
+                "idioma"
+            ],
+            "x-enum-varnames": [
+                "CriterioBloqueioEscolaridade",
+                "CriterioBloqueioIdioma"
+            ]
+        },
         "empregabilidade.CurriculoCompleto": {
             "type": "object",
             "properties": {
@@ -14472,6 +14483,13 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string"
+                },
+                "criterios_bloqueio": {
+                    "description": "CriteriosBloqueio lista os critérios com bloqueio de candidatura ligado;\nos ausentes estão desligados. Sempre devolvido ([] quando nenhum). No\nPUT, o campo ausente mantém o estado gravado e [] desliga todos.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CriterioBloqueio"
+                    }
                 },
                 "data_limite": {
                     "type": "string",
