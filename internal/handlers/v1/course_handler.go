@@ -479,13 +479,53 @@ func parseStatusFilter(param string) []string {
 	return result
 }
 
+// curationStatuses returns the stored statuses of a course that is still in the
+// curation pipeline (draft and its legacy CRIADO, in_review, needs_changes,
+// approved, pending_deletion). The public routes never expose these courses.
+func curationStatuses() []string {
+	return []string{
+		string(models.StatusCursoDraft),
+		string(models.StatusCursoCriado),
+		string(models.StatusCursoInReview),
+		string(models.StatusCursoNeedsChanges),
+		string(models.StatusCursoApproved),
+		string(models.StatusCursoPendingDeletion),
+	}
+}
+
+// isCurationStatus reports whether a course with this status is still in the
+// curation pipeline and therefore hidden from the public routes.
+func isCurationStatus(status models.StatusCurso) bool {
+	switch status.Normalize() {
+	case models.StatusCursoDraft,
+		models.StatusCursoInReview,
+		models.StatusCursoNeedsChanges,
+		models.StatusCursoApproved,
+		models.StatusCursoPendingDeletion:
+		return true
+	default:
+		return false
+	}
+}
+
+// withoutCurationStatuses drops the curation statuses from a ?status= filter.
+func withoutCurationStatuses(statuses []string) []string {
+	var result []string
+	for _, s := range statuses {
+		if !isCurationStatus(models.StatusCurso(s)) {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
 // @Summary      Listar cursos criados
-// @Description  Retorna lista paginada de cursos públicos. Exclui rascunhos e cursos marcados como não visíveis publicamente (is_visible=false); estes continuam acessíveis por link direto via GET /api/public/courses/{id}. Com status: filtra pelos status informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.
+// @Description  Retorna lista paginada de cursos públicos. Nunca inclui cursos em curadoria (draft, in_review, needs_changes, approved, pending_deletion), os mesmos que GET /api/public/courses/{id} responde com 404; pedir esses status em status é ignorado. Exclui também os cursos marcados como não visíveis publicamente (is_visible=false); estes continuam acessíveis por link direto via GET /api/public/courses/{id}. Com status: filtra pelos status públicos informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.
 // @Tags         courses
 // @Produce      json
 // @Param        page              query     int     false  "Número da página (default: 1)"
 // @Param        limit             query     int     false  "Tamanho da página (default: 10)"
-// @Param        status            query     string  false  "Filtrar por status (CSV, ex: draft,published,in_review)"
+// @Param        status            query     string  false  "Filtrar por status públicos (CSV, ex: published,accepting_enrollments,closed). Status de curadoria são ignorados."
 // @Param        modalidade        query     string  false  "Filtrar por modalidade"
 // @Param        organization      query     string  false  "Filtrar por organização (provedor do curso)"
 // @Param        search            query     string  false  "Buscar no título"
@@ -493,7 +533,7 @@ func parseStatusFilter(param string) []string {
 // @Param        acessibilidade_id query     int     false  "Filtrar por acessibilidade"
 // @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
 // @Param        sort              query     string  false  "Ordenação opcional. 'availability': cursos com inscrição disponível primeiro; os sem inscrição (status final, prazo vencido ou vagas esgotadas — inclusive accepting_enrollments sem vagas) vão para o final. A ordenação é aplicada antes da paginação. Omitido = ordem padrão (id desc)."  Enums(availability)
-// @Success      200               {object}  object
+// @Success      200               {object}  models.CursoListResponse
 // @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/public/courses [get]
 func (h *CourseHandler) ListPublic(c *gin.Context) {
@@ -514,7 +554,7 @@ func (h *CourseHandler) ListPublic(c *gin.Context) {
 // @Param        acessibilidade_id query     int     false  "Filtrar por acessibilidade"
 // @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
 // @Param        sort              query     string  false  "Ordenação opcional. 'availability': cursos com inscrição disponível primeiro; os sem inscrição (status final, prazo vencido ou vagas esgotadas — inclusive accepting_enrollments sem vagas) vão para o final. A ordenação é aplicada antes da paginação. Omitido = ordem padrão (id desc)."  Enums(availability)
-// @Success      200               {object}  object
+// @Success      200               {object}  models.CursoListResponse
 // @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/v1/courses [get]
 func (h *CourseHandler) List(c *gin.Context) {
@@ -559,13 +599,17 @@ func (h *CourseHandler) list(c *gin.Context, publicOnly bool) {
 		return
 	}
 
-	if statusParam := c.Query("status"); statusParam != "" {
-		if statuses := parseStatusFilter(statusParam); len(statuses) > 0 {
-			filter["status IN"] = statuses
-		} else {
-			filter["status NOT"] = models.StatusCursoDraft
-		}
-	} else {
+	statuses := parseStatusFilter(c.Query("status"))
+	if publicOnly {
+		// The public listing shows exactly what the public detail shows: courses
+		// still in the curation pipeline are always excluded, and asking for them
+		// through ?status= is ignored.
+		statuses = withoutCurationStatuses(statuses)
+		filter["status NOT IN"] = curationStatuses()
+	}
+	if len(statuses) > 0 {
+		filter["status IN"] = statuses
+	} else if !publicOnly {
 		filter["status NOT"] = models.StatusCursoDraft
 	}
 
@@ -878,7 +922,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 // @Tags         courses
 // @Produce      json
 // @Param        courseId path      int  true  "ID do curso"
-// @Success      200      {object}  models.Curso
+// @Success      200      {object}  models.CursoDetailResponse
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      404      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
@@ -892,7 +936,7 @@ func (h *CourseHandler) GetByIDPublic(c *gin.Context) {
 // @Tags         courses
 // @Produce      json
 // @Param        courseId path      int  true  "ID do curso"
-// @Success      200      {object}  models.Curso
+// @Success      200      {object}  models.CursoDetailResponse
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      404      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
@@ -923,13 +967,7 @@ func (h *CourseHandler) getByID(c *gin.Context, publicOnly bool) {
 	}
 
 	if publicOnly {
-		normalized := curso.Status.Normalize()
-		nonPublic := normalized == models.StatusCursoDraft ||
-			normalized == models.StatusCursoInReview ||
-			normalized == models.StatusCursoNeedsChanges ||
-			normalized == models.StatusCursoApproved ||
-			normalized == models.StatusCursoPendingDeletion
-		if nonPublic {
+		if isCurationStatus(curso.Status) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Curso não encontrado"})
 			return
 		}

@@ -18,7 +18,7 @@
   "paths": {
     "/api/public/courses": {
       "get": {
-        "description": "Retorna lista paginada de cursos públicos. Exclui rascunhos e cursos marcados como não visíveis publicamente (is_visible=false); estes continuam acessíveis por link direto via GET /api/public/courses/{id}. Com status: filtra pelos status informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.",
+        "description": "Retorna lista paginada de cursos públicos. Nunca inclui cursos em curadoria (draft, in_review, needs_changes, approved, pending_deletion), os mesmos que GET /api/public/courses/{id} responde com 404; pedir esses status em status é ignorado. Exclui também os cursos marcados como não visíveis publicamente (is_visible=false); estes continuam acessíveis por link direto via GET /api/public/courses/{id}. Com status: filtra pelos status públicos informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.",
         "tags": [
           "courses"
         ],
@@ -41,7 +41,7 @@
             }
           },
           {
-            "description": "Filtrar por status (CSV, ex: draft,published,in_review)",
+            "description": "Filtrar por status públicos (CSV, ex: published,accepting_enrollments,closed). Status de curadoria são ignorados.",
             "name": "status",
             "in": "query",
             "schema": {
@@ -114,7 +114,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/models.CursoListResponse"
                 }
               }
             }
@@ -161,7 +161,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/models.Curso"
+                  "$ref": "#/components/schemas/models.CursoDetailResponse"
                 }
               }
             }
@@ -291,8 +291,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/empregabilidade.VagaPublicListResponse"
                 }
               }
             }
@@ -538,7 +537,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/models.OportunidadeMEIListResponse"
                 }
               }
             }
@@ -1406,7 +1405,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/models.CursoListResponse"
                 }
               }
             }
@@ -1651,7 +1650,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/models.Curso"
+                  "$ref": "#/components/schemas/models.CursoDetailResponse"
                 }
               }
             }
@@ -1694,7 +1693,7 @@
         ]
       },
       "put": {
-        "description": "Atualiza um curso existente. Também usado para publicar rascunhos mudando status de \"draft\" para \"opened\"",
+        "description": "Atualiza um curso existente. Também usado para publicar rascunhos mudando status de \"draft\" para \"opened\". Turmas, locais e turma remota que não vierem no payload (ou vierem sem o id) são removidos; se alguma turma removida tiver inscrições, o PUT é recusado com 409 e nada é alterado. Envie o id de cada turma e local que deve ser mantido.",
         "tags": [
           "courses"
         ],
@@ -1736,6 +1735,16 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Turma removida (ou local/turma remota removidos) ainda tem inscrições",
             "content": {
               "application/json": {
                 "schema": {
@@ -2462,7 +2471,7 @@
     },
     "/api/v1/courses/{courseId}/enrollments/{enrollmentId}/certificate": {
       "put": {
-        "description": "Adiciona ou atualiza a URL do certificado de uma inscrição",
+        "description": "Adiciona ou atualiza a URL do certificado de uma inscrição (somente admin, casa civil e editor de cursos)",
         "tags": [
           "inscricoes"
         ],
@@ -2559,7 +2568,7 @@
     },
     "/api/v1/courses/{courseId}/enrollments/{enrollmentId}/status": {
       "put": {
-        "description": "Atualiza o status de uma inscrição específica",
+        "description": "Atualiza o status de uma inscrição específica. Admin, casa civil e editor de cursos alteram qualquer status e admin_notes; o cidadão dono da inscrição só pode cancelá-la (status cancelled), exceto quando ela já está concluded ou cancelled (409), e admin_notes enviado por ele é descartado.",
         "tags": [
           "inscricoes"
         ],
@@ -2608,8 +2617,28 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -2667,6 +2696,107 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Gêneros autodeclarados (repetível ou separado por vírgula)",
+            "name": "genero",
+            "in": "query",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "description": "Idade mínima",
+            "name": "idade_min",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Idade máxima",
+            "name": "idade_max",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Soma das experiências",
+            "name": "tempo_experiencia",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sem_experiencia",
+                "ate_2_anos",
+                "2_a_4_anos",
+                "4_a_6_anos",
+                "6_a_8_anos",
+                "8_a_10_anos",
+                "mais_de_10_anos"
+              ]
+            }
+          },
+          {
+            "description": "Experiência comprovada em carteira",
+            "name": "experiencia_carteira",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sim",
+                "6_meses"
+              ]
+            }
+          },
+          {
+            "description": "Escolaridade do cadastro (exata)",
+            "name": "escolaridade",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Idioma do currículo",
+            "name": "id_idioma",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Nível mínimo do idioma (exige id_idioma)",
+            "name": "id_nivel_idioma",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Bairro do cadastro",
+            "name": "bairro",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pessoa com deficiência",
+            "name": "pcd",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sim",
+                "nao"
+              ]
+            }
           }
         ],
         "responses": {
@@ -2676,6 +2806,19 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/empregabilidade.BancoCurriculoListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -2803,6 +2946,216 @@
         ]
       }
     },
+    "/api/v1/empregabilidade/banco-curriculos/{cpf}/associacoes": {
+      "post": {
+        "description": "Associa o candidato do banco de currículos a uma ou mais vagas, criando a candidatura em cada uma. Valem as regras da candidatura do app: currículo mínimo e termos aceitos (422 quando faltam), vaga recebendo candidaturas e requisitos da vaga. O resultado vem por vaga. Exige acesso ao banco de currículos (admin ou go:curriculos:*) e, fora os admins totais, go:empregabilidade:admin ou editor de empregabilidade; editores só associam a vagas da própria secretaria. O candidato não recebe o e-mail de candidatura enviada.",
+        "tags": [
+          "empregabilidade-banco-curriculos"
+        ],
+        "summary": "Associar candidato a vagas",
+        "parameters": [
+          {
+            "description": "CPF do cidadão, com ou sem máscara",
+            "name": "cpf",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/empregabilidade.AssociarVagasRequest"
+              }
+            }
+          },
+          "description": "Vagas a associar (até 50)",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/empregabilidade.AssociarVagasResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/empregabilidade.AssociacaoRecusadaResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/empregabilidade/banco-curriculos/{cpf}/candidaturas": {
+      "get": {
+        "description": "Lista as vagas a que o cidadão se candidatou ou foi associado, da candidatura mais recente para a mais antiga. O status da vaga considera a data limite. Exige admin ou role go:curriculos:admin / go:curriculos:editor.",
+        "tags": [
+          "empregabilidade-banco-curriculos"
+        ],
+        "summary": "Histórico de candidaturas do currículo",
+        "parameters": [
+          {
+            "description": "CPF do cidadão, com ou sem máscara",
+            "name": "cpf",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Número da página (default: 1)",
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Tamanho da página (default: 10, máximo: 100)",
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Busca parcial pelo título da vaga",
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/empregabilidade.BancoCurriculoCandidaturaListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/empregabilidade/candidatura-bloqueios": {
       "get": {
         "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a administradores.",
@@ -2890,7 +3243,7 @@
         ]
       },
       "post": {
-        "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade",
+        "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.\nPara o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.",
         "tags": [
           "empregabilidade-candidatura-bloqueios"
         ],
@@ -2919,6 +3272,32 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3014,6 +3393,107 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Gêneros autodeclarados (repetível ou separado por vírgula)",
+            "name": "genero",
+            "in": "query",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "description": "Idade mínima",
+            "name": "idade_min",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Idade máxima",
+            "name": "idade_max",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Soma das experiências",
+            "name": "tempo_experiencia",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sem_experiencia",
+                "ate_2_anos",
+                "2_a_4_anos",
+                "4_a_6_anos",
+                "6_a_8_anos",
+                "8_a_10_anos",
+                "mais_de_10_anos"
+              ]
+            }
+          },
+          {
+            "description": "Experiência comprovada em carteira",
+            "name": "experiencia_carteira",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sim",
+                "6_meses"
+              ]
+            }
+          },
+          {
+            "description": "Escolaridade do cadastro (exata)",
+            "name": "escolaridade",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Idioma do currículo",
+            "name": "id_idioma",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Nível mínimo do idioma (exige id_idioma)",
+            "name": "id_nivel_idioma",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Bairro do cadastro",
+            "name": "bairro",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pessoa com deficiência",
+            "name": "pcd",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sim",
+                "nao"
+              ]
+            }
           }
         ],
         "responses": {
@@ -3024,6 +3504,19 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -3973,6 +4466,26 @@
               }
             }
           },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nome já cadastrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Erro ao criar comportamento/atitude",
             "content": {
@@ -3995,8 +4508,7 @@
         "summary": "Buscar Comportamento e Atitude por ID",
         "parameters": [
           {
-            "example": 10,
-            "description": "ID do Comportamento/Atitude",
+            "description": "ID do Comportamento/Atitude (ex.: 10)",
             "name": "id",
             "in": "path",
             "required": true,
@@ -4011,7 +4523,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/empregabilidade.ComportamentoAtitudes"
+                  "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
                 }
               }
             }
@@ -4066,8 +4578,7 @@
         "summary": "Atualizar Comportamento e Atitude",
         "parameters": [
           {
-            "example": 10,
-            "description": "ID do Comportamento/Atitude",
+            "description": "ID do Comportamento/Atitude (ex.: 10)",
             "name": "id",
             "in": "path",
             "required": true,
@@ -4108,6 +4619,36 @@
               }
             }
           },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Comportamento/atitude não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nome já cadastrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Erro ao atualizar comportamento/atitude",
             "content": {
@@ -4133,8 +4674,7 @@
         "summary": "Excluir Comportamento e Atitude Global",
         "parameters": [
           {
-            "example": 10,
-            "description": "ID do Comportamento/Atitude",
+            "description": "ID do Comportamento/Atitude (ex.: 10)",
             "name": "id",
             "in": "path",
             "required": true,
@@ -4156,6 +4696,26 @@
           },
           "400": {
             "description": "ID inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Comportamento/atitude não encontrado",
             "content": {
               "application/json": {
                 "schema": {
@@ -4166,467 +4726,6 @@
           },
           "500": {
             "description": "Erro ao excluir comportamento/atitude",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/empregabilidade/curriculo": {
-      "put": {
-        "description": "Remove as habilidades e comportamentos/atitudes antigos e insere os IDs informados em uma transação",
-        "tags": [
-          "empregabilidade-curriculo"
-        ],
-        "summary": "Substituir itens do curriculo por CPF",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/empregabilidade.CurriculoItensReplaceAll"
-              }
-            }
-          },
-          "description": "Lista de IDs de áreas atuaçãoXhabilidades e comportamentos/atitudes",
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/empregabilidade/curriculo/areas-atuacao-habilidades": {
-      "get": {
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "description": "Retorna os vínculos entre áreas de atuação e habilidades associados ao currículo do usuário autenticado via JWT",
-        "tags": [
-          "empregabilidade-curriculo"
-        ],
-        "summary": "Listar áreas de atuação/habilidades do currículo",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/empregabilidade.CurriculoAreaAtuacaoHabilidade"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Usuário não autenticado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Erro ao buscar áreas de atuação/habilidades do currículo",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "description": "Vincula uma combinação específica de área de atuação e habilidade ao currículo do usuário autenticado via JWT",
-        "tags": [
-          "empregabilidade-curriculo"
-        ],
-        "summary": "Adicionar área de atuação/habilidade ao currículo",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/empregabilidade.AddAreaAtuacaoHabilidadeRequest"
-              }
-            }
-          },
-          "description": "ID do vínculo entre área de atuação e habilidade",
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/empregabilidade.CurriculoAreaAtuacaoHabilidade"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Dados inválidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Usuário não autenticado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Erro ao adicionar área de atuação/habilidade ao currículo",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/empregabilidade/curriculo/areas-atuacao-habilidades/{id}": {
-      "delete": {
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "description": "Remove o vínculo de uma área de atuação/habilidade do currículo do usuário autenticado",
-        "tags": [
-          "empregabilidade-curriculo"
-        ],
-        "summary": "Remover área de atuação/habilidade do currículo",
-        "parameters": [
-          {
-            "example": 10,
-            "description": "ID do vínculo (emp_curriculo_area_atuacao_habilidade)",
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "ID inválido",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Usuário não autenticado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Vínculo não encontrado ou não pertence ao usuário",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Erro ao remover área de atuação/habilidade do currículo",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/empregabilidade/curriculo/comportamentos-atitudes": {
-      "get": {
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "description": "Retorna os comportamentos e atitudes vinculados ao currículo do usuário autenticado via JWT",
-        "tags": [
-          "empregabilidade-curriculo"
-        ],
-        "summary": "Listar comportamentos/atitudes do currículo",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/empregabilidade.CurriculoComportamentoAtitudes"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Usuário não autenticado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Erro ao buscar comportamentos/atitudes do currículo",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "description": "Vincula um comportamento/atitude específico ao currículo do usuário autenticado via JWT",
-        "tags": [
-          "empregabilidade-curriculo"
-        ],
-        "summary": "Adicionar comportamento/atitude ao currículo",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/empregabilidade.AddComportamentoAtitudesRequest"
-              }
-            }
-          },
-          "description": "ID do comportamento/atitude a ser vinculado",
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/empregabilidade.CurriculoComportamentoAtitudes"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Dados inválidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Usuário não autenticado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Erro ao adicionar comportamento/atitude ao currículo",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/empregabilidade/curriculo/comportamentos-atitudes/{id}": {
-      "delete": {
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "description": "Remove o vínculo de um comportamento/atitude do currículo do usuário autenticado",
-        "tags": [
-          "empregabilidade-curriculo"
-        ],
-        "summary": "Remover comportamento/atitude do currículo",
-        "parameters": [
-          {
-            "example": 10,
-            "description": "ID do vínculo (emp_curriculo_comportamento_atitudes)",
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "ID inválido",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Usuário não autenticado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Vínculo não encontrado ou não pertence ao usuário",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Erro ao remover comportamento/atitude do currículo",
             "content": {
               "application/json": {
                 "schema": {
@@ -4737,6 +4836,32 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -5072,6 +5197,32 @@
               }
             }
           },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -5385,6 +5536,32 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -5720,6 +5897,32 @@
               }
             }
           },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -5934,6 +6137,127 @@
         ]
       }
     },
+    "/api/v1/empregabilidade/curriculo/habilidades-competencias": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Retorna a área única, os conhecimentos dessa área e os comportamentos marcados. Listas vazias não são 404",
+        "tags": [
+          "empregabilidade-curriculo"
+        ],
+        "summary": "Obter habilidades e competências do currículo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/empregabilidade.HabilidadesCompetencias"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Usuário não autenticado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro ao buscar habilidades e competências",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Substitui a área, os conhecimentos dessa área e os comportamentos. Tag fora da área responde 400 e não grava nada",
+        "tags": [
+          "empregabilidade-curriculo"
+        ],
+        "summary": "Salvar habilidades e competências do currículo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/empregabilidade.HabilidadesCompetenciasSave"
+              }
+            }
+          },
+          "description": "Formulário completo",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/empregabilidade.HabilidadesCompetencias"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tag fora da área ou body inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Usuário não autenticado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Área ou comportamento inexistente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro ao salvar habilidades e competências",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/empregabilidade/curriculo/idiomas": {
       "post": {
         "description": "Adiciona um novo idioma ao currículo do usuário autenticado",
@@ -6033,6 +6357,32 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -6365,6 +6715,193 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/empregabilidade/curriculo/{cpf}/banco-curriculos": {
+      "get": {
+        "description": "Diz se o currículo do cidadão está disponível para os recrutadores no banco de currículos, o que falta para o currículo mínimo (o mesmo exigido para se candidatar) e quando o currículo foi atualizado. Só o próprio cidadão ou um admin.",
+        "tags": [
+          "empregabilidade-curriculo-banco"
+        ],
+        "summary": "Consultar participação no banco de currículos",
+        "parameters": [
+          {
+            "description": "CPF do cidadão",
+            "name": "cpf",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/empregabilidade.ParticipacaoBancoStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "description": "O cidadão escolhe se os recrutadores podem consultar o currículo no banco de currículos. Vale para qualquer currículo, completo ou não (422 quando a pessoa ainda não salvou nenhuma parte). Só o próprio cidadão.",
+        "tags": [
+          "empregabilidade-curriculo-banco"
+        ],
+        "summary": "Ativar ou desativar o currículo no banco de currículos",
+        "parameters": [
+          {
+            "description": "CPF do cidadão",
+            "name": "cpf",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/empregabilidade.AtualizarParticipacaoBancoRequest"
+              }
+            }
+          },
+          "description": "Disponível ou não",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/empregabilidade.ParticipacaoBancoStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
@@ -7610,7 +8147,7 @@
         ]
       },
       "post": {
-        "description": "Cria uma nova empresa",
+        "description": "Cria uma nova empresa. O CNPJ é obrigatório: numérico ou alfanumérico, com ou sem formatação, com dígitos verificadores válidos; é gravado e devolvido na forma canônica (14 caracteres, maiúsculas, sem pontuação).",
         "tags": [
           "empregabilidade-empresas"
         ],
@@ -7685,7 +8222,7 @@
         "summary": "Consultar CNPJ",
         "parameters": [
           {
-            "description": "CNPJ da empresa (com ou sem formatação)",
+            "description": "CNPJ da empresa, numérico ou alfanumérico (com ou sem formatação)",
             "name": "cnpj",
             "in": "path",
             "required": true,
@@ -7815,7 +8352,7 @@
         ]
       },
       "put": {
-        "description": "Atualiza uma empresa existente",
+        "description": "Atualiza uma empresa existente. O CNPJ do path precisa ser válido (dígitos verificadores conferidos) e é usado na forma canônica.",
         "tags": [
           "empregabilidade-empresas"
         ],
@@ -8344,6 +8881,26 @@
               }
             }
           },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nome já cadastrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Erro ao criar habilidade",
             "content": {
@@ -8467,6 +9024,26 @@
               }
             }
           },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nome já cadastrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Erro ao criar área de atuação",
             "content": {
@@ -8480,45 +9057,6 @@
         }
       }
     },
-    "/api/v1/empregabilidade/habilidades/areas-atuacao-habilidades": {
-      "get": {
-        "description": "Retorna todos os vínculos cadastrados entre áreas de atuação e habilidades",
-        "tags": [
-          "empregabilidade-habilidades"
-        ],
-        "summary": "Listar vínculos entre Áreas de Atuação e Habilidades",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/empregabilidade.AreaAtuacaoHabilidade"
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Erro ao buscar áreas de atuação e habilidades",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
     "/api/v1/empregabilidade/habilidades/areas-atuacao/{id}": {
       "get": {
         "description": "Retorna os detalhes de uma área de atuação cadastrada pelo ID",
@@ -8528,8 +9066,7 @@
         "summary": "Buscar Área de Atuação por ID",
         "parameters": [
           {
-            "example": 10,
-            "description": "ID da Área de Atuação",
+            "description": "ID da Área de Atuação (ex.: 10)",
             "name": "id",
             "in": "path",
             "required": true,
@@ -8544,7 +9081,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/empregabilidade.AreaAtuacao"
+                  "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
                 }
               }
             }
@@ -8599,8 +9136,7 @@
         "summary": "Atualizar Área de Atuação",
         "parameters": [
           {
-            "example": 10,
-            "description": "ID da Área de Atuação",
+            "description": "ID da Área de Atuação (ex.: 10)",
             "name": "id",
             "in": "path",
             "required": true,
@@ -8641,6 +9177,36 @@
               }
             }
           },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Área de atuação não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nome já cadastrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Erro ao atualizar área de atuação",
             "content": {
@@ -8666,8 +9232,7 @@
         "summary": "Excluir Área de Atuação",
         "parameters": [
           {
-            "example": 10,
-            "description": "ID da Área de Atuação",
+            "description": "ID da Área de Atuação (ex.: 10)",
             "name": "id",
             "in": "path",
             "required": true,
@@ -8697,8 +9262,303 @@
               }
             }
           },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Área de atuação não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Erro ao excluir área de atuação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/empregabilidade/habilidades/areas-atuacao/{id}/habilidades": {
+      "get": {
+        "description": "Retorna os conhecimentos vinculados à área, com paginação e busca sem acento",
+        "tags": [
+          "empregabilidade-habilidades"
+        ],
+        "summary": "Listar conhecimentos de uma área",
+        "parameters": [
+          {
+            "description": "ID da Área de Atuação (ex.: 10)",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Termo de busca",
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Número da página (default: 1)",
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "description": "Tamanho da página (default: 20, max: 100)",
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ListCatalogoPaginatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Área de atuação não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro ao buscar conhecimentos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Cria o par área × conhecimento. O texto do conhecimento continua global",
+        "tags": [
+          "empregabilidade-habilidades"
+        ],
+        "summary": "Vincular conhecimento à área",
+        "parameters": [
+          {
+            "description": "ID da Área de Atuação (ex.: 10)",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/empregabilidade.AddHabilidadeRequest"
+              }
+            }
+          },
+          "description": "ID do conhecimento",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Área ou conhecimento não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conhecimento já vinculado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro ao vincular conhecimento à área",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/empregabilidade/habilidades/areas-atuacao/{id}/habilidades/{habilidadeId}": {
+      "delete": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Remove o par. Currículos que marcaram esse par perdem o vínculo em cascata",
+        "tags": [
+          "empregabilidade-habilidades"
+        ],
+        "summary": "Desvincular conhecimento da área",
+        "parameters": [
+          {
+            "description": "ID da Área de Atuação (ex.: 10)",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "ID do conhecimento (ex.: 2)",
+            "name": "habilidadeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vínculo não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro ao desvincular conhecimento da área",
             "content": {
               "application/json": {
                 "schema": {
@@ -8719,8 +9579,7 @@
         "summary": "Buscar Habilidade por ID",
         "parameters": [
           {
-            "example": 10,
-            "description": "ID da Habilidade",
+            "description": "ID da Habilidade (ex.: 10)",
             "name": "id",
             "in": "path",
             "required": true,
@@ -8735,7 +9594,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/empregabilidade.Habilidade"
+                  "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
                 }
               }
             }
@@ -8790,8 +9649,7 @@
         "summary": "Atualizar Habilidade",
         "parameters": [
           {
-            "example": 10,
-            "description": "ID da Habilidade",
+            "description": "ID da Habilidade (ex.: 10)",
             "name": "id",
             "in": "path",
             "required": true,
@@ -8832,6 +9690,36 @@
               }
             }
           },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Habilidade não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nome já cadastrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Erro ao atualizar habilidade",
             "content": {
@@ -8857,8 +9745,7 @@
         "summary": "Excluir Habilidade Global",
         "parameters": [
           {
-            "example": 10,
-            "description": "ID da Habilidade",
+            "description": "ID da Habilidade (ex.: 10)",
             "name": "id",
             "in": "path",
             "required": true,
@@ -8888,211 +9775,28 @@
               }
             }
           },
+          "403": {
+            "description": "Sem permissão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Habilidade não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/response.ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Erro ao excluir habilidade",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/empregabilidade/habilidades/{id}/areas-atuacao": {
-      "put": {
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "description": "Substitui em lote o conjunto de áreas de atuação associadas a uma habilidade global\n\n**Atenção para o campo `area_ids`:**\n- Funciona como **substituição total (Replace)** para as áreas de atuação vinculadas a cada habilidade.\n- Enviar `[1, 2, 3]` substitui todas as áreas existentes dessa habilidade pelas IDs fornecidas.\n- Enviar array vazio `[]` ou omitir remove todos os vínculos de área de atuação da habilidade.",
-        "tags": [
-          "empregabilidade-habilidades"
-        ],
-        "summary": "Substituir Áreas de Atuação da Habilidade",
-        "parameters": [
-          {
-            "example": 10,
-            "description": "ID da Habilidade",
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/empregabilidade.ReplaceAreasHabilidadeRequest"
-              }
-            }
-          },
-          "description": "Lista de IDs das áreas de atuação",
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Dados ou ID inválidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Erro ao substituir áreas de atuação",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/empregabilidade/habilidades/{id}/areas-atuacao/{areaId}": {
-      "post": {
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "description": "Associa uma área de atuação existente a uma habilidade global especificada",
-        "tags": [
-          "empregabilidade-habilidades"
-        ],
-        "summary": "Vincular Área de Atuação à Habilidade",
-        "parameters": [
-          {
-            "example": 10,
-            "description": "ID da Habilidade",
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "example": 2,
-            "description": "ID da Área de Atuação",
-            "name": "areaId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "IDs inválidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Erro ao vincular área de atuação",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "description": "Remove a relação N:M entre uma habilidade e uma área de atuação sem excluir as entidades",
-        "tags": [
-          "empregabilidade-habilidades"
-        ],
-        "summary": "Desvincular Área de Atuação da Habilidade",
-        "parameters": [
-          {
-            "example": 10,
-            "description": "ID da Habilidade",
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "example": 2,
-            "description": "ID da Área de Atuação",
-            "name": "areaId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "IDs inválidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/response.ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Erro ao desvincular área de atuação",
             "content": {
               "application/json": {
                 "schema": {
@@ -11902,6 +12606,19 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -11968,6 +12685,19 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -12199,6 +12929,32 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -12348,6 +13104,19 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -12434,6 +13203,19 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -12496,6 +13278,19 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -14037,7 +14832,7 @@
     },
     "/api/v1/enrollments/{enrollmentId}/schedule": {
       "put": {
-        "description": "Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com pelo menos 72h de antecedência do início da aula. Se a inscrição estava aprovada, volta para status pendente.",
+        "description": "Permite ao cidadão trocar de turma em uma inscrição existente. Deve ser feito com a antecedência mínima do início da aula configurada em ENROLLMENT_SCHEDULE_CHANGE_DEADLINE_HOURS (48h por padrão). A troca para a turma em que a inscrição já está é recusada com 400 (\"você já está nesta turma\"). Se a inscrição estava aprovada, volta para status pendente.",
         "tags": [
           "enrollments"
         ],
@@ -14453,7 +15248,7 @@
     },
     "/api/v1/jobs/{jobId}/status": {
       "get": {
-        "description": "Retorna o status e progresso de um job em execução ou concluído",
+        "description": "Retorna o status e progresso de um job em execução ou concluído. Exige o mesmo acesso da importação que criou o job: admin, go:cursos:casa_civil ou go:cursos:editor com escopo no órgão do curso do job. Em errors[].data, a linha com falha é identificada pelas iniciais do nome e pelo CPF mascarado.",
         "tags": [
           "jobs"
         ],
@@ -14482,6 +15277,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -14573,7 +15378,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/models.OportunidadeMEIListResponse"
                 }
               }
             }
@@ -15687,7 +16492,7 @@
     },
     "/api/v1/typesense/collections/{collection}/documents/search": {
       "post": {
-        "description": "Busca documentos em uma coleção",
+        "description": "Busca documentos em uma coleção pública. Só as coleções cursos e empregos são aceitas; qualquer outro nome responde 404.",
         "tags": [
           "search"
         ],
@@ -15699,7 +16504,11 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "cursos",
+                "empregos"
+              ]
             }
           }
         ],
@@ -15712,6 +16521,130 @@
             }
           },
           "description": "Parâmetros de busca",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.SearchDocumentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/typesense/cursos/search": {
+      "post": {
+        "description": "Busca cursos na coleção cursos do Typesense. O termo q é obrigatório; os demais campos filtram por órgão, instituição, status, modalidade, turno e formato de aula. Sem sort_by, ordena pelos mais recentes.",
+        "tags": [
+          "search"
+        ],
+        "summary": "Buscar cursos",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/models.CursoSearchParameters"
+              }
+            }
+          },
+          "description": "Parâmetros de busca de cursos",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.SearchDocumentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/models.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/typesense/empregos/search": {
+      "post": {
+        "description": "Busca empregos na coleção empregos do Typesense. O termo q é obrigatório; os demais campos filtram por órgão, empresa, escolaridade, status, tipo de contratação, jornada, turno e faixa salarial. Sem sort_by, ordena pelos mais recentes.",
+        "tags": [
+          "search"
+        ],
+        "summary": "Buscar empregos",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/models.EmpregoSearchParameters"
+              }
+            }
+          },
+          "description": "Parâmetros de busca de empregos",
           "required": true
         },
         "responses": {
@@ -16249,75 +17182,141 @@
           "AcessibilidadeExclusivoPCD"
         ]
       },
-      "empregabilidade.AddAreaAtuacaoHabilidadeRequest": {
+      "empregabilidade.AddHabilidadeRequest": {
         "type": "object",
         "required": [
-          "id_area_atuacao_habilidade"
+          "id_habilidade"
         ],
         "properties": {
-          "id_area_atuacao_habilidade": {
-            "type": "integer"
-          }
-        }
-      },
-      "empregabilidade.AddComportamentoAtitudesRequest": {
-        "type": "object",
-        "required": [
-          "id_comportamento_atitudes"
-        ],
-        "properties": {
-          "id_comportamento_atitudes": {
+          "id_habilidade": {
             "type": "integer",
             "example": 10
           }
         }
       },
-      "empregabilidade.AreaAtuacao": {
+      "empregabilidade.AssociacaoRecusadaResponse": {
         "type": "object",
         "properties": {
-          "created_at": {
+          "error": {
             "type": "string"
           },
-          "habilidades": {
+          "pendencias": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/empregabilidade.Habilidade"
+              "type": "string"
             }
-          },
-          "id": {
-            "type": "integer"
-          },
-          "nome": {
+          }
+        }
+      },
+      "empregabilidade.AssociacaoVaga": {
+        "type": "object",
+        "properties": {
+          "id_candidatura": {
             "type": "string"
           },
-          "updated_at": {
+          "id_vaga": {
+            "type": "string"
+          },
+          "motivos": {
+            "description": "Motivos explica por que a associação não aconteceu (requisitos não\natendidos, vaga indisponível etc.).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resultado": {
+            "$ref": "#/components/schemas/empregabilidade.ResultadoAssociacao"
+          },
+          "titulo": {
             "type": "string"
           }
         }
       },
-      "empregabilidade.AreaAtuacaoHabilidade": {
+      "empregabilidade.AssociarVagasRequest": {
+        "type": "object",
+        "required": [
+          "ids_vagas"
+        ],
+        "properties": {
+          "ids_vagas": {
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "empregabilidade.AssociarVagasResponse": {
         "type": "object",
         "properties": {
-          "area_atuacao": {
-            "$ref": "#/components/schemas/empregabilidade.AreaAtuacao"
-          },
-          "created_at": {
+          "resultados": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/empregabilidade.AssociacaoVaga"
+            }
+          }
+        }
+      },
+      "empregabilidade.AtualizarParticipacaoBancoRequest": {
+        "type": "object",
+        "required": [
+          "disponivel"
+        ],
+        "properties": {
+          "disponivel": {
+            "type": "boolean"
+          }
+        }
+      },
+      "empregabilidade.BancoCurriculoCandidatura": {
+        "type": "object",
+        "properties": {
+          "data_candidatura": {
+            "description": "DataCandidatura é quando a candidatura foi criada.",
             "type": "string"
-          },
-          "habilidade": {
-            "$ref": "#/components/schemas/empregabilidade.Habilidade"
           },
           "id": {
-            "type": "integer"
-          },
-          "id_area_atuacao": {
-            "type": "integer"
-          },
-          "id_habilidade": {
-            "type": "integer"
-          },
-          "updated_at": {
             "type": "string"
+          },
+          "origem": {
+            "description": "Origem é por onde a candidatura entrou; nula nas candidaturas antigas.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/empregabilidade.OrigemCandidatura"
+              }
+            ]
+          },
+          "status": {
+            "description": "Status é a situação do candidato na vaga.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/empregabilidade.StatusCandidatura"
+              }
+            ]
+          },
+          "vaga": {
+            "description": "Vaga traz o status já considerando a data limite (publicado_expirado).",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/empregabilidade.Vaga"
+              }
+            ]
+          }
+        }
+      },
+      "empregabilidade.BancoCurriculoCandidaturaListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/empregabilidade.BancoCurriculoCandidatura"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/empregabilidade.BancoCurriculoListMeta"
           }
         }
       },
@@ -16462,6 +17461,9 @@
       "empregabilidade.Candidatura": {
         "type": "object",
         "properties": {
+          "associado_por_cpf": {
+            "type": "string"
+          },
           "cpf": {
             "type": "string"
           },
@@ -16492,6 +17494,14 @@
           },
           "nome": {
             "type": "string"
+          },
+          "origem": {
+            "description": "Origem e AssociadoPorCPF são definidos pela API, nunca pelo corpo da requisição.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/empregabilidade.OrigemCandidatura"
+              }
+            ]
           },
           "personal_info": {
             "description": "Computed field (not stored in DB) - populated from CitizenSnapshot",
@@ -16549,19 +17559,13 @@
           }
         }
       },
-      "empregabilidade.ComportamentoAtitudes": {
+      "empregabilidade.CatalogoItem": {
         "type": "object",
         "properties": {
-          "created_at": {
-            "type": "string"
-          },
           "id": {
             "type": "integer"
           },
           "nome": {
-            "type": "string"
-          },
-          "updated_at": {
             "type": "string"
           }
         }
@@ -16602,42 +17606,38 @@
           }
         }
       },
-      "empregabilidade.CurriculoAreaAtuacaoHabilidade": {
-        "type": "object",
-        "properties": {
-          "area_atuacao_habilidade": {
-            "$ref": "#/components/schemas/empregabilidade.AreaAtuacaoHabilidade"
-          },
-          "cpf": {
-            "type": "string"
-          },
-          "created_at": {
-            "type": "string"
-          },
-          "id": {
-            "type": "integer"
-          },
-          "id_area_atuacao_habilidade": {
-            "type": "integer"
-          },
-          "updated_at": {
-            "type": "string"
-          }
-        }
+      "empregabilidade.CriterioBloqueio": {
+        "type": "string",
+        "enum": [
+          "escolaridade",
+          "idioma"
+        ],
+        "x-enum-varnames": [
+          "CriterioBloqueioEscolaridade",
+          "CriterioBloqueioIdioma"
+        ]
       },
       "empregabilidade.CurriculoCompleto": {
         "type": "object",
         "properties": {
-          "area_atuacao_habilidade": {
+          "area_atuacao": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
+              }
+            ],
+            "nullable": true
+          },
+          "comportamentos_atitudes": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/empregabilidade.CurriculoAreaAtuacaoHabilidade"
+              "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
             }
           },
-          "comportamento_atitudes": {
+          "conhecimentos": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/empregabilidade.CurriculoComportamentoAtitudes"
+              "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
             }
           },
           "conquistas": {
@@ -16675,29 +17675,6 @@
           },
           "situacao_interesses": {
             "$ref": "#/components/schemas/empregabilidade.CurriculoSituacaoInteresses"
-          }
-        }
-      },
-      "empregabilidade.CurriculoComportamentoAtitudes": {
-        "type": "object",
-        "properties": {
-          "comportamento_atitudes": {
-            "$ref": "#/components/schemas/empregabilidade.ComportamentoAtitudes"
-          },
-          "cpf": {
-            "type": "string"
-          },
-          "created_at": {
-            "type": "string"
-          },
-          "id": {
-            "type": "integer"
-          },
-          "id_comportamento_atitudes": {
-            "type": "integer"
-          },
-          "updated_at": {
-            "type": "string"
           }
         }
       },
@@ -16867,23 +17844,6 @@
           },
           "updated_at": {
             "type": "string"
-          }
-        }
-      },
-      "empregabilidade.CurriculoItensReplaceAll": {
-        "type": "object",
-        "properties": {
-          "area_atuacao_habilidade_ids": {
-            "type": "array",
-            "items": {
-              "type": "integer"
-            }
-          },
-          "comportamento_atitudes_ids": {
-            "type": "array",
-            "items": {
-              "type": "integer"
-            }
           }
         }
       },
@@ -17070,26 +18030,49 @@
           }
         }
       },
-      "empregabilidade.Habilidade": {
+      "empregabilidade.HabilidadesCompetencias": {
         "type": "object",
         "properties": {
-          "areas": {
+          "area_atuacao": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
+              }
+            ],
+            "nullable": true
+          },
+          "comportamentos_atitudes": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/empregabilidade.AreaAtuacao"
+              "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
             }
           },
-          "created_at": {
-            "type": "string"
+          "conhecimentos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
+            }
+          }
+        }
+      },
+      "empregabilidade.HabilidadesCompetenciasSave": {
+        "type": "object",
+        "properties": {
+          "comportamento_atitudes_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
           },
-          "id": {
-            "type": "integer"
+          "habilidade_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
           },
-          "nome": {
-            "type": "string"
-          },
-          "updated_at": {
-            "type": "string"
+          "id_area_atuacao": {
+            "type": "integer",
+            "nullable": true
           }
         }
       },
@@ -17193,6 +18176,51 @@
           }
         }
       },
+      "empregabilidade.OrigemCandidatura": {
+        "type": "string",
+        "enum": [
+          "portal_cidadao",
+          "secretaria",
+          "banco_curriculos"
+        ],
+        "x-enum-varnames": [
+          "OrigemCandidaturaPortalCidadao",
+          "OrigemCandidaturaSecretaria",
+          "OrigemCandidaturaBancoCurriculos"
+        ]
+      },
+      "empregabilidade.ParticipacaoBancoStatus": {
+        "type": "object",
+        "properties": {
+          "curriculo_atualizado_em": {
+            "description": "CurriculoAtualizadoEm é quando o cidadão salvou o currículo pela última vez.",
+            "type": "string"
+          },
+          "curriculo_completo": {
+            "description": "CurriculoCompleto diz se o currículo tem o mínimo exigido para se\ncandidatar; Pendencias diz o que falta. Não impede a participação no banco,\nque mostra o que a pessoa conseguiu salvar.",
+            "type": "boolean"
+          },
+          "disponivel": {
+            "type": "boolean"
+          },
+          "disponivel_alterado_em": {
+            "type": "string"
+          },
+          "origem_cadastro": {
+            "type": "string"
+          },
+          "pendencias": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tem_curriculo": {
+            "description": "TemCurriculo é falso enquanto o cidadão não salvou nenhuma seção.",
+            "type": "boolean"
+          }
+        }
+      },
       "empregabilidade.RegimeContratacao": {
         "type": "object",
         "properties": {
@@ -17210,25 +18238,6 @@
           }
         }
       },
-      "empregabilidade.ReplaceAreasHabilidadeRequest": {
-        "type": "object",
-        "required": [
-          "area_ids"
-        ],
-        "properties": {
-          "area_ids": {
-            "type": "array",
-            "items": {
-              "type": "integer"
-            },
-            "example": [
-              1,
-              2,
-              3
-            ]
-          }
-        }
-      },
       "empregabilidade.RespostaInfoComplementar": {
         "type": "object",
         "properties": {
@@ -17242,6 +18251,25 @@
             "type": "string"
           }
         }
+      },
+      "empregabilidade.ResultadoAssociacao": {
+        "type": "string",
+        "enum": [
+          "associado",
+          "ja_participa",
+          "vaga_indisponivel",
+          "fora_do_escopo",
+          "nao_elegivel",
+          "erro"
+        ],
+        "x-enum-varnames": [
+          "AssociacaoRealizada",
+          "AssociacaoJaParticipa",
+          "AssociacaoVagaIndisponivel",
+          "AssociacaoForaDoEscopo",
+          "AssociacaoNaoElegivel",
+          "AssociacaoErro"
+        ]
       },
       "empregabilidade.SituacaoAtual": {
         "type": "object",
@@ -17498,12 +18526,21 @@
           "created_at": {
             "type": "string"
           },
+          "criterios_bloqueio": {
+            "description": "CriteriosBloqueio lista os critérios com bloqueio de candidatura ligado;\nos ausentes estão desligados. Sempre devolvido ([] quando nenhum). No\nPUT, o campo ausente mantém o estado gravado e [] desliga todos.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/empregabilidade.CriterioBloqueio"
+            }
+          },
           "data_limite": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "deleted_at": {
             "type": "string",
-            "example": "2024-12-31T23:59:59Z"
+            "example": "2024-12-31T23:59:59Z",
+            "nullable": true
           },
           "descricao": {
             "type": "string"
@@ -17594,7 +18631,8 @@
             "type": "string"
           },
           "valor_vaga": {
-            "type": "number"
+            "type": "number",
+            "nullable": true
           },
           "zonas": {
             "type": "array",
@@ -17635,6 +18673,38 @@
                 "$ref": "#/components/schemas/empregabilidade.Vaga"
               }
             ]
+          }
+        }
+      },
+      "empregabilidade.VagaPublicListMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "example": 10
+          },
+          "total": {
+            "type": "integer",
+            "example": 109
+          }
+        }
+      },
+      "empregabilidade.VagaPublicListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/empregabilidade.Vaga"
+            },
+            "nullable": true
+          },
+          "meta": {
+            "$ref": "#/components/schemas/empregabilidade.VagaPublicListMeta"
           }
         }
       },
@@ -17794,6 +18864,54 @@
           "CourseManagementExternalManagedByPartner"
         ]
       },
+      "models.CourseSchedule": {
+        "type": "object",
+        "properties": {
+          "accepting_enrollments": {
+            "type": "boolean"
+          },
+          "class_days": {
+            "type": "string"
+          },
+          "class_end_date": {
+            "type": "string"
+          },
+          "class_start_date": {
+            "type": "string"
+          },
+          "class_time": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "display_order": {
+            "type": "integer"
+          },
+          "enrollment_end_date": {
+            "type": "string"
+          },
+          "enrollment_start_date": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "location_id": {
+            "type": "string"
+          },
+          "remaining_vacancies": {
+            "description": "Computed field (not stored in DB)",
+            "type": "integer"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "vacancies": {
+            "type": "integer"
+          }
+        }
+      },
       "models.Curso": {
         "type": "object",
         "properties": {
@@ -17804,7 +18922,8 @@
           "auto_approve_enrollments": {
             "description": "Auto-approve enrollments - when true, new enrollments are automatically approved instead of pending",
             "type": "boolean",
-            "example": false
+            "example": false,
+            "nullable": true
           },
           "carga_horaria": {
             "type": "integer"
@@ -17825,22 +18944,27 @@
             "type": "string"
           },
           "data_inicio": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "data_limite_inscricoes": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "data_termino": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "description": {
             "type": "string"
           },
           "enrollment_end_date": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "enrollment_start_date": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "expected_results": {
             "type": "string"
@@ -17874,19 +18998,22 @@
             "type": "integer"
           },
           "instituicao_id": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "institutional_logo": {
             "type": "string"
           },
           "is_external_partner": {
             "description": "External partner fields",
-            "type": "boolean"
+            "type": "boolean",
+            "nullable": true
           },
           "is_visible": {
             "description": "Visibility field - controls if course appears in public listings (default: true)\nUsed for in-person courses that require manual enrollment and should not appear in public course lists",
             "type": "boolean",
-            "example": true
+            "example": true,
+            "nullable": true
           },
           "link_inscricao": {
             "type": "string"
@@ -17949,6 +19076,376 @@
             "type": "string"
           },
           "workload": {
+            "type": "string"
+          }
+        }
+      },
+      "models.CursoDetailResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/models.CursoResponse"
+          },
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "models.CursoListData": {
+        "type": "object",
+        "properties": {
+          "courses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.CursoResponse"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/models.CursoPagination"
+          }
+        }
+      },
+      "models.CursoListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/models.CursoListData"
+          },
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "models.CursoPagination": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "example": 10
+          },
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "total": {
+            "type": "integer",
+            "example": 394
+          },
+          "total_pages": {
+            "type": "integer",
+            "example": 40
+          }
+        }
+      },
+      "models.CursoResponse": {
+        "type": "object",
+        "properties": {
+          "accessibility": {
+            "description": "Accessibility field - free text field for frontend",
+            "type": "string"
+          },
+          "acessibilidades": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.Acessibilidade"
+            },
+            "nullable": true
+          },
+          "auto_approve_enrollments": {
+            "description": "Auto-approve enrollments - when true, new enrollments are automatically approved instead of pending",
+            "type": "boolean",
+            "example": false,
+            "nullable": true
+          },
+          "carga_horaria": {
+            "type": "integer"
+          },
+          "categorias": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.Categoria"
+            },
+            "nullable": true
+          },
+          "certificacao_oferecida": {
+            "type": "boolean"
+          },
+          "contato_duvidas": {
+            "type": "string"
+          },
+          "course_management_type": {
+            "$ref": "#/components/schemas/models.CourseManagementType"
+          },
+          "cover_image": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "custom_fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.CustomField"
+            },
+            "nullable": true
+          },
+          "data_inicio": {
+            "type": "string",
+            "nullable": true
+          },
+          "data_limite_inscricoes": {
+            "type": "string",
+            "nullable": true
+          },
+          "data_termino": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string"
+          },
+          "enrollment_end_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "enrollment_start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "expected_results": {
+            "type": "string"
+          },
+          "external_partner_contact": {
+            "type": "string"
+          },
+          "external_partner_logo_url": {
+            "type": "string"
+          },
+          "external_partner_name": {
+            "type": "string"
+          },
+          "external_partner_url": {
+            "type": "string"
+          },
+          "facilitator": {
+            "type": "string"
+          },
+          "formacao_link": {
+            "type": "string"
+          },
+          "formato_aula": {
+            "$ref": "#/components/schemas/models.FormatoAula"
+          },
+          "has_certificate": {
+            "description": "Optional fields matching specification",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "instituicao": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.InstituicaoEnsino"
+              }
+            ],
+            "nullable": true
+          },
+          "instituicao_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "institutional_logo": {
+            "type": "string"
+          },
+          "is_external_partner": {
+            "description": "External partner fields",
+            "type": "boolean",
+            "nullable": true
+          },
+          "is_visible": {
+            "description": "Visibility field - controls if course appears in public listings (default: true)\nUsed for in-person courses that require manual enrollment and should not appear in public course lists",
+            "type": "boolean",
+            "example": true,
+            "nullable": true
+          },
+          "link_inscricao": {
+            "type": "string"
+          },
+          "local_realizacao": {
+            "type": "string"
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.LocationClass"
+            },
+            "nullable": true
+          },
+          "material_used": {
+            "type": "string"
+          },
+          "methodology": {
+            "type": "string"
+          },
+          "modalidade": {
+            "$ref": "#/components/schemas/models.Modalidade"
+          },
+          "numero_vagas": {
+            "type": "integer"
+          },
+          "objectives": {
+            "type": "string"
+          },
+          "organization": {
+            "type": "string"
+          },
+          "orgao_id": {
+            "description": "Legacy and additional fields (optional)",
+            "type": "string"
+          },
+          "pre_requisitos": {
+            "description": "Unified field for prerequisites - using single JSON tag",
+            "type": "string"
+          },
+          "program_content": {
+            "type": "string"
+          },
+          "remote_class": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.RemoteClass"
+              }
+            ],
+            "nullable": true
+          },
+          "resources_used": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/models.StatusCurso"
+          },
+          "target_audience": {
+            "type": "string"
+          },
+          "teaching_material": {
+            "type": "string"
+          },
+          "theme": {
+            "type": "string"
+          },
+          "title": {
+            "description": "Core fields (always required)",
+            "type": "string"
+          },
+          "turno": {
+            "$ref": "#/components/schemas/models.Turno"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "workload": {
+            "type": "string"
+          }
+        }
+      },
+      "models.CursoSearchParameters": {
+        "type": "object",
+        "properties": {
+          "exclude_fields": {
+            "description": "Campos a excluir",
+            "type": "string"
+          },
+          "formato_aula": {
+            "description": "Formato da aula",
+            "type": "string"
+          },
+          "include_fields": {
+            "description": "Campos a incluir",
+            "type": "string"
+          },
+          "instituicao_id": {
+            "description": "ID da instituição",
+            "type": "integer"
+          },
+          "modalidade": {
+            "description": "Modalidade",
+            "type": "string"
+          },
+          "orgao_id": {
+            "description": "ID do órgão (external reference)",
+            "type": "string"
+          },
+          "page": {
+            "description": "Página",
+            "type": "integer"
+          },
+          "per_page": {
+            "description": "Itens por página",
+            "type": "integer"
+          },
+          "q": {
+            "description": "Termo de busca",
+            "type": "string"
+          },
+          "sort_by": {
+            "description": "Campo para ordenação",
+            "type": "string"
+          },
+          "status": {
+            "description": "Status do curso",
+            "type": "string"
+          },
+          "turno": {
+            "description": "Turno",
+            "type": "string"
+          }
+        }
+      },
+      "models.CustomField": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "curso": {
+            "description": "Relacionamentos",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.Curso"
+              }
+            ]
+          },
+          "curso_id": {
+            "type": "integer"
+          },
+          "display_order": {
+            "type": "integer"
+          },
+          "field_type": {
+            "type": "string"
+          },
+          "format_type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
             "type": "string"
           }
         }
@@ -18031,6 +19528,71 @@
             "$ref": "#/components/schemas/models.Turno"
           },
           "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "models.EmpregoSearchParameters": {
+        "type": "object",
+        "properties": {
+          "empresa_id": {
+            "description": "ID da empresa",
+            "type": "integer"
+          },
+          "escolaridade_id": {
+            "description": "ID da escolaridade",
+            "type": "integer"
+          },
+          "exclude_fields": {
+            "description": "Campos a excluir",
+            "type": "string"
+          },
+          "include_fields": {
+            "description": "Campos a incluir",
+            "type": "string"
+          },
+          "jornada_trabalho": {
+            "description": "Jornada de trabalho",
+            "type": "string"
+          },
+          "orgao_id": {
+            "description": "ID do órgão (external reference)",
+            "type": "string"
+          },
+          "page": {
+            "description": "Página",
+            "type": "integer"
+          },
+          "per_page": {
+            "description": "Itens por página",
+            "type": "integer"
+          },
+          "q": {
+            "description": "Termo de busca",
+            "type": "string"
+          },
+          "salario_max": {
+            "description": "Salário máximo",
+            "type": "integer"
+          },
+          "salario_min": {
+            "description": "Salário mínimo",
+            "type": "integer"
+          },
+          "sort_by": {
+            "description": "Campo para ordenação",
+            "type": "string"
+          },
+          "status": {
+            "description": "Status do emprego",
+            "type": "string"
+          },
+          "tipo_contratacao": {
+            "description": "Tipo de contratação",
+            "type": "string"
+          },
+          "turno": {
+            "description": "Turno",
             "type": "string"
           }
         }
@@ -18191,11 +19753,15 @@
         "type": "string",
         "enum": [
           "GRAVADO",
-          "AO_VIVO"
+          "AO_VIVO",
+          "PRESENCIAL",
+          ""
         ],
         "x-enum-varnames": [
           "FormatoAulaGravado",
-          "FormatoAulaAoVivo"
+          "FormatoAulaAoVivo",
+          "FormatoAulaPresencial",
+          "FormatoAulaNaoInformado"
         ]
       },
       "models.Inscricao": {
@@ -18257,6 +19823,9 @@
             "type": "string",
             "example": "Centro"
           },
+          "origem_inscricao": {
+            "$ref": "#/components/schemas/models.OrigemInscricao"
+          },
           "personal_info": {
             "description": "Computed field (not stored in DB) - populated from CitizenSnapshot",
             "allOf": [
@@ -18310,6 +19879,24 @@
             "type": "string"
           },
           "phone": {
+            "type": "string"
+          }
+        }
+      },
+      "models.InstituicaoEnsino": {
+        "type": "object",
+        "properties": {
+          "cursos": {
+            "description": "Relacionamentos",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.Curso"
+            }
+          },
+          "id": {
+            "type": "integer"
+          },
+          "nome": {
             "type": "string"
           }
         }
@@ -18457,6 +20044,46 @@
           }
         }
       },
+      "models.LocationClass": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "curso": {
+            "description": "Relacionamentos",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.Curso"
+              }
+            ]
+          },
+          "curso_id": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "neighborhood": {
+            "type": "string"
+          },
+          "neighborhood_zone": {
+            "type": "string"
+          },
+          "schedules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.CourseSchedule"
+            }
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
       "models.Modalidade": {
         "type": "string",
         "enum": [
@@ -18557,7 +20184,8 @@
           },
           "deleted_at": {
             "type": "string",
-            "example": "2024-12-31T23:59:59Z"
+            "example": "2024-12-31T23:59:59Z",
+            "nullable": true
           },
           "descricao_servico": {
             "type": "string",
@@ -18640,6 +20268,38 @@
           }
         }
       },
+      "models.OportunidadeMEIListMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "example": 10
+          },
+          "total": {
+            "type": "integer",
+            "example": 0
+          }
+        }
+      },
+      "models.OportunidadeMEIListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.OportunidadeMEI"
+            },
+            "nullable": true
+          },
+          "meta": {
+            "$ref": "#/components/schemas/models.OportunidadeMEIListMeta"
+          }
+        }
+      },
       "models.OrgaoMetadata": {
         "type": "object",
         "additionalProperties": true
@@ -18681,6 +20341,17 @@
             "type": "string"
           }
         }
+      },
+      "models.OrigemInscricao": {
+        "type": "string",
+        "enum": [
+          "portal_cidadao",
+          "secretaria"
+        ],
+        "x-enum-varnames": [
+          "OrigemInscricaoPortalCidadao",
+          "OrigemInscricaoSecretaria"
+        ]
       },
       "models.PropostaMEI": {
         "type": "object",
@@ -18816,16 +20487,98 @@
           }
         }
       },
+      "models.RemoteClass": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "curso": {
+            "description": "Relacionamentos",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.Curso"
+              }
+            ]
+          },
+          "curso_id": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "schedules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/models.RemoteSchedule"
+            }
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "models.RemoteSchedule": {
+        "type": "object",
+        "properties": {
+          "accepting_enrollments": {
+            "type": "boolean"
+          },
+          "class_days": {
+            "type": "string"
+          },
+          "class_end_date": {
+            "type": "string"
+          },
+          "class_start_date": {
+            "type": "string"
+          },
+          "class_time": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "display_order": {
+            "type": "integer"
+          },
+          "enrollment_end_date": {
+            "type": "string"
+          },
+          "enrollment_start_date": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "remaining_vacancies": {
+            "description": "Computed field (not stored in DB)",
+            "type": "integer"
+          },
+          "remote_class_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "vacancies": {
+            "type": "integer"
+          }
+        }
+      },
       "models.ScheduleChangeRequest": {
         "type": "object",
-        "required": [
-          "enrolled_unit"
-        ],
         "properties": {
           "enrolled_unit": {
-            "$ref": "#/components/schemas/models.EnrolledUnit"
+            "description": "EnrolledUnit is accepted for compatibility with older clients and\nignored: the server builds the enrolled_unit from the course data.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/models.EnrolledUnit"
+              }
+            ]
           },
           "schedule_id": {
+            "description": "ScheduleID is the new turma, of the enrollment's course. Required: the\nservice rejects the change without it.",
             "type": "string"
           }
         }
@@ -19036,14 +20789,16 @@
           "TARDE",
           "NOITE",
           "INTEGRAL",
-          "LIVRE"
+          "LIVRE",
+          ""
         ],
         "x-enum-varnames": [
           "TurnoManha",
           "TurnoTarde",
           "TurnoNoite",
           "TurnoIntegral",
-          "TurnoLivre"
+          "TurnoLivre",
+          "TurnoNaoInformado"
         ]
       },
       "response.ErrorResponse": {
@@ -19061,7 +20816,30 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/empregabilidade.AreaAtuacao"
+              "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "example": 42
+          }
+        }
+      },
+      "response.ListCatalogoPaginatedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
             }
           },
           "page": {
@@ -19084,7 +20862,7 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/empregabilidade.ComportamentoAtitudes"
+              "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
             }
           },
           "page": {
@@ -19107,7 +20885,7 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/empregabilidade.Habilidade"
+              "$ref": "#/components/schemas/empregabilidade.CatalogoItem"
             }
           },
           "page": {

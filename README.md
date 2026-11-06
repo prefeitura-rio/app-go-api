@@ -273,6 +273,10 @@ Todos os PRs para `main` passam por quality gates automáticos:
 
 Tracing OpenTelemetry (OTLP/gRPC → SigNoz). Variáveis: `TRACING_*` em `.env.example`. Detalhes em [`docs/observability.md`](docs/observability.md).
 
+### Operação em incidente
+
+Dependências, onde olhar (logs, `/metrics`, SigNoz), alertas, rollback, reinício seguro, migrations, jobs de importação e variáveis críticas: [`docs/runbook.md`](docs/runbook.md).
+
 ### Troubleshooting CI/CD
 
 #### Linting Failures

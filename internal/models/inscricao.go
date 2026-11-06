@@ -120,7 +120,7 @@ type CustomField struct {
 	FieldType    string         `json:"field_type" gorm:"type:varchar(50);default:'text'"`
 	FormatType   *string        `json:"format_type,omitempty" gorm:"type:varchar(50)"`
 	Required     bool           `json:"required" gorm:"default:false"`
-	Options      datatypes.JSON `json:"options,omitempty" gorm:"type:jsonb"`
+	Options      datatypes.JSON `json:"options,omitempty" gorm:"type:jsonb" swaggertype:"array,object"`
 	DisplayOrder int            `json:"display_order" gorm:"column:display_order;not null;default:0"`
 	CreatedAt    time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time      `json:"updated_at" gorm:"autoUpdateTime"`

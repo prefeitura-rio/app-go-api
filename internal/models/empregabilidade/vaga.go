@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -57,6 +58,59 @@ func (a AcessibilidadePCD) IsValid() bool {
 	return false
 }
 
+// CriterioBloqueio identifica um critério de elegibilidade da vaga cujo
+// bloqueio de candidatura pode ser ligado ou desligado. A vaga guarda só os
+// critérios ligados (CriteriosBloqueio); o que não está na lista está
+// desligado, que é o padrão. Critério novo (PcD, idade, experiência) entra
+// como uma constante a mais e uma entrada em criteriosBloqueioConhecidos.
+type CriterioBloqueio string
+
+const (
+	// CriterioBloqueioEscolaridade é a escolaridade mínima (formação).
+	CriterioBloqueioEscolaridade CriterioBloqueio = "escolaridade"
+	// CriterioBloqueioIdioma são os requisitos de idioma.
+	CriterioBloqueioIdioma CriterioBloqueio = "idioma"
+)
+
+// criteriosBloqueioConhecidos são os critérios aceitos, na ordem em que são
+// gravados e devolvidos.
+var criteriosBloqueioConhecidos = []CriterioBloqueio{
+	CriterioBloqueioEscolaridade,
+	CriterioBloqueioIdioma,
+}
+
+func (c CriterioBloqueio) IsValid() bool {
+	for _, conhecido := range criteriosBloqueioConhecidos {
+		if c == conhecido {
+			return true
+		}
+	}
+	return false
+}
+
+// NormalizarCriteriosBloqueio confere as chaves, tira as repetidas e põe na
+// ordem de criteriosBloqueioConhecidos. Sem nenhum critério ligado devolve
+// nil, para que o desligado nunca seja gravado na vaga.
+func NormalizarCriteriosBloqueio(criterios []CriterioBloqueio) ([]CriterioBloqueio, error) {
+	ligados := make(map[CriterioBloqueio]bool, len(criterios))
+	for _, c := range criterios {
+		if !c.IsValid() {
+			return nil, fmt.Errorf("critério de bloqueio desconhecido: %q", string(c))
+		}
+		ligados[c] = true
+	}
+	if len(ligados) == 0 {
+		return nil, nil
+	}
+	normalizados := make([]CriterioBloqueio, 0, len(ligados))
+	for _, c := range criteriosBloqueioConhecidos {
+		if ligados[c] {
+			normalizados = append(normalizados, c)
+		}
+	}
+	return normalizados, nil
+}
+
 type Vaga struct {
 	ID                             uuid.UUID          `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Titulo                         string             `json:"titulo" gorm:"type:varchar(500);not null"`
@@ -65,10 +119,10 @@ type Vaga struct {
 	IDRegimeContratacao            uuid.UUID          `json:"id_regime_contratacao" gorm:"type:uuid;not null"`
 	IDModeloTrabalho               uuid.UUID          `json:"id_modelo_trabalho" gorm:"type:uuid;not null"`
 	AcessibilidadePCD              *AcessibilidadePCD `json:"acessibilidade_pcd,omitempty" gorm:"type:acessibilidade_pcd_enum"`
-	ValorVaga                      *float64           `json:"valor_vaga" gorm:"type:decimal(12,2)"`
+	ValorVaga                      *float64           `json:"valor_vaga" gorm:"type:decimal(12,2)" extensions:"x-nullable"`
 	QuantidadeEstimadaContratacoes *int               `json:"quantidade_estimada_contratacoes,omitempty" gorm:"type:integer"`
 	Bairro                         string             `json:"bairro" gorm:"type:varchar(255)"`
-	DataLimite                     *time.Time         `json:"data_limite" gorm:"type:timestamp with time zone"`
+	DataLimite                     *time.Time         `json:"data_limite" gorm:"type:timestamp with time zone" extensions:"x-nullable"`
 	Requisitos                     string             `json:"requisitos" gorm:"type:text"`
 	Diferenciais                   string             `json:"diferenciais" gorm:"type:text"`
 	Responsabilidades              string             `json:"responsabilidades" gorm:"type:text"`
@@ -76,7 +130,7 @@ type Vaga struct {
 	IDOrgaoParceiro                string             `json:"id_orgao_parceiro" gorm:"type:varchar(50)"`
 	Status                         StatusVaga         `json:"status" gorm:"type:varchar(50);not null;default:'em_edicao'"`
 	Slug                           string             `json:"slug" gorm:"-"`
-	DeletedAt                      gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
+	DeletedAt                      gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z" extensions:"x-nullable"`
 	CreatedAt                      time.Time          `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt                      time.Time          `json:"updated_at" gorm:"autoUpdateTime"`
 
@@ -86,6 +140,10 @@ type Vaga struct {
 	BairrosElegibilidade       []string   `json:"bairros_elegibilidade,omitempty" gorm:"type:jsonb;serializer:json"`
 	IDEscolaridadeMinima       *uuid.UUID `json:"id_escolaridade_minima,omitempty" gorm:"type:uuid"`
 	AreasFormacaoElegibilidade []string   `json:"areas_formacao_elegibilidade,omitempty" gorm:"type:jsonb;serializer:json"`
+	// CriteriosBloqueio lista os critérios com bloqueio de candidatura ligado;
+	// os ausentes estão desligados. Sempre devolvido ([] quando nenhum). No
+	// PUT, o campo ausente mantém o estado gravado e [] desliga todos.
+	CriteriosBloqueio []CriterioBloqueio `json:"criterios_bloqueio" gorm:"type:jsonb;serializer:json"`
 
 	// Relationships
 	Contratante               *Empresa                 `json:"contratante,omitempty" gorm:"foreignKey:IDContratante;references:CNPJ"`
@@ -110,6 +168,9 @@ func BuildVagaSlug(titulo string, id uuid.UUID) string {
 
 func (v *Vaga) AfterFind(_ *gorm.DB) error {
 	v.Slug = BuildVagaSlug(v.Titulo, v.ID)
+	if v.CriteriosBloqueio == nil {
+		v.CriteriosBloqueio = []CriterioBloqueio{}
+	}
 	return nil
 }
 

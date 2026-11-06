@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
+	"gorm.io/datatypes"
 )
 
 type mockJobRepo struct {
@@ -27,6 +29,30 @@ type mockJobRepo struct {
 	updateStatusCalls   int
 	updateProgressCalls int
 	lastUpdatedJob      *models.Job
+	touchErr            error
+	touchCalls          int
+	touchedID           uuid.UUID
+	failStaleErr        error
+	failStaleCount      int64
+	failStaleCalls      int
+	failStaleCutoff     time.Time
+	failStaleErrors     []byte
+}
+
+func (m *mockJobRepo) Touch(ctx context.Context, id uuid.UUID) error {
+	m.touchCalls++
+	m.touchedID = id
+	return m.touchErr
+}
+
+func (m *mockJobRepo) FailStale(ctx context.Context, cutoff time.Time, jobErrors datatypes.JSON) (int64, error) {
+	m.failStaleCalls++
+	m.failStaleCutoff = cutoff
+	m.failStaleErrors = jobErrors
+	if m.failStaleErr != nil {
+		return 0, m.failStaleErr
+	}
+	return m.failStaleCount, nil
 }
 
 func (m *mockJobRepo) Create(ctx context.Context, j *models.Job) error {
@@ -788,4 +814,82 @@ func TestNewJobServiceWithInterface(t *testing.T) {
 	if service == nil {
 		t.Error("NewJobServiceWithInterface() returned nil")
 	}
+}
+
+func TestJobService_Heartbeat(t *testing.T) {
+	t.Run("renews the job", func(t *testing.T) {
+		repo := &mockJobRepo{}
+		svc := services.NewJobServiceWithInterface(repo)
+		id := uuid.New()
+
+		if err := svc.Heartbeat(context.Background(), id); err != nil {
+			t.Fatalf("Heartbeat() error = %v", err)
+		}
+		if repo.touchCalls != 1 || repo.touchedID != id {
+			t.Errorf("expected Touch(%s) once, got %d calls with %s", id, repo.touchCalls, repo.touchedID)
+		}
+	})
+
+	t.Run("propagates repository error", func(t *testing.T) {
+		repo := &mockJobRepo{touchErr: errors.New("db down")}
+		svc := services.NewJobServiceWithInterface(repo)
+
+		if err := svc.Heartbeat(context.Background(), uuid.New()); err == nil {
+			t.Error("Heartbeat() expected error, got nil")
+		}
+	})
+}
+
+func TestJobService_FailStaleJobs(t *testing.T) {
+	t.Run("fails jobs not updated within staleAfter with the interrupted reason", func(t *testing.T) {
+		repo := &mockJobRepo{failStaleCount: 3}
+		svc := services.NewJobServiceWithInterface(repo)
+		staleAfter := 10 * time.Minute
+
+		before := time.Now()
+		n, err := svc.FailStaleJobs(context.Background(), staleAfter)
+		after := time.Now()
+
+		if err != nil {
+			t.Fatalf("FailStaleJobs() error = %v", err)
+		}
+		if n != 3 {
+			t.Errorf("FailStaleJobs() = %d, want 3", n)
+		}
+		if repo.failStaleCalls != 1 {
+			t.Fatalf("expected FailStale once, got %d", repo.failStaleCalls)
+		}
+		if repo.failStaleCutoff.Before(before.Add(-staleAfter)) || repo.failStaleCutoff.After(after.Add(-staleAfter)) {
+			t.Errorf("cutoff %v outside [now-staleAfter]", repo.failStaleCutoff)
+		}
+
+		var jobErrors []models.JobError
+		if err := json.Unmarshal(repo.failStaleErrors, &jobErrors); err != nil {
+			t.Fatalf("errors payload is not a JobError list: %v", err)
+		}
+		if len(jobErrors) != 1 || jobErrors[0].Message != services.JobInterruptedMessage {
+			t.Errorf("errors payload = %+v, want one entry with JobInterruptedMessage", jobErrors)
+		}
+	})
+
+	t.Run("rejects non-positive staleAfter", func(t *testing.T) {
+		repo := &mockJobRepo{}
+		svc := services.NewJobServiceWithInterface(repo)
+
+		if _, err := svc.FailStaleJobs(context.Background(), 0); err == nil {
+			t.Error("FailStaleJobs(0) expected error, got nil")
+		}
+		if repo.failStaleCalls != 0 {
+			t.Errorf("expected no FailStale call, got %d", repo.failStaleCalls)
+		}
+	})
+
+	t.Run("propagates repository error", func(t *testing.T) {
+		repo := &mockJobRepo{failStaleErr: errors.New("db down")}
+		svc := services.NewJobServiceWithInterface(repo)
+
+		if _, err := svc.FailStaleJobs(context.Background(), time.Minute); err == nil {
+			t.Error("FailStaleJobs() expected error, got nil")
+		}
+	})
 }

@@ -40,6 +40,14 @@ func TestCursoRepository_applyFilters(t *testing.T) {
 			description:        "status NOT filter should generate != condition",
 		},
 		{
+			name: "status NOT IN filter",
+			filter: map[string]interface{}{
+				"status NOT IN": []string{"draft", "in_review"},
+			},
+			expectedConditions: []string{"status NOT IN ('draft','in_review')"},
+			description:        "status NOT IN filter should exclude every listed status",
+		},
+		{
 			name: "title ILIKE filter",
 			filter: map[string]interface{}{
 				"title ILIKE": "%golang%",

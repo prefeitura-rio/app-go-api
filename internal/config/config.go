@@ -29,6 +29,7 @@ type AppConfig struct {
 	OrgaoSync     OrgaoSyncSettings
 	CitizenSync   CitizenSyncSettings
 	ClassReminder ClassReminderSettings
+	Jobs          JobSettings
 	DataRelay     DataRelaySettings
 	PrefRio       PrefRioSettings
 	Cerbos        CerbosSettings
@@ -178,6 +179,40 @@ type CitizenSyncSettings struct {
 type ClassReminderSettings struct {
 	Enabled      bool
 	SyncInterval time.Duration // How often to evaluate per-email temporal rules
+}
+
+// JobSettings define a recuperação de jobs assíncronos (importação de
+// inscrições) interrompidos quando o pod que os processava é encerrado.
+type JobSettings struct {
+	HeartbeatInterval time.Duration // Frequência com que um job em execução renova updated_at
+	StaleAfter        time.Duration // Job pending/processing sem renovação por esse tempo é marcado failed
+	ReaperInterval    time.Duration // Frequência da varredura de jobs interrompidos
+}
+
+const (
+	defaultJobHeartbeatInterval = 1 * time.Minute
+	defaultJobStaleAfter        = 10 * time.Minute
+	defaultJobReaperInterval    = 2 * time.Minute
+)
+
+// normalized troca valores não positivos pelos padrões e garante que o limite
+// de inatividade cubra ao menos três heartbeats, para que um job vivo nunca
+// seja tomado por interrompido.
+func (j JobSettings) normalized() JobSettings {
+	if j.HeartbeatInterval <= 0 {
+		j.HeartbeatInterval = defaultJobHeartbeatInterval
+	}
+	if j.StaleAfter <= 0 {
+		j.StaleAfter = defaultJobStaleAfter
+	}
+	if j.ReaperInterval <= 0 {
+		j.ReaperInterval = defaultJobReaperInterval
+	}
+	if minStale := 3 * j.HeartbeatInterval; j.StaleAfter < minStale {
+		log.Printf("JOB_STALE_AFTER (%s) menor que 3x JOB_HEARTBEAT_INTERVAL; usando %s", j.StaleAfter, minStale)
+		j.StaleAfter = minStale
+	}
+	return j
 }
 
 // CerbosSettings define configurações do Cerbos PDP para autorização
@@ -455,6 +490,11 @@ func Load() (*AppConfig, error) {
 			Enabled:      getBool(v, "CLASS_REMINDER_ENABLED", true),
 			SyncInterval: getDuration(v, "CLASS_REMINDER_INTERVAL", 1*time.Hour),
 		},
+		Jobs: JobSettings{
+			HeartbeatInterval: getDuration(v, "JOB_HEARTBEAT_INTERVAL", defaultJobHeartbeatInterval),
+			StaleAfter:        getDuration(v, "JOB_STALE_AFTER", defaultJobStaleAfter),
+			ReaperInterval:    getDuration(v, "JOB_REAPER_INTERVAL", defaultJobReaperInterval),
+		}.normalized(),
 		DataRelay: DataRelaySettings{
 			BaseURL: getEnv(v, "DATA_RELAY_BASE_URL", ""),
 			APIKey:  getEnv(v, "DATA_RELAY_API_KEY", ""),

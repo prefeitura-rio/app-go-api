@@ -32,6 +32,9 @@ type MockVagaRepoForService struct {
 	updateZonasCalls            []updateZonasCall
 	updateIdiomasRequisitoError error
 	updateIdiomasRequisitoCalls []updateIdiomasRequisitoCall
+	// createdCriteriosBloqueio guarda os critérios de bloqueio como chegaram ao
+	// Create, antes de o service preparar a resposta.
+	createdCriteriosBloqueio map[uuid.UUID][]empregabilidade.CriterioBloqueio
 }
 
 type updateZonasCall struct {
@@ -46,7 +49,8 @@ type updateIdiomasRequisitoCall struct {
 
 func NewMockVagaRepoForService() *MockVagaRepoForService {
 	return &MockVagaRepoForService{
-		vagas: make(map[uuid.UUID]*empregabilidade.Vaga),
+		vagas:                    make(map[uuid.UUID]*empregabilidade.Vaga),
+		createdCriteriosBloqueio: make(map[uuid.UUID][]empregabilidade.CriterioBloqueio),
 	}
 }
 
@@ -57,6 +61,9 @@ func (m *MockVagaRepoForService) Create(ctx context.Context, entity *empregabili
 	id := uuid.New()
 	entity.ID = id
 	m.vagas[id] = entity
+	if entity.CriteriosBloqueio != nil {
+		m.createdCriteriosBloqueio[id] = append([]empregabilidade.CriterioBloqueio{}, entity.CriteriosBloqueio...)
+	}
 	return id, nil
 }
 
