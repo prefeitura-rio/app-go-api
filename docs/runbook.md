@@ -53,7 +53,8 @@ conteúdo de um `Secret` do Kubernetes nem cole dados de cidadãos (CPF, nome, e
 - `GET /metrics` expõe o formato Prometheus (métricas padrão de Go/processo e as do cliente RMI).
   Pela entrada pública ele responde **403** (bloqueado pelo `ext_authz`); leia de dentro do cluster:
   `kubectl -n go port-forward svc/go 8080:80` e `curl -s localhost:8080/metrics | grep rmi_client_`.
-- Não há scrape versionado dessas métricas neste repositório (sem `ServiceMonitor` nem anotação).
+- O Rollout `go` (staging e produção) tem as anotações `prometheus.io/scrape|port|path` (porta 8080,
+  `/metrics`): o Prometheus do `istio-system` coleta pelo job `kubernetes-pods`.
 - Métricas do cliente RMI (label `client`: `api` para as requisições, `orgao_sync` para o worker):
 
 | Métrica | Leitura |
@@ -63,6 +64,21 @@ conteúdo de um `Secret` do Kubernetes nem cole dados de cidadãos (CPF, nome, e
 | `rmi_client_circuit_breaker_rejections_total` | Chamadas recusadas sem ir ao RMI |
 | `rmi_client_retries_total{reason}` | Novas tentativas (erro de rede, 502/503/504) |
 | `rmi_client_secretaria_cache_total{result}` | `hit`/`miss` do cache de secretarias por CPF |
+
+- Sinais dos alertas de produção (`goapi_*`, seção 3). As séries de sync e de fila nascem em 0 no
+  início do pod; agregue com `max` entre os pods (a sync de órgãos roda em um pod por ciclo e as filas
+  são as mesmas no Redis para todos):
+
+| Métrica | Leitura |
+|---|---|
+| `goapi_http_request_duration_seconds{method,route}` | Latência por template de rota (nunca o caminho cru, que pode ter CPF); caminho sem rota vira `(rota não encontrada)` |
+| `goapi_sync_last_success_timestamp_seconds{worker}` | Horário Unix do último ciclo sem erro de `orgao_sync`/`citizen_sync` neste pod (0 = nenhum desde o início) |
+| `goapi_sync_runs_total{worker,result}` | Ciclos por resultado: `success`, `failure`, `skipped` (outro pod tinha o lock) |
+| `goapi_sync_items_total{worker,result}` | Itens `synced`, `skipped` (resposta esperada do RMI) e `failed` |
+| `goapi_import_jobs_total{result}` | Jobs de importação `completed`, `failed` e `reaped` (interrompidos, fechados pelo reaper) |
+| `goapi_email_queue_length{queue}` | Tamanho de `pending` (`email:queue`), `delayed` (`email:queue:delayed`) e `dead_letter` (`email:queue:failed`), lido do Redis a cada coleta |
+| `goapi_email_queue_up` | `1` se a última leitura das filas no Redis funcionou; `0` se falhou (sem tamanhos nessa coleta) |
+| `goapi_email_dead_letter_total{reason}` | Tarefas que foram para a fila morta: `retries_exhausted` ou `panic` |
 
 - Tráfego e erros por resposta vêm do Istio, no Prometheus
   `http://prometheus-server.istio-system.svc.cluster.local:9090` (o mesmo que a KEDA e o canário usam):
@@ -140,10 +156,16 @@ Os sinais que existem hoje (versionados neste repositório ou no `prefeitura-rio
 | **"❌ Production Release Failed"** (`Degraded`) ou **"⚠️ Unknown"** | Discord (`release.yaml`) | O rollout não ficou saudável no prazo do workflow (45 min) ou o estado não pôde ser lido | `kubectl argo rollouts get rollout go -n go`; se o canário está preso, siga a seção 4.1 |
 | Circuito do RMI aberto (`rmi_client_circuit_breaker_state == 2`, log `[RMIClient] circuit breaker "api": closed -> open`) | Só métrica/log (sem alerta configurado) | 5 falhas seguidas no RMI (padrão `RMI_CIRCUIT_BREAKER_FAILURE_THRESHOLD`); chamadas são recusadas por 30 s antes de testar de novo | Seção 4.5 |
 | KEDA em fallback (`ScaledObject` com condição `Fallback`) | Só no recurso | A consulta ao Prometheus falhou 3 vezes; a escala deixa de seguir a carga e vai para o `fallback.replicas` (limitado pelo mínimo do HPA) | Verifique o `prometheus-server` do `istio-system`; não escale à mão (seção 4.2) |
-| Fila morta de e-mail crescendo (`email:queue:failed`) | Só no Redis/log | E-mails que esgotaram as 5 tentativas ou causaram panic | Seção 4.6 |
+| Fila morta de e-mail crescendo (`email:queue:failed`, `increase(goapi_email_dead_letter_total[30m]) > 0`) | Métrica/log (regra na OPS-151) | E-mails que esgotaram as 5 tentativas ou causaram panic | Seção 4.6 |
+| Taxa de 5xx > 5% por 5 min (`istio_requests_total{destination_workload="go"}`) | Prometheus (regra na OPS-151) | Erros do servidor acima do limiar do canário | Rotina da seção 4: pods, logs `--previous`, traces com erro |
+| Latência p95 > 1 s no serviço (`istio_request_duration_milliseconds_bucket`) ou > 2 s numa rota (`goapi_http_request_duration_seconds`) | Prometheus (regra na OPS-151) | Lentidão geral ou de um endpoint | Traces da rota no SigNoz, ordenados por duração; banco e Redis (`db.system`) |
+| Sync atrasada (`time() - max by (worker) (goapi_sync_last_success_timestamp_seconds) > 3600`) ou falhando (`goapi_sync_runs_total{result="failure"}`) | Prometheus (regra na OPS-151) | Órgãos ou cidadãos sem sincronizar com o RMI há mais de 1 h | Logs `[OrgaoSyncWorker]`/`[CitizenSyncWorker]`; circuito do RMI (seção 4.5); token do Keycloak |
+| Jobs de importação interrompidos (`increase(goapi_import_jobs_total{result="reaped"}[1h]) > 0`) | Prometheus (regra na OPS-151) | Um pod parou no meio de uma importação (deploy, OOM, escala) e o job foi fechado como `failed` | Eventos e reinícios dos pods; peça a quem importou para reenviar o arquivo |
+| Fila de e-mail parada (`max(goapi_email_queue_length{queue="pending"}) > 500` por 15 min) ou ilegível (`goapi_email_queue_up == 0`) | Prometheus (regra na OPS-151) | Consumidores parados ou Redis fora | Logs `[EmailWorker]`; Redis (seção 1); seção 4.6 |
 
-Não existem alertas do SigNoz nem do Prometheus/Alertmanager para este serviço. Se um alerta novo
-for criado, acrescente-o nesta tabela.
+As regras sobre esses sinais ficam no `prefeitura-rio/infra` (raia Infra (Terraform), OPS-151): até
+ela ser aplicada, não há alerta do Prometheus/Alertmanager nem do SigNoz para este serviço, e os
+sinais só se leem por consulta. Se um alerta novo for criado, acrescente-o nesta tabela.
 
 ## 4. Rotina de incidente
 

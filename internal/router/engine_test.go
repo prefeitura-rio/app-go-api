@@ -52,3 +52,26 @@ func TestNewEngine_RecoversFromPanic(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
+
+// Every request, panics included, feeds the per-endpoint latency histogram the
+// production latency alert reads.
+func TestNewEngine_RecordsRequestLatencyByRoute(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previousOut, previousErr := gin.DefaultWriter, gin.DefaultErrorWriter
+	gin.DefaultWriter, gin.DefaultErrorWriter = &bytes.Buffer{}, &bytes.Buffer{}
+	t.Cleanup(func() { gin.DefaultWriter, gin.DefaultErrorWriter = previousOut, previousErr })
+
+	r := newEngine()
+	r.GET("/engine-metrics/:id", func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/engine-metrics-panic", func(c *gin.Context) { panic("falha simulada") })
+	registerMetricsRoute(r, nil)
+
+	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/engine-metrics/1", nil))
+	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/engine-metrics-panic", nil))
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	body := w.Body.String()
+	assert.Contains(t, body, `goapi_http_request_duration_seconds_count{method="GET",route="/engine-metrics/:id"} 1`)
+	assert.Contains(t, body, `goapi_http_request_duration_seconds_count{method="GET",route="/engine-metrics-panic"} 1`)
+}
