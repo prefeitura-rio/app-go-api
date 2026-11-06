@@ -533,7 +533,7 @@ func withoutCurationStatuses(statuses []string) []string {
 // @Param        acessibilidade_id query     int     false  "Filtrar por acessibilidade"
 // @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
 // @Param        sort              query     string  false  "Ordenação opcional. 'availability': cursos com inscrição disponível primeiro; os sem inscrição (status final, prazo vencido ou vagas esgotadas — inclusive accepting_enrollments sem vagas) vão para o final. A ordenação é aplicada antes da paginação. Omitido = ordem padrão (id desc)."  Enums(availability)
-// @Success      200               {object}  object
+// @Success      200               {object}  models.CursoListResponse
 // @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/public/courses [get]
 func (h *CourseHandler) ListPublic(c *gin.Context) {
@@ -554,7 +554,7 @@ func (h *CourseHandler) ListPublic(c *gin.Context) {
 // @Param        acessibilidade_id query     int     false  "Filtrar por acessibilidade"
 // @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
 // @Param        sort              query     string  false  "Ordenação opcional. 'availability': cursos com inscrição disponível primeiro; os sem inscrição (status final, prazo vencido ou vagas esgotadas — inclusive accepting_enrollments sem vagas) vão para o final. A ordenação é aplicada antes da paginação. Omitido = ordem padrão (id desc)."  Enums(availability)
-// @Success      200               {object}  object
+// @Success      200               {object}  models.CursoListResponse
 // @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/v1/courses [get]
 func (h *CourseHandler) List(c *gin.Context) {
@@ -922,7 +922,7 @@ func (h *CourseHandler) ListDrafts(c *gin.Context) {
 // @Tags         courses
 // @Produce      json
 // @Param        courseId path      int  true  "ID do curso"
-// @Success      200      {object}  models.Curso
+// @Success      200      {object}  models.CursoDetailResponse
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      404      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse
@@ -936,7 +936,7 @@ func (h *CourseHandler) GetByIDPublic(c *gin.Context) {
 // @Tags         courses
 // @Produce      json
 // @Param        courseId path      int  true  "ID do curso"
-// @Success      200      {object}  models.Curso
+// @Success      200      {object}  models.CursoDetailResponse
 // @Failure      400      {object}  models.ErrorResponse
 // @Failure      404      {object}  models.ErrorResponse
 // @Failure      500      {object}  models.ErrorResponse

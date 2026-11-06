@@ -9,6 +9,8 @@ const (
 	TurnoNoite    Turno = "NOITE"
 	TurnoIntegral Turno = "INTEGRAL"
 	TurnoLivre    Turno = "LIVRE"
+	// TurnoNaoInformado é o valor de cursos cadastrados sem turno.
+	TurnoNaoInformado Turno = ""
 )
 
 // IsValid validates if the Turno value is valid

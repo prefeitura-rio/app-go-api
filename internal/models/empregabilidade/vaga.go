@@ -65,10 +65,10 @@ type Vaga struct {
 	IDRegimeContratacao            uuid.UUID          `json:"id_regime_contratacao" gorm:"type:uuid;not null"`
 	IDModeloTrabalho               uuid.UUID          `json:"id_modelo_trabalho" gorm:"type:uuid;not null"`
 	AcessibilidadePCD              *AcessibilidadePCD `json:"acessibilidade_pcd,omitempty" gorm:"type:acessibilidade_pcd_enum"`
-	ValorVaga                      *float64           `json:"valor_vaga" gorm:"type:decimal(12,2)"`
+	ValorVaga                      *float64           `json:"valor_vaga" gorm:"type:decimal(12,2)" extensions:"x-nullable"`
 	QuantidadeEstimadaContratacoes *int               `json:"quantidade_estimada_contratacoes,omitempty" gorm:"type:integer"`
 	Bairro                         string             `json:"bairro" gorm:"type:varchar(255)"`
-	DataLimite                     *time.Time         `json:"data_limite" gorm:"type:timestamp with time zone"`
+	DataLimite                     *time.Time         `json:"data_limite" gorm:"type:timestamp with time zone" extensions:"x-nullable"`
 	Requisitos                     string             `json:"requisitos" gorm:"type:text"`
 	Diferenciais                   string             `json:"diferenciais" gorm:"type:text"`
 	Responsabilidades              string             `json:"responsabilidades" gorm:"type:text"`
@@ -76,7 +76,7 @@ type Vaga struct {
 	IDOrgaoParceiro                string             `json:"id_orgao_parceiro" gorm:"type:varchar(50)"`
 	Status                         StatusVaga         `json:"status" gorm:"type:varchar(50);not null;default:'em_edicao'"`
 	Slug                           string             `json:"slug" gorm:"-"`
-	DeletedAt                      gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
+	DeletedAt                      gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z" extensions:"x-nullable"`
 	CreatedAt                      time.Time          `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt                      time.Time          `json:"updated_at" gorm:"autoUpdateTime"`
 
