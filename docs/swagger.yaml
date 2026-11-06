@@ -895,9 +895,11 @@ definitions:
         type: string
       data_limite:
         type: string
+        x-nullable: true
       deleted_at:
         example: "2024-12-31T23:59:59Z"
         type: string
+        x-nullable: true
       descricao:
         type: string
       diferenciais:
@@ -959,6 +961,7 @@ definitions:
         type: string
       valor_vaga:
         type: number
+        x-nullable: true
       zonas:
         items:
           $ref: '#/definitions/empregabilidade.Zona'
@@ -984,6 +987,28 @@ definitions:
         allOf:
         - $ref: '#/definitions/empregabilidade.Vaga'
         description: Relationships
+    type: object
+  empregabilidade.VagaPublicListMeta:
+    properties:
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 10
+        type: integer
+      total:
+        example: 109
+        type: integer
+    type: object
+  empregabilidade.VagaPublicListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/empregabilidade.Vaga'
+        type: array
+        x-nullable: true
+      meta:
+        $ref: '#/definitions/empregabilidade.VagaPublicListMeta'
     type: object
   empregabilidade.Zona:
     properties:
@@ -1089,6 +1114,38 @@ definitions:
     - CourseManagementOwnOrg
     - CourseManagementExternalManagedByOrg
     - CourseManagementExternalManagedByPartner
+  models.CourseSchedule:
+    properties:
+      accepting_enrollments:
+        type: boolean
+      class_days:
+        type: string
+      class_end_date:
+        type: string
+      class_start_date:
+        type: string
+      class_time:
+        type: string
+      created_at:
+        type: string
+      display_order:
+        type: integer
+      enrollment_end_date:
+        type: string
+      enrollment_start_date:
+        type: string
+      id:
+        type: string
+      location_id:
+        type: string
+      remaining_vacancies:
+        description: Computed field (not stored in DB)
+        type: integer
+      updated_at:
+        type: string
+      vacancies:
+        type: integer
+    type: object
   models.Curso:
     properties:
       accessibility:
@@ -1099,6 +1156,7 @@ definitions:
           approved instead of pending
         example: false
         type: boolean
+        x-nullable: true
       carga_horaria:
         type: integer
       certificacao_oferecida:
@@ -1113,16 +1171,21 @@ definitions:
         type: string
       data_inicio:
         type: string
+        x-nullable: true
       data_limite_inscricoes:
         type: string
+        x-nullable: true
       data_termino:
         type: string
+        x-nullable: true
       description:
         type: string
       enrollment_end_date:
         type: string
+        x-nullable: true
       enrollment_start_date:
         type: string
+        x-nullable: true
       expected_results:
         type: string
       external_partner_contact:
@@ -1146,17 +1209,20 @@ definitions:
         type: integer
       instituicao_id:
         type: integer
+        x-nullable: true
       institutional_logo:
         type: string
       is_external_partner:
         description: External partner fields
         type: boolean
+        x-nullable: true
       is_visible:
         description: |-
           Visibility field - controls if course appears in public listings (default: true)
           Used for in-person courses that require manual enrollment and should not appear in public course lists
         example: true
         type: boolean
+        x-nullable: true
       link_inscricao:
         type: string
       local_realizacao:
@@ -1181,6 +1247,195 @@ definitions:
         type: string
       program_content:
         type: string
+      resources_used:
+        type: string
+      status:
+        $ref: '#/definitions/models.StatusCurso'
+      target_audience:
+        type: string
+      teaching_material:
+        type: string
+      theme:
+        type: string
+      title:
+        description: Core fields (always required)
+        type: string
+      turno:
+        $ref: '#/definitions/models.Turno'
+      updated_at:
+        type: string
+      workload:
+        type: string
+    type: object
+  models.CursoDetailResponse:
+    properties:
+      data:
+        $ref: '#/definitions/models.CursoResponse'
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.CursoListData:
+    properties:
+      courses:
+        items:
+          $ref: '#/definitions/models.CursoResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/models.CursoPagination'
+    type: object
+  models.CursoListResponse:
+    properties:
+      data:
+        $ref: '#/definitions/models.CursoListData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.CursoPagination:
+    properties:
+      limit:
+        example: 10
+        type: integer
+      page:
+        example: 1
+        type: integer
+      total:
+        example: 394
+        type: integer
+      total_pages:
+        example: 40
+        type: integer
+    type: object
+  models.CursoResponse:
+    properties:
+      accessibility:
+        description: Accessibility field - free text field for frontend
+        type: string
+      acessibilidades:
+        items:
+          $ref: '#/definitions/models.Acessibilidade'
+        type: array
+        x-nullable: true
+      auto_approve_enrollments:
+        description: Auto-approve enrollments - when true, new enrollments are automatically
+          approved instead of pending
+        example: false
+        type: boolean
+        x-nullable: true
+      carga_horaria:
+        type: integer
+      categorias:
+        items:
+          $ref: '#/definitions/models.Categoria'
+        type: array
+        x-nullable: true
+      certificacao_oferecida:
+        type: boolean
+      contato_duvidas:
+        type: string
+      course_management_type:
+        $ref: '#/definitions/models.CourseManagementType'
+      cover_image:
+        type: string
+      created_at:
+        type: string
+      custom_fields:
+        items:
+          $ref: '#/definitions/models.CustomField'
+        type: array
+        x-nullable: true
+      data_inicio:
+        type: string
+        x-nullable: true
+      data_limite_inscricoes:
+        type: string
+        x-nullable: true
+      data_termino:
+        type: string
+        x-nullable: true
+      description:
+        type: string
+      enrollment_end_date:
+        type: string
+        x-nullable: true
+      enrollment_start_date:
+        type: string
+        x-nullable: true
+      expected_results:
+        type: string
+      external_partner_contact:
+        type: string
+      external_partner_logo_url:
+        type: string
+      external_partner_name:
+        type: string
+      external_partner_url:
+        type: string
+      facilitator:
+        type: string
+      formacao_link:
+        type: string
+      formato_aula:
+        $ref: '#/definitions/models.FormatoAula'
+      has_certificate:
+        description: Optional fields matching specification
+        type: boolean
+      id:
+        type: integer
+      instituicao:
+        allOf:
+        - $ref: '#/definitions/models.InstituicaoEnsino'
+        x-nullable: true
+      instituicao_id:
+        type: integer
+        x-nullable: true
+      institutional_logo:
+        type: string
+      is_external_partner:
+        description: External partner fields
+        type: boolean
+        x-nullable: true
+      is_visible:
+        description: |-
+          Visibility field - controls if course appears in public listings (default: true)
+          Used for in-person courses that require manual enrollment and should not appear in public course lists
+        example: true
+        type: boolean
+        x-nullable: true
+      link_inscricao:
+        type: string
+      local_realizacao:
+        type: string
+      locations:
+        items:
+          $ref: '#/definitions/models.LocationClass'
+        type: array
+        x-nullable: true
+      material_used:
+        type: string
+      methodology:
+        type: string
+      modalidade:
+        $ref: '#/definitions/models.Modalidade'
+      numero_vagas:
+        type: integer
+      objectives:
+        type: string
+      organization:
+        type: string
+      orgao_id:
+        description: Legacy and additional fields (optional)
+        type: string
+      pre_requisitos:
+        description: Unified field for prerequisites - using single JSON tag
+        type: string
+      program_content:
+        type: string
+      remote_class:
+        allOf:
+        - $ref: '#/definitions/models.RemoteClass'
+        x-nullable: true
       resources_used:
         type: string
       status:
@@ -1238,6 +1493,35 @@ definitions:
         type: string
       turno:
         description: Turno
+        type: string
+    type: object
+  models.CustomField:
+    properties:
+      created_at:
+        type: string
+      curso:
+        allOf:
+        - $ref: '#/definitions/models.Curso'
+        description: Relacionamentos
+      curso_id:
+        type: integer
+      display_order:
+        type: integer
+      field_type:
+        type: string
+      format_type:
+        type: string
+      id:
+        type: string
+      options:
+        items:
+          type: object
+        type: array
+      required:
+        type: boolean
+      title:
+        type: string
+      updated_at:
         type: string
     type: object
   models.Emprego:
@@ -1445,10 +1729,14 @@ definitions:
     enum:
     - GRAVADO
     - AO_VIVO
+    - PRESENCIAL
+    - ""
     type: string
     x-enum-varnames:
     - FormatoAulaGravado
     - FormatoAulaAoVivo
+    - FormatoAulaPresencial
+    - FormatoAulaNaoInformado
   models.Inscricao:
     properties:
       address:
@@ -1525,6 +1813,18 @@ definitions:
       neighborhood:
         type: string
       phone:
+        type: string
+    type: object
+  models.InstituicaoEnsino:
+    properties:
+      cursos:
+        description: Relacionamentos
+        items:
+          $ref: '#/definitions/models.Curso'
+        type: array
+      id:
+        type: integer
+      nome:
         type: string
     type: object
   models.Job:
@@ -1630,6 +1930,31 @@ definitions:
       situacao_cadastral:
         type: string
     type: object
+  models.LocationClass:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      curso:
+        allOf:
+        - $ref: '#/definitions/models.Curso'
+        description: Relacionamentos
+      curso_id:
+        type: integer
+      id:
+        type: string
+      neighborhood:
+        type: string
+      neighborhood_zone:
+        type: string
+      schedules:
+        items:
+          $ref: '#/definitions/models.CourseSchedule'
+        type: array
+      updated_at:
+        type: string
+    type: object
   models.Modalidade:
     enum:
     - Presencial
@@ -1704,6 +2029,7 @@ definitions:
       deleted_at:
         example: "2024-12-31T23:59:59Z"
         type: string
+        x-nullable: true
       descricao_servico:
         example: Serviço de poda, jardinagem e manutenção das áreas verdes
         type: string
@@ -1763,6 +2089,28 @@ definitions:
       updated_at:
         example: "2024-01-01T10:00:00Z"
         type: string
+    type: object
+  models.OportunidadeMEIListMeta:
+    properties:
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 10
+        type: integer
+      total:
+        example: 0
+        type: integer
+    type: object
+  models.OportunidadeMEIListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/models.OportunidadeMEI'
+        type: array
+        x-nullable: true
+      meta:
+        $ref: '#/definitions/models.OportunidadeMEIListMeta'
     type: object
   models.OrgaoMetadata:
     additionalProperties: true
@@ -1889,6 +2237,57 @@ definitions:
         type: string
       updated_count:
         example: 2
+        type: integer
+    type: object
+  models.RemoteClass:
+    properties:
+      created_at:
+        type: string
+      curso:
+        allOf:
+        - $ref: '#/definitions/models.Curso'
+        description: Relacionamentos
+      curso_id:
+        type: integer
+      id:
+        type: string
+      schedules:
+        items:
+          $ref: '#/definitions/models.RemoteSchedule'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  models.RemoteSchedule:
+    properties:
+      accepting_enrollments:
+        type: boolean
+      class_days:
+        type: string
+      class_end_date:
+        type: string
+      class_start_date:
+        type: string
+      class_time:
+        type: string
+      created_at:
+        type: string
+      display_order:
+        type: integer
+      enrollment_end_date:
+        type: string
+      enrollment_start_date:
+        type: string
+      id:
+        type: string
+      remaining_vacancies:
+        description: Computed field (not stored in DB)
+        type: integer
+      remote_class_id:
+        type: string
+      updated_at:
+        type: string
+      vacancies:
         type: integer
     type: object
   models.ScheduleChangeRequest:
@@ -2066,6 +2465,7 @@ definitions:
     - NOITE
     - INTEGRAL
     - LIVRE
+    - ""
     type: string
     x-enum-varnames:
     - TurnoManha
@@ -2073,6 +2473,7 @@ definitions:
     - TurnoNoite
     - TurnoIntegral
     - TurnoLivre
+    - TurnoNaoInformado
   response.ErrorResponse:
     properties:
       error:
@@ -2222,7 +2623,7 @@ paths:
         "200":
           description: OK
           schema:
-            type: object
+            $ref: '#/definitions/models.CursoListResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2245,7 +2646,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Curso'
+            $ref: '#/definitions/models.CursoDetailResponse'
         "400":
           description: Bad Request
           schema:
@@ -2310,8 +2711,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/empregabilidade.VagaPublicListResponse'
         "400":
           description: Bad Request
           schema:
@@ -2434,7 +2834,7 @@ paths:
         "200":
           description: OK
           schema:
-            type: object
+            $ref: '#/definitions/models.OportunidadeMEIListResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2885,7 +3285,7 @@ paths:
         "200":
           description: OK
           schema:
-            type: object
+            $ref: '#/definitions/models.CursoListResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2967,7 +3367,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Curso'
+            $ref: '#/definitions/models.CursoDetailResponse'
         "400":
           description: Bad Request
           schema:
@@ -10185,7 +10585,7 @@ paths:
         "200":
           description: OK
           schema:
-            type: object
+            $ref: '#/definitions/models.OportunidadeMEIListResponse'
         "500":
           description: Internal Server Error
           schema:
