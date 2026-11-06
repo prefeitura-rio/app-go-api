@@ -84,6 +84,20 @@ func (s jsonbStringSlice) Value() (driver.Value, error) {
 	return string(raw), nil
 }
 
+// criteriosBloqueioValue prepara criterios_bloqueio para um Updates com map,
+// que não passa pelo serializer do GORM: o JSON vai como texto e, sem nenhum
+// critério ligado, a coluna fica NULL (o desligado não é gravado).
+func criteriosBloqueioValue(criterios []empregabilidade.CriterioBloqueio) (interface{}, error) {
+	if len(criterios) == 0 {
+		return nil, nil
+	}
+	raw, err := json.Marshal(criterios)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao serializar critérios de bloqueio: %w", err)
+	}
+	return string(raw), nil
+}
+
 func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
 	updates := map[string]interface{}{
 		"titulo":                           entity.Titulo,
@@ -108,6 +122,11 @@ func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vag
 		"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
 		"areas_formacao_elegibilidade":     jsonbStringSlice(entity.AreasFormacaoElegibilidade),
 	}
+	criterios, err := criteriosBloqueioValue(entity.CriteriosBloqueio)
+	if err != nil {
+		return err
+	}
+	updates["criterios_bloqueio"] = criterios
 
 	result := r.db.WithContext(ctx).
 		Model(&empregabilidade.Vaga{}).
@@ -144,6 +163,11 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
 			"areas_formacao_elegibilidade":     jsonbStringSlice(entity.AreasFormacaoElegibilidade),
 		}
+		criterios, err := criteriosBloqueioValue(entity.CriteriosBloqueio)
+		if err != nil {
+			return err
+		}
+		updates["criterios_bloqueio"] = criterios
 
 		if err := tx.Model(&empregabilidade.Vaga{}).Where("id = ?", entity.ID).Updates(updates).Error; err != nil {
 			return fmt.Errorf("erro ao atualizar vaga: %w", err)

@@ -290,6 +290,14 @@ definitions:
     required:
     - nome
     type: object
+  empregabilidade.CriterioBloqueio:
+    enum:
+    - escolaridade
+    - idioma
+    type: string
+    x-enum-varnames:
+    - CriterioBloqueioEscolaridade
+    - CriterioBloqueioIdioma
   empregabilidade.CurriculoCompleto:
     properties:
       area_atuacao:
@@ -893,6 +901,14 @@ definitions:
         description: Relationships
       created_at:
         type: string
+      criterios_bloqueio:
+        description: |-
+          CriteriosBloqueio lista os critérios com bloqueio de candidatura ligado;
+          os ausentes estão desligados. Sempre devolvido ([] quando nenhum). No
+          PUT, o campo ausente mantém o estado gravado e [] desliga todos.
+        items:
+          $ref: '#/definitions/empregabilidade.CriterioBloqueio'
+        type: array
       data_limite:
         type: string
         x-nullable: true

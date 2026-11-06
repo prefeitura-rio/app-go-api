@@ -90,7 +90,21 @@ func validateQuantidadeEstimada(v *int) error {
 	return nil
 }
 
+// normalizarCriteriosBloqueio valida os critérios de bloqueio recebidos e os
+// deixa no formato gravado (nil quando nenhum está ligado).
+func normalizarCriteriosBloqueio(criterios []empregabilidade.CriterioBloqueio) ([]empregabilidade.CriterioBloqueio, error) {
+	normalizados, err := empregabilidade.NormalizarCriteriosBloqueio(criterios)
+	if err != nil {
+		return nil, apperrors.Validation(err.Error())
+	}
+	return normalizados, nil
+}
+
 func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
+	criterios, err := normalizarCriteriosBloqueio(entity.CriteriosBloqueio)
+	if err != nil {
+		return uuid.Nil, err
+	}
 	if err := s.validateContratante(ctx, entity.IDContratante); err != nil {
 		return uuid.Nil, err
 	}
@@ -99,8 +113,17 @@ func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) 
 	}
 
 	entity.Status = empregabilidade.StatusVagaEmEdicao
+	entity.CriteriosBloqueio = criterios
 
-	return s.repo.Create(ctx, entity)
+	id, err := s.repo.Create(ctx, entity)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	// A resposta do POST devolve o estado como as leituras: [] sem critério ligado.
+	if entity.CriteriosBloqueio == nil {
+		entity.CriteriosBloqueio = []empregabilidade.CriterioBloqueio{}
+	}
+	return id, nil
 }
 
 func (s *VagaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Vaga, error) {
@@ -162,6 +185,15 @@ func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) 
 	if entity.IDModeloTrabalho == uuid.Nil {
 		entity.IDModeloTrabalho = existing.IDModeloTrabalho
 	}
+	// criterios_bloqueio ausente no body mantém o estado gravado; [] desliga todos.
+	if entity.CriteriosBloqueio == nil {
+		entity.CriteriosBloqueio = existing.CriteriosBloqueio
+	}
+	criterios, err := normalizarCriteriosBloqueio(entity.CriteriosBloqueio)
+	if err != nil {
+		return err
+	}
+	entity.CriteriosBloqueio = criterios
 
 	return s.repo.UpdateWithAssociations(ctx, entity)
 }
