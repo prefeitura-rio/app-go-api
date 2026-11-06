@@ -295,11 +295,13 @@ definitions:
     - escolaridade
     - idioma
     - pcd
+    - experiencia_carteira
     type: string
     x-enum-varnames:
     - CriterioBloqueioEscolaridade
     - CriterioBloqueioIdioma
     - CriterioBloqueioPCD
+    - CriterioBloqueioExperienciaCarteira
   empregabilidade.CurriculoCompleto:
     properties:
       area_atuacao:
@@ -938,6 +940,18 @@ definitions:
         items:
           $ref: '#/definitions/empregabilidade.Etapa'
         type: array
+      experiencia_carteira:
+        description: |-
+          ExperienciaCarteira é o tempo de experiência em carteira exigido
+          (qualquer_tempo ou minimo_6_meses); null = sem exigência. Sempre
+          devolvido. Com a chave experiencia_carteira em criterios_bloqueio é
+          obrigatório. No PUT, o campo ausente (ou null) mantém o valor gravado e
+          "" remove a exigência.
+        enum:
+        - qualquer_tempo
+        - minimo_6_meses
+        type: string
+        x-nullable: true
       id:
         type: string
       id_contratante:
@@ -4269,7 +4283,7 @@ paths:
       - application/json
       description: |-
         Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.
-        criterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima, escolaridade, idioma e pcd (vaga exclusiva para PcD).
+        criterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima, escolaridade, idioma, pcd (vaga exclusiva para PcD) e experiencia_carteira (experiência em carteira exigida pela vaga).
         Para o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.
       parameters:
       - description: Dados do bloqueio
@@ -9104,6 +9118,7 @@ paths:
       description: |-
         Cria uma nova vaga
         PcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.". O bloqueio de candidatura PcD é a chave "pcd" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.
+        Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou "" = sem exigência). O bloqueio de candidatura é a chave "experiencia_carteira" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.
       parameters:
       - description: Dados da vaga
         in: body
@@ -9214,6 +9229,7 @@ paths:
       description: |-
         Atualiza uma vaga existente
         PcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.".
+        Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e "" remove a exigência; com a chave "experiencia_carteira" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.
       parameters:
       - description: ID da vaga
         in: path
@@ -9934,6 +9950,7 @@ paths:
       description: |-
         Cria uma nova vaga
         PcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.". O bloqueio de candidatura PcD é a chave "pcd" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.
+        Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou "" = sem exigência). O bloqueio de candidatura é a chave "experiencia_carteira" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.
       parameters:
       - description: Dados da vaga
         in: body

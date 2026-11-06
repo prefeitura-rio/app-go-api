@@ -2467,7 +2467,7 @@
                 }
             },
             "post": {
-                "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.\ncriterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima, escolaridade, idioma e pcd (vaga exclusiva para PcD).\nPara o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.",
+                "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.\ncriterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima, escolaridade, idioma, pcd (vaga exclusiva para PcD) e experiencia_carteira (experiência em carteira exigida pela vaga).\nPara o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9721,7 +9721,7 @@
                 }
             },
             "post": {
-                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.",
+                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9773,7 +9773,7 @@
         },
         "/api/v1/empregabilidade/vagas/draft": {
             "post": {
-                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.",
+                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9888,7 +9888,7 @@
                 }
             },
             "put": {
-                "description": "Atualiza uma vaga existente\nPcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\".",
+                "description": "Atualiza uma vaga existente\nPcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\".\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e \"\" remove a exigência; com a chave \"experiencia_carteira\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -13567,12 +13567,14 @@
             "enum": [
                 "escolaridade",
                 "idioma",
-                "pcd"
+                "pcd",
+                "experiencia_carteira"
             ],
             "x-enum-varnames": [
                 "CriterioBloqueioEscolaridade",
                 "CriterioBloqueioIdioma",
-                "CriterioBloqueioPCD"
+                "CriterioBloqueioPCD",
+                "CriterioBloqueioExperienciaCarteira"
             ]
         },
         "empregabilidade.CurriculoCompleto": {
@@ -14527,6 +14529,15 @@
                     "items": {
                         "$ref": "#/definitions/empregabilidade.Etapa"
                     }
+                },
+                "experiencia_carteira": {
+                    "description": "ExperienciaCarteira é o tempo de experiência em carteira exigido\n(qualquer_tempo ou minimo_6_meses); null = sem exigência. Sempre\ndevolvido. Com a chave experiencia_carteira em criterios_bloqueio é\nobrigatório. No PUT, o campo ausente (ou null) mantém o valor gravado e\n\"\" remove a exigência.",
+                    "type": "string",
+                    "enum": [
+                        "qualquer_tempo",
+                        "minimo_6_meses"
+                    ],
+                    "x-nullable": true
                 },
                 "id": {
                     "type": "string"

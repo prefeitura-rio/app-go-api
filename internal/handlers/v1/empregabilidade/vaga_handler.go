@@ -53,6 +53,7 @@ func NewVagaHandler(service *services.VagaService) *VagaHandler {
 // @Summary      Criar vaga
 // @Description  Cria uma nova vaga
 // @Description  PcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.". O bloqueio de candidatura PcD é a chave "pcd" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.
+// @Description  Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou "" = sem exigência). O bloqueio de candidatura é a chave "experiencia_carteira" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.
 // @Tags         empregabilidade-vagas
 // @Accept       json
 // @Produce      json
@@ -210,6 +211,7 @@ func (h *VagaHandler) GetByID(c *gin.Context) {
 // @Summary      Atualizar vaga
 // @Description  Atualiza uma vaga existente
 // @Description  PcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.".
+// @Description  Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e "" remove a exigência; com a chave "experiencia_carteira" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.
 // @Tags         empregabilidade-vagas
 // @Accept       json
 // @Produce      json

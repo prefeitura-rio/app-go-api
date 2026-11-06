@@ -129,6 +129,11 @@ const (
 	// CriterioBloqueioPCD é o critério PcD (vaga exclusiva). "pcd" é também o
 	// slug do critério em CandidaturaBloqueio.CriteriosNaoAtendidos.
 	CriterioBloqueioPCD CriterioBloqueio = "pcd"
+	// CriterioBloqueioExperienciaCarteira é a experiência comprovada em
+	// carteira (DEV-424), com o tempo exigido em Vaga.ExperienciaCarteira.
+	// "experiencia_carteira" é também o slug do critério em
+	// CandidaturaBloqueio.CriteriosNaoAtendidos.
+	CriterioBloqueioExperienciaCarteira CriterioBloqueio = "experiencia_carteira"
 )
 
 // criteriosBloqueioConhecidos são os critérios aceitos, na ordem em que são
@@ -137,6 +142,7 @@ var criteriosBloqueioConhecidos = []CriterioBloqueio{
 	CriterioBloqueioEscolaridade,
 	CriterioBloqueioIdioma,
 	CriterioBloqueioPCD,
+	CriterioBloqueioExperienciaCarteira,
 }
 
 func (c CriterioBloqueio) IsValid() bool {
@@ -171,6 +177,67 @@ func NormalizarCriteriosBloqueio(criterios []CriterioBloqueio) ([]CriterioBloque
 	return normalizados, nil
 }
 
+// ExperienciaCarteira é o tempo de experiência comprovada em carteira que a
+// vaga exige (DEV-424, história PREF-633): qualquer tempo ou o mínimo fixo de
+// 6 meses. O bloqueio de candidatura é a chave
+// CriterioBloqueioExperienciaCarteira de Vaga.CriteriosBloqueio.
+type ExperienciaCarteira string
+
+const (
+	// ExperienciaCarteiraQualquerTempo pede ao menos uma experiência
+	// comprovada em carteira, de qualquer duração.
+	ExperienciaCarteiraQualquerTempo ExperienciaCarteira = "qualquer_tempo"
+	// ExperienciaCarteiraMinimo6Meses pede MesesMinimosExperienciaCarteira
+	// somados entre as experiências comprovadas em carteira.
+	ExperienciaCarteiraMinimo6Meses ExperienciaCarteira = "minimo_6_meses"
+)
+
+// MesesMinimosExperienciaCarteira é o prazo fixo da opção "mínimo de 6 meses".
+const MesesMinimosExperienciaCarteira = 6
+
+// MsgExperienciaCarteiraObrigatoria é o erro do bloqueio de experiência em
+// carteira ligado sem o tempo exigido.
+const MsgExperienciaCarteiraObrigatoria = "Selecione o tempo de experiência em carteira exigido (qualquer_tempo ou minimo_6_meses)."
+
+func (e ExperienciaCarteira) IsValid() bool {
+	return e == ExperienciaCarteiraQualquerTempo || e == ExperienciaCarteiraMinimo6Meses
+}
+
+// Atende diz se as experiências do currículo cumprem a exigência. Só contam
+// as comprovadas em carteira (experiencia_comprovada_ct): qualquer tempo pede
+// ao menos uma; o mínimo de 6 meses soma tempo_experiencia_meses entre elas
+// (sem tempo informado, ou negativo, conta zero). É a mesma regra do filtro
+// carteira do banco de currículos (sim / 6_meses).
+func (e ExperienciaCarteira) Atende(experiencias []*CurriculoExperiencia) bool {
+	algumaEmCarteira := false
+	totalMeses := 0
+	for _, exp := range experiencias {
+		if exp == nil || !exp.ExperienciaComprovadaCT {
+			continue
+		}
+		algumaEmCarteira = true
+		if exp.TempoExperienciaMeses != nil && *exp.TempoExperienciaMeses > 0 {
+			totalMeses += *exp.TempoExperienciaMeses
+		}
+	}
+	switch e {
+	case ExperienciaCarteiraQualquerTempo:
+		return algumaEmCarteira
+	case ExperienciaCarteiraMinimo6Meses:
+		return totalMeses >= MesesMinimosExperienciaCarteira
+	}
+	return false
+}
+
+// Requisito é o texto do requisito, como aparece na lista do que o candidato
+// não atende.
+func (e ExperienciaCarteira) Requisito() string {
+	if e == ExperienciaCarteiraMinimo6Meses {
+		return fmt.Sprintf("Experiência comprovada em carteira — mínimo de %d meses", MesesMinimosExperienciaCarteira)
+	}
+	return "Experiência comprovada em carteira"
+}
+
 type Vaga struct {
 	ID                             uuid.UUID          `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Titulo                         string             `json:"titulo" gorm:"type:varchar(500);not null"`
@@ -201,6 +268,12 @@ type Vaga struct {
 	BairrosElegibilidade       []string   `json:"bairros_elegibilidade,omitempty" gorm:"type:jsonb;serializer:json"`
 	IDEscolaridadeMinima       *uuid.UUID `json:"id_escolaridade_minima,omitempty" gorm:"type:uuid"`
 	AreasFormacaoElegibilidade []string   `json:"areas_formacao_elegibilidade,omitempty" gorm:"type:jsonb;serializer:json"`
+	// ExperienciaCarteira é o tempo de experiência em carteira exigido
+	// (qualquer_tempo ou minimo_6_meses); null = sem exigência. Sempre
+	// devolvido. Com a chave experiencia_carteira em criterios_bloqueio é
+	// obrigatório. No PUT, o campo ausente (ou null) mantém o valor gravado e
+	// "" remove a exigência.
+	ExperienciaCarteira *ExperienciaCarteira `json:"experiencia_carteira" gorm:"type:varchar(20)" swaggertype:"string" enums:"qualquer_tempo,minimo_6_meses" extensions:"x-nullable"`
 	// CriteriosBloqueio lista os critérios com bloqueio de candidatura ligado;
 	// os ausentes estão desligados. Sempre devolvido ([] quando nenhum). No
 	// PUT, o campo ausente mantém o estado gravado e [] desliga todos.
