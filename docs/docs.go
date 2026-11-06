@@ -26,7 +26,7 @@ const docTemplate = `{
     "paths": {
         "/api/public/courses": {
             "get": {
-                "description": "Retorna lista paginada de cursos públicos. Exclui rascunhos e cursos marcados como não visíveis publicamente (is_visible=false); estes continuam acessíveis por link direto via GET /api/public/courses/{id}. Com status: filtra pelos status informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.",
+                "description": "Retorna lista paginada de cursos públicos. Nunca inclui cursos em curadoria (draft, in_review, needs_changes, approved, pending_deletion), os mesmos que GET /api/public/courses/{id} responde com 404; pedir esses status em status é ignorado. Exclui também os cursos marcados como não visíveis publicamente (is_visible=false); estes continuam acessíveis por link direto via GET /api/public/courses/{id}. Com status: filtra pelos status públicos informados (CSV). Derived statuses (scheduled, accepting_enrollments, in_progress, finished) são mapeados para published.",
                 "produces": [
                     "application/json"
                 ],
@@ -49,7 +49,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filtrar por status (CSV, ex: draft,published,in_review)",
+                        "description": "Filtrar por status públicos (CSV, ex: published,accepting_enrollments,closed). Status de curadoria são ignorados.",
                         "name": "status",
                         "in": "query"
                     },
