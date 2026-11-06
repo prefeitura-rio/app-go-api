@@ -2684,19 +2684,21 @@ func TestVagaRepository_Update_CriteriosBloqueio(t *testing.T) {
 					CriteriosBloqueio:   tt.criterio,
 				}
 
-				// As colunas do map entram em ordem alfabética. Com bairros e
-				// áreas vazios (o GORM os escreve como (NULL), sem argumento),
-				// criterios_bloqueio é o 4º argumento.
+				// As colunas do map entram em ordem alfabética, cada uma com um
+				// único argumento (bairros e áreas vazios também vão como NULL
+				// ligado): criterios_bloqueio é o 6º argumento.
 				mock.ExpectBegin()
-				mock.ExpectExec(`(?s)UPDATE "emp_vagas" SET .*"beneficios"=\$3,"criterios_bloqueio"=\$4,.*WHERE id = \$22`).
+				mock.ExpectExec(`(?s)UPDATE "emp_vagas" SET .*"beneficios"=\$5,"criterios_bloqueio"=\$6,.*WHERE id = \$24`).
 					WithArgs(
 						sqlmock.AnyArg(), // acessibilidade_pcd
+						sqlmock.AnyArg(), // areas_formacao_elegibilidade
 						sqlmock.AnyArg(), // bairro
+						sqlmock.AnyArg(), // bairros_elegibilidade
 						sqlmock.AnyArg(), // beneficios
 						tt.arg,           // criterios_bloqueio
 						sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
 						sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
-						sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), // ... updated_at
+						sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), // ... valor_vaga
 						vaga.ID,
 					).
 					WillReturnResult(sqlmock.NewResult(1, 1))
@@ -2761,5 +2763,114 @@ func TestVagaRepository_Create_CriteriosBloqueio(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
+	}
+}
+
+// O Updates com map não passa pelo serializer:json do GORM: sem conversão
+// explícita, um []string vira uma expressão ("a","b") que o Postgres recusa
+// numa coluna jsonb. Os dois campos de elegibilidade precisam chegar ao driver
+// como texto JSON, ou NULL quando a lista está vazia.
+func TestVagaRepository_Update_ElegibilidadeJSONB(t *testing.T) {
+	hostil := `O'Hara "x"); DROP TABLE emp_vagas;--`
+	tests := []struct {
+		name       string
+		bairros    []string
+		areas      []string
+		bairrosArg sqlmock.Argument
+		areasArg   sqlmock.Argument
+	}{
+		{
+			name:       "listas com vários itens chegam como JSON",
+			bairros:    []string{"Centro", "Tijuca"},
+			areas:      []string{"Tecnologia", "Administração"},
+			bairrosArg: jsonStringSliceArg{want: []string{"Centro", "Tijuca"}},
+			areasArg:   jsonStringSliceArg{want: []string{"Tecnologia", "Administração"}},
+		},
+		{
+			name:       "lista com um item chega como JSON",
+			bairros:    []string{"São Cristóvão"},
+			areas:      []string{"Saúde"},
+			bairrosArg: jsonStringSliceArg{want: []string{"São Cristóvão"}},
+			areasArg:   jsonStringSliceArg{want: []string{"Saúde"}},
+		},
+		{
+			name:       "entrada hostil é só dado dentro do JSON",
+			bairros:    []string{hostil},
+			areas:      []string{hostil, "Direito"},
+			bairrosArg: jsonStringSliceArg{want: []string{hostil}},
+			areasArg:   jsonStringSliceArg{want: []string{hostil, "Direito"}},
+		},
+		{
+			name:       "listas ausentes gravam NULL",
+			bairros:    nil,
+			areas:      nil,
+			bairrosArg: nullArg{},
+			areasArg:   nullArg{},
+		},
+		{
+			name:       "listas vazias gravam NULL",
+			bairros:    []string{},
+			areas:      []string{},
+			bairrosArg: nullArg{},
+			areasArg:   nullArg{},
+		},
+		{
+			name:       "só um dos campos preenchido",
+			bairros:    []string{"Centro"},
+			areas:      nil,
+			bairrosArg: jsonStringSliceArg{want: []string{"Centro"}},
+			areasArg:   nullArg{},
+		},
+	}
+
+	for _, tt := range tests {
+		for _, metodo := range []string{"Update", "UpdateWithAssociations"} {
+			t.Run(metodo+"/"+tt.name, func(t *testing.T) {
+				db, mock, cleanup := repository.SetupMockDB(t)
+				defer cleanup()
+
+				repo := NewVagaRepository(db)
+				vaga := &empregabilidade.Vaga{
+					ID:                         uuid.New(),
+					Titulo:                     "Desenvolvedor Go",
+					Descricao:                  "Vaga para desenvolvedor Go",
+					IDContratante:              "12345678000190",
+					IDRegimeContratacao:        uuid.New(),
+					IDModeloTrabalho:           uuid.New(),
+					Status:                     empregabilidade.StatusVagaEmEdicao,
+					BairrosElegibilidade:       tt.bairros,
+					AreasFormacaoElegibilidade: tt.areas,
+				}
+
+				// As colunas do map entram em ordem alfabética, cada uma com um
+				// único argumento: areas_formacao_elegibilidade é o 2º,
+				// bairros_elegibilidade o 4º, e o id do WHERE o 24º.
+				args := []driver.Value{
+					sqlmock.AnyArg(), // acessibilidade_pcd
+					tt.areasArg,      // areas_formacao_elegibilidade
+					sqlmock.AnyArg(), // bairro
+					tt.bairrosArg,    // bairros_elegibilidade
+				}
+				for i := 0; i < 19; i++ { // beneficios ... valor_vaga
+					args = append(args, sqlmock.AnyArg())
+				}
+				args = append(args, vaga.ID)
+
+				mock.ExpectBegin()
+				mock.ExpectExec(`(?s)UPDATE "emp_vagas" SET "acessibilidade_pcd"=\$1,"areas_formacao_elegibilidade"=\$2,"bairro"=\$3,"bairros_elegibilidade"=\$4,"beneficios"=\$5,.*WHERE id = \$24`).
+					WithArgs(args...).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+
+				var err error
+				if metodo == "Update" {
+					err = repo.Update(context.Background(), vaga)
+				} else {
+					err = repo.UpdateWithAssociations(context.Background(), vaga)
+				}
+				assert.NoError(t, err)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			})
+		}
 	}
 }

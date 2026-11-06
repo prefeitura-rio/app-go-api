@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -66,6 +67,23 @@ func (r *VagaRepository) ExistsByID(ctx context.Context, id uuid.UUID) (bool, er
 	return count > 0, nil
 }
 
+// jsonbStringSlice leva um []string a uma coluna jsonb num Updates com map,
+// que não passa pelo serializer:json do GORM (sem ele, o slice vira a
+// expressão ("a","b"), que o Postgres recusa). O valor vai como texto JSON e,
+// com a lista vazia ou ausente, a coluna fica NULL.
+type jsonbStringSlice []string
+
+func (s jsonbStringSlice) Value() (driver.Value, error) {
+	if len(s) == 0 {
+		return nil, nil
+	}
+	raw, err := json.Marshal([]string(s))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao serializar lista para jsonb: %w", err)
+	}
+	return string(raw), nil
+}
+
 // criteriosBloqueioValue prepara criterios_bloqueio para um Updates com map,
 // que não passa pelo serializer do GORM: o JSON vai como texto e, sem nenhum
 // critério ligado, a coluna fica NULL (o desligado não é gravado).
@@ -100,9 +118,9 @@ func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vag
 		"status":                           entity.Status,
 		"idade_minima":                     entity.IdadeMinima,
 		"idade_maxima":                     entity.IdadeMaxima,
-		"bairros_elegibilidade":            entity.BairrosElegibilidade,
+		"bairros_elegibilidade":            jsonbStringSlice(entity.BairrosElegibilidade),
 		"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
-		"areas_formacao_elegibilidade":     entity.AreasFormacaoElegibilidade,
+		"areas_formacao_elegibilidade":     jsonbStringSlice(entity.AreasFormacaoElegibilidade),
 	}
 	criterios, err := criteriosBloqueioValue(entity.CriteriosBloqueio)
 	if err != nil {
@@ -141,9 +159,9 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			"status":                           entity.Status,
 			"idade_minima":                     entity.IdadeMinima,
 			"idade_maxima":                     entity.IdadeMaxima,
-			"bairros_elegibilidade":            entity.BairrosElegibilidade,
+			"bairros_elegibilidade":            jsonbStringSlice(entity.BairrosElegibilidade),
 			"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
-			"areas_formacao_elegibilidade":     entity.AreasFormacaoElegibilidade,
+			"areas_formacao_elegibilidade":     jsonbStringSlice(entity.AreasFormacaoElegibilidade),
 		}
 		criterios, err := criteriosBloqueioValue(entity.CriteriosBloqueio)
 		if err != nil {
