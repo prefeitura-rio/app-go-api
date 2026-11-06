@@ -42,6 +42,9 @@ func (s StatusVaga) IsPublished() bool {
 	return false
 }
 
+// AcessibilidadePCD é o campo antigo "Acessibilidade PcD", descontinuado
+// (DEV-407): a opção PcD da vaga é OpcaoPCD. A coluna continua preenchida a
+// partir de OpcaoPCD para quem ainda lê ou filtra por ela.
 type AcessibilidadePCD string
 
 const (
@@ -58,6 +61,59 @@ func (a AcessibilidadePCD) IsValid() bool {
 	return false
 }
 
+// OpcaoPCD diz se a vaga é aberta a todos, preferencial ou exclusiva para
+// pessoas com deficiência (história PREF-632). Os tipos de deficiência aceitos
+// ficam em Vaga.TiposPCD e o bloqueio de candidatura, em CriteriosBloqueio
+// (chave CriterioBloqueioPCD).
+type OpcaoPCD string
+
+const (
+	OpcaoPCDAberta       OpcaoPCD = "aberta"
+	OpcaoPCDPreferencial OpcaoPCD = "preferencial"
+	OpcaoPCDExclusiva    OpcaoPCD = "exclusiva"
+)
+
+// MsgTipoPCDObrigatorio é o erro da vaga exclusiva sem tipo de deficiência.
+const MsgTipoPCDObrigatorio = "Selecione ao menos um tipo de deficiência."
+
+func (o OpcaoPCD) IsValid() bool {
+	switch o {
+	case OpcaoPCDAberta, OpcaoPCDPreferencial, OpcaoPCDExclusiva:
+		return true
+	}
+	return false
+}
+
+// OpcaoPCDDeAcessibilidade é o de/para do campo antigo: sem acessibilidade
+// ("Vaga PcD" desmarcada) é aberta; preferencial_pcd é preferencial;
+// exclusivo_pcd é exclusiva; para_pcd ("Vaga PcD" marcada sem modalidade) é
+// preferencial, que não bloqueia ninguém. A migração das vagas antigas usa a
+// mesma regra.
+func OpcaoPCDDeAcessibilidade(a *AcessibilidadePCD) OpcaoPCD {
+	if a == nil {
+		return OpcaoPCDAberta
+	}
+	if *a == AcessibilidadeExclusivoPCD {
+		return OpcaoPCDExclusiva
+	}
+	return OpcaoPCDPreferencial
+}
+
+// AcessibilidadeLegada é o valor do campo antigo que corresponde à opção,
+// gravado junto para os clientes que ainda o leem (nil para aberta).
+func (o OpcaoPCD) AcessibilidadeLegada() *AcessibilidadePCD {
+	var a AcessibilidadePCD
+	switch o {
+	case OpcaoPCDPreferencial:
+		a = AcessibilidadePreferencialPCD
+	case OpcaoPCDExclusiva:
+		a = AcessibilidadeExclusivoPCD
+	default:
+		return nil
+	}
+	return &a
+}
+
 // CriterioBloqueio identifica um critério de elegibilidade da vaga cujo
 // bloqueio de candidatura pode ser ligado ou desligado. A vaga guarda só os
 // critérios ligados (CriteriosBloqueio); o que não está na lista está
@@ -70,6 +126,9 @@ const (
 	CriterioBloqueioEscolaridade CriterioBloqueio = "escolaridade"
 	// CriterioBloqueioIdioma são os requisitos de idioma.
 	CriterioBloqueioIdioma CriterioBloqueio = "idioma"
+	// CriterioBloqueioPCD é o critério PcD (vaga exclusiva). "pcd" é também o
+	// slug do critério em CandidaturaBloqueio.CriteriosNaoAtendidos.
+	CriterioBloqueioPCD CriterioBloqueio = "pcd"
 )
 
 // criteriosBloqueioConhecidos são os critérios aceitos, na ordem em que são
@@ -77,6 +136,7 @@ const (
 var criteriosBloqueioConhecidos = []CriterioBloqueio{
 	CriterioBloqueioEscolaridade,
 	CriterioBloqueioIdioma,
+	CriterioBloqueioPCD,
 }
 
 func (c CriterioBloqueio) IsValid() bool {
@@ -119,6 +179,7 @@ type Vaga struct {
 	IDRegimeContratacao            uuid.UUID          `json:"id_regime_contratacao" gorm:"type:uuid;not null"`
 	IDModeloTrabalho               uuid.UUID          `json:"id_modelo_trabalho" gorm:"type:uuid;not null"`
 	AcessibilidadePCD              *AcessibilidadePCD `json:"acessibilidade_pcd,omitempty" gorm:"type:acessibilidade_pcd_enum"`
+	OpcaoPCD                       OpcaoPCD           `json:"opcao_pcd" gorm:"type:varchar(20);not null"`
 	ValorVaga                      *float64           `json:"valor_vaga" gorm:"type:decimal(12,2)" extensions:"x-nullable"`
 	QuantidadeEstimadaContratacoes *int               `json:"quantidade_estimada_contratacoes,omitempty" gorm:"type:integer"`
 	Bairro                         string             `json:"bairro" gorm:"type:varchar(255)"`
@@ -170,6 +231,16 @@ func (v *Vaga) AfterFind(_ *gorm.DB) error {
 	v.Slug = BuildVagaSlug(v.Titulo, v.ID)
 	if v.CriteriosBloqueio == nil {
 		v.CriteriosBloqueio = []CriterioBloqueio{}
+	}
+	if v.OpcaoPCD == "" {
+		v.OpcaoPCD = OpcaoPCDAberta
+	}
+	return nil
+}
+
+func (v *Vaga) BeforeCreate(_ *gorm.DB) error {
+	if v.OpcaoPCD == "" {
+		v.OpcaoPCD = OpcaoPCDAberta
 	}
 	return nil
 }

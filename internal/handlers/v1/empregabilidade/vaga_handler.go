@@ -52,6 +52,7 @@ func NewVagaHandler(service *services.VagaService) *VagaHandler {
 
 // @Summary      Criar vaga
 // @Description  Cria uma nova vaga
+// @Description  PcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.". O bloqueio de candidatura PcD é a chave "pcd" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.
 // @Tags         empregabilidade-vagas
 // @Accept       json
 // @Produce      json
@@ -208,6 +209,7 @@ func (h *VagaHandler) GetByID(c *gin.Context) {
 
 // @Summary      Atualizar vaga
 // @Description  Atualiza uma vaga existente
+// @Description  PcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.".
 // @Tags         empregabilidade-vagas
 // @Accept       json
 // @Produce      json
@@ -386,7 +388,7 @@ type UpdateTiposPCDRequest struct {
 }
 
 // @Summary      Atualizar tipos PCD da vaga
-// @Description  Atualiza os tipos de PCD aceitos na vaga
+// @Description  Atualiza os tipos de PCD aceitos na vaga. Vaga exclusiva (opcao_pcd = exclusiva) não pode ficar sem tipo: lista vazia retorna 400 "Selecione ao menos um tipo de deficiência.".
 // @Tags         empregabilidade-vagas
 // @Accept       json
 // @Produce      json

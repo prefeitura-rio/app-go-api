@@ -100,9 +100,35 @@ func normalizarCriteriosBloqueio(criterios []empregabilidade.CriterioBloqueio) (
 	return normalizados, nil
 }
 
+// resolverOpcaoPCD valida a opção PcD e deixa opcao_pcd e o campo antigo
+// acessibilidade_pcd coerentes. Com opcao_pcd enviada, ela vale e o campo
+// antigo é gravado a partir dela; sem ela (cliente antigo), a opção sai do
+// acessibilidade_pcd recebido pelo de/para. qtdTipos é quantos tipos de
+// deficiência a vaga terá depois da escrita: a exclusiva exige ao menos um.
+func resolverOpcaoPCD(entity *empregabilidade.Vaga, qtdTipos int) error {
+	if entity.OpcaoPCD == "" {
+		if entity.AcessibilidadePCD != nil && !entity.AcessibilidadePCD.IsValid() {
+			return apperrors.Validation("acessibilidade_pcd inválido: deve ser para_pcd, preferencial_pcd ou exclusivo_pcd")
+		}
+		entity.OpcaoPCD = empregabilidade.OpcaoPCDDeAcessibilidade(entity.AcessibilidadePCD)
+	} else {
+		if !entity.OpcaoPCD.IsValid() {
+			return apperrors.Validation("opcao_pcd inválida: deve ser aberta, preferencial ou exclusiva")
+		}
+		entity.AcessibilidadePCD = entity.OpcaoPCD.AcessibilidadeLegada()
+	}
+	if entity.OpcaoPCD == empregabilidade.OpcaoPCDExclusiva && qtdTipos == 0 {
+		return apperrors.Validation(empregabilidade.MsgTipoPCDObrigatorio)
+	}
+	return nil
+}
+
 func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
 	criterios, err := normalizarCriteriosBloqueio(entity.CriteriosBloqueio)
 	if err != nil {
+		return uuid.Nil, err
+	}
+	if err := resolverOpcaoPCD(entity, len(entity.TiposPCD)); err != nil {
 		return uuid.Nil, err
 	}
 	if err := s.validateContratante(ctx, entity.IDContratante); err != nil {
@@ -194,6 +220,14 @@ func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) 
 		return err
 	}
 	entity.CriteriosBloqueio = criterios
+	// tipos_pcd ausente no body mantém os tipos gravados; [] remove todos.
+	tipos := entity.TiposPCD
+	if tipos == nil {
+		tipos = existing.TiposPCD
+	}
+	if err := resolverOpcaoPCD(entity, len(tipos)); err != nil {
+		return err
+	}
 
 	return s.repo.UpdateWithAssociations(ctx, entity)
 }
@@ -234,6 +268,15 @@ func (s *VagaService) ListPublic(ctx context.Context, filter empregabilidade.Vag
 }
 
 func (s *VagaService) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error {
+	if len(tiposPCDIDs) == 0 {
+		vaga, err := s.repo.GetByID(ctx, vagaID)
+		if err != nil {
+			return err
+		}
+		if vaga != nil && vaga.OpcaoPCD == empregabilidade.OpcaoPCDExclusiva {
+			return apperrors.Validation(empregabilidade.MsgTipoPCDObrigatorio)
+		}
+	}
 	return s.repo.UpdateTiposPCD(ctx, vagaID, tiposPCDIDs)
 }
 

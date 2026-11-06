@@ -294,10 +294,12 @@ definitions:
     enum:
     - escolaridade
     - idioma
+    - pcd
     type: string
     x-enum-varnames:
     - CriterioBloqueioEscolaridade
     - CriterioBloqueioIdioma
+    - CriterioBloqueioPCD
   empregabilidade.CurriculoCompleto:
     properties:
       area_atuacao:
@@ -654,6 +656,16 @@ definitions:
       updated_at:
         type: string
     type: object
+  empregabilidade.OpcaoPCD:
+    enum:
+    - aberta
+    - preferencial
+    - exclusiva
+    type: string
+    x-enum-varnames:
+    - OpcaoPCDAberta
+    - OpcaoPCDPreferencial
+    - OpcaoPCDExclusiva
   empregabilidade.OrigemCandidatura:
     enum:
     - portal_cidadao
@@ -953,6 +965,8 @@ definitions:
         type: array
       modelo_trabalho:
         $ref: '#/definitions/empregabilidade.ModeloTrabalho'
+      opcao_pcd:
+        $ref: '#/definitions/empregabilidade.OpcaoPCD'
       orgao_parceiro:
         $ref: '#/definitions/models.OrgaoSnapshot'
       quantidade_estimada_contratacoes:
@@ -4255,6 +4269,7 @@ paths:
       - application/json
       description: |-
         Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.
+        criterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima, escolaridade, idioma e pcd (vaga exclusiva para PcD).
         Para o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.
       parameters:
       - description: Dados do bloqueio
@@ -9086,7 +9101,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Cria uma nova vaga
+      description: |-
+        Cria uma nova vaga
+        PcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.". O bloqueio de candidatura PcD é a chave "pcd" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.
       parameters:
       - description: Dados da vaga
         in: body
@@ -9194,7 +9211,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Atualiza uma vaga existente
+      description: |-
+        Atualiza uma vaga existente
+        PcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.".
       parameters:
       - description: ID da vaga
         in: path
@@ -9782,7 +9801,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Atualiza os tipos de PCD aceitos na vaga
+      description: 'Atualiza os tipos de PCD aceitos na vaga. Vaga exclusiva (opcao_pcd
+        = exclusiva) não pode ficar sem tipo: lista vazia retorna 400 "Selecione ao
+        menos um tipo de deficiência.".'
       parameters:
       - description: ID da vaga
         in: path
@@ -9910,7 +9931,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Cria uma nova vaga
+      description: |-
+        Cria uma nova vaga
+        PcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.". O bloqueio de candidatura PcD é a chave "pcd" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.
       parameters:
       - description: Dados da vaga
         in: body

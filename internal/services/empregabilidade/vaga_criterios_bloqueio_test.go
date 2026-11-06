@@ -163,7 +163,7 @@ func TestVagaService_Update_CriteriosBloqueio_ChaveDesconhecida(t *testing.T) {
 	err := svc.Update(context.Background(), &empregabilidade.Vaga{
 		ID:                vagaID,
 		Titulo:            "Repositor II",
-		CriteriosBloqueio: criterios("pcd"),
+		CriteriosBloqueio: criterios("altura"),
 	})
 	require.Error(t, err)
 
