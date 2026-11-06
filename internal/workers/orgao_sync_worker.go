@@ -13,6 +13,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/observability"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"gorm.io/gorm"
 )
@@ -132,17 +133,20 @@ func (w *OrgaoSyncWorker) Start(ctx context.Context) error {
 
 // runSync executes a full sync cycle, guarded by a distributed Redis lock.
 // If another pod already holds the lock, the cycle is skipped.
-func (w *OrgaoSyncWorker) runSync(ctx context.Context) error {
+func (w *OrgaoSyncWorker) runSync(ctx context.Context) (err error) {
 	token, acquired, err := w.tryAcquireLock(ctx)
 	if err != nil {
 		log.Printf("[OrgaoSyncWorker] Could not acquire distributed lock: %v", err)
+		observability.ObserveSyncRun(observability.SyncWorkerOrgao, err)
 		return fmt.Errorf("could not acquire distributed lock: %w", err)
 	}
 	if !acquired {
 		log.Println("[OrgaoSyncWorker] Another instance is running sync, skipping cycle")
+		observability.ObserveSyncSkipped(observability.SyncWorkerOrgao)
 		return nil
 	}
 	defer w.releaseLock(ctx, token)
+	defer func() { observability.ObserveSyncRun(observability.SyncWorkerOrgao, err) }()
 
 	startTime := time.Now()
 	log.Println("[OrgaoSyncWorker] Starting sync cycle (lock acquired)...")
@@ -175,6 +179,8 @@ func (w *OrgaoSyncWorker) runSync(ctx context.Context) error {
 
 	// Sync in batches
 	synced, failed := w.syncOrgaos(ctx, idsToSync)
+	observability.AddSyncItems(observability.SyncWorkerOrgao, observability.SyncItemSynced, synced)
+	observability.AddSyncItems(observability.SyncWorkerOrgao, observability.SyncItemFailed, failed)
 
 	duration := time.Since(startTime)
 	log.Printf("[OrgaoSyncWorker] Sync cycle completed in %v: %d synced, %d failed",

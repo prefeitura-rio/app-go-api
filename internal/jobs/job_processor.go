@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/observability"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -111,6 +112,7 @@ func (p *JobProcessor) ProcessJob(jobID uuid.UUID) error {
 
 	if processingErr != nil {
 		log.Printf("Erro ao processar job %s: %v", jobID, processingErr)
+		observability.ObserveImportJobs(observability.ImportJobFailed, 1)
 		if err := p.jobService.UpdateStatus(ctx, jobID, models.JobStatusFailed); err != nil {
 			log.Printf("Erro ao atualizar status do job %s para failed: %v", jobID, err)
 		}
@@ -121,6 +123,7 @@ func (p *JobProcessor) ProcessJob(jobID uuid.UUID) error {
 		log.Printf("Erro ao atualizar status do job %s para completed: %v", jobID, err)
 		return err
 	}
+	observability.ObserveImportJobs(observability.ImportJobCompleted, 1)
 
 	return nil
 }
@@ -169,7 +172,11 @@ func (p *JobProcessor) heartbeat(ctx context.Context, jobID uuid.UUID, interval 
 // within staleAfter: their pod stopped before finishing (deploy, restart, OOM,
 // scale down), so they would otherwise stay "processing" forever.
 func (p *JobProcessor) ReapStaleJobs(ctx context.Context, staleAfter time.Duration) (int64, error) {
-	return p.jobService.FailStaleJobs(ctx, staleAfter)
+	n, err := p.jobService.FailStaleJobs(ctx, staleAfter)
+	if err == nil {
+		observability.ObserveImportJobs(observability.ImportJobReaped, n)
+	}
+	return n, err
 }
 
 // RunStaleJobReaper runs ReapStaleJobs at startup and then every interval

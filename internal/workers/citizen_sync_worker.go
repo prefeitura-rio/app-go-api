@@ -13,6 +13,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/observability"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
@@ -111,7 +112,9 @@ func (w *CitizenSyncWorker) Start(ctx context.Context) error {
 }
 
 // runSync executes a full sync cycle
-func (w *CitizenSyncWorker) runSync(ctx context.Context) error {
+func (w *CitizenSyncWorker) runSync(ctx context.Context) (err error) {
+	defer func() { observability.ObserveSyncRun(observability.SyncWorkerCitizen, err) }()
+
 	startTime := time.Now()
 	w.infoLogger().Println("[CitizenSyncWorker] Starting sync cycle...")
 
@@ -138,6 +141,9 @@ func (w *CitizenSyncWorker) runSync(ctx context.Context) error {
 
 	// Sync citizens
 	synced, skipped, failed := w.syncCitizens(ctx, cpfsToSync, token)
+	observability.AddSyncItems(observability.SyncWorkerCitizen, observability.SyncItemSynced, synced)
+	observability.AddSyncItems(observability.SyncWorkerCitizen, observability.SyncItemSkipped, skipped)
+	observability.AddSyncItems(observability.SyncWorkerCitizen, observability.SyncItemFailed, failed)
 
 	duration := time.Since(startTime)
 	w.infoLogger().Printf("[CitizenSyncWorker] Sync cycle completed in %v: %d synced, %d skipped (not found or invalid CPF), %d failed",

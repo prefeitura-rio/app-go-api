@@ -26,6 +26,11 @@ spec:
         sidecar.istio.io/proxyCPULimit: "1000m"
         sidecar.istio.io/proxyMemory: "1Gi"
         sidecar.istio.io/proxyMemoryLimit: "1536Mi"
+        # /metrics (goapi_* sinais dos alertas, rmi_client_*) coletado pelo Prometheus do
+        # istio-system (job kubernetes-pods); pela entrada pública ele segue com 403.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
     spec:
       automountServiceAccountToken: false
       containers:
