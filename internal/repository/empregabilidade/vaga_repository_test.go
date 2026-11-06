@@ -2645,3 +2645,117 @@ func TestVagaRepository_ExistsByID(t *testing.T) {
 		})
 	}
 }
+
+// driverNilArg casa só com o NULL do SQL (nil no driver), nunca com o JSON "null".
+type driverNilArg struct{}
+
+func (driverNilArg) Match(v driver.Value) bool { return v == nil }
+
+// O Updates com map não passa pelo serializer:json do GORM: sem conversão
+// explícita, um []string vira uma expressão ("a","b") que o Postgres recusa
+// numa coluna jsonb. Os dois campos de elegibilidade precisam chegar ao driver
+// como texto JSON, ou NULL quando a lista está vazia.
+func TestVagaRepository_Update_ElegibilidadeJSONB(t *testing.T) {
+	hostil := `O'Hara "x"); DROP TABLE emp_vagas;--`
+	tests := []struct {
+		name       string
+		bairros    []string
+		areas      []string
+		bairrosArg sqlmock.Argument
+		areasArg   sqlmock.Argument
+	}{
+		{
+			name:       "listas com vários itens chegam como JSON",
+			bairros:    []string{"Centro", "Tijuca"},
+			areas:      []string{"Tecnologia", "Administração"},
+			bairrosArg: jsonStringSliceArg{want: []string{"Centro", "Tijuca"}},
+			areasArg:   jsonStringSliceArg{want: []string{"Tecnologia", "Administração"}},
+		},
+		{
+			name:       "lista com um item chega como JSON",
+			bairros:    []string{"São Cristóvão"},
+			areas:      []string{"Saúde"},
+			bairrosArg: jsonStringSliceArg{want: []string{"São Cristóvão"}},
+			areasArg:   jsonStringSliceArg{want: []string{"Saúde"}},
+		},
+		{
+			name:       "entrada hostil é só dado dentro do JSON",
+			bairros:    []string{hostil},
+			areas:      []string{hostil, "Direito"},
+			bairrosArg: jsonStringSliceArg{want: []string{hostil}},
+			areasArg:   jsonStringSliceArg{want: []string{hostil, "Direito"}},
+		},
+		{
+			name:       "listas ausentes gravam NULL",
+			bairros:    nil,
+			areas:      nil,
+			bairrosArg: driverNilArg{},
+			areasArg:   driverNilArg{},
+		},
+		{
+			name:       "listas vazias gravam NULL",
+			bairros:    []string{},
+			areas:      []string{},
+			bairrosArg: driverNilArg{},
+			areasArg:   driverNilArg{},
+		},
+		{
+			name:       "só um dos campos preenchido",
+			bairros:    []string{"Centro"},
+			areas:      nil,
+			bairrosArg: jsonStringSliceArg{want: []string{"Centro"}},
+			areasArg:   driverNilArg{},
+		},
+	}
+
+	for _, tt := range tests {
+		for _, metodo := range []string{"Update", "UpdateWithAssociations"} {
+			t.Run(metodo+"/"+tt.name, func(t *testing.T) {
+				db, mock, cleanup := repository.SetupMockDB(t)
+				defer cleanup()
+
+				repo := NewVagaRepository(db)
+				vaga := &empregabilidade.Vaga{
+					ID:                         uuid.New(),
+					Titulo:                     "Desenvolvedor Go",
+					Descricao:                  "Vaga para desenvolvedor Go",
+					IDContratante:              "12345678000190",
+					IDRegimeContratacao:        uuid.New(),
+					IDModeloTrabalho:           uuid.New(),
+					Status:                     empregabilidade.StatusVagaEmEdicao,
+					BairrosElegibilidade:       tt.bairros,
+					AreasFormacaoElegibilidade: tt.areas,
+				}
+
+				// As colunas do map entram em ordem alfabética, cada uma com um
+				// único argumento: areas_formacao_elegibilidade é o 2º,
+				// bairros_elegibilidade o 4º, e o id do WHERE o 23º.
+				args := []driver.Value{
+					sqlmock.AnyArg(), // acessibilidade_pcd
+					tt.areasArg,      // areas_formacao_elegibilidade
+					sqlmock.AnyArg(), // bairro
+					tt.bairrosArg,    // bairros_elegibilidade
+				}
+				for i := 0; i < 18; i++ { // beneficios ... valor_vaga
+					args = append(args, sqlmock.AnyArg())
+				}
+				args = append(args, vaga.ID)
+
+				mock.ExpectBegin()
+				mock.ExpectExec(`(?s)UPDATE "emp_vagas" SET "acessibilidade_pcd"=\$1,"areas_formacao_elegibilidade"=\$2,"bairro"=\$3,"bairros_elegibilidade"=\$4,"beneficios"=\$5,.*WHERE id = \$23`).
+					WithArgs(args...).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+
+				var err error
+				if metodo == "Update" {
+					err = repo.Update(context.Background(), vaga)
+				} else {
+					err = repo.UpdateWithAssociations(context.Background(), vaga)
+				}
+				assert.NoError(t, err)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			})
+		}
+	}
+}
