@@ -98,6 +98,15 @@ func criteriosBloqueioValue(criterios []empregabilidade.CriterioBloqueio) (inter
 	return string(raw), nil
 }
 
+// opcaoPCDValue grava aberta, o padrão da coluna, quando a vaga chega sem a
+// opção PcD: a coluna é NOT NULL e só aceita as três opções.
+func opcaoPCDValue(opcao empregabilidade.OpcaoPCD) string {
+	if opcao == "" {
+		return string(empregabilidade.OpcaoPCDAberta)
+	}
+	return string(opcao)
+}
+
 func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
 	updates := map[string]interface{}{
 		"titulo":                           entity.Titulo,
@@ -121,6 +130,7 @@ func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vag
 		"bairros_elegibilidade":            jsonbStringSlice(entity.BairrosElegibilidade),
 		"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
 		"areas_formacao_elegibilidade":     jsonbStringSlice(entity.AreasFormacaoElegibilidade),
+		"opcao_pcd":                        opcaoPCDValue(entity.OpcaoPCD),
 	}
 	criterios, err := criteriosBloqueioValue(entity.CriteriosBloqueio)
 	if err != nil {
@@ -162,6 +172,7 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			"bairros_elegibilidade":            jsonbStringSlice(entity.BairrosElegibilidade),
 			"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
 			"areas_formacao_elegibilidade":     jsonbStringSlice(entity.AreasFormacaoElegibilidade),
+			"opcao_pcd":                        opcaoPCDValue(entity.OpcaoPCD),
 		}
 		criterios, err := criteriosBloqueioValue(entity.CriteriosBloqueio)
 		if err != nil {

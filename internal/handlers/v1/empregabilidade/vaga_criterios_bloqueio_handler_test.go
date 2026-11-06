@@ -76,7 +76,7 @@ func TestVagaHandler_Update_CriteriosBloqueio_ChaveDesconhecida(t *testing.T) {
 	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}}
 	r := setupVagaRouter(vagaRepo, &mockEmpresaRepoForVaga{}, false)
 
-	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, bodyOf(`{"titulo":"Dev","criterios_bloqueio":["pcd"]}`))
+	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, bodyOf(`{"titulo":"Dev","criterios_bloqueio":["altura"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

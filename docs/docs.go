@@ -2469,7 +2469,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.\nPara o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.",
+                "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.\ncriterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima, escolaridade, idioma e pcd (vaga exclusiva para PcD).\nPara o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9723,7 +9723,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Cria uma nova vaga",
+                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9775,7 +9775,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/draft": {
             "post": {
-                "description": "Cria uma nova vaga",
+                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9890,7 +9890,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza uma vaga existente",
+                "description": "Atualiza uma vaga existente\nPcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\".",
                 "consumes": [
                     "application/json"
                 ],
@@ -10817,7 +10817,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}/tipos-pcd": {
             "put": {
-                "description": "Atualiza os tipos de PCD aceitos na vaga",
+                "description": "Atualiza os tipos de PCD aceitos na vaga. Vaga exclusiva (opcao_pcd = exclusiva) não pode ficar sem tipo: lista vazia retorna 400 \"Selecione ao menos um tipo de deficiência.\".",
                 "consumes": [
                     "application/json"
                 ],
@@ -13568,11 +13568,13 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "escolaridade",
-                "idioma"
+                "idioma",
+                "pcd"
             ],
             "x-enum-varnames": [
                 "CriterioBloqueioEscolaridade",
-                "CriterioBloqueioIdioma"
+                "CriterioBloqueioIdioma",
+                "CriterioBloqueioPCD"
             ]
         },
         "empregabilidade.CurriculoCompleto": {
@@ -14134,6 +14136,19 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.OpcaoPCD": {
+            "type": "string",
+            "enum": [
+                "aberta",
+                "preferencial",
+                "exclusiva"
+            ],
+            "x-enum-varnames": [
+                "OpcaoPCDAberta",
+                "OpcaoPCDPreferencial",
+                "OpcaoPCDExclusiva"
+            ]
+        },
         "empregabilidade.OrigemCandidatura": {
             "type": "string",
             "enum": [
@@ -14554,6 +14569,9 @@ const docTemplate = `{
                 },
                 "modelo_trabalho": {
                     "$ref": "#/definitions/empregabilidade.ModeloTrabalho"
+                },
+                "opcao_pcd": {
+                    "$ref": "#/definitions/empregabilidade.OpcaoPCD"
                 },
                 "orgao_parceiro": {
                     "$ref": "#/definitions/models.OrgaoSnapshot"
