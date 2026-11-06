@@ -46,8 +46,11 @@ const (
 	StatusCursoAberto    StatusCurso = "ABERTO"
 	StatusCursoEncerrado StatusCurso = "ENCERRADO"
 
-	FormatoAulaGravado FormatoAula = "GRAVADO"
-	FormatoAulaAoVivo  FormatoAula = "AO_VIVO"
+	FormatoAulaGravado    FormatoAula = "GRAVADO"
+	FormatoAulaAoVivo     FormatoAula = "AO_VIVO"
+	FormatoAulaPresencial FormatoAula = "PRESENCIAL"
+	// FormatoAulaNaoInformado é o valor de cursos cadastrados sem formato de aula.
+	FormatoAulaNaoInformado FormatoAula = ""
 
 	CourseManagementOwnOrg                   CourseManagementType = "OWN_ORG"
 	CourseManagementExternalManagedByOrg     CourseManagementType = "EXTERNAL_MANAGED_BY_ORG"
@@ -60,8 +63,8 @@ type Curso struct {
 	// Core fields (always required)
 	Titulo              string      `json:"title" gorm:"type:varchar(20000);not null"`
 	Descricao           string      `json:"description" gorm:"type:text"`
-	EnrollmentStartDate *time.Time  `json:"enrollment_start_date" gorm:"type:timestamp with time zone;column:enrollment_start_date"`
-	EnrollmentEndDate   *time.Time  `json:"enrollment_end_date" gorm:"type:timestamp with time zone;column:enrollment_end_date"`
+	EnrollmentStartDate *time.Time  `json:"enrollment_start_date" gorm:"type:timestamp with time zone;column:enrollment_start_date" extensions:"x-nullable"`
+	EnrollmentEndDate   *time.Time  `json:"enrollment_end_date" gorm:"type:timestamp with time zone;column:enrollment_end_date" extensions:"x-nullable"`
 	Organization        string      `json:"organization" gorm:"type:varchar(20000)"`
 	Modalidade          Modalidade  `json:"modalidade" gorm:"type:varchar(50)"`
 	Theme               string      `json:"theme" gorm:"type:varchar(20000)"`
@@ -73,11 +76,11 @@ type Curso struct {
 
 	// Legacy and additional fields (optional)
 	OrgaoID              string      `json:"orgao_id,omitempty" gorm:"type:varchar(100);column:orgao_id"`
-	InstituicaoID        *int        `json:"instituicao_id,omitempty" gorm:"column:instituicao_id"`
+	InstituicaoID        *int        `json:"instituicao_id,omitempty" gorm:"column:instituicao_id" extensions:"x-nullable"`
 	LocalRealizacao      string      `json:"local_realizacao" gorm:"type:varchar(20000);column:local_realizacao"`
-	DataInicio           *time.Time  `json:"data_inicio" gorm:"column:data_inicio"`
-	DataTermino          *time.Time  `json:"data_termino" gorm:"column:data_termino"`
-	DataLimiteInscricoes *time.Time  `json:"data_limite_inscricoes" gorm:"column:data_limite_inscricoes"`
+	DataInicio           *time.Time  `json:"data_inicio" gorm:"column:data_inicio" extensions:"x-nullable"`
+	DataTermino          *time.Time  `json:"data_termino" gorm:"column:data_termino" extensions:"x-nullable"`
+	DataLimiteInscricoes *time.Time  `json:"data_limite_inscricoes" gorm:"column:data_limite_inscricoes" extensions:"x-nullable"`
 	NumeroVagas          int         `json:"numero_vagas" gorm:"column:numero_vagas"`
 	CargaHoraria         int         `json:"carga_horaria" gorm:"column:carga_horaria"`
 	Turno                Turno       `json:"turno" gorm:"type:varchar(50)"`
@@ -102,7 +105,7 @@ type Curso struct {
 	CertificacaoOferecida bool   `json:"certificacao_oferecida" gorm:"column:certificacao_oferecida"`
 
 	// External partner fields
-	IsExternalPartner      *bool                `json:"is_external_partner,omitempty" gorm:"column:is_external_partner"`
+	IsExternalPartner      *bool                `json:"is_external_partner,omitempty" gorm:"column:is_external_partner" extensions:"x-nullable"`
 	CourseManagementType   CourseManagementType `json:"course_management_type" gorm:"column:course_management_type;type:varchar(50);default:'OWN_ORG'"`
 	ExternalPartnerName    string               `json:"external_partner_name,omitempty" gorm:"column:external_partner_name;type:varchar(20000)"`
 	ExternalPartnerURL     string               `json:"external_partner_url,omitempty" gorm:"column:external_partner_url;type:varchar(20000)"`
@@ -114,10 +117,10 @@ type Curso struct {
 
 	// Visibility field - controls if course appears in public listings (default: true)
 	// Used for in-person courses that require manual enrollment and should not appear in public course lists
-	IsVisible *bool `json:"is_visible,omitempty" gorm:"column:is_visible;default:true" example:"true"`
+	IsVisible *bool `json:"is_visible,omitempty" gorm:"column:is_visible;default:true" example:"true" extensions:"x-nullable"`
 
 	// Auto-approve enrollments - when true, new enrollments are automatically approved instead of pending
-	AutoApproveEnrollments *bool `json:"auto_approve_enrollments,omitempty" gorm:"column:auto_approve_enrollments;default:false" example:"false"`
+	AutoApproveEnrollments *bool `json:"auto_approve_enrollments,omitempty" gorm:"column:auto_approve_enrollments;default:false" example:"false" extensions:"x-nullable"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`

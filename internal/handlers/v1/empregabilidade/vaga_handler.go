@@ -612,7 +612,7 @@ func (h *VagaHandler) Reactivate(c *gin.Context) {
 // @Param        contratante             query     string  false  "Nome(s) ou CNPJ(s) do contratante (CSV, ex: TechRio,12345678000100)"
 // @Param        acessibilidade_pcd      query     string  false  "Acessibilidade PCD (CSV, ex: para_pcd,exclusivo_pcd)"
 // @Param        bairro                  query     string  false  "Bairro(s) — busca parcial (CSV, ex: Centro,Tijuca)"
-// @Success      200                     {object}  map[string]interface{}
+// @Success      200                     {object}  empregabilidade.VagaPublicListResponse
 // @Failure      400                     {object}  map[string]string
 // @Failure      500                     {object}  map[string]string
 // @Router       /api/public/empregabilidade/vagas [get]

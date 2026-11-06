@@ -204,6 +204,12 @@ swagger:
     @swag init --dir ./cmd/server,./internal/models,./internal/handlers/v1 -g main.go -o docs --parseInternal --packagePrefix github.com/prefeitura-rio/app-go-api
     @echo "✅ Swagger documentation generated!"
 
+# Regenerate the published OpenAPI v3 (docs/openapi-v3.json) from docs/swagger.json, as build-container.yaml does
+openapi:
+    @npx --yes swagger2openapi@7.0.8 docs/swagger.json -o docs/openapi-v3.json
+    @jq '.servers = [{"url": "https://services.pref.rio/go", "description": "Production"}, {"url": "https://services.staging.app.dados.rio/go", "description": "Staging"}] | .components.securitySchemes = {"bearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}} | .paths |= with_entries(.value |= with_entries(.value.security = [{"bearerAuth": []}]))' docs/openapi-v3.json > docs/openapi-v3.json.tmp && mv docs/openapi-v3.json.tmp docs/openapi-v3.json
+    @echo "✅ OpenAPI v3 documentation generated!"
+
 # Monta a URL de conexão do Goose apontando para o localhost da sua máquina
 DATABASE_URL := "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE"
 

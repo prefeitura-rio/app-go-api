@@ -56,7 +56,7 @@ type OportunidadeMEI struct {
 
 	// Status e controle
 	Status    StatusOportunidadeMEI `json:"status" gorm:"type:varchar(50);not null;default:'draft'" enums:"draft,active,expired" example:"active"`
-	DeletedAt gorm.DeletedAt        `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
+	DeletedAt gorm.DeletedAt        `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z" extensions:"x-nullable"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime" example:"2024-01-01T10:00:00Z"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime" example:"2024-01-01T10:00:00Z"`

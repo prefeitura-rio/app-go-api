@@ -103,7 +103,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/models.CursoListResponse"
                         }
                     },
                     "500": {
@@ -138,7 +138,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Curso"
+                            "$ref": "#/definitions/models.CursoDetailResponse"
                         }
                     },
                     "400": {
@@ -232,8 +232,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/empregabilidade.VagaPublicListResponse"
                         }
                     },
                     "400": {
@@ -415,7 +414,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/models.OportunidadeMEIListResponse"
                         }
                     },
                     "500": {
@@ -1091,7 +1090,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/models.CursoListResponse"
                         }
                     },
                     "500": {
@@ -1292,7 +1291,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Curso"
+                            "$ref": "#/definitions/models.CursoDetailResponse"
                         }
                     },
                     "400": {
@@ -12002,7 +12001,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/models.OportunidadeMEIListResponse"
                         }
                     },
                     "500": {
@@ -14475,10 +14474,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "data_limite": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "deleted_at": {
                     "type": "string",
+                    "x-nullable": true,
                     "example": "2024-12-31T23:59:59Z"
                 },
                 "descricao": {
@@ -14570,7 +14571,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "valor_vaga": {
-                    "type": "number"
+                    "type": "number",
+                    "x-nullable": true
                 },
                 "zonas": {
                     "type": "array",
@@ -14611,6 +14613,38 @@ const docTemplate = `{
                             "$ref": "#/definitions/empregabilidade.Vaga"
                         }
                     ]
+                }
+            }
+        },
+        "empregabilidade.VagaPublicListMeta": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "page_size": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 109
+                }
+            }
+        },
+        "empregabilidade.VagaPublicListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.Vaga"
+                    },
+                    "x-nullable": true
+                },
+                "meta": {
+                    "$ref": "#/definitions/empregabilidade.VagaPublicListMeta"
                 }
             }
         },
@@ -14770,6 +14804,54 @@ const docTemplate = `{
                 "CourseManagementExternalManagedByPartner"
             ]
         },
+        "models.CourseSchedule": {
+            "type": "object",
+            "properties": {
+                "accepting_enrollments": {
+                    "type": "boolean"
+                },
+                "class_days": {
+                    "type": "string"
+                },
+                "class_end_date": {
+                    "type": "string"
+                },
+                "class_start_date": {
+                    "type": "string"
+                },
+                "class_time": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "display_order": {
+                    "type": "integer"
+                },
+                "enrollment_end_date": {
+                    "type": "string"
+                },
+                "enrollment_start_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "location_id": {
+                    "type": "string"
+                },
+                "remaining_vacancies": {
+                    "description": "Computed field (not stored in DB)",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vacancies": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.Curso": {
             "type": "object",
             "properties": {
@@ -14780,6 +14862,7 @@ const docTemplate = `{
                 "auto_approve_enrollments": {
                     "description": "Auto-approve enrollments - when true, new enrollments are automatically approved instead of pending",
                     "type": "boolean",
+                    "x-nullable": true,
                     "example": false
                 },
                 "carga_horaria": {
@@ -14801,22 +14884,27 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "data_inicio": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "data_limite_inscricoes": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "data_termino": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "description": {
                     "type": "string"
                 },
                 "enrollment_end_date": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "enrollment_start_date": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "expected_results": {
                     "type": "string"
@@ -14850,18 +14938,21 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "instituicao_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 },
                 "institutional_logo": {
                     "type": "string"
                 },
                 "is_external_partner": {
                     "description": "External partner fields",
-                    "type": "boolean"
+                    "type": "boolean",
+                    "x-nullable": true
                 },
                 "is_visible": {
                     "description": "Visibility field - controls if course appears in public listings (default: true)\nUsed for in-person courses that require manual enrollment and should not appear in public course lists",
                     "type": "boolean",
+                    "x-nullable": true,
                     "example": true
                 },
                 "link_inscricao": {
@@ -14898,6 +14989,277 @@ const docTemplate = `{
                 },
                 "program_content": {
                     "type": "string"
+                },
+                "resources_used": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.StatusCurso"
+                },
+                "target_audience": {
+                    "type": "string"
+                },
+                "teaching_material": {
+                    "type": "string"
+                },
+                "theme": {
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Core fields (always required)",
+                    "type": "string"
+                },
+                "turno": {
+                    "$ref": "#/definitions/models.Turno"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workload": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CursoDetailResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.CursoResponse"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.CursoListData": {
+            "type": "object",
+            "properties": {
+                "courses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CursoResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/models.CursoPagination"
+                }
+            }
+        },
+        "models.CursoListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.CursoListData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.CursoPagination": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 394
+                },
+                "total_pages": {
+                    "type": "integer",
+                    "example": 40
+                }
+            }
+        },
+        "models.CursoResponse": {
+            "type": "object",
+            "properties": {
+                "accessibility": {
+                    "description": "Accessibility field - free text field for frontend",
+                    "type": "string"
+                },
+                "acessibilidades": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Acessibilidade"
+                    },
+                    "x-nullable": true
+                },
+                "auto_approve_enrollments": {
+                    "description": "Auto-approve enrollments - when true, new enrollments are automatically approved instead of pending",
+                    "type": "boolean",
+                    "x-nullable": true,
+                    "example": false
+                },
+                "carga_horaria": {
+                    "type": "integer"
+                },
+                "categorias": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Categoria"
+                    },
+                    "x-nullable": true
+                },
+                "certificacao_oferecida": {
+                    "type": "boolean"
+                },
+                "contato_duvidas": {
+                    "type": "string"
+                },
+                "course_management_type": {
+                    "$ref": "#/definitions/models.CourseManagementType"
+                },
+                "cover_image": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "custom_fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CustomField"
+                    },
+                    "x-nullable": true
+                },
+                "data_inicio": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "data_limite_inscricoes": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "data_termino": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enrollment_end_date": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "enrollment_start_date": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "expected_results": {
+                    "type": "string"
+                },
+                "external_partner_contact": {
+                    "type": "string"
+                },
+                "external_partner_logo_url": {
+                    "type": "string"
+                },
+                "external_partner_name": {
+                    "type": "string"
+                },
+                "external_partner_url": {
+                    "type": "string"
+                },
+                "facilitator": {
+                    "type": "string"
+                },
+                "formacao_link": {
+                    "type": "string"
+                },
+                "formato_aula": {
+                    "$ref": "#/definitions/models.FormatoAula"
+                },
+                "has_certificate": {
+                    "description": "Optional fields matching specification",
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "instituicao": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    ],
+                    "x-nullable": true
+                },
+                "instituicao_id": {
+                    "type": "integer",
+                    "x-nullable": true
+                },
+                "institutional_logo": {
+                    "type": "string"
+                },
+                "is_external_partner": {
+                    "description": "External partner fields",
+                    "type": "boolean",
+                    "x-nullable": true
+                },
+                "is_visible": {
+                    "description": "Visibility field - controls if course appears in public listings (default: true)\nUsed for in-person courses that require manual enrollment and should not appear in public course lists",
+                    "type": "boolean",
+                    "x-nullable": true,
+                    "example": true
+                },
+                "link_inscricao": {
+                    "type": "string"
+                },
+                "local_realizacao": {
+                    "type": "string"
+                },
+                "locations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.LocationClass"
+                    },
+                    "x-nullable": true
+                },
+                "material_used": {
+                    "type": "string"
+                },
+                "methodology": {
+                    "type": "string"
+                },
+                "modalidade": {
+                    "$ref": "#/definitions/models.Modalidade"
+                },
+                "numero_vagas": {
+                    "type": "integer"
+                },
+                "objectives": {
+                    "type": "string"
+                },
+                "organization": {
+                    "type": "string"
+                },
+                "orgao_id": {
+                    "description": "Legacy and additional fields (optional)",
+                    "type": "string"
+                },
+                "pre_requisitos": {
+                    "description": "Unified field for prerequisites - using single JSON tag",
+                    "type": "string"
+                },
+                "program_content": {
+                    "type": "string"
+                },
+                "remote_class": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.RemoteClass"
+                        }
+                    ],
+                    "x-nullable": true
                 },
                 "resources_used": {
                     "type": "string"
@@ -14978,6 +15340,52 @@ const docTemplate = `{
                 },
                 "turno": {
                     "description": "Turno",
+                    "type": "string"
+                }
+            }
+        },
+        "models.CustomField": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "curso": {
+                    "description": "Relacionamentos",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    ]
+                },
+                "curso_id": {
+                    "type": "integer"
+                },
+                "display_order": {
+                    "type": "integer"
+                },
+                "field_type": {
+                    "type": "string"
+                },
+                "format_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -15285,11 +15693,15 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "GRAVADO",
-                "AO_VIVO"
+                "AO_VIVO",
+                "PRESENCIAL",
+                ""
             ],
             "x-enum-varnames": [
                 "FormatoAulaGravado",
-                "FormatoAulaAoVivo"
+                "FormatoAulaAoVivo",
+                "FormatoAulaPresencial",
+                "FormatoAulaNaoInformado"
             ]
         },
         "models.Inscricao": {
@@ -15407,6 +15819,24 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.InstituicaoEnsino": {
+            "type": "object",
+            "properties": {
+                "cursos": {
+                    "description": "Relacionamentos",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Curso"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nome": {
                     "type": "string"
                 }
             }
@@ -15554,6 +15984,46 @@ const docTemplate = `{
                 }
             }
         },
+        "models.LocationClass": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "curso": {
+                    "description": "Relacionamentos",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    ]
+                },
+                "curso_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "neighborhood": {
+                    "type": "string"
+                },
+                "neighborhood_zone": {
+                    "type": "string"
+                },
+                "schedules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CourseSchedule"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Modalidade": {
             "type": "string",
             "enum": [
@@ -15654,6 +16124,7 @@ const docTemplate = `{
                 },
                 "deleted_at": {
                     "type": "string",
+                    "x-nullable": true,
                     "example": "2024-12-31T23:59:59Z"
                 },
                 "descricao_servico": {
@@ -15734,6 +16205,38 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2024-01-01T10:00:00Z"
+                }
+            }
+        },
+        "models.OportunidadeMEIListMeta": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "page_size": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
+        "models.OportunidadeMEIListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OportunidadeMEI"
+                    },
+                    "x-nullable": true
+                },
+                "meta": {
+                    "$ref": "#/definitions/models.OportunidadeMEIListMeta"
                 }
             }
         },
@@ -15921,6 +16424,85 @@ const docTemplate = `{
                 "updated_count": {
                     "type": "integer",
                     "example": 2
+                }
+            }
+        },
+        "models.RemoteClass": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "curso": {
+                    "description": "Relacionamentos",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Curso"
+                        }
+                    ]
+                },
+                "curso_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "schedules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RemoteSchedule"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RemoteSchedule": {
+            "type": "object",
+            "properties": {
+                "accepting_enrollments": {
+                    "type": "boolean"
+                },
+                "class_days": {
+                    "type": "string"
+                },
+                "class_end_date": {
+                    "type": "string"
+                },
+                "class_start_date": {
+                    "type": "string"
+                },
+                "class_time": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "display_order": {
+                    "type": "integer"
+                },
+                "enrollment_end_date": {
+                    "type": "string"
+                },
+                "enrollment_start_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "remaining_vacancies": {
+                    "description": "Computed field (not stored in DB)",
+                    "type": "integer"
+                },
+                "remote_class_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vacancies": {
+                    "type": "integer"
                 }
             }
         },
@@ -16147,14 +16729,16 @@ const docTemplate = `{
                 "TARDE",
                 "NOITE",
                 "INTEGRAL",
-                "LIVRE"
+                "LIVRE",
+                ""
             ],
             "x-enum-varnames": [
                 "TurnoManha",
                 "TurnoTarde",
                 "TurnoNoite",
                 "TurnoIntegral",
-                "TurnoLivre"
+                "TurnoLivre",
+                "TurnoNaoInformado"
             ]
         },
         "response.ErrorResponse": {

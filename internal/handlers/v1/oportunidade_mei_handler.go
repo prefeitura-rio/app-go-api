@@ -204,7 +204,7 @@ func (h *OportunidadeMEIHandler) Publish(c *gin.Context) {
 // @Param        orgaoId   query     string  false  "Filtrar por órgão"
 // @Param        status    query     string  false  "Filtrar por status (draft, active, expired)"
 // @Param        titulo    query     string  false  "Buscar por título (case-insensitive)"
-// @Success      200       {object}  object
+// @Success      200       {object}  models.OportunidadeMEIListResponse
 // @Failure      500       {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei [get]
 // @Router       /api/public/oportunidades-mei [get]
