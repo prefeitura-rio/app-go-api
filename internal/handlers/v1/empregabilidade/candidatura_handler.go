@@ -394,6 +394,7 @@ type UpdateStatusRequest struct {
 // @Param        request  body      UpdateStatusRequest  true  "Novo status"
 // @Success      200      {object}  map[string]string
 // @Failure      400      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/status [put]
 func (h *CandidaturaHandler) UpdateStatus(c *gin.Context) {
@@ -424,6 +425,7 @@ func (h *CandidaturaHandler) UpdateStatus(c *gin.Context) {
 // @Param        id   path      string  true  "ID da candidatura"
 // @Success      200  {object}  map[string]string
 // @Failure      400  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/approve [put]
 func (h *CandidaturaHandler) Approve(c *gin.Context) {
@@ -448,6 +450,7 @@ func (h *CandidaturaHandler) Approve(c *gin.Context) {
 // @Param        id   path      string  true  "ID da candidatura"
 // @Success      200  {object}  map[string]string
 // @Failure      400  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/reject [put]
 func (h *CandidaturaHandler) Reject(c *gin.Context) {
@@ -479,6 +482,7 @@ type BulkUpdateStatusRequest struct {
 // @Param        request  body      BulkUpdateStatusRequest  true  "Lista de CPFs, ID da vaga e novo status"
 // @Success      200      {object}  map[string]interface{}
 // @Failure      400      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/bulk-status [put]
 func (h *CandidaturaHandler) BulkUpdateStatus(c *gin.Context) {
@@ -514,6 +518,7 @@ type BulkUpdateEtapaRequest struct {
 // @Param        request  body      BulkUpdateEtapaRequest  true  "Lista de CPFs, ID da vaga e nova etapa"
 // @Success      200      {object}  map[string]interface{}
 // @Failure      400      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
 // @Failure      409      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/bulk-etapa [put]
@@ -549,6 +554,7 @@ type UpdateEtapaRequest struct {
 // @Param        request  body      UpdateEtapaRequest true  "Nova etapa"
 // @Success      200      {object}  map[string]string
 // @Failure      400      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidaturas/{id}/etapa [put]
 func (h *CandidaturaHandler) UpdateEtapa(c *gin.Context) {
