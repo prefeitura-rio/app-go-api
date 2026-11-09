@@ -30,7 +30,7 @@ type candidatoElegibilidade struct {
 
 // requisitosNaoAtendidos aplica os critérios de elegibilidade da vaga — idade
 // mínima, escolaridade mínima, idiomas e, com o bloqueio ligado, a
-// experiência em carteira — e devolve o que o candidato não atende, com o mesmo texto que o app mostra. É a mesma régua do app do
+// experiência em carteira e a faixa de Jovem Aprendiz — e devolve o que o candidato não atende, com o mesmo texto que o app mostra. É a mesma régua do app do
 // cidadão (superapp, src/lib/eligibility-utils.ts), repetida aqui porque a
 // associação pelo backoffice não passa pelo app.
 func requisitosNaoAtendidos(vaga *empregabilidade.Vaga, candidato candidatoElegibilidade, refs referenciasElegibilidade, agora time.Time) []string {
@@ -41,6 +41,12 @@ func requisitosNaoAtendidos(vaga *empregabilidade.Vaga, candidato candidatoElegi
 		if idade == nil || *idade < *vaga.IdadeMinima {
 			faltas = append(faltas, fmt.Sprintf("Ter pelo menos %d anos", *vaga.IdadeMinima))
 		}
+	}
+
+	if vaga.JovemAprendiz != nil && *vaga.JovemAprendiz &&
+		slices.Contains(vaga.CriteriosBloqueio, empregabilidade.CriterioBloqueioJovemAprendiz) &&
+		!empregabilidade.AtendeJovemAprendiz(idadeEm(candidato.dataNascimento, agora)) {
+		faltas = append(faltas, empregabilidade.RequisitoJovemAprendiz())
 	}
 
 	if vaga.IDEscolaridadeMinima != nil && !atendeEscolaridade(*vaga.IDEscolaridadeMinima, candidato, refs) {

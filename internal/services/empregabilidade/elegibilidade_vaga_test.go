@@ -239,3 +239,72 @@ func TestRequisitosNaoAtendidos_ExperienciaCarteira(t *testing.T) {
 		})
 	}
 }
+
+func TestRequisitosNaoAtendidos_JovemAprendiz(t *testing.T) {
+	marcado := true
+	ligado := []empregabilidade.CriterioBloqueio{empregabilidade.CriterioBloqueioJovemAprendiz}
+	nascidoEm := func(ano, mes, dia int) candidatoElegibilidade {
+		d := time.Date(ano, time.Month(mes), dia, 0, 0, 0, 0, time.UTC)
+		return candidatoElegibilidade{dataNascimento: &d}
+	}
+	// hojeTeste é 13/10/2026.
+	requisito := "Jovem Aprendiz — ter entre 14 e 24 anos"
+
+	cases := []struct {
+		name      string
+		vaga      *empregabilidade.Vaga
+		candidato candidatoElegibilidade
+		faltas    []string
+	}{
+		{
+			name:      "fez 14 hoje atende",
+			vaga:      &empregabilidade.Vaga{JovemAprendiz: &marcado, CriteriosBloqueio: ligado},
+			candidato: nascidoEm(2012, 10, 13),
+		},
+		{
+			name:      "faz 14 amanhã não atende",
+			vaga:      &empregabilidade.Vaga{JovemAprendiz: &marcado, CriteriosBloqueio: ligado},
+			candidato: nascidoEm(2012, 10, 14),
+			faltas:    []string{requisito},
+		},
+		{
+			name:      "24 anos atende até a véspera dos 25",
+			vaga:      &empregabilidade.Vaga{JovemAprendiz: &marcado, CriteriosBloqueio: ligado},
+			candidato: nascidoEm(2001, 10, 14),
+		},
+		{
+			name:      "fez 25 hoje não atende",
+			vaga:      &empregabilidade.Vaga{JovemAprendiz: &marcado, CriteriosBloqueio: ligado},
+			candidato: nascidoEm(2001, 10, 13),
+			faltas:    []string{requisito},
+		},
+		{
+			name:      "sem data de nascimento não atende",
+			vaga:      &empregabilidade.Vaga{JovemAprendiz: &marcado, CriteriosBloqueio: ligado},
+			candidato: candidatoElegibilidade{},
+			faltas:    []string{requisito},
+		},
+		{
+			name:      "bloqueio desligado não confere a faixa",
+			vaga:      &empregabilidade.Vaga{JovemAprendiz: &marcado},
+			candidato: nascidoEm(1990, 1, 1),
+		},
+		{
+			name:      "bloqueio ligado com a opção desmarcada não confere a faixa",
+			vaga:      &empregabilidade.Vaga{CriteriosBloqueio: ligado},
+			candidato: nascidoEm(1990, 1, 1),
+		},
+		{
+			name:      "Maiores de 18 segue pela idade mínima, junto da faixa",
+			vaga:      &empregabilidade.Vaga{IdadeMinima: ordem(18), JovemAprendiz: &marcado, CriteriosBloqueio: ligado},
+			candidato: nascidoEm(2010, 1, 1),
+			faltas:    []string{"Ter pelo menos 18 anos"},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.faltas, requisitosNaoAtendidos(tt.vaga, tt.candidato, refsTeste, hojeTeste))
+		})
+	}
+}

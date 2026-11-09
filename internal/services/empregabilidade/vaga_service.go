@@ -118,6 +118,21 @@ func validarExperienciaCarteira(entity *empregabilidade.Vaga, criterios []empreg
 	return nil
 }
 
+// validarJovemAprendiz deixa a opção Jovem Aprendiz sempre definida (sem ela,
+// desligada) e recusa o bloqueio jovem_aprendiz ligado sem a opção marcada.
+// criterios são os critérios de bloqueio já normalizados que a vaga terá
+// depois da escrita.
+func validarJovemAprendiz(entity *empregabilidade.Vaga, criterios []empregabilidade.CriterioBloqueio) error {
+	if entity.JovemAprendiz == nil {
+		desligado := false
+		entity.JovemAprendiz = &desligado
+	}
+	if !*entity.JovemAprendiz && slices.Contains(criterios, empregabilidade.CriterioBloqueioJovemAprendiz) {
+		return apperrors.Validation(empregabilidade.MsgJovemAprendizObrigatorio)
+	}
+	return nil
+}
+
 // resolverOpcaoPCD valida a opção PcD e deixa opcao_pcd e o campo antigo
 // acessibilidade_pcd coerentes. Com opcao_pcd enviada, ela vale e o campo
 // antigo é gravado a partir dela; sem ela (cliente antigo), a opção sai do
@@ -147,6 +162,9 @@ func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) 
 		return uuid.Nil, err
 	}
 	if err := validarExperienciaCarteira(entity, criterios); err != nil {
+		return uuid.Nil, err
+	}
+	if err := validarJovemAprendiz(entity, criterios); err != nil {
 		return uuid.Nil, err
 	}
 	if err := resolverOpcaoPCD(entity, len(entity.TiposPCD)); err != nil {
@@ -246,6 +264,13 @@ func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) 
 		entity.ExperienciaCarteira = existing.ExperienciaCarteira
 	}
 	if err := validarExperienciaCarteira(entity, criterios); err != nil {
+		return err
+	}
+	// jovem_aprendiz ausente no body mantém o valor gravado.
+	if entity.JovemAprendiz == nil {
+		entity.JovemAprendiz = existing.JovemAprendiz
+	}
+	if err := validarJovemAprendiz(entity, criterios); err != nil {
 		return err
 	}
 	// tipos_pcd ausente no body mantém os tipos gravados; [] remove todos.

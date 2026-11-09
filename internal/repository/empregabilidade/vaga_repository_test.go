@@ -2747,15 +2747,15 @@ func TestVagaRepository_Create_CriteriosBloqueio(t *testing.T) {
 				CriteriosBloqueio:   tt.criterio,
 			}
 
-			// criterios_bloqueio é a última das 27 colunas do INSERT.
-			args := make([]driver.Value, 0, 27)
-			for i := 0; i < 26; i++ {
+			// criterios_bloqueio é a última das 28 colunas do INSERT.
+			args := make([]driver.Value, 0, 28)
+			for i := 0; i < 27; i++ {
 				args = append(args, sqlmock.AnyArg())
 			}
 			args = append(args, tt.arg)
 
 			mock.ExpectBegin()
-			mock.ExpectQuery(`INSERT INTO "emp_vagas" \(.*"criterios_bloqueio"\) VALUES .*\$27\)`).
+			mock.ExpectQuery(`INSERT INTO "emp_vagas" \(.*"criterios_bloqueio"\) VALUES .*\$28\)`).
 				WithArgs(args...).
 				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
 			mock.ExpectCommit()
@@ -2966,17 +2966,17 @@ func TestVagaRepository_Create_OpcaoPCD(t *testing.T) {
 
 			// Colunas do INSERT na ordem do struct: opcao_pcd vem logo depois
 			// de acessibilidade_pcd, a 7ª.
-			args := make([]driver.Value, 0, 27)
+			args := make([]driver.Value, 0, 28)
 			for i := 0; i < 6; i++ {
 				args = append(args, sqlmock.AnyArg())
 			}
 			args = append(args, tt.want)
-			for i := 0; i < 20; i++ {
+			for i := 0; i < 21; i++ {
 				args = append(args, sqlmock.AnyArg())
 			}
 
 			mock.ExpectBegin()
-			mock.ExpectQuery(`INSERT INTO "emp_vagas" \(.*"acessibilidade_pcd","opcao_pcd",.*\) VALUES .*\$27\)`).
+			mock.ExpectQuery(`INSERT INTO "emp_vagas" \(.*"acessibilidade_pcd","opcao_pcd",.*\) VALUES .*\$28\)`).
 				WithArgs(args...).
 				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
 			mock.ExpectCommit()
