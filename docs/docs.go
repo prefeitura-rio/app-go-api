@@ -2406,7 +2406,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/candidatura-bloqueios": {
             "get": {
-                "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a administradores.",
+                "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria); os demais recebem 403.",
                 "produces": [
                     "application/json"
                 ],
@@ -2450,6 +2450,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {

@@ -110,7 +110,10 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	empCandidaturaBloqueios := emp.Group("/candidatura-bloqueios")
 	{
 		empCandidaturaBloqueios.POST("", app.EmpCandidaturaBloqueioHandler.Create)
-		empCandidaturaBloqueios.GET("", vagaAuth, app.EmpCandidaturaBloqueioHandler.List)
+		// A listagem traz CPFs de cidadãos: CandidaturaBloqueioListAuthorization vale
+		// mesmo com RBAC_ENABLED=false (DEV-434); com o RBAC ligado, vagaAuth exige
+		// também o escopo de órgão/secretaria do editor.
+		empCandidaturaBloqueios.GET("", middlewares.CandidaturaBloqueioListAuthorization(), vagaAuth, app.EmpCandidaturaBloqueioHandler.List)
 	}
 
 	// Curriculo

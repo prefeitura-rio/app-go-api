@@ -4248,7 +4248,9 @@ paths:
   /api/v1/empregabilidade/candidatura-bloqueios:
     get:
       description: Retorna lista paginada de bloqueios de candidatura, com filtros
-        opcionais. Restrito a administradores.
+        opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade
+        (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria);
+        os demais recebem 403.
       parameters:
       - description: 'Número da página (default: 1)'
         in: query
@@ -4276,6 +4278,12 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
           schema:
             additionalProperties:
               type: string
