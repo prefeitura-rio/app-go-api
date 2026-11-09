@@ -183,3 +183,104 @@ func TestCandidaturaBloqueioHandler_SlugJovemAprendiz(t *testing.T) {
 	require.True(t, ok)
 	assert.JSONEq(t, `["idade_minima","jovem_aprendiz"]`, string(raw))
 }
+
+// Maiores de 18 (idade_minima) e Jovem Aprendiz com o bloqueio ligado não
+// convivem na mesma vaga (DEV-443, PREF-631).
+func TestVagaHandler_Create_IdadeCriterioUnico(t *testing.T) {
+	tests := []struct {
+		name     string
+		body     string
+		wantCode int
+	}{
+		{
+			name:     "Maiores de 18 e Jovem Aprendiz com bloqueio: 400",
+			body:     `{"titulo":"Dev","idade_minima":18,"jovem_aprendiz":true,"criterios_bloqueio":["jovem_aprendiz"]}`,
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name:     "bloqueio repetido não contorna a regra: 400",
+			body:     `{"titulo":"Dev","idade_minima":18,"jovem_aprendiz":true,"criterios_bloqueio":["jovem_aprendiz","jovem_aprendiz"]}`,
+			wantCode: http.StatusBadRequest,
+		},
+		{name: "só Maiores de 18", body: `{"titulo":"Dev","idade_minima":18}`, wantCode: http.StatusCreated},
+		{
+			name:     "só Jovem Aprendiz com bloqueio",
+			body:     `{"titulo":"Dev","jovem_aprendiz":true,"criterios_bloqueio":["jovem_aprendiz"]}`,
+			wantCode: http.StatusCreated,
+		},
+		{
+			name:     "idade_minima null com Jovem Aprendiz e bloqueio",
+			body:     `{"titulo":"Dev","idade_minima":null,"jovem_aprendiz":true,"criterios_bloqueio":["jovem_aprendiz"]}`,
+			wantCode: http.StatusCreated,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			empresaRepo := &mockEmpresaRepoForVaga{entity: &empmodels.Empresa{CNPJ: "12345678000100"}}
+			r := setupVagaRouter(&mockVagaRepoH{}, empresaRepo, false)
+			req := httptest.NewRequest(http.MethodPost, "/vagas", bodyOf(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			require.Equal(t, tt.wantCode, w.Code, w.Body.String())
+			if tt.wantCode == http.StatusBadRequest {
+				assert.Contains(t, w.Body.String(), empmodels.MsgIdadeCriterioUnico)
+			}
+		})
+	}
+}
+
+func TestVagaHandler_Update_IdadeCriterioUnico(t *testing.T) {
+	id := uuid.MustParse(validUUID)
+	marcado, desmarcado := true, false
+	idade18 := 18
+	ligado := []empmodels.CriterioBloqueio{empmodels.CriterioBloqueioJovemAprendiz}
+	tests := []struct {
+		name     string
+		atual    *empmodels.Vaga
+		body     string
+		wantCode int
+	}{
+		{
+			name:     "envia os dois critérios de idade com bloqueio: 400",
+			atual:    &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao, JovemAprendiz: &desmarcado},
+			body:     `{"titulo":"Dev","idade_minima":18,"jovem_aprendiz":true,"criterios_bloqueio":["jovem_aprendiz"]}`,
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name:     "Maiores de 18 numa vaga com Jovem Aprendiz e bloqueio gravados: 400",
+			atual:    &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao, JovemAprendiz: &marcado, CriteriosBloqueio: ligado},
+			body:     `{"titulo":"Dev","idade_minima":18}`,
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name:     "vaga só com Maiores de 18 segue editável",
+			atual:    &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao, JovemAprendiz: &desmarcado, IdadeMinima: &idade18},
+			body:     `{"titulo":"Dev","idade_minima":18}`,
+			wantCode: http.StatusOK,
+		},
+		{
+			name:     "vaga só com Jovem Aprendiz e bloqueio segue editável",
+			atual:    &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao, JovemAprendiz: &marcado, CriteriosBloqueio: ligado},
+			body:     `{"titulo":"Dev"}`,
+			wantCode: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := setupVagaRouter(&mockVagaRepoH{entity: tt.atual}, &mockEmpresaRepoForVaga{}, false)
+			req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID, bodyOf(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			require.Equal(t, tt.wantCode, w.Code, w.Body.String())
+			if tt.wantCode == http.StatusBadRequest {
+				assert.Contains(t, w.Body.String(), empmodels.MsgIdadeCriterioUnico)
+			}
+		})
+	}
+}

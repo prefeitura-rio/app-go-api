@@ -119,16 +119,21 @@ func validarExperienciaCarteira(entity *empregabilidade.Vaga, criterios []empreg
 }
 
 // validarJovemAprendiz deixa a opção Jovem Aprendiz sempre definida (sem ela,
-// desligada) e recusa o bloqueio jovem_aprendiz ligado sem a opção marcada.
-// criterios são os critérios de bloqueio já normalizados que a vaga terá
-// depois da escrita.
+// desligada), recusa o bloqueio jovem_aprendiz ligado sem a opção marcada e
+// recusa Jovem Aprendiz ativo junto de Maiores de 18 (idade_minima): a vaga
+// tem um critério de idade por vez. criterios são os critérios de bloqueio já
+// normalizados que a vaga terá depois da escrita.
 func validarJovemAprendiz(entity *empregabilidade.Vaga, criterios []empregabilidade.CriterioBloqueio) error {
 	if entity.JovemAprendiz == nil {
 		desligado := false
 		entity.JovemAprendiz = &desligado
 	}
-	if !*entity.JovemAprendiz && slices.Contains(criterios, empregabilidade.CriterioBloqueioJovemAprendiz) {
+	bloqueioLigado := slices.Contains(criterios, empregabilidade.CriterioBloqueioJovemAprendiz)
+	if !*entity.JovemAprendiz && bloqueioLigado {
 		return apperrors.Validation(empregabilidade.MsgJovemAprendizObrigatorio)
+	}
+	if *entity.JovemAprendiz && bloqueioLigado && entity.IdadeMinima != nil {
+		return apperrors.Validation(empregabilidade.MsgIdadeCriterioUnico)
 	}
 	return nil
 }
