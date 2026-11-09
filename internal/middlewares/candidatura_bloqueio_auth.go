@@ -18,7 +18,7 @@ import (
 // órgão/secretaria do editor.
 func CandidaturaBloqueioListAuthorization() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if IsAdmin(c) || HasRole(c, "go:empregabilidade:admin") || isEmpEditor(c) {
+		if canGerirCandidaturas(c) {
 			c.Next()
 			return
 		}

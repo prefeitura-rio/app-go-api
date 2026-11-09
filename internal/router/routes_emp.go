@@ -90,20 +90,24 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	}
 
 	// Candidaturas
+	// A gestão (listagem com CPF do candidato, status e etapa) exige perfil de
+	// empregabilidade mesmo com RBAC_ENABLED=false (DEV-435); com o RBAC ligado,
+	// vagaAuth exige também o escopo de órgão/secretaria do editor.
+	candidaturaGestaoAuth := middlewares.CandidaturaGestaoAuthorization()
 	empCandidaturas := emp.Group("/candidaturas")
 	{
 		empCandidaturas.POST("", app.EmpCandidaturaHandler.Create)
-		empCandidaturas.GET("", vagaAuth, app.EmpCandidaturaHandler.List)
-		empCandidaturas.PUT("/bulk-status", vagaAuth, app.EmpCandidaturaHandler.BulkUpdateStatus)
-		empCandidaturas.PUT("/bulk-etapa", vagaAuth, app.EmpCandidaturaHandler.BulkUpdateEtapa)
+		empCandidaturas.GET("", candidaturaGestaoAuth, vagaAuth, app.EmpCandidaturaHandler.List)
+		empCandidaturas.PUT("/bulk-status", candidaturaGestaoAuth, vagaAuth, app.EmpCandidaturaHandler.BulkUpdateStatus)
+		empCandidaturas.PUT("/bulk-etapa", candidaturaGestaoAuth, vagaAuth, app.EmpCandidaturaHandler.BulkUpdateEtapa)
 		empCandidaturas.GET("/usuario/:cpf", app.EmpCandidaturaHandler.ListByCPF)
 		empCandidaturas.GET("/:id", app.EmpCandidaturaHandler.GetByID)
 		empCandidaturas.PUT("/:id", app.EmpCandidaturaHandler.Update)
 		empCandidaturas.DELETE("/:id", app.EmpCandidaturaHandler.Delete)
-		empCandidaturas.PUT("/:id/status", vagaAuth, app.EmpCandidaturaHandler.UpdateStatus)
-		empCandidaturas.PUT("/:id/approve", vagaAuth, app.EmpCandidaturaHandler.Approve)
-		empCandidaturas.PUT("/:id/reject", vagaAuth, app.EmpCandidaturaHandler.Reject)
-		empCandidaturas.PUT("/:id/etapa", vagaAuth, app.EmpCandidaturaHandler.UpdateEtapa)
+		empCandidaturas.PUT("/:id/status", candidaturaGestaoAuth, vagaAuth, app.EmpCandidaturaHandler.UpdateStatus)
+		empCandidaturas.PUT("/:id/approve", candidaturaGestaoAuth, vagaAuth, app.EmpCandidaturaHandler.Approve)
+		empCandidaturas.PUT("/:id/reject", candidaturaGestaoAuth, vagaAuth, app.EmpCandidaturaHandler.Reject)
+		empCandidaturas.PUT("/:id/etapa", candidaturaGestaoAuth, vagaAuth, app.EmpCandidaturaHandler.UpdateEtapa)
 	}
 
 	// Candidatura Bloqueios (tentativas de candidatura bloqueadas por critérios de elegibilidade)
