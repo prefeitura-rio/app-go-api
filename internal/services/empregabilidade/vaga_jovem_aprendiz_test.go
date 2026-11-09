@@ -184,3 +184,159 @@ func TestVagaService_Update_JovemAprendiz(t *testing.T) {
 		})
 	}
 }
+
+// A vaga só tem um critério de idade ativo por vez: Maiores de 18
+// (idade_minima) ou Jovem Aprendiz com o bloqueio ligado, nunca os dois
+// (DEV-443, PREF-631).
+func TestVagaService_Create_IdadeCriterioUnico(t *testing.T) {
+	jovem := empregabilidade.CriterioBloqueioJovemAprendiz
+	idade18 := 18
+	idade16 := 16
+	tests := []struct {
+		name        string
+		criterios   []empregabilidade.CriterioBloqueio
+		enviado     *bool
+		idadeMinima *int
+		wantErr     string
+	}{
+		{
+			name:        "Maiores de 18 com Jovem Aprendiz e bloqueio ligado é recusado",
+			criterios:   criterios(jovem),
+			enviado:     opcaoJovemAprendiz(true),
+			idadeMinima: &idade18,
+			wantErr:     empregabilidade.MsgIdadeCriterioUnico,
+		},
+		{
+			name:        "qualquer idade_minima com Jovem Aprendiz e bloqueio ligado é recusada",
+			criterios:   criterios(jovem),
+			enviado:     opcaoJovemAprendiz(true),
+			idadeMinima: &idade16,
+			wantErr:     empregabilidade.MsgIdadeCriterioUnico,
+		},
+		{name: "só Maiores de 18", idadeMinima: &idade18},
+		{name: "só Jovem Aprendiz com bloqueio ligado", criterios: criterios(jovem), enviado: opcaoJovemAprendiz(true)},
+		{
+			name:        "Maiores de 18 com outro bloqueio ligado",
+			criterios:   criterios(empregabilidade.CriterioBloqueioEscolaridade),
+			idadeMinima: &idade18,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, vagaRepo, _ := newVagaServiceForQtd(cnpjCriteriosBloqueio)
+			vaga := &empregabilidade.Vaga{
+				Titulo:            "Auxiliar administrativo",
+				IDContratante:     cnpjCriteriosBloqueio,
+				CriteriosBloqueio: tt.criterios,
+				JovemAprendiz:     tt.enviado,
+				IdadeMinima:       tt.idadeMinima,
+			}
+
+			id, err := svc.Create(context.Background(), vaga)
+			if tt.wantErr != "" {
+				requireErroValidacao(t, err, tt.wantErr)
+				assert.Equal(t, uuid.Nil, id)
+				assert.Empty(t, vagaRepo.vagas, "vaga inválida não pode ser gravada")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.idadeMinima, vagaRepo.vagas[id].IdadeMinima)
+		})
+	}
+}
+
+func TestVagaService_Update_IdadeCriterioUnico(t *testing.T) {
+	jovem := empregabilidade.CriterioBloqueioJovemAprendiz
+	idade18 := 18
+
+	tests := []struct {
+		name           string
+		atualCriterios []empregabilidade.CriterioBloqueio
+		atual          *bool
+		atualIdade     *int
+		criterios      []empregabilidade.CriterioBloqueio
+		enviado        *bool
+		idadeMinima    *int
+		wantErr        string
+	}{
+		{
+			name:        "envia os dois critérios de idade com o bloqueio ligado: recusado",
+			criterios:   criterios(jovem),
+			enviado:     opcaoJovemAprendiz(true),
+			idadeMinima: &idade18,
+			wantErr:     empregabilidade.MsgIdadeCriterioUnico,
+		},
+		{
+			name:           "envia Maiores de 18 numa vaga com Jovem Aprendiz e bloqueio gravados: recusado",
+			atualCriterios: criterios(jovem),
+			atual:          opcaoJovemAprendiz(true),
+			idadeMinima:    &idade18,
+			wantErr:        empregabilidade.MsgIdadeCriterioUnico,
+		},
+		{
+			name:        "liga o bloqueio com a opção gravada e Maiores de 18 enviado: recusado",
+			atual:       opcaoJovemAprendiz(true),
+			criterios:   criterios(jovem),
+			idadeMinima: &idade18,
+			wantErr:     empregabilidade.MsgIdadeCriterioUnico,
+		},
+		{
+			name:           "troca Jovem Aprendiz por Maiores de 18 desligando o bloqueio",
+			atualCriterios: criterios(jovem),
+			atual:          opcaoJovemAprendiz(true),
+			criterios:      criterios(),
+			enviado:        opcaoJovemAprendiz(false),
+			idadeMinima:    &idade18,
+		},
+		{
+			name:        "troca Maiores de 18 por Jovem Aprendiz sem idade_minima",
+			atualIdade:  &idade18,
+			criterios:   criterios(jovem),
+			enviado:     opcaoJovemAprendiz(true),
+			idadeMinima: nil,
+		},
+		{
+			name:        "vaga existente só com Maiores de 18 segue funcionando",
+			atualIdade:  &idade18,
+			atual:       opcaoJovemAprendiz(false),
+			idadeMinima: &idade18,
+		},
+		{
+			name:           "vaga existente só com Jovem Aprendiz e bloqueio segue funcionando",
+			atualCriterios: criterios(jovem),
+			atual:          opcaoJovemAprendiz(true),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, vagaRepo, _ := newVagaServiceForQtd(cnpjCriteriosBloqueio)
+			vagaID := uuid.New()
+			gravada := &empregabilidade.Vaga{
+				ID:                vagaID,
+				Titulo:            "Auxiliar administrativo",
+				Status:            empregabilidade.StatusVagaEmEdicao,
+				CriteriosBloqueio: tt.atualCriterios,
+				JovemAprendiz:     tt.atual,
+				IdadeMinima:       tt.atualIdade,
+			}
+			vagaRepo.vagas[vagaID] = gravada
+
+			err := svc.Update(context.Background(), &empregabilidade.Vaga{
+				ID:                vagaID,
+				Titulo:            "Auxiliar administrativo II",
+				CriteriosBloqueio: tt.criterios,
+				JovemAprendiz:     tt.enviado,
+				IdadeMinima:       tt.idadeMinima,
+			})
+			if tt.wantErr != "" {
+				requireErroValidacao(t, err, tt.wantErr)
+				assert.Same(t, gravada, vagaRepo.vagas[vagaID], "vaga inválida não pode ser gravada")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.idadeMinima, vagaRepo.vagas[vagaID].IdadeMinima)
+		})
+	}
+}

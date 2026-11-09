@@ -257,6 +257,11 @@ const (
 // opção marcada.
 const MsgJovemAprendizObrigatorio = "Marque a opção Jovem Aprendiz (jovem_aprendiz) para ligar o bloqueio jovem_aprendiz."
 
+// MsgIdadeCriterioUnico é o erro da vaga com os dois critérios de idade ativos
+// ao mesmo tempo (DEV-443): Maiores de 18 (idade_minima) e Jovem Aprendiz com
+// o bloqueio jovem_aprendiz ligado.
+const MsgIdadeCriterioUnico = "Escolha só um critério de idade: Maiores de 18 (idade_minima) ou Jovem Aprendiz (jovem_aprendiz com o bloqueio jovem_aprendiz), não os dois."
+
 // AtendeJovemAprendiz diz se a idade está na faixa de Jovem Aprendiz, com as
 // duas pontas incluídas. Idade desconhecida não atende.
 func AtendeJovemAprendiz(idade *int) bool {
