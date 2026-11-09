@@ -116,6 +116,14 @@ func experienciaCarteiraValue(exigencia *empregabilidade.ExperienciaCarteira) in
 	return string(*exigencia)
 }
 
+// setJovemAprendiz grava a opção Jovem Aprendiz quando a vaga a traz; sem
+// ela, a coluna não entra no UPDATE e o valor gravado fica.
+func setJovemAprendiz(updates map[string]interface{}, jovemAprendiz *bool) {
+	if jovemAprendiz != nil {
+		updates["jovem_aprendiz"] = *jovemAprendiz
+	}
+}
+
 func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
 	updates := map[string]interface{}{
 		"titulo":                           entity.Titulo,
@@ -147,6 +155,7 @@ func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vag
 		return err
 	}
 	updates["criterios_bloqueio"] = criterios
+	setJovemAprendiz(updates, entity.JovemAprendiz)
 
 	result := r.db.WithContext(ctx).
 		Model(&empregabilidade.Vaga{}).
@@ -190,6 +199,7 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			return err
 		}
 		updates["criterios_bloqueio"] = criterios
+		setJovemAprendiz(updates, entity.JovemAprendiz)
 
 		if err := tx.Model(&empregabilidade.Vaga{}).Where("id = ?", entity.ID).Updates(updates).Error; err != nil {
 			return fmt.Errorf("erro ao atualizar vaga: %w", err)

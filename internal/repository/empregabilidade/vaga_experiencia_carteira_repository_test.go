@@ -80,8 +80,8 @@ func TestVagaRepository_Update_ExperienciaCarteira(t *testing.T) {
 	}
 }
 
-// O INSERT grava experiencia_carteira logo antes de criterios_bloqueio, as
-// duas últimas das 27 colunas.
+// O INSERT grava experiencia_carteira logo antes de jovem_aprendiz e de
+// criterios_bloqueio, as três últimas das 28 colunas.
 func TestVagaRepository_Create_ExperienciaCarteira(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -106,14 +106,14 @@ func TestVagaRepository_Create_ExperienciaCarteira(t *testing.T) {
 				ExperienciaCarteira: tt.valor,
 			}
 
-			args := make([]driver.Value, 0, 27)
+			args := make([]driver.Value, 0, 28)
 			for i := 0; i < 25; i++ {
 				args = append(args, sqlmock.AnyArg())
 			}
-			args = append(args, tt.arg, sqlmock.AnyArg())
+			args = append(args, tt.arg, sqlmock.AnyArg(), sqlmock.AnyArg())
 
 			mock.ExpectBegin()
-			mock.ExpectQuery(`INSERT INTO "emp_vagas" \(.*"experiencia_carteira","criterios_bloqueio"\) VALUES .*\$27\)`).
+			mock.ExpectQuery(`INSERT INTO "emp_vagas" \(.*"experiencia_carteira","jovem_aprendiz","criterios_bloqueio"\) VALUES .*\$28\)`).
 				WithArgs(args...).
 				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
 			mock.ExpectCommit()

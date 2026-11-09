@@ -134,6 +134,12 @@ const (
 	// "experiencia_carteira" é também o slug do critério em
 	// CandidaturaBloqueio.CriteriosNaoAtendidos.
 	CriterioBloqueioExperienciaCarteira CriterioBloqueio = "experiencia_carteira"
+	// CriterioBloqueioJovemAprendiz é a opção Jovem Aprendiz da seção Idade
+	// (DEV-428), com a faixa fixa de IdadeMinimaJovemAprendiz a
+	// IdadeMaximaJovemAprendiz anos. "jovem_aprendiz" é também o slug do
+	// critério em CandidaturaBloqueio.CriteriosNaoAtendidos. A opção Maiores de
+	// 18 continua sendo Vaga.IdadeMinima, com o slug "idade_minima".
+	CriterioBloqueioJovemAprendiz CriterioBloqueio = "jovem_aprendiz"
 )
 
 // criteriosBloqueioConhecidos são os critérios aceitos, na ordem em que são
@@ -143,6 +149,7 @@ var criteriosBloqueioConhecidos = []CriterioBloqueio{
 	CriterioBloqueioIdioma,
 	CriterioBloqueioPCD,
 	CriterioBloqueioExperienciaCarteira,
+	CriterioBloqueioJovemAprendiz,
 }
 
 func (c CriterioBloqueio) IsValid() bool {
@@ -238,6 +245,30 @@ func (e ExperienciaCarteira) Requisito() string {
 	return "Experiência comprovada em carteira"
 }
 
+// Faixa fixa da opção Jovem Aprendiz da seção Idade (DEV-428, história
+// PREF-634), sem campo livre de número: a vaga só marca a opção
+// (Vaga.JovemAprendiz).
+const (
+	IdadeMinimaJovemAprendiz = 14
+	IdadeMaximaJovemAprendiz = 24
+)
+
+// MsgJovemAprendizObrigatorio é o erro do bloqueio Jovem Aprendiz ligado sem a
+// opção marcada.
+const MsgJovemAprendizObrigatorio = "Marque a opção Jovem Aprendiz (jovem_aprendiz) para ligar o bloqueio jovem_aprendiz."
+
+// AtendeJovemAprendiz diz se a idade está na faixa de Jovem Aprendiz, com as
+// duas pontas incluídas. Idade desconhecida não atende.
+func AtendeJovemAprendiz(idade *int) bool {
+	return idade != nil && *idade >= IdadeMinimaJovemAprendiz && *idade <= IdadeMaximaJovemAprendiz
+}
+
+// RequisitoJovemAprendiz é o texto do requisito, como aparece na lista do que
+// o candidato não atende.
+func RequisitoJovemAprendiz() string {
+	return fmt.Sprintf("Jovem Aprendiz — ter entre %d e %d anos", IdadeMinimaJovemAprendiz, IdadeMaximaJovemAprendiz)
+}
+
 type Vaga struct {
 	ID                             uuid.UUID          `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Titulo                         string             `json:"titulo" gorm:"type:varchar(500);not null"`
@@ -274,6 +305,12 @@ type Vaga struct {
 	// obrigatório. No PUT, o campo ausente (ou null) mantém o valor gravado e
 	// "" remove a exigência.
 	ExperienciaCarteira *ExperienciaCarteira `json:"experiencia_carteira" gorm:"type:varchar(20)" swaggertype:"string" enums:"qualquer_tempo,minimo_6_meses" extensions:"x-nullable"`
+	// JovemAprendiz é a opção Jovem Aprendiz da seção Idade: faixa fixa de 14
+	// a 24 anos, sem número livre (a opção Maiores de 18 é IdadeMinima).
+	// Sempre devolvido; vaga nova sem o campo, e toda vaga anterior a ele,
+	// fica desligada. Com a chave jovem_aprendiz em criterios_bloqueio precisa
+	// ser true. No PUT, o campo ausente (ou null) mantém o valor gravado.
+	JovemAprendiz *bool `json:"jovem_aprendiz" gorm:"type:boolean;not null" swaggertype:"boolean" example:"false"`
 	// CriteriosBloqueio lista os critérios com bloqueio de candidatura ligado;
 	// os ausentes estão desligados. Sempre devolvido ([] quando nenhum). No
 	// PUT, o campo ausente mantém o estado gravado e [] desliga todos.
@@ -308,6 +345,7 @@ func (v *Vaga) AfterFind(_ *gorm.DB) error {
 	if v.OpcaoPCD == "" {
 		v.OpcaoPCD = OpcaoPCDAberta
 	}
+	v.desligaJovemAprendizSemValor()
 	return nil
 }
 
@@ -315,7 +353,17 @@ func (v *Vaga) BeforeCreate(_ *gorm.DB) error {
 	if v.OpcaoPCD == "" {
 		v.OpcaoPCD = OpcaoPCDAberta
 	}
+	v.desligaJovemAprendizSemValor()
 	return nil
+}
+
+// desligaJovemAprendizSemValor deixa a opção Jovem Aprendiz desligada quando a
+// vaga não a traz: o padrão de toda vaga.
+func (v *Vaga) desligaJovemAprendizSemValor() {
+	if v.JovemAprendiz == nil {
+		desligado := false
+		v.JovemAprendiz = &desligado
+	}
 }
 
 type VagaFilter struct {

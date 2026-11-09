@@ -54,6 +54,7 @@ func NewVagaHandler(service *services.VagaService) *VagaHandler {
 // @Description  Cria uma nova vaga
 // @Description  PcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.". O bloqueio de candidatura PcD é a chave "pcd" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.
 // @Description  Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou "" = sem exigência). O bloqueio de candidatura é a chave "experiencia_carteira" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.
+// @Description  Idade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave "jovem_aprendiz" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400.
 // @Tags         empregabilidade-vagas
 // @Accept       json
 // @Produce      json
@@ -212,6 +213,7 @@ func (h *VagaHandler) GetByID(c *gin.Context) {
 // @Description  Atualiza uma vaga existente
 // @Description  PcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.".
 // @Description  Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e "" remove a exigência; com a chave "experiencia_carteira" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.
+// @Description  Idade: jovem_aprendiz (Jovem Aprendiz, faixa fixa de 14 a 24 anos) ausente ou null mantém o valor gravado; com a chave "jovem_aprendiz" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem jovem_aprendiz true retorna 400. Maiores de 18 segue em idade_minima.
 // @Tags         empregabilidade-vagas
 // @Accept       json
 // @Produce      json
