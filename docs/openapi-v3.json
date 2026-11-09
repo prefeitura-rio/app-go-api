@@ -3243,7 +3243,7 @@
         ]
       },
       "post": {
-        "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.\ncriterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima, escolaridade, idioma, pcd (vaga exclusiva para PcD) e experiencia_carteira (experiência em carteira exigida pela vaga).\nPara o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.",
+        "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.\ncriterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima (Maiores de 18 / idade mínima), escolaridade, idioma, pcd (vaga exclusiva para PcD), experiencia_carteira (experiência em carteira exigida pela vaga) e jovem_aprendiz (fora da faixa de 14 a 24 anos da vaga Jovem Aprendiz).\nPara o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.",
         "tags": [
           "empregabilidade-candidatura-bloqueios"
         ],
@@ -12456,7 +12456,7 @@
         ]
       },
       "post": {
-        "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.",
+        "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400.",
         "tags": [
           "empregabilidade-vagas"
         ],
@@ -12511,7 +12511,7 @@
     },
     "/api/v1/empregabilidade/vagas/draft": {
       "post": {
-        "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.",
+        "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400.",
         "tags": [
           "empregabilidade-vagas"
         ],
@@ -12653,7 +12653,7 @@
         ]
       },
       "put": {
-        "description": "Atualiza uma vaga existente\nPcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\".\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e \"\" remove a exigência; com a chave \"experiencia_carteira\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.",
+        "description": "Atualiza uma vaga existente\nPcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\".\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e \"\" remove a exigência; com a chave \"experiencia_carteira\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.\nIdade: jovem_aprendiz (Jovem Aprendiz, faixa fixa de 14 a 24 anos) ausente ou null mantém o valor gravado; com a chave \"jovem_aprendiz\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem jovem_aprendiz true retorna 400. Maiores de 18 segue em idade_minima.",
         "tags": [
           "empregabilidade-vagas"
         ],
@@ -17612,13 +17612,15 @@
           "escolaridade",
           "idioma",
           "pcd",
-          "experiencia_carteira"
+          "experiencia_carteira",
+          "jovem_aprendiz"
         ],
         "x-enum-varnames": [
           "CriterioBloqueioEscolaridade",
           "CriterioBloqueioIdioma",
           "CriterioBloqueioPCD",
-          "CriterioBloqueioExperienciaCarteira"
+          "CriterioBloqueioExperienciaCarteira",
+          "CriterioBloqueioJovemAprendiz"
         ]
       },
       "empregabilidade.CurriculoCompleto": {
@@ -18619,6 +18621,11 @@
             "items": {
               "$ref": "#/components/schemas/empregabilidade.InformacaoComplementar"
             }
+          },
+          "jovem_aprendiz": {
+            "description": "JovemAprendiz é a opção Jovem Aprendiz da seção Idade: faixa fixa de 14\na 24 anos, sem número livre (a opção Maiores de 18 é IdadeMinima).\nSempre devolvido; vaga nova sem o campo, e toda vaga anterior a ele,\nfica desligada. Com a chave jovem_aprendiz em criterios_bloqueio precisa\nser true. No PUT, o campo ausente (ou null) mantém o valor gravado.",
+            "type": "boolean",
+            "example": false
           },
           "modelo_trabalho": {
             "$ref": "#/components/schemas/empregabilidade.ModeloTrabalho"
