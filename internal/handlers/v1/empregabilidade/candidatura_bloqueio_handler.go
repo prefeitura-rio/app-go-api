@@ -79,7 +79,7 @@ func (h *CandidaturaBloqueioHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Listar bloqueios de candidatura (admin)
-// @Description  Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a administradores.
+// @Description  Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria); os demais recebem 403.
 // @Tags         empregabilidade-candidatura-bloqueios
 // @Produce      json
 // @Param        page      query     int     false  "Número da página (default: 1)"
@@ -88,6 +88,7 @@ func (h *CandidaturaBloqueioHandler) Create(c *gin.Context) {
 // @Param        id_vaga   query     string  false  "Filtrar por ID da vaga"
 // @Success      200       {object}  map[string]interface{}
 // @Failure      400       {object}  map[string]string
+// @Failure      403       {object}  map[string]string
 // @Failure      500       {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidatura-bloqueios [get]
 func (h *CandidaturaBloqueioHandler) List(c *gin.Context) {
