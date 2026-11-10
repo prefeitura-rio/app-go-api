@@ -2894,6 +2894,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/models.OportunidadeMEIListResponse'
+        "403":
+          description: Sem perfil de gestão MEI
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -10704,6 +10708,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/models.OportunidadeMEIListResponse'
+        "403":
+          description: Sem perfil de gestão MEI
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -10733,6 +10741,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Sem perfil de gestão MEI
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -10758,6 +10770,10 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Sem perfil de gestão MEI
           schema:
             $ref: '#/definitions/models.ErrorResponse'
         "500":
@@ -10825,6 +10841,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Sem perfil de gestão MEI
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -10868,6 +10888,10 @@ paths:
           description: OK
           schema:
             type: object
+        "403":
+          description: Acesso negado
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -11094,6 +11118,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Acesso negado
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -11130,6 +11158,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Acesso negado
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -11155,6 +11187,10 @@ paths:
             $ref: '#/definitions/models.OportunidadeMEI'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Sem perfil de gestão MEI
           schema:
             $ref: '#/definitions/models.ErrorResponse'
         "404":
@@ -11191,6 +11227,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Sem perfil de gestão MEI
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -11225,6 +11265,10 @@ paths:
           description: OK
           schema:
             type: object
+        "403":
+          description: Sem perfil de gestão MEI
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -11258,6 +11302,10 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Acesso negado
           schema:
             $ref: '#/definitions/models.ErrorResponse'
         "500":

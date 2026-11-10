@@ -618,6 +618,10 @@ func TestOportunidadeMEIHandler_List_WithStatusFilter(t *testing.T) {
 	handler := v1.NewOportunidadeMEIHandler(mockService)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_roles", []string{"go:empregabilidade:editor"})
+		c.Next()
+	})
 	r.GET("/api/v1/oportunidades-mei", handler.List)
 
 	drafts := []*models.OportunidadeMEI{

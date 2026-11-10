@@ -77,12 +77,12 @@ func setupRouterForListTests(service *mockPropostaMEIServiceForList) *gin.Engine
 	api := r.Group("/api/v1/oportunidades-mei/:id/propostas")
 	api.Use(mockUserContext)
 	{
-		api.GET("", handler.List)
+		api.GET("", meiGestorContext, handler.List)
 		api.GET("/:propostaId", handler.GetByID)
 	}
 
 	// Additional route for ListByMEIEmpresa
-	r.GET("/api/v1/propostas-mei/por-empresa", handler.ListByMEIEmpresa)
+	r.GET("/api/v1/propostas-mei/por-empresa", mockUserContext, meiGestorContext, handler.ListByMEIEmpresa)
 
 	return r
 }
