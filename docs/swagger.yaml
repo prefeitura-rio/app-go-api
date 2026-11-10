@@ -10377,6 +10377,177 @@ paths:
       summary: Atualizar emprego
       tags:
       - empregos
+  /api/v1/empresas:
+    get:
+      description: Retorna lista paginada de empresas
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/models.Empresa'
+                type: array
+              meta:
+                properties:
+                  page:
+                    type: integer
+                  page_size:
+                    type: integer
+                  total:
+                    type: integer
+                type: object
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar empresas
+      tags:
+      - empresas
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova empresa
+      parameters:
+      - description: Dados da empresa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Empresa'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Empresa'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar empresa
+      tags:
+      - empresas
+  /api/v1/empresas/{id}:
+    delete:
+      description: Remove uma empresa pelo ID
+      parameters:
+      - description: ID da empresa
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir empresa
+      tags:
+      - empresas
+    get:
+      description: Retorna uma empresa pelo ID
+      parameters:
+      - description: ID da empresa
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Empresa'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Buscar empresa
+      tags:
+      - empresas
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma empresa existente
+      parameters:
+      - description: ID da empresa
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da empresa
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Empresa'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Empresa'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar empresa
+      tags:
+      - empresas
   /api/v1/enrollments/{enrollmentId}/schedule:
     put:
       consumes:
@@ -10639,6 +10810,177 @@ paths:
       summary: Atualizar escolaridade
       tags:
       - escolaridades
+  /api/v1/instituicoes:
+    get:
+      description: Retorna lista paginada de instituições de ensino
+      parameters:
+      - description: 'Número da página (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Tamanho da página (default: 10)'
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/models.InstituicaoEnsino'
+                type: array
+              meta:
+                properties:
+                  page:
+                    type: integer
+                  page_size:
+                    type: integer
+                  total:
+                    type: integer
+                type: object
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Listar instituições de ensino
+      tags:
+      - instituicoes
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova instituição de ensino
+      parameters:
+      - description: Dados da instituição de ensino
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InstituicaoEnsino'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.InstituicaoEnsino'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Criar instituição de ensino
+      tags:
+      - instituicoes
+  /api/v1/instituicoes/{id}:
+    delete:
+      description: Remove uma instituição de ensino pelo ID
+      parameters:
+      - description: ID da instituição de ensino
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Excluir instituição de ensino
+      tags:
+      - instituicoes
+    get:
+      description: Retorna uma instituição de ensino pelo ID
+      parameters:
+      - description: ID da instituição de ensino
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.InstituicaoEnsino'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Buscar instituição de ensino
+      tags:
+      - instituicoes
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma instituição de ensino existente
+      parameters:
+      - description: ID da instituição de ensino
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados da instituição de ensino
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InstituicaoEnsino'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.InstituicaoEnsino'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Atualizar instituição de ensino
+      tags:
+      - instituicoes
   /api/v1/jobs/{jobId}/status:
     get:
       description: 'Retorna o status e progresso de um job em execução ou concluído.
