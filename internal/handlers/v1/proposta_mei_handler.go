@@ -11,6 +11,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/authorization"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -215,6 +216,7 @@ func (h *PropostaMEIHandler) Update(c *gin.Context) {
 // @Param        request         body      models.PropostaStatusUpdateRequest      true  "Dados para atualização"
 // @Success      200             {object}  models.PropostaStatusUpdateResponse
 // @Failure      400             {object}  models.ErrorResponse
+// @Failure      403             {object}  models.ErrorResponse "Acesso negado"
 // @Failure      500             {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{id}/propostas/status [put]
 func (h *PropostaMEIHandler) UpdateStatusBulk(c *gin.Context) {
@@ -263,6 +265,7 @@ func (h *PropostaMEIHandler) UpdateStatusBulk(c *gin.Context) {
 // @Param        request         body      object  true  "Status: {\"status\": \"approved\" | \"rejected\"}"
 // @Success      200             {object}  models.PropostaMEI
 // @Failure      400             {object}  models.ErrorResponse
+// @Failure      403             {object}  models.ErrorResponse "Acesso negado"
 // @Failure      500             {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{id}/propostas/{propostaId}/status [put]
 func (h *PropostaMEIHandler) UpdateStatus(c *gin.Context) {
@@ -368,6 +371,7 @@ func (h *PropostaMEIHandler) Delete(c *gin.Context) {
 // @Param        cnpj            query     string  false  "Buscar por CNPJ"
 // @Param        status          query     string  false  "Filtrar por status (submitted, approved, rejected)"
 // @Success      200             {object}  object
+// @Failure      403             {object}  models.ErrorResponse "Acesso negado"
 // @Failure      500             {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{id}/propostas [get]
 func (h *PropostaMEIHandler) List(c *gin.Context) {
@@ -389,6 +393,11 @@ func (h *PropostaMEIHandler) List(c *gin.Context) {
 
 	if pageSize < 1 || pageSize > 1000 {
 		pageSize = 10
+	}
+
+	if !middlewares.CanGerirMEI(c) && !h.hasReadPermission(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você não tem permissão para listar as propostas desta oportunidade"})
+		return
 	}
 
 	propostas, total, err := h.service.ListByOportunidade(c.Request.Context(), oportunidadeID, nomeEmpresa, cnpj, status, page, pageSize)
@@ -416,6 +425,7 @@ func (h *PropostaMEIHandler) List(c *gin.Context) {
 // @Param        pageSize      query     int     false  "Tamanho da página (default: 10, max: 1000)"
 // @Success      200           {object}  object
 // @Failure      400           {object}  models.ErrorResponse
+// @Failure      403           {object}  models.ErrorResponse "Acesso negado"
 // @Failure      500           {object}  models.ErrorResponse
 // @Router       /api/v1/propostas-mei/por-empresa [get]
 func (h *PropostaMEIHandler) ListByMEIEmpresa(c *gin.Context) {
@@ -423,6 +433,20 @@ func (h *PropostaMEIHandler) ListByMEIEmpresa(c *gin.Context) {
 	if meiEmpresaID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "CNPJ da MEI empresa não fornecido"})
 		return
+	}
+
+	if !middlewares.CanGerirMEI(c) {
+		if err := authorization.RequireCNPJOwnershipOrAnyPermission(
+			c,
+			h.authChecker,
+			h.cnaeValidationSvc,
+			meiEmpresaID,
+			"proposta_mei",
+			h.config.PropostaMEI.ReadPermissions,
+		); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: você não tem permissão para listar as propostas desta empresa"})
+			return
+		}
 	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -450,4 +474,10 @@ func (h *PropostaMEIHandler) ListByMEIEmpresa(c *gin.Context) {
 			"total":     total,
 		},
 	})
+}
+
+// hasReadPermission reporta se o Cerbos concede ao chamador uma das
+// ReadPermissions de proposta MEI; com o Cerbos desligado, nunca concede.
+func (h *PropostaMEIHandler) hasReadPermission(c *gin.Context) bool {
+	return authorization.RequireAnyPermission(c, h.authChecker, "proposta_mei", h.config.PropostaMEI.ReadPermissions) == nil
 }
