@@ -417,6 +417,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.OportunidadeMEIListResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -12067,6 +12073,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.OportunidadeMEIListResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -12107,6 +12119,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12153,6 +12171,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12207,6 +12231,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "object"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "500": {
@@ -12307,6 +12337,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -12342,6 +12378,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12409,6 +12451,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "object"
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "500": {
@@ -12536,6 +12584,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12795,6 +12849,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Acesso negado",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -12832,6 +12892,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12891,6 +12957,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
