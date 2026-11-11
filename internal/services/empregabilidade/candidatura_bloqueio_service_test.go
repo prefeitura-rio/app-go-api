@@ -16,6 +16,10 @@ type mockCandidaturaBloqueioRepository struct {
 	total     int
 	createErr error
 	listErr   error
+	// Argumentos recebidos na última chamada a List.
+	gotOrgaoIDs []string
+	gotLimit    int
+	gotOffset   int
 }
 
 func (m *mockCandidaturaBloqueioRepository) Create(ctx context.Context, entity *empregabilidade.CandidaturaBloqueio) (uuid.UUID, error) {
@@ -25,7 +29,10 @@ func (m *mockCandidaturaBloqueioRepository) Create(ctx context.Context, entity *
 	return uuid.New(), nil
 }
 
-func (m *mockCandidaturaBloqueioRepository) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.CandidaturaBloqueio, int, error) {
+func (m *mockCandidaturaBloqueioRepository) List(ctx context.Context, filter map[string]interface{}, orgaoParceiroIDs []string, limit, offset int) ([]*empregabilidade.CandidaturaBloqueio, int, error) {
+	m.gotOrgaoIDs = orgaoParceiroIDs
+	m.gotLimit = limit
+	m.gotOffset = offset
 	if m.listErr != nil {
 		return nil, 0, m.listErr
 	}
@@ -105,7 +112,7 @@ func TestCandidaturaBloqueioService_List(t *testing.T) {
 	mockRepo := &mockCandidaturaBloqueioRepository{items: mockItems, total: 2}
 	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo, vagaExistente())
 
-	items, total, err := service.List(context.Background(), nil, 1, 10)
+	items, total, err := service.List(context.Background(), nil, nil, 1, 10)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, total)
@@ -116,9 +123,23 @@ func TestCandidaturaBloqueioService_List_RepoError(t *testing.T) {
 	mockRepo := &mockCandidaturaBloqueioRepository{listErr: errors.New("db error")}
 	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo, vagaExistente())
 
-	items, total, err := service.List(context.Background(), nil, 1, 10)
+	items, total, err := service.List(context.Background(), nil, nil, 1, 10)
 
 	assert.Error(t, err)
 	assert.Equal(t, 0, total)
 	assert.Nil(t, items)
+}
+
+func TestCandidaturaBloqueioService_List_RepassaEscopoDeOrgao(t *testing.T) {
+	// DEV-518: o escopo de órgão parceiro do editor chega intacto ao
+	// repositório, com a paginação convertida em limit/offset.
+	mockRepo := &mockCandidaturaBloqueioRepository{}
+	service := services.NewCandidaturaBloqueioServiceWithInterface(mockRepo, vagaExistente())
+
+	_, _, err := service.List(context.Background(), nil, []string{"1", "2600"}, 3, 20)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"1", "2600"}, mockRepo.gotOrgaoIDs)
+	assert.Equal(t, 20, mockRepo.gotLimit)
+	assert.Equal(t, 40, mockRepo.gotOffset)
 }
