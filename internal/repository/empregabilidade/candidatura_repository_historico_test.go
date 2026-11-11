@@ -4,12 +4,16 @@ import (
 	"context"
 	"database/sql/driver"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
@@ -691,4 +695,39 @@ func TestCandidaturaRepository_Delete(t *testing.T) {
 		assert.Contains(t, err.Error(), "erro ao excluir candidatura")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+}
+
+// A edição genérica (PUT /candidaturas/:id) não regrava status nem etapa: uma
+// transição concorrente não é desfeita sem evento no histórico.
+func TestCandidaturaRepository_Update_NaoRegravaStatusNemEtapa(t *testing.T) {
+	var sqlUpdate string
+	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherFunc(func(_, actual string) error {
+		if strings.HasPrefix(actual, `UPDATE "emp_candidaturas"`) {
+			sqlUpdate = actual
+		}
+		return nil
+	})))
+	require.NoError(t, err)
+	defer sqlDB.Close()
+	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	require.NoError(t, err)
+
+	etapa := uuid.New()
+	nome := "Pessoa Sintética"
+	candidatura := &empregabilidade.Candidatura{
+		ID: uuid.New(), CPF: cpfSintetico, Nome: &nome, IDVaga: uuid.New(),
+		Status: empregabilidade.StatusCandidaturaEnviada, IDEtapaAtual: &etapa,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE`).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	require.NoError(t, NewCandidaturaRepository(db).Update(context.Background(), candidatura))
+	require.NoError(t, mock.ExpectationsWereMet())
+	require.NotEmpty(t, sqlUpdate)
+	assert.Contains(t, sqlUpdate, `"nome"=`)
+	assert.NotContains(t, sqlUpdate, `"status"=`)
+	assert.NotContains(t, sqlUpdate, `"status_anterior"=`)
+	assert.NotContains(t, sqlUpdate, `"id_etapa_atual"=`)
 }

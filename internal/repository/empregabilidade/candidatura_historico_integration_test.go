@@ -212,6 +212,19 @@ func TestCandidaturaHistoricoIntegration(t *testing.T) {
 		assert.Nil(t, eventos[5].IDEtapaNova)
 	})
 
+	t.Run("edição genérica com status velho não desfaz a transição", func(t *testing.T) {
+		velha := *nova
+		velha.Status = empregabilidade.StatusCandidaturaEnviada
+		velha.IDEtapaAtual = &triagem
+		velha.Vaga, velha.EtapaAtual = nil, nil
+		require.NoError(t, repo.Update(operador, &velha))
+
+		var status string
+		require.NoError(t, tx.Raw(`SELECT status FROM emp_candidaturas WHERE id = ?`, nova.ID).Scan(&status).Error)
+		assert.Equal(t, string(empregabilidade.StatusCandidaturaReprovada), status)
+		assert.Len(t, eventosDaCandidatura(t, tx, nova.ID), 11, "a edição genérica não gera evento")
+	})
+
 	t.Run("o histórico não pode ser editado nem apagado", func(t *testing.T) {
 		for _, comando := range []string{
 			`UPDATE emp_candidatura_historico SET ator = 'operador' WHERE id_vaga = ?`,

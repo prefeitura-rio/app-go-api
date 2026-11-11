@@ -108,8 +108,10 @@ migration, quem administra o Airbyte e o banco:
 2. Garante a leitura ao Airbyte: `GRANT SELECT ON public.emp_candidatura_historico TO airbyte_cdc;`
 3. Na conexão do banco `go` para o destino BigQuery `brutos_go`, atualiza o schema da fonte
    (*Refresh source schema*), ativa o stream `emp_candidatura_historico` com modo
-   **Incremental | Append** (chave primária `id`; cursor `id` quando a conexão não é CDC) e aceita
-   a coluna nova `tipo_etapa` do stream `emp_etapas`.
+   **Incremental | Append** pela replicação lógica (CDC, chave primária `id`) e aceita a coluna
+   nova `tipo_etapa` do stream `emp_etapas`. Sem CDC, use **Full Refresh | Overwrite**: um cursor
+   em `id` ou `created_at` pode pular eventos, porque o valor é atribuído antes do commit e as
+   transações terminam fora de ordem.
 4. Roda uma sincronização e confere a tabela `brutos_go.emp_candidatura_historico` no BigQuery.
 
-Como a tabela é só de inclusão, o modo Append não perde nem duplica eventos.
+Como a tabela é só de inclusão, o CDC em modo Append entrega cada evento uma vez, na ordem de commit.

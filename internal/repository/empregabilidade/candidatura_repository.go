@@ -69,8 +69,11 @@ func (r *CandidaturaRepository) GetByID(ctx context.Context, id uuid.UUID) (*emp
 	return &entity, nil
 }
 
+// Update grava a edição genérica da candidatura. Status e etapa ficam de fora:
+// só mudam pelas transições, que registram o histórico; regravá-los aqui
+// desfaria uma transição concorrente sem evento.
 func (r *CandidaturaRepository) Update(ctx context.Context, entity *empregabilidade.Candidatura) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("status", "status_anterior", "id_etapa_atual").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar candidatura: %w", result.Error)
 	}
