@@ -534,6 +534,12 @@ definitions:
         type: string
       ordem:
         type: integer
+      tipo_etapa:
+        description: |-
+          TipoEtapa classifica a etapa (código livre definido pela gestão) para
+          comparar o funil do histórico de candidaturas entre vagas. Opcional:
+          ausente (ou vazio) numa atualização mantém o valor gravado.
+        type: string
       titulo:
         type: string
       updated_at:

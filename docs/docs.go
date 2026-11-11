@@ -14082,6 +14082,10 @@ const docTemplate = `{
                 "ordem": {
                     "type": "integer"
                 },
+                "tipo_etapa": {
+                    "description": "TipoEtapa classifica a etapa (código livre definido pela gestão) para\ncomparar o funil do histórico de candidaturas entre vagas. Opcional:\nausente (ou vazio) numa atualização mantém o valor gravado.",
+                    "type": "string"
+                },
                 "titulo": {
                     "type": "string"
                 },
