@@ -183,12 +183,18 @@ func (r *CandidaturaRepository) BulkUpdateStatus(ctx context.Context, vagaID uui
 
 		var updateIDs []uuid.UUID
 		var eventos []empregabilidade.CandidaturaHistorico
+		// CPF repetido no pedido é a mesma candidatura: um só evento.
+		vistas := make(map[uuid.UUID]struct{}, len(estados))
 		for _, cpf := range cpfs {
 			estado, found := porCPF[cpf]
 			if !found {
 				result.FailedCPFs = append(result.FailedCPFs, cpf)
 				continue
 			}
+			if _, repetida := vistas[estado.ID]; repetida {
+				continue
+			}
+			vistas[estado.ID] = struct{}{}
 			updateIDs = append(updateIDs, estado.ID)
 			if estado.Status != status {
 				eventos = append(eventos, eventoStatus(estado, status, origem))

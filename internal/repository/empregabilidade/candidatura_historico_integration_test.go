@@ -167,7 +167,7 @@ func TestCandidaturaHistoricoIntegration(t *testing.T) {
 	})
 
 	t.Run("status em lote e etapa em lote", func(t *testing.T) {
-		resultado, err := repo.BulkUpdateStatus(operador, vaga, []string{cpfNovo, cpfAntigo}, empregabilidade.StatusCandidaturaReprovada)
+		resultado, err := repo.BulkUpdateStatus(operador, vaga, []string{cpfNovo, cpfAntigo, cpfNovo}, empregabilidade.StatusCandidaturaReprovada)
 		require.NoError(t, err)
 		assert.Equal(t, 2, resultado.Updated)
 		require.NoError(t, repo.BulkUpdateEtapa(operador, []uuid.UUID{nova.ID, antiga}, entrevista))

@@ -440,6 +440,29 @@ func TestCandidaturaRepository_BulkUpdateStatus(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	t.Run("CPF repetido no pedido gera um só evento", func(t *testing.T) {
+		vagaID := uuid.New()
+		id := uuid.New()
+
+		mock.ExpectBegin()
+		mock.ExpectQuery(sqlTravaCandidaturas).
+			WillReturnRows(linhasEstado(estadoTeste{id: id, vaga: vagaID, cpf: cpfSintetico, status: empregabilidade.StatusCandidaturaEnviada}))
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "emp_candidaturas"`)).
+			WithArgs(string(empregabilidade.StatusCandidaturaAprovada), sqlmock.AnyArg(), id.String()).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		esperarEventos(mock, eventoEsperado{
+			candidatura: id, vaga: vagaID, tipo: empregabilidade.EventoCandidaturaAprovada, ator: empregabilidade.AtorOperador,
+			statusAnterior: string(empregabilidade.StatusCandidaturaEnviada), statusNovo: empregabilidade.StatusCandidaturaAprovada,
+		})
+		mock.ExpectCommit()
+
+		result, err := repo.BulkUpdateStatus(context.Background(), vagaID, []string{cpfSintetico, cpfSintetico}, empregabilidade.StatusCandidaturaAprovada)
+		require.NoError(t, err)
+		assert.Equal(t, 1, result.Updated)
+		assert.Empty(t, result.FailedCPFs)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("bulk update some cpfs not found", func(t *testing.T) {
 		vagaID := uuid.New()
 		cpf1, cpf2, cpf3 := cpfSintetico, "98765432100", "11111111111"
