@@ -82,4 +82,8 @@ type CandidaturaFilter struct {
 	EtapaID *uuid.UUID // filtro por etapa atual
 	// Candidato são os filtros avançados de candidatos, os mesmos do banco de currículos.
 	Candidato FiltroCandidato
+	// OrgaoParceiroIDs restringe às candidaturas de vagas desses órgãos parceiros
+	// (escopo do editor, injetado por VagaListFilter). nil não restringe; lista
+	// vazia não devolve nenhuma candidatura.
+	OrgaoParceiroIDs []string
 }

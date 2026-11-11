@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
@@ -72,7 +73,7 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Listar candidaturas (admin)
-// @Description  Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores.
+// @Description  Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores e editores de empregabilidade; com o RBAC ligado, o editor só vê candidaturas de vagas dos órgãos do seu escopo.
 // @Tags         empregabilidade-candidaturas
 // @Produce      json
 // @Param        page      query     int     false  "Número da página (default: 1)"
@@ -115,10 +116,11 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 	}
 
 	filter := empregabilidade.CandidaturaFilter{
-		Status:    c.Query("status"),
-		CPF:       c.Query("cpf"),
-		Search:    c.Query("search"),
-		Candidato: candidato,
+		Status:           c.Query("status"),
+		CPF:              c.Query("cpf"),
+		Search:           c.Query("search"),
+		Candidato:        candidato,
+		OrgaoParceiroIDs: middlewares.GetVagaOrgaoParceiroIDs(c),
 	}
 
 	if raw := c.Query("vagaId"); raw != "" {
@@ -168,7 +170,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 }
 
 // @Summary      Listar candidaturas por CPF
-// @Description  Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF.
+// @Description  Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF; com o RBAC ligado, o editor de empregabilidade que consulta outro CPF só vê candidaturas de vagas dos órgãos do seu escopo.
 // @Tags         empregabilidade-candidaturas
 // @Produce      json
 // @Param        cpf       path      string  true   "CPF do usuário"
@@ -209,6 +211,11 @@ func (h *CandidaturaHandler) ListByCPF(c *gin.Context) {
 	filter := empregabilidade.CandidaturaFilter{
 		CPF:    cpf,
 		Status: c.Query("status"),
+	}
+	// O próprio cidadão vê todas as suas candidaturas; quem consulta o CPF de
+	// outra pessoa fica restrito às vagas do seu escopo de órgão (DEV-517).
+	if middlewares.GetUserCPF(c) != cpf {
+		filter.OrgaoParceiroIDs = middlewares.GetVagaOrgaoParceiroIDs(c)
 	}
 
 	if raw := c.Query("vagaId"); raw != "" {
@@ -410,6 +417,10 @@ func (h *CandidaturaHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	if !h.exigirCandidaturaNoEscopo(c, id) {
+		return
+	}
+
 	if err := h.service.UpdateStatus(c.Request.Context(), id, request.Status); err != nil {
 		response.RespondError(c, err)
 		return
@@ -435,6 +446,10 @@ func (h *CandidaturaHandler) Approve(c *gin.Context) {
 		return
 	}
 
+	if !h.exigirCandidaturaNoEscopo(c, id) {
+		return
+	}
+
 	if err := h.service.Approve(c.Request.Context(), id); err != nil {
 		response.RespondError(c, err)
 		return
@@ -457,6 +472,10 @@ func (h *CandidaturaHandler) Reject(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if !h.exigirCandidaturaNoEscopo(c, id) {
 		return
 	}
 
@@ -489,6 +508,10 @@ func (h *CandidaturaHandler) BulkUpdateStatus(c *gin.Context) {
 	var request BulkUpdateStatusRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if !h.exigirVagaNoEscopo(c, request.VagaID) {
 		return
 	}
 
@@ -526,6 +549,10 @@ func (h *CandidaturaHandler) BulkUpdateEtapa(c *gin.Context) {
 	var request BulkUpdateEtapaRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if !h.exigirVagaNoEscopo(c, request.VagaID) {
 		return
 	}
 
@@ -570,10 +597,66 @@ func (h *CandidaturaHandler) UpdateEtapa(c *gin.Context) {
 		return
 	}
 
+	if !h.exigirCandidaturaNoEscopo(c, id) {
+		return
+	}
+
 	if err := h.service.UpdateEtapa(c.Request.Context(), id, request.EtapaID); err != nil {
 		response.RespondError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Etapa atualizada com sucesso"})
+}
+
+// orgaoNoEscopo reporta se o órgão parceiro está no escopo que VagaListFilter
+// injetou. Sem escopo injetado (admin, go:empregabilidade:admin ou
+// RBAC_ENABLED=false) não há restrição.
+func orgaoNoEscopo(c *gin.Context, orgaoParceiroID string) bool {
+	escopo := middlewares.GetVagaOrgaoParceiroIDs(c)
+	return escopo == nil || slices.Contains(escopo, orgaoParceiroID)
+}
+
+// exigirCandidaturaNoEscopo barra a mudança de uma candidatura cuja vaga é de
+// órgão fora do escopo do editor (DEV-517). Responde e devolve false quando
+// barra.
+func (h *CandidaturaHandler) exigirCandidaturaNoEscopo(c *gin.Context, id uuid.UUID) bool {
+	if middlewares.GetVagaOrgaoParceiroIDs(c) == nil {
+		return true
+	}
+
+	entity, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		response.RespondError(c, err)
+		return false
+	}
+	if entity == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Candidatura não encontrada"})
+		return false
+	}
+	if entity.Vaga == nil || !orgaoNoEscopo(c, entity.Vaga.IDOrgaoParceiro) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: candidatura de vaga fora da sua secretaria"})
+		return false
+	}
+	return true
+}
+
+// exigirVagaNoEscopo barra a mudança em lote das candidaturas de uma vaga de
+// órgão fora do escopo do editor (DEV-517). Responde e devolve false quando
+// barra.
+func (h *CandidaturaHandler) exigirVagaNoEscopo(c *gin.Context, vagaID uuid.UUID) bool {
+	if middlewares.GetVagaOrgaoParceiroIDs(c) == nil {
+		return true
+	}
+
+	orgaoParceiroID, err := h.service.GetVagaOrgaoParceiroID(c.Request.Context(), vagaID)
+	if err != nil {
+		response.RespondError(c, err)
+		return false
+	}
+	if !orgaoNoEscopo(c, orgaoParceiroID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: vaga não pertence à sua secretaria"})
+		return false
+	}
+	return true
 }
