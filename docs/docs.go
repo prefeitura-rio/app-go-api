@@ -2412,7 +2412,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/candidatura-bloqueios": {
             "get": {
-                "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria); os demais recebem 403.",
+                "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria e só vê bloqueios de vagas dos órgãos desse escopo); os demais recebem 403.",
                 "produces": [
                     "application/json"
                 ],

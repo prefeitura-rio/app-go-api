@@ -44,7 +44,9 @@ func (s *CandidaturaBloqueioService) Create(ctx context.Context, entity *emprega
 	return s.repo.Create(ctx, entity)
 }
 
-func (s *CandidaturaBloqueioService) List(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*empregabilidade.CandidaturaBloqueio, int, error) {
+// List devolve os bloqueios paginados. orgaoParceiroIDs é o escopo de órgão do
+// editor (nil não restringe; lista vazia não devolve nada).
+func (s *CandidaturaBloqueioService) List(ctx context.Context, filter map[string]interface{}, orgaoParceiroIDs []string, page, pageSize int) ([]*empregabilidade.CandidaturaBloqueio, int, error) {
 	offset := (page - 1) * pageSize
-	return s.repo.List(ctx, filter, pageSize, offset)
+	return s.repo.List(ctx, filter, orgaoParceiroIDs, pageSize, offset)
 }
