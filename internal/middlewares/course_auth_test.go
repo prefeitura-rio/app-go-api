@@ -1236,3 +1236,89 @@ func TestCourseOrgaoUpdateScope_PreservesBodyForHandler(t *testing.T) {
 	assert.Equal(t, "Curso Atualizado", got["titulo"])
 	assert.Equal(t, "orgao-a", got["orgao_id"])
 }
+
+// ============ CourseGestaoAuthorization / CourseOrgaoParamScope Tests (DEV-506) ============
+
+func TestCourseGestaoAuthorization(t *testing.T) {
+	tests := []struct {
+		name    string
+		role    string
+		roles   []string
+		allowed bool
+	}{
+		{"sem role", "USER", nil, false},
+		{"admin de empregabilidade", "USER", []string{"go:empregabilidade:admin"}, false},
+		{"editor de empregabilidade", "USER", []string{"go:empregabilidade:editor"}, false},
+		{"role de cursos desconhecida", "USER", []string{"go:cursos:leitor"}, false},
+		{"ADMIN", "ADMIN", nil, true},
+		{"casa civil", "USER", []string{"go:cursos:casa_civil"}, true},
+		{"editor de cursos sem escopo", "USER", []string{"go:cursos:editor"}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := setupCourseTestRouter(
+				func(c *gin.Context) {
+					c.Set(middlewares.UserRoleKey, tt.role)
+					if tt.roles != nil {
+						c.Set(middlewares.UserRolesKey, tt.roles)
+					}
+					c.Next()
+				},
+				middlewares.CourseGestaoAuthorization(),
+			)
+			r.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
+			if tt.allowed {
+				assert.Equal(t, http.StatusOK, w.Code)
+			} else {
+				assert.Equal(t, http.StatusForbidden, w.Code)
+			}
+		})
+	}
+}
+
+func TestCourseOrgaoParamScope(t *testing.T) {
+	tests := []struct {
+		name        string
+		admin       bool
+		role        string
+		orgaoID     string
+		secretarias []string
+		allowed     bool
+	}{
+		{"ADMIN sem escopo", true, "", "", nil, true},
+		{"casa civil sem escopo", false, "go:cursos:casa_civil", "", nil, true},
+		{"editor do órgão (go:orgao)", false, "go:cursos:editor", "orgao-a", nil, true},
+		{"editor da secretaria", false, "go:cursos:editor", "", []string{"orgao-a"}, true},
+		{"editor de outro órgão", false, "go:cursos:editor", "orgao-b", nil, false},
+		{"editor de outra secretaria", false, "go:cursos:editor", "", []string{"orgao-b"}, false},
+		{"editor sem escopo", false, "go:cursos:editor", "", nil, false},
+		{"sem role com secretaria do órgão", false, "", "", []string{"orgao-a"}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := setupCourseTestRouter(
+				injectCourseRoles(tt.role, tt.orgaoID, tt.secretarias),
+				func(c *gin.Context) {
+					if tt.admin {
+						c.Set(middlewares.UserRoleKey, "ADMIN")
+					}
+					c.Next()
+				},
+			)
+			r.GET("/users/:userId/courses", middlewares.CourseOrgaoParamScope("userId"), func(c *gin.Context) { c.Status(http.StatusOK) })
+
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/users/orgao-a/courses", nil))
+			if tt.allowed {
+				assert.Equal(t, http.StatusOK, w.Code)
+			} else {
+				assert.Equal(t, http.StatusForbidden, w.Code)
+			}
+		})
+	}
+}
