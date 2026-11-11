@@ -17,6 +17,9 @@ const (
 	EventoMudancaEtapa TipoEventoCandidatura = "mudanca_etapa"
 	// EventoVoltaEtapa é a volta para uma etapa de ordem menor.
 	EventoVoltaEtapa TipoEventoCandidatura = "volta_etapa"
+	// EventoEtapaRemovida é a candidatura que fica sem etapa porque a etapa em
+	// que estava foi excluída da vaga (automação).
+	EventoEtapaRemovida TipoEventoCandidatura = "etapa_removida"
 	// EventoCandidaturaAprovada é a mudança de status para aprovada.
 	EventoCandidaturaAprovada TipoEventoCandidatura = "candidatura_aprovada"
 	// EventoCandidaturaReprovada é a mudança de status para reprovada; o ator
@@ -47,6 +50,7 @@ const (
 	MotivoVagaDescongelada  = "vaga_descongelada"
 	MotivoVagaDescontinuada = "vaga_descontinuada"
 	MotivoVagaReativada     = "vaga_reativada"
+	MotivoEtapaExcluida     = "etapa_excluida"
 )
 
 // CandidaturaHistorico é um evento do histórico da candidatura. A tabela é só

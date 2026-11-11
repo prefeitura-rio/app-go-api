@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS emp_candidatura_historico (
     motivo VARCHAR(100) NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_emp_candidatura_historico_tipo_evento CHECK (tipo_evento IN (
-        'candidatura_criada', 'mudanca_etapa', 'volta_etapa', 'candidatura_aprovada',
+        'candidatura_criada', 'mudanca_etapa', 'volta_etapa', 'etapa_removida', 'candidatura_aprovada',
         'candidatura_reprovada', 'candidatura_cancelada', 'status_alterado'
     )),
     CONSTRAINT chk_emp_candidatura_historico_ator CHECK (ator IN ('candidato', 'operador', 'automacao')),

@@ -200,7 +200,7 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
 
-	id, err := s.repo.Create(ctx, entity)
+	id, err := s.repo.Create(comOrigemDaCriacao(ctx, entity.Origem), entity)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -225,6 +225,21 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 	}()
 
 	return id, nil
+}
+
+// comOrigemDaCriacao atribui o evento candidatura_criada do histórico: a
+// candidatura enviada pelo app é do candidato; o cadastro pela secretaria e a
+// associação pelo banco de currículos são do operador. Uma origem já declarada
+// no contexto é mantida.
+func comOrigemDaCriacao(ctx context.Context, origem *empregabilidade.OrigemCandidatura) context.Context {
+	if _, ok := empregabilidade.OrigemEventoDoContexto(ctx); ok {
+		return ctx
+	}
+	ator := empregabilidade.AtorOperador
+	if origem == nil || *origem == empregabilidade.OrigemCandidaturaPortalCidadao {
+		ator = empregabilidade.AtorCandidato
+	}
+	return empregabilidade.ComOrigemEvento(ctx, empregabilidade.OrigemEventoCandidatura{Ator: ator})
 }
 
 // registrarOrigemCadastro grava a origem do currículo na primeira candidatura

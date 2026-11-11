@@ -277,20 +277,23 @@ func syncEtapas(tx *gorm.DB, vagaID uuid.UUID, etapas []empregabilidade.Etapa) e
 	}
 
 	// Desvincula candidaturas somente das etapas que serão removidas.
-	clearQuery := tx.Model(&empregabilidade.Candidatura{})
+	condicaoRemovidas := "id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)"
+	argsRemovidas := []interface{}{vagaID}
 	if len(existentesIDs) > 0 {
-		clearQuery = clearQuery.Where(
-			"id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ? AND id NOT IN ?)",
-			vagaID, existentesIDs,
-		)
-	} else {
-		clearQuery = clearQuery.Where(
-			"id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)",
-			vagaID,
-		)
+		condicaoRemovidas = "id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ? AND id NOT IN ?)"
+		argsRemovidas = append(argsRemovidas, existentesIDs)
 	}
-	if err := clearQuery.Update("id_etapa_atual", nil).Error; err != nil {
+	desvinculadas, err := travarCandidaturas(tx, condicaoRemovidas, argsRemovidas...)
+	if err != nil {
+		return err
+	}
+	if err := tx.Model(&empregabilidade.Candidatura{}).
+		Where(condicaoRemovidas, argsRemovidas...).
+		Update("id_etapa_atual", nil).Error; err != nil {
 		return fmt.Errorf("erro ao desvincular etapas das candidaturas: %w", err)
+	}
+	if err := registrarEtapasRemovidas(tx, desvinculadas); err != nil {
+		return err
 	}
 
 	deleteQuery := tx.Where("id_vaga = ?", vagaID)
@@ -315,7 +318,7 @@ func syncEtapas(tx *gorm.DB, vagaID uuid.UUID, etapas []empregabilidade.Etapa) e
 
 		if err := tx.Model(&empregabilidade.Etapa{}).
 			Where("id = ? AND id_vaga = ?", etapas[i].ID, vagaID).
-			Select("titulo", "descricao", "ordem").
+			Select(camposAtualizaveisEtapa(&etapas[i])).
 			Updates(&etapas[i]).Error; err != nil {
 			return fmt.Errorf("erro ao atualizar etapa: %w", err)
 		}

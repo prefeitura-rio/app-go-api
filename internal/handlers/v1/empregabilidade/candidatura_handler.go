@@ -380,7 +380,14 @@ func (h *CandidaturaHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Delete(c.Request.Context(), id); err != nil {
+	// Histórico (DEV-532): o próprio candidato cancela; qualquer outro é o operador.
+	ator := empregabilidade.AtorOperador
+	if userCPF := middlewares.GetUserCPF(c); userCPF != "" && userCPF == existing.CPF {
+		ator = empregabilidade.AtorCandidato
+	}
+	ctx := empregabilidade.ComOrigemEvento(c.Request.Context(), empregabilidade.OrigemEventoCandidatura{Ator: ator})
+
+	if err := h.service.Delete(ctx, id); err != nil {
 		response.RespondError(c, err)
 		return
 	}

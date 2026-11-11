@@ -159,3 +159,18 @@ func tiposMudancaEtapa(tx *gorm.DB, estados []estadoCandidatura, etapaNova uuid.
 	}
 	return tipos, nil
 }
+
+// registrarEtapasRemovidas grava, para cada candidatura que ficou sem etapa
+// porque a etapa em que estava foi excluída da vaga, o evento etapa_removida
+// (automação).
+func registrarEtapasRemovidas(tx *gorm.DB, estados []estadoCandidatura) error {
+	origem := empregabilidade.OrigemEventoCandidatura{Ator: empregabilidade.AtorAutomacao, Motivo: empregabilidade.MotivoEtapaExcluida}
+	eventos := make([]empregabilidade.CandidaturaHistorico, 0, len(estados))
+	for _, estado := range estados {
+		evento := eventoStatus(estado, estado.Status, origem)
+		evento.TipoEvento = empregabilidade.EventoEtapaRemovida
+		evento.IDEtapaNova = nil
+		eventos = append(eventos, evento)
+	}
+	return inserirEventos(tx, eventos)
+}
