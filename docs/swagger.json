@@ -2552,7 +2552,7 @@
         },
         "/api/v1/empregabilidade/candidaturas": {
             "get": {
-                "description": "Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores.",
+                "description": "Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores e editores de empregabilidade; com o RBAC ligado, o editor só vê candidaturas de vagas dos órgãos do seu escopo.",
                 "produces": [
                     "application/json"
                 ],
@@ -2908,7 +2908,7 @@
         },
         "/api/v1/empregabilidade/candidaturas/usuario/{cpf}": {
             "get": {
-                "description": "Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF.",
+                "description": "Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF; com o RBAC ligado, o editor de empregabilidade que consulta outro CPF só vê candidaturas de vagas dos órgãos do seu escopo.",
                 "produces": [
                     "application/json"
                 ],

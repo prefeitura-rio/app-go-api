@@ -92,7 +92,7 @@ func (r *CandidaturaRepository) List(ctx context.Context, filter empregabilidade
 		if condicao, args := condicaoFiltroCandidato(filter.Candidato, cpfDigitosCandidatura); condicao != "" {
 			db = db.Where(condicao, args...)
 		}
-		return db
+		return restringirAoEscopoDeOrgao(db, filter.OrgaoParceiroIDs)
 	}
 
 	countDB := applyFilters(r.db.WithContext(ctx).Model(&empregabilidade.Candidatura{}))
@@ -116,6 +116,18 @@ func (r *CandidaturaRepository) List(ctx context.Context, filter empregabilidade
 	}
 
 	return entities, int(total), nil
+}
+
+// restringirAoEscopoDeOrgao limita às candidaturas de vagas dos órgãos parceiros
+// do escopo do editor: nil não restringe (admin), lista vazia não devolve nada.
+func restringirAoEscopoDeOrgao(db *gorm.DB, orgaoParceiroIDs []string) *gorm.DB {
+	if orgaoParceiroIDs == nil {
+		return db
+	}
+	if len(orgaoParceiroIDs) == 0 {
+		return db.Where("1 = 0")
+	}
+	return db.Where("id_vaga IN (SELECT id FROM emp_vagas WHERE id_orgao_parceiro IN ?)", orgaoParceiroIDs)
 }
 
 func (r *CandidaturaRepository) BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (BulkUpdateResult, error) {
@@ -260,6 +272,7 @@ func (r *CandidaturaRepository) CountByStatus(ctx context.Context, filter empreg
 	if condicao, args := condicaoFiltroCandidato(filter.Candidato, cpfDigitosCandidatura); condicao != "" {
 		db = db.Where(condicao, args...)
 	}
+	db = restringirAoEscopoDeOrgao(db, filter.OrgaoParceiroIDs)
 	// Status filter is intentionally ignored to count all statuses
 
 	if err := db.Select("status, COUNT(*) as count").Group("status").Scan(&results).Error; err != nil {

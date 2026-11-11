@@ -4352,7 +4352,8 @@ paths:
   /api/v1/empregabilidade/candidaturas:
     get:
       description: Retorna lista paginada de candidaturas com filtros e busca universal.
-        Restrito a administradores.
+        Restrito a administradores e editores de empregabilidade; com o RBAC ligado,
+        o editor só vê candidaturas de vagas dos órgãos do seu escopo.
       parameters:
       - description: 'Número da página (default: 1)'
         in: query
@@ -4873,7 +4874,9 @@ paths:
   /api/v1/empregabilidade/candidaturas/usuario/{cpf}:
     get:
       description: Retorna lista paginada de candidaturas de um usuário pelo CPF.
-        Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF.
+        Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF;
+        com o RBAC ligado, o editor de empregabilidade que consulta outro CPF só vê
+        candidaturas de vagas dos órgãos do seu escopo.
       parameters:
       - description: CPF do usuário
         in: path
