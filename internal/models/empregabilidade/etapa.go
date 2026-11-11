@@ -12,6 +12,9 @@ type Etapa struct {
 	Titulo    string    `json:"titulo" gorm:"type:varchar(500);not null"`
 	Descricao string    `json:"descricao" gorm:"type:text"`
 	Ordem     int       `json:"ordem" gorm:"not null"`
+	// TipoEtapa classifica a etapa (código livre definido pela gestão) para
+	// comparar o funil do histórico de candidaturas entre vagas. Opcional.
+	TipoEtapa *string   `json:"tipo_etapa,omitempty" gorm:"type:varchar(64)"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
