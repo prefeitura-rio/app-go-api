@@ -181,6 +181,9 @@ func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) 
 	if err := validateQuantidadeEstimada(entity.QuantidadeEstimadaContratacoes); err != nil {
 		return uuid.Nil, err
 	}
+	if err := normalizarTiposEtapa(entity.Etapas); err != nil {
+		return uuid.Nil, err
+	}
 
 	entity.Status = empregabilidade.StatusVagaEmEdicao
 	entity.CriteriosBloqueio = criterios
@@ -227,6 +230,9 @@ func (s *VagaService) GetBySlug(ctx context.Context, vagaSlug string) (*empregab
 
 func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
 	if err := validateQuantidadeEstimada(entity.QuantidadeEstimadaContratacoes); err != nil {
+		return err
+	}
+	if err := normalizarTiposEtapa(entity.Etapas); err != nil {
 		return err
 	}
 
@@ -421,7 +427,7 @@ func (s *VagaService) FreezeVaga(ctx context.Context, id uuid.UUID) error {
 		return apperrors.Conflict("vaga não está em estado publicado_ativo para ser congelada")
 	}
 
-	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(ctx, id, empregabilidade.StatusCandidaturaVagaCongelada); err != nil {
+	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(comOrigemAutomacao(ctx, empregabilidade.MotivoVagaCongelada), id, empregabilidade.StatusCandidaturaVagaCongelada); err != nil {
 		return err
 	}
 
@@ -442,7 +448,7 @@ func (s *VagaService) UnfreezeVaga(ctx context.Context, id uuid.UUID) error {
 		return apperrors.Conflict("vaga não está em estado vaga_congelada para ser descongelada")
 	}
 
-	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(ctx, id); err != nil {
+	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(comOrigemAutomacao(ctx, empregabilidade.MotivoVagaDescongelada), id); err != nil {
 		return err
 	}
 
@@ -467,7 +473,7 @@ func (s *VagaService) DiscontinueVaga(ctx context.Context, id uuid.UUID) error {
 		return apperrors.Conflict("vaga não está em estado publicado ou congelado para ser descontinuada")
 	}
 
-	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(ctx, id, empregabilidade.StatusCandidaturaDescontinuada); err != nil {
+	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(comOrigemAutomacao(ctx, empregabilidade.MotivoVagaDescontinuada), id, empregabilidade.StatusCandidaturaDescontinuada); err != nil {
 		return err
 	}
 
@@ -488,11 +494,30 @@ func (s *VagaService) ReactivateVaga(ctx context.Context, id uuid.UUID) error {
 		return apperrors.Conflict("vaga não está em estado vaga_descontinuada para ser reativada")
 	}
 
-	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(ctx, id); err != nil {
+	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(comOrigemAutomacao(ctx, empregabilidade.MotivoVagaReativada), id); err != nil {
 		return err
 	}
 
 	vaga.Status = empregabilidade.StatusVagaPublicadoAtivo
 	vaga.UpdateStatusBasedOnExpiration()
 	return s.repo.Update(ctx, vaga)
+}
+
+// comOrigemAutomacao atribui à automação, com o motivo, as transições que a
+// mudança de estado da vaga provoca nas candidaturas (histórico, DEV-532).
+func comOrigemAutomacao(ctx context.Context, motivo string) context.Context {
+	return empregabilidade.ComOrigemEvento(ctx, empregabilidade.OrigemEventoCandidatura{
+		Ator:   empregabilidade.AtorAutomacao,
+		Motivo: motivo,
+	})
+}
+
+// normalizarTiposEtapa ajusta o tipo_etapa das etapas enviadas com a vaga.
+func normalizarTiposEtapa(etapas []empregabilidade.Etapa) error {
+	for i := range etapas {
+		if err := normalizarTipoEtapa(&etapas[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }

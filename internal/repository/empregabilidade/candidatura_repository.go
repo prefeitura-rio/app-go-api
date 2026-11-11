@@ -23,10 +23,30 @@ func NewCandidaturaRepository(db *gorm.DB) *CandidaturaRepository {
 	return &CandidaturaRepository{db: db}
 }
 
+// Create grava a candidatura e, na mesma transação, o evento candidatura_criada
+// do histórico, atribuído à origem do contexto.
 func (r *CandidaturaRepository) Create(ctx context.Context, entity *empregabilidade.Candidatura) (uuid.UUID, error) {
-	result := r.db.WithContext(ctx).Create(entity)
-	if result.Error != nil {
-		return uuid.Nil, fmt.Errorf("erro ao criar candidatura: %w", result.Error)
+	origem := origemEvento(ctx)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(entity).Error; err != nil {
+			return fmt.Errorf("erro ao criar candidatura: %w", err)
+		}
+		status := entity.Status
+		if status == "" {
+			status = empregabilidade.StatusCandidaturaEnviada
+		}
+		return inserirEventos(tx, []empregabilidade.CandidaturaHistorico{{
+			IDCandidatura: entity.ID,
+			IDVaga:        entity.IDVaga,
+			TipoEvento:    empregabilidade.EventoCandidaturaCriada,
+			Ator:          origem.Ator,
+			StatusNovo:    status,
+			IDEtapaNova:   copiarUUID(entity.IDEtapaAtual),
+			Motivo:        motivoEvento(origem),
+		}})
+	})
+	if err != nil {
+		return uuid.Nil, err
 	}
 	return entity.ID, nil
 }
@@ -49,23 +69,40 @@ func (r *CandidaturaRepository) GetByID(ctx context.Context, id uuid.UUID) (*emp
 	return &entity, nil
 }
 
+// Update grava a edição genérica da candidatura. Status e etapa ficam de fora:
+// só mudam pelas transições, que registram o histórico; regravá-los aqui
+// desfaria uma transição concorrente sem evento.
 func (r *CandidaturaRepository) Update(ctx context.Context, entity *empregabilidade.Candidatura) error {
-	result := r.db.WithContext(ctx).Save(entity)
+	result := r.db.WithContext(ctx).Omit("status", "status_anterior", "id_etapa_atual").Save(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar candidatura: %w", result.Error)
 	}
 	return nil
 }
 
+// Delete exclui (soft delete) a candidatura e registra, na mesma transação, o
+// evento candidatura_cancelada.
 func (r *CandidaturaRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	result := r.db.WithContext(ctx).Delete(&empregabilidade.Candidatura{}, "id = ?", id)
-	if result.Error != nil {
-		return fmt.Errorf("erro ao excluir candidatura: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("candidatura não encontrada")
-	}
-	return nil
+	origem := origemEvento(ctx)
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		estados, err := travarCandidaturas(tx, "id = ?", id)
+		if err != nil {
+			return err
+		}
+		if len(estados) == 0 {
+			return fmt.Errorf("candidatura não encontrada")
+		}
+		result := tx.Delete(&empregabilidade.Candidatura{}, "id = ?", id)
+		if result.Error != nil {
+			return fmt.Errorf("erro ao excluir candidatura: %w", result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return fmt.Errorf("candidatura não encontrada")
+		}
+		evento := eventoStatus(estados[0], estados[0].Status, origem)
+		evento.TipoEvento = empregabilidade.EventoCandidaturaCancelada
+		return inserirEventos(tx, []empregabilidade.CandidaturaHistorico{evento})
+	})
 }
 
 func (r *CandidaturaRepository) List(ctx context.Context, filter empregabilidade.CandidaturaFilter, limit, offset int) ([]*empregabilidade.Candidatura, int, error) {
@@ -130,47 +167,60 @@ func restringirAoEscopoDeOrgao(db *gorm.DB, orgaoParceiroIDs []string) *gorm.DB 
 	return db.Where("id_vaga IN (SELECT id FROM emp_vagas WHERE id_orgao_parceiro IN ?)", orgaoParceiroIDs)
 }
 
+// BulkUpdateStatus muda o status das candidaturas da vaga com esses CPFs e
+// registra, na mesma transação, um evento por candidatura cujo status mudou.
 func (r *CandidaturaRepository) BulkUpdateStatus(ctx context.Context, vagaID uuid.UUID, cpfs []string, status empregabilidade.StatusCandidatura) (BulkUpdateResult, error) {
 	var result BulkUpdateResult
+	origem := origemEvento(ctx)
 
-	// Fetch all candidaturas for this vaga and CPF list
-	var candidaturas []*empregabilidade.Candidatura
-	if err := r.db.WithContext(ctx).
-		Model(&empregabilidade.Candidatura{}).
-		Where("id_vaga = ? AND cpf IN ?", vagaID, cpfs).
-		Find(&candidaturas).Error; err != nil {
-		return result, fmt.Errorf("erro ao buscar candidaturas: %w", err)
-	}
-
-	foundCPFs := make(map[string]*empregabilidade.Candidatura, len(candidaturas))
-	for _, c := range candidaturas {
-		foundCPFs[c.CPF] = c
-	}
-
-	// Identify CPFs not found in the database
-	var updateIDs []uuid.UUID
-	for _, cpf := range cpfs {
-		c, found := foundCPFs[cpf]
-		if !found {
-			result.FailedCPFs = append(result.FailedCPFs, cpf)
-			continue
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		estados, err := travarCandidaturas(tx, "id_vaga = ? AND cpf IN ?", vagaID, cpfs)
+		if err != nil {
+			return err
 		}
-		updateIDs = append(updateIDs, c.ID)
-	}
 
-	if len(updateIDs) == 0 {
-		return result, nil
-	}
+		porCPF := make(map[string]estadoCandidatura, len(estados))
+		for _, estado := range estados {
+			porCPF[estado.CPF] = estado
+		}
 
-	res := r.db.WithContext(ctx).
-		Model(&empregabilidade.Candidatura{}).
-		Where("id IN ?", updateIDs).
-		Update("status", status)
-	if res.Error != nil {
-		return result, fmt.Errorf("erro ao atualizar status em lote: %w", res.Error)
-	}
+		var updateIDs []uuid.UUID
+		var eventos []empregabilidade.CandidaturaHistorico
+		// CPF repetido no pedido é a mesma candidatura: um só evento.
+		vistas := make(map[uuid.UUID]struct{}, len(estados))
+		for _, cpf := range cpfs {
+			estado, found := porCPF[cpf]
+			if !found {
+				result.FailedCPFs = append(result.FailedCPFs, cpf)
+				continue
+			}
+			if _, repetida := vistas[estado.ID]; repetida {
+				continue
+			}
+			vistas[estado.ID] = struct{}{}
+			updateIDs = append(updateIDs, estado.ID)
+			if estado.Status != status {
+				eventos = append(eventos, eventoStatus(estado, status, origem))
+			}
+		}
 
-	result.Updated = int(res.RowsAffected)
+		if len(updateIDs) == 0 {
+			return nil
+		}
+
+		res := tx.Model(&empregabilidade.Candidatura{}).
+			Where("id IN ?", updateIDs).
+			Update("status", status)
+		if res.Error != nil {
+			return fmt.Errorf("erro ao atualizar status em lote: %w", res.Error)
+		}
+		result.Updated = int(res.RowsAffected)
+
+		return inserirEventos(tx, eventos)
+	})
+	if err != nil {
+		return BulkUpdateResult{}, err
+	}
 	return result, nil
 }
 
@@ -186,15 +236,26 @@ func (r *CandidaturaRepository) CheckExistingCandidatura(ctx context.Context, cp
 	return count > 0, nil
 }
 
+// UpdateStatus muda o status da candidatura e registra, na mesma transação, o
+// evento da mudança (nenhum quando o status já era esse).
 func (r *CandidaturaRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error {
-	result := r.db.WithContext(ctx).
-		Model(&empregabilidade.Candidatura{}).
-		Where("id = ?", id).
-		Update("status", status)
-	if result.Error != nil {
-		return fmt.Errorf("erro ao atualizar status da candidatura: %w", result.Error)
-	}
-	return nil
+	origem := origemEvento(ctx)
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		estados, err := travarCandidaturas(tx, "id = ?", id)
+		if err != nil {
+			return err
+		}
+		result := tx.Model(&empregabilidade.Candidatura{}).
+			Where("id = ?", id).
+			Update("status", status)
+		if result.Error != nil {
+			return fmt.Errorf("erro ao atualizar status da candidatura: %w", result.Error)
+		}
+		if len(estados) == 0 || estados[0].Status == status {
+			return nil
+		}
+		return inserirEventos(tx, []empregabilidade.CandidaturaHistorico{eventoStatus(estados[0], status, origem)})
+	})
 }
 
 func (r *CandidaturaRepository) BulkGetByCPFs(ctx context.Context, vagaID uuid.UUID, cpfs []string) ([]*empregabilidade.Candidatura, error) {
@@ -211,30 +272,78 @@ func (r *CandidaturaRepository) BulkGetByCPFs(ctx context.Context, vagaID uuid.U
 	return candidaturas, nil
 }
 
+// BulkUpdateEtapa leva as candidaturas ids para a etapa etapaID e registra, na
+// mesma transação, um evento (avanço ou volta) por candidatura cuja etapa mudou.
 func (r *CandidaturaRepository) BulkUpdateEtapa(ctx context.Context, ids []uuid.UUID, etapaID uuid.UUID) error {
-	result := r.db.WithContext(ctx).
-		Model(&empregabilidade.Candidatura{}).
-		Where("id IN ?", ids).
-		Update("id_etapa_atual", etapaID)
-	if result.Error != nil {
-		return fmt.Errorf("erro ao atualizar etapa em lote: %w", result.Error)
-	}
-	return nil
-}
-
-func (r *CandidaturaRepository) UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error {
-	result := r.db.WithContext(ctx).
-		Model(&empregabilidade.Candidatura{}).
-		Where("id = ?", id).
-		Update("id_etapa_atual", etapaID)
-	if result.Error != nil {
-		return fmt.Errorf("erro ao atualizar etapa da candidatura: %w", result.Error)
-	}
-	return nil
-}
-
-func (r *CandidaturaRepository) BulkSaveAndUpdateStatusByVagaID(ctx context.Context, vagaID uuid.UUID, newStatus empregabilidade.StatusCandidatura) error {
+	origem := origemEvento(ctx)
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		estados, err := travarCandidaturas(tx, "id IN ?", ids)
+		if err != nil {
+			return err
+		}
+		result := tx.Model(&empregabilidade.Candidatura{}).
+			Where("id IN ?", ids).
+			Update("id_etapa_atual", etapaID)
+		if result.Error != nil {
+			return fmt.Errorf("erro ao atualizar etapa em lote: %w", result.Error)
+		}
+		return registrarMudancasEtapa(tx, estados, etapaID, origem)
+	})
+}
+
+// UpdateEtapa leva a candidatura para a etapa etapaID e registra, na mesma
+// transação, o evento de avanço ou volta (nenhum quando a etapa já era essa).
+func (r *CandidaturaRepository) UpdateEtapa(ctx context.Context, id uuid.UUID, etapaID uuid.UUID) error {
+	origem := origemEvento(ctx)
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		estados, err := travarCandidaturas(tx, "id = ?", id)
+		if err != nil {
+			return err
+		}
+		result := tx.Model(&empregabilidade.Candidatura{}).
+			Where("id = ?", id).
+			Update("id_etapa_atual", etapaID)
+		if result.Error != nil {
+			return fmt.Errorf("erro ao atualizar etapa da candidatura: %w", result.Error)
+		}
+		return registrarMudancasEtapa(tx, estados, etapaID, origem)
+	})
+}
+
+// registrarMudancasEtapa grava um evento para cada candidatura de estados que
+// não estava na etapa etapaID.
+func registrarMudancasEtapa(tx *gorm.DB, estados []estadoCandidatura, etapaID uuid.UUID, origem empregabilidade.OrigemEventoCandidatura) error {
+	var mudaram []estadoCandidatura
+	for _, estado := range estados {
+		if estado.IDEtapaAtual == nil || *estado.IDEtapaAtual != etapaID {
+			mudaram = append(mudaram, estado)
+		}
+	}
+	if len(mudaram) == 0 {
+		return nil
+	}
+	tipos, err := tiposMudancaEtapa(tx, mudaram, etapaID)
+	if err != nil {
+		return err
+	}
+	eventos := make([]empregabilidade.CandidaturaHistorico, 0, len(mudaram))
+	for _, estado := range mudaram {
+		eventos = append(eventos, eventoEtapa(estado, etapaID, tipos[estado.ID], origem))
+	}
+	return inserirEventos(tx, eventos)
+}
+
+// BulkSaveAndUpdateStatusByVagaID guarda o status atual em status_anterior,
+// aplica newStatus a todas as candidaturas da vaga e registra, na mesma
+// transação, um evento por candidatura cujo status mudou (automação, com o
+// motivo do contexto).
+func (r *CandidaturaRepository) BulkSaveAndUpdateStatusByVagaID(ctx context.Context, vagaID uuid.UUID, newStatus empregabilidade.StatusCandidatura) error {
+	origem := origemEvento(ctx)
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		estados, err := travarCandidaturas(tx, "id_vaga = ?", vagaID)
+		if err != nil {
+			return err
+		}
 		// Save current status into status_anterior, then set new status
 		result := tx.Exec(
 			`UPDATE emp_candidaturas SET status_anterior = status, status = ?, updated_at = NOW() WHERE id_vaga = ? AND deleted_at IS NULL`,
@@ -243,7 +352,13 @@ func (r *CandidaturaRepository) BulkSaveAndUpdateStatusByVagaID(ctx context.Cont
 		if result.Error != nil {
 			return fmt.Errorf("erro ao congelar/descontinuar candidaturas: %w", result.Error)
 		}
-		return nil
+		var eventos []empregabilidade.CandidaturaHistorico
+		for _, estado := range estados {
+			if estado.Status != newStatus {
+				eventos = append(eventos, eventoStatus(estado, newStatus, origem))
+			}
+		}
+		return inserirEventos(tx, eventos)
 	})
 }
 
@@ -293,8 +408,16 @@ func (r *CandidaturaRepository) CountByStatus(ctx context.Context, filter empreg
 	return counts, nil
 }
 
+// BulkRestoreStatusByVagaID devolve às candidaturas da vaga o status guardado em
+// status_anterior e registra, na mesma transação, um evento por candidatura
+// cujo status mudou (automação, com o motivo do contexto).
 func (r *CandidaturaRepository) BulkRestoreStatusByVagaID(ctx context.Context, vagaID uuid.UUID) error {
+	origem := origemEvento(ctx)
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		estados, err := travarCandidaturas(tx, "id_vaga = ? AND status_anterior IS NOT NULL", vagaID)
+		if err != nil {
+			return err
+		}
 		result := tx.Exec(
 			`UPDATE emp_candidaturas SET status = status_anterior, status_anterior = NULL, updated_at = NOW() WHERE id_vaga = ? AND deleted_at IS NULL AND status_anterior IS NOT NULL`,
 			vagaID,
@@ -302,6 +425,12 @@ func (r *CandidaturaRepository) BulkRestoreStatusByVagaID(ctx context.Context, v
 		if result.Error != nil {
 			return fmt.Errorf("erro ao restaurar status das candidaturas: %w", result.Error)
 		}
-		return nil
+		var eventos []empregabilidade.CandidaturaHistorico
+		for _, estado := range estados {
+			if estado.StatusAnterior != nil && *estado.StatusAnterior != estado.Status {
+				eventos = append(eventos, eventoStatus(estado, *estado.StatusAnterior, origem))
+			}
+		}
+		return inserirEventos(tx, eventos)
 	})
 }
