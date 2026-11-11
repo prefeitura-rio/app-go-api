@@ -270,6 +270,19 @@ func (s *CandidaturaService) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
+// GetVagaOrgaoParceiroID devolve o órgão parceiro da vaga, ou NotFound quando
+// ela não existe.
+func (s *CandidaturaService) GetVagaOrgaoParceiroID(ctx context.Context, vagaID uuid.UUID) (string, error) {
+	vaga, err := s.vagaRepo.GetByID(ctx, vagaID)
+	if err != nil {
+		return "", err
+	}
+	if vaga == nil {
+		return "", apperrors.NotFound("vaga não encontrada")
+	}
+	return vaga.IDOrgaoParceiro, nil
+}
+
 func (s *CandidaturaService) List(ctx context.Context, filter empregabilidade.CandidaturaFilter, page, pageSize int) ([]*empregabilidade.Candidatura, int, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.List(ctx, filter, pageSize, offset)
