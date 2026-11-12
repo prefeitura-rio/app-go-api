@@ -151,7 +151,7 @@ func vagaNovaComHabilidades(areas *[]empregabilidade.VagaAreaAtuacao, comportame
 }
 
 func areas(a ...empregabilidade.VagaAreaAtuacao) *[]empregabilidade.VagaAreaAtuacao { return &a }
-func ids(v ...int64) *[]int64                                                         { return &v }
+func ids(v ...int64) *[]int64                                                       { return &v }
 
 // requireFieldError confere que err é 400 com o erro do campo informado.
 func requireFieldError(t *testing.T, err error, campo, trecho string) {

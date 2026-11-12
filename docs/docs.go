@@ -9792,7 +9792,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada retorna 400.",
+                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada retorna 400.\nHabilidades e competências: areas_atuacao (lista de {id_area_atuacao, conhecimento_ids}, cada área uma vez, cada conhecimento da área em que foi marcado) e comportamento_atitudes_ids. Opcionais no rascunho. Área repetida, área, conhecimento ou comportamento fora do catálogo e conhecimento de outra área retornam 400 com o erro do campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids). A resposta traz as listas com os nomes (nome, conhecimentos, comportamentos_atitudes), que são ignorados na entrada: duplicar uma vaga é enviar ao POST o que o GET devolveu.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9824,10 +9824,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "500": {
@@ -9844,7 +9841,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/draft": {
             "post": {
-                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada retorna 400.",
+                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada retorna 400.\nHabilidades e competências: areas_atuacao (lista de {id_area_atuacao, conhecimento_ids}, cada área uma vez, cada conhecimento da área em que foi marcado) e comportamento_atitudes_ids. Opcionais no rascunho. Área repetida, área, conhecimento ou comportamento fora do catálogo e conhecimento de outra área retornam 400 com o erro do campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids). A resposta traz as listas com os nomes (nome, conhecimentos, comportamentos_atitudes), que são ignorados na entrada: duplicar uma vaga é enviar ao POST o que o GET devolveu.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9876,10 +9873,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "500": {
@@ -9896,7 +9890,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}": {
             "get": {
-                "description": "Retorna uma vaga pelo ID",
+                "description": "Retorna uma vaga pelo ID, com as habilidades e competências cadastradas: areas_atuacao (cada área com id_area_atuacao, nome, conhecimento_ids e conhecimentos), comportamento_atitudes_ids e comportamentos_atitudes. Vaga sem registro devolve listas vazias. As rotas públicas não trazem esses campos.",
                 "produces": [
                     "application/json"
                 ],
@@ -9959,7 +9953,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza uma vaga existente\nPcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\".\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e \"\" remove a exigência; com a chave \"experiencia_carteira\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.\nIdade: jovem_aprendiz (Jovem Aprendiz, faixa fixa de 14 a 24 anos) ausente ou null mantém o valor gravado; com a chave \"jovem_aprendiz\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem jovem_aprendiz true retorna 400. Maiores de 18 segue em idade_minima; um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada (enviados ou mantidos) retorna 400.",
+                "description": "Atualiza uma vaga existente\nPcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\".\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e \"\" remove a exigência; com a chave \"experiencia_carteira\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.\nIdade: jovem_aprendiz (Jovem Aprendiz, faixa fixa de 14 a 24 anos) ausente ou null mantém o valor gravado; com a chave \"jovem_aprendiz\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem jovem_aprendiz true retorna 400. Maiores de 18 segue em idade_minima; um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada (enviados ou mantidos) retorna 400.\nHabilidades e competências: areas_atuacao e comportamento_atitudes_ids ausentes ou null mantêm o gravado; a lista enviada substitui o conjunto inteiro (apaga o que saiu, insere o que entrou; [] apaga tudo). Mesmas regras e erros por campo do POST. A resposta é a vaga relida, com as listas e os nomes.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9998,10 +9992,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "403": {
@@ -10614,7 +10605,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}/publish": {
             "put": {
-                "description": "Publica uma vaga em edição",
+                "description": "Publica uma vaga em edição ou em aprovação. Exige ao menos uma área de atuação, ao menos um conhecimento em cada área e ao menos um comportamento ou atitude: sem eles retorna 400 com o erro de cada campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids).",
                 "produces": [
                     "application/json"
                 ],
@@ -10644,10 +10635,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "404": {
@@ -10750,7 +10738,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}/send-to-approval": {
             "put": {
-                "description": "Envia uma vaga em edição para o fluxo de aprovação",
+                "description": "Envia uma vaga em edição para o fluxo de aprovação. Exige ao menos uma área de atuação, ao menos um conhecimento em cada área e ao menos um comportamento ou atitude: sem eles retorna 400 com o erro de cada campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids).",
                 "produces": [
                     "application/json"
                 ],
@@ -10780,10 +10768,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "404": {
@@ -14619,6 +14604,13 @@ const docTemplate = `{
                 "acessibilidade_pcd": {
                     "$ref": "#/definitions/empregabilidade.AcessibilidadePCD"
                 },
+                "areas_atuacao": {
+                    "description": "Habilidades e competências da vaga (DEV-524), fora da tabela emp_vagas.\nSó a gestão (POST, PUT e GET /api/v1/empregabilidade/vagas/{id}) os\ndevolve, sempre como lista ([] na vaga sem registro); rotas públicas,\nlistagens e candidaturas não os trazem. No PUT, o campo ausente (ou null)\nmantém o gravado e a lista enviada substitui o conjunto inteiro ([] apaga\ntudo). Publicar ou enviar para aprovação exige ao menos uma área, ao\nmenos um conhecimento em cada área e ao menos um comportamento; o\nrascunho não exige nada.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.VagaAreaAtuacao"
+                    }
+                },
                 "areas_formacao_elegibilidade": {
                     "type": "array",
                     "items": {
@@ -14636,6 +14628,20 @@ const docTemplate = `{
                 },
                 "beneficios": {
                     "type": "string"
+                },
+                "comportamento_atitudes_ids": {
+                    "description": "ComportamentoAtitudesIDs são os ids dos comportamentos/atitudes da vaga\n(catálogo GET /api/v1/empregabilidade/comportamentos-atitudes).",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "comportamentos_atitudes": {
+                    "description": "ComportamentosAtitudes são os mesmos comportamentos com o nome; só na\nresposta, ignorado na entrada.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CatalogoItem"
+                    }
                 },
                 "contratante": {
                     "description": "Relationships",
@@ -14778,6 +14784,31 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/empregabilidade.Zona"
                     }
+                }
+            }
+        },
+        "empregabilidade.VagaAreaAtuacao": {
+            "type": "object",
+            "properties": {
+                "conhecimento_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "conhecimentos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CatalogoItem"
+                    }
+                },
+                "id_area_atuacao": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "nome": {
+                    "type": "string",
+                    "example": "Tecnologia da Informação"
                 }
             }
         },
@@ -16946,6 +16977,21 @@ const docTemplate = `{
                 "error": {
                     "type": "string",
                     "example": "Mensagem de erro aqui"
+                }
+            }
+        },
+        "response.ErrorWithFields": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "Preencha os campos obrigatórios da vaga."
+                },
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },

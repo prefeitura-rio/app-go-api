@@ -25,7 +25,6 @@ const (
 	MsgComportamentoObrigatorio = "Informe ao menos um comportamento ou atitude."
 )
 
-
 func erroCampo(campo, mensagem string) error {
 	return apperrors.ValidationFields(mensagem, map[string]string{campo: mensagem})
 }
