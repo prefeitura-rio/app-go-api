@@ -276,7 +276,10 @@ func syncEtapas(tx *gorm.DB, vagaID uuid.UUID, etapas []empregabilidade.Etapa) e
 		existentesIDs = append(existentesIDs, id)
 	}
 
-	// Desvincula candidaturas somente das etapas que serão removidas.
+	// Desvincula candidaturas somente das etapas que serão removidas. Só as
+	// candidaturas não excluídas são travadas e ganham evento etapa_removida;
+	// o UPDATE é Unscoped porque a candidatura excluída (soft delete) também
+	// aponta para a etapa pela FK e impediria o DELETE abaixo (DEV-533).
 	condicaoRemovidas := "id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)"
 	argsRemovidas := []interface{}{vagaID}
 	if len(existentesIDs) > 0 {
@@ -287,7 +290,7 @@ func syncEtapas(tx *gorm.DB, vagaID uuid.UUID, etapas []empregabilidade.Etapa) e
 	if err != nil {
 		return err
 	}
-	if err := tx.Model(&empregabilidade.Candidatura{}).
+	if err := tx.Unscoped().Model(&empregabilidade.Candidatura{}).
 		Where(condicaoRemovidas, argsRemovidas...).
 		Update("id_etapa_atual", nil).Error; err != nil {
 		return fmt.Errorf("erro ao desvincular etapas das candidaturas: %w", err)
