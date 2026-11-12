@@ -26,9 +26,14 @@ func NewVagaRepository(db *gorm.DB) *VagaRepository {
 }
 
 func (r *VagaRepository) Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
-	result := r.db.WithContext(ctx).Create(entity)
-	if result.Error != nil {
-		return uuid.Nil, fmt.Errorf("erro ao criar vaga: %w", result.Error)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(entity).Error; err != nil {
+			return fmt.Errorf("erro ao criar vaga: %w", err)
+		}
+		return gravarHabilidadesCompetencias(tx, entity)
+	})
+	if err != nil {
+		return uuid.Nil, err
 	}
 	return entity.ID, nil
 }
@@ -239,7 +244,7 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			}
 		}
 
-		return nil
+		return substituirHabilidadesCompetencias(tx, entity)
 	})
 }
 

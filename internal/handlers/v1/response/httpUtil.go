@@ -51,6 +51,13 @@ type ErrorWithField struct {
 	Field string `json:"field,omitempty" example:"email"`
 }
 
+// ErrorWithFields é o corpo do erro de validação que aponta o problema de cada
+// campo da entrada.
+type ErrorWithFields struct {
+	Error  string            `json:"error" example:"Preencha os campos obrigatórios da vaga."`
+	Fields map[string]string `json:"fields"`
+}
+
 // RespondError logs the full error (with trace_id when available) and writes a
 // stable client-facing JSON body via apperrors.Map. Never exposes internal details.
 //
@@ -91,6 +98,10 @@ func RespondError(c *gin.Context, err error, fallbackMessage ...string) {
 		len(fallbackMessage) > 0 &&
 		fallbackMessage[0] != "" {
 		message = fallbackMessage[0]
+	}
+	if appErr, ok := apperrors.As(err); ok && len(appErr.Fields) > 0 {
+		c.JSON(status, ErrorWithFields{Error: message, Fields: appErr.Fields})
+		return
 	}
 	if field != "" {
 		c.JSON(status, ErrorWithField{Error: message, Field: field})

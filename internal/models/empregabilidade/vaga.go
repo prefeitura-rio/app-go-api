@@ -321,6 +321,22 @@ type Vaga struct {
 	// PUT, o campo ausente mantém o estado gravado e [] desliga todos.
 	CriteriosBloqueio []CriterioBloqueio `json:"criterios_bloqueio" gorm:"type:jsonb;serializer:json"`
 
+	// Habilidades e competências da vaga (DEV-524), fora da tabela emp_vagas.
+	// Só a gestão (POST, PUT e GET /api/v1/empregabilidade/vagas/{id}) os
+	// devolve, sempre como lista ([] na vaga sem registro); rotas públicas,
+	// listagens e candidaturas não os trazem. No PUT, o campo ausente (ou null)
+	// mantém o gravado e a lista enviada substitui o conjunto inteiro ([] apaga
+	// tudo). Publicar ou enviar para aprovação exige ao menos uma área, ao
+	// menos um conhecimento em cada área e ao menos um comportamento; o
+	// rascunho não exige nada.
+	AreasAtuacao *[]VagaAreaAtuacao `json:"areas_atuacao,omitempty" gorm:"-"`
+	// ComportamentoAtitudesIDs são os ids dos comportamentos/atitudes da vaga
+	// (catálogo GET /api/v1/empregabilidade/comportamentos-atitudes).
+	ComportamentoAtitudesIDs *[]int64 `json:"comportamento_atitudes_ids,omitempty" gorm:"-"`
+	// ComportamentosAtitudes são os mesmos comportamentos com o nome; só na
+	// resposta, ignorado na entrada.
+	ComportamentosAtitudes *[]CatalogoItem `json:"comportamentos_atitudes,omitempty" gorm:"-"`
+
 	// Relationships
 	Contratante               *Empresa                 `json:"contratante,omitempty" gorm:"foreignKey:IDContratante;references:CNPJ"`
 	RegimeContratacao         *RegimeContratacao       `json:"regime_contratacao,omitempty" gorm:"foreignKey:IDRegimeContratacao"`

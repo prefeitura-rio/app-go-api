@@ -55,12 +55,13 @@ func NewVagaHandler(service *services.VagaService) *VagaHandler {
 // @Description  PcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.". O bloqueio de candidatura PcD é a chave "pcd" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.
 // @Description  Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou "" = sem exigência). O bloqueio de candidatura é a chave "experiencia_carteira" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.
 // @Description  Idade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave "jovem_aprendiz" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave "jovem_aprendiz" ligada retorna 400.
+// @Description  Habilidades e competências: areas_atuacao (lista de {id_area_atuacao, conhecimento_ids}, cada área uma vez, cada conhecimento da área em que foi marcado) e comportamento_atitudes_ids. Opcionais no rascunho. Área repetida, área, conhecimento ou comportamento fora do catálogo e conhecimento de outra área retornam 400 com o erro do campo em "fields" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids). A resposta traz as listas com os nomes (nome, conhecimentos, comportamentos_atitudes), que são ignorados na entrada: duplicar uma vaga é enviar ao POST o que o GET devolveu.
 // @Tags         empregabilidade-vagas
 // @Accept       json
 // @Produce      json
 // @Param        request  body      empregabilidade.Vaga  true  "Dados da vaga"
 // @Success      201      {object}  empregabilidade.Vaga
-// @Failure      400      {object}  map[string]string
+// @Failure      400      {object}  response.ErrorWithFields
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas [post]
 // @Router       /api/v1/empregabilidade/vagas/draft [post]
@@ -178,7 +179,7 @@ func (h *VagaHandler) List(c *gin.Context) {
 }
 
 // @Summary      Buscar vaga
-// @Description  Retorna uma vaga pelo ID
+// @Description  Retorna uma vaga pelo ID, com as habilidades e competências cadastradas: areas_atuacao (cada área com id_area_atuacao, nome, conhecimento_ids e conhecimentos), comportamento_atitudes_ids e comportamentos_atitudes. Vaga sem registro devolve listas vazias. As rotas públicas não trazem esses campos.
 // @Tags         empregabilidade-vagas
 // @Produce      json
 // @Param        id   path      string  true  "ID da vaga"
@@ -195,7 +196,7 @@ func (h *VagaHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	entity, err := h.service.GetByID(c.Request.Context(), id)
+	entity, err := h.service.GetByIDGestao(c.Request.Context(), id)
 	if err != nil {
 		response.RespondError(c, err)
 		return
@@ -214,13 +215,14 @@ func (h *VagaHandler) GetByID(c *gin.Context) {
 // @Description  PcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.".
 // @Description  Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e "" remove a exigência; com a chave "experiencia_carteira" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.
 // @Description  Idade: jovem_aprendiz (Jovem Aprendiz, faixa fixa de 14 a 24 anos) ausente ou null mantém o valor gravado; com a chave "jovem_aprendiz" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem jovem_aprendiz true retorna 400. Maiores de 18 segue em idade_minima; um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave "jovem_aprendiz" ligada (enviados ou mantidos) retorna 400.
+// @Description  Habilidades e competências: areas_atuacao e comportamento_atitudes_ids ausentes ou null mantêm o gravado; a lista enviada substitui o conjunto inteiro (apaga o que saiu, insere o que entrou; [] apaga tudo). Mesmas regras e erros por campo do POST. A resposta é a vaga relida, com as listas e os nomes.
 // @Tags         empregabilidade-vagas
 // @Accept       json
 // @Produce      json
 // @Param        id       path      string                true  "ID da vaga"
 // @Param        request  body      empregabilidade.Vaga  true  "Dados da vaga"
 // @Success      200      {object}  empregabilidade.Vaga
-// @Failure      400      {object}  map[string]string
+// @Failure      400      {object}  response.ErrorWithFields
 // @Failure      403      {object}  map[string]string
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/vagas/{id} [put]
@@ -276,7 +278,7 @@ func (h *VagaHandler) Update(c *gin.Context) {
 		return
 	}
 
-	updated, err := h.service.GetByID(c.Request.Context(), id)
+	updated, err := h.service.GetByIDGestao(c.Request.Context(), id)
 	if err != nil {
 		response.RespondError(c, err)
 		return
@@ -336,12 +338,12 @@ func (h *VagaHandler) SendToDraft(c *gin.Context) {
 }
 
 // @Summary      Enviar vaga para aprovação
-// @Description  Envia uma vaga em edição para o fluxo de aprovação
+// @Description  Envia uma vaga em edição para o fluxo de aprovação. Exige ao menos uma área de atuação, ao menos um conhecimento em cada área e ao menos um comportamento ou atitude: sem eles retorna 400 com o erro de cada campo em "fields" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids).
 // @Tags         empregabilidade-vagas
 // @Produce      json
 // @Param        id   path      string  true  "ID da vaga"
 // @Success      200  {object}  map[string]string
-// @Failure      400  {object}  map[string]string
+// @Failure      400  {object}  response.ErrorWithFields
 // @Failure      404  {object}  map[string]string
 // @Failure      409  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
@@ -362,12 +364,12 @@ func (h *VagaHandler) SendToApproval(c *gin.Context) {
 }
 
 // @Summary      Publicar vaga
-// @Description  Publica uma vaga em edição
+// @Description  Publica uma vaga em edição ou em aprovação. Exige ao menos uma área de atuação, ao menos um conhecimento em cada área e ao menos um comportamento ou atitude: sem eles retorna 400 com o erro de cada campo em "fields" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids).
 // @Tags         empregabilidade-vagas
 // @Produce      json
 // @Param        id   path      string  true  "ID da vaga"
 // @Success      200  {object}  map[string]string
-// @Failure      400  {object}  map[string]string
+// @Failure      400  {object}  response.ErrorWithFields
 // @Failure      404  {object}  map[string]string
 // @Failure      409  {object}  map[string]string
 // @Failure      500  {object}  map[string]string

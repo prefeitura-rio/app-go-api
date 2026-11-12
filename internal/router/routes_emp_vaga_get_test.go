@@ -32,6 +32,12 @@ func (s *vagaGetRepoStub) GetByID(_ context.Context, id uuid.UUID) (*empModels.V
 	return &copied, nil
 }
 
+// GetHabilidadesCompetencias atende a leitura da gestão (GET /vagas/:id), que
+// devolve também as áreas, conhecimentos e comportamentos da vaga (DEV-524).
+func (s *vagaGetRepoStub) GetHabilidadesCompetencias(_ context.Context, _ uuid.UUID) (*empModels.VagaHabilidadesCompetencias, error) {
+	return &empModels.VagaHabilidadesCompetencias{}, nil
+}
+
 func injectCaller(role string, roles []string, orgaoID string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if role != "" {
