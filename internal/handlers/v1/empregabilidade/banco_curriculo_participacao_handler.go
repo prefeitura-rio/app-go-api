@@ -52,7 +52,7 @@ func (h *ParticipacaoBancoHandler) Get(c *gin.Context) {
 }
 
 // @Summary      Ativar ou desativar o currículo no banco de currículos
-// @Description  O cidadão escolhe se os recrutadores podem consultar o currículo no banco de currículos. Vale para qualquer currículo, completo ou não (422 quando a pessoa ainda não salvou nenhuma parte). Só o próprio cidadão.
+// @Description  O cidadão escolhe se os recrutadores podem consultar o currículo no banco de currículos. Só entra no banco o currículo com o mínimo para se candidatar (422 com as pendências; 422 também quando a pessoa ainda não salvou nenhuma parte). Sair do banco vale sempre. Só o próprio cidadão.
 // @Tags         empregabilidade-curriculo-banco
 // @Accept       json
 // @Produce      json
@@ -62,7 +62,7 @@ func (h *ParticipacaoBancoHandler) Get(c *gin.Context) {
 // @Failure      400      {object}  map[string]string
 // @Failure      401      {object}  map[string]string
 // @Failure      403      {object}  map[string]string
-// @Failure      422      {object}  map[string]string
+// @Failure      422      {object}  empregabilidade.ParticipacaoBancoRecusadaResponse
 // @Failure      500      {object}  map[string]string
 // @Router       /api/v1/empregabilidade/curriculo/{cpf}/banco-curriculos [put]
 func (h *ParticipacaoBancoHandler) Atualizar(c *gin.Context) {
@@ -88,6 +88,14 @@ func (h *ParticipacaoBancoHandler) Atualizar(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, services.ErrSemCurriculoParaBanco) {
 			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Crie o currículo antes de escolher se ele aparece no banco de currículos"})
+			return
+		}
+		var incompleto *services.CurriculoIncompletoParaBancoError
+		if errors.As(err, &incompleto) {
+			c.JSON(http.StatusUnprocessableEntity, empregabilidade.ParticipacaoBancoRecusadaResponse{
+				Error:      "Complete o currículo para entrar no banco de currículos",
+				Pendencias: incompleto.Pendencias,
+			})
 			return
 		}
 		log.Printf("[ParticipacaoBancoHandler] Atualizar failed: %v", err)

@@ -151,7 +151,7 @@ func TestCurriculoRepository_ListBancoCurriculos_SomenteDisponiveis(t *testing.T
 		db, mock, cleanup := repository.SetupMockDB(t)
 		defer cleanup()
 		mock.ExpectQuery(regexp.QuoteMeta(`unaccent(cs.nome_social) ILIKE unaccent($2)) AND c.disponivel_banco`)).
-			WithArgs("%ana%", "%ana%").
+			WithArgs("%ana%", "%ana%", "Desempregado(a)", "Buscando primeiro emprego").
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 
 		_, _, err := NewCurriculoRepository(db).ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{Search: "ana", SomenteDisponiveis: true}, 1, 10)

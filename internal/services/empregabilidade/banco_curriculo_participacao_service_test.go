@@ -109,19 +109,18 @@ func TestParticipacaoBancoService_Atualizar_AtivaCurriculoCompleto(t *testing.T)
 	assert.Equal(t, &agoraParticipacao, status.DisponivelAlteradoEm)
 }
 
-// O banco mostra o que a pessoa conseguiu salvar: currículo incompleto também
-// pode voltar a ficar visível.
-func TestParticipacaoBancoService_Atualizar_AtivaMesmoComCurriculoIncompleto(t *testing.T) {
+// O banco segue a regra das vagas: só entra quem tem o currículo mínimo
+// (situação atual e termos de uso aceitos).
+func TestParticipacaoBancoService_Atualizar_RecusaAtivarCurriculoIncompleto(t *testing.T) {
 	repo := &fakeParticipacaoRepo{participacao: &empregabilidade.ParticipacaoBanco{}}
 	s := novoParticipacaoService(repo, nil, false)
 
-	status, err := s.Atualizar(context.Background(), cpfCidadao, true)
+	_, err := s.Atualizar(context.Background(), cpfCidadao, true)
 
-	require.NoError(t, err)
-	require.Len(t, repo.chamadas, 1)
-	assert.True(t, repo.chamadas[0].disponivel)
-	assert.True(t, status.Disponivel)
-	assert.False(t, status.CurriculoCompleto)
+	var incompleto *services.CurriculoIncompletoParaBancoError
+	require.ErrorAs(t, err, &incompleto)
+	assert.Equal(t, []string{"Situação atual não informada", "Termos de uso não aceitos"}, incompleto.Pendencias)
+	assert.Empty(t, repo.chamadas)
 }
 
 func TestParticipacaoBancoService_Atualizar_RecusaSemCurriculo(t *testing.T) {

@@ -103,6 +103,7 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 		empCandidaturas.PUT("/bulk-status", candidaturaGestaoAuth, vagaAuth, vagaListFilter, app.EmpCandidaturaHandler.BulkUpdateStatus)
 		empCandidaturas.PUT("/bulk-etapa", candidaturaGestaoAuth, vagaAuth, vagaListFilter, app.EmpCandidaturaHandler.BulkUpdateEtapa)
 		empCandidaturas.GET("/usuario/:cpf", vagaListFilter, app.EmpCandidaturaHandler.ListByCPF)
+		empCandidaturas.PUT("/usuario/:cpf/visualizar", app.EmpCandidaturaHandler.MarcarAtualizacoesVistas)
 		empCandidaturas.GET("/:id", app.EmpCandidaturaHandler.GetByID)
 		empCandidaturas.PUT("/:id", app.EmpCandidaturaHandler.Update)
 		empCandidaturas.DELETE("/:id", app.EmpCandidaturaHandler.Delete)
