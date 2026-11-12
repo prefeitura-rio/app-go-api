@@ -905,6 +905,19 @@ definitions:
     properties:
       acessibilidade_pcd:
         $ref: '#/definitions/empregabilidade.AcessibilidadePCD'
+      areas_atuacao:
+        description: |-
+          Habilidades e competências da vaga (DEV-524), fora da tabela emp_vagas.
+          Só a gestão (POST, PUT e GET /api/v1/empregabilidade/vagas/{id}) os
+          devolve, sempre como lista ([] na vaga sem registro); rotas públicas,
+          listagens e candidaturas não os trazem. No PUT, o campo ausente (ou null)
+          mantém o gravado e a lista enviada substitui o conjunto inteiro ([] apaga
+          tudo). Publicar ou enviar para aprovação exige ao menos uma área, ao
+          menos um conhecimento em cada área e ao menos um comportamento; o
+          rascunho não exige nada.
+        items:
+          $ref: '#/definitions/empregabilidade.VagaAreaAtuacao'
+        type: array
       areas_formacao_elegibilidade:
         items:
           type: string
@@ -917,6 +930,20 @@ definitions:
         type: array
       beneficios:
         type: string
+      comportamento_atitudes_ids:
+        description: |-
+          ComportamentoAtitudesIDs são os ids dos comportamentos/atitudes da vaga
+          (catálogo GET /api/v1/empregabilidade/comportamentos-atitudes).
+        items:
+          type: integer
+        type: array
+      comportamentos_atitudes:
+        description: |-
+          ComportamentosAtitudes são os mesmos comportamentos com o nome; só na
+          resposta, ignorado na entrada.
+        items:
+          $ref: '#/definitions/empregabilidade.CatalogoItem'
+        type: array
       contratante:
         allOf:
         - $ref: '#/definitions/empregabilidade.Empresa'
@@ -1027,6 +1054,23 @@ definitions:
         items:
           $ref: '#/definitions/empregabilidade.Zona'
         type: array
+    type: object
+  empregabilidade.VagaAreaAtuacao:
+    properties:
+      conhecimento_ids:
+        items:
+          type: integer
+        type: array
+      conhecimentos:
+        items:
+          $ref: '#/definitions/empregabilidade.CatalogoItem'
+        type: array
+      id_area_atuacao:
+        example: 3
+        type: integer
+      nome:
+        example: Tecnologia da Informação
+        type: string
     type: object
   empregabilidade.VagaIdiomaRequisito:
     properties:
@@ -2540,6 +2584,16 @@ definitions:
       error:
         example: Mensagem de erro aqui
         type: string
+    type: object
+  response.ErrorWithFields:
+    properties:
+      error:
+        example: Preencha os campos obrigatórios da vaga.
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        type: object
     type: object
   response.ListAreasAtuacaoPaginatedResponse:
     properties:
@@ -9188,6 +9242,7 @@ paths:
         PcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.". O bloqueio de candidatura PcD é a chave "pcd" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.
         Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou "" = sem exigência). O bloqueio de candidatura é a chave "experiencia_carteira" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.
         Idade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave "jovem_aprendiz" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave "jovem_aprendiz" ligada retorna 400.
+        Habilidades e competências: areas_atuacao (lista de {id_area_atuacao, conhecimento_ids}, cada área uma vez, cada conhecimento da área em que foi marcado) e comportamento_atitudes_ids. Opcionais no rascunho. Área repetida, área, conhecimento ou comportamento fora do catálogo, conhecimento de outra área e lista acima do limite (50 áreas, 300 conhecimentos por área, 100 comportamentos) retornam 400 com o erro do campo em "fields" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids). A resposta traz as listas com os nomes (nome, conhecimentos, comportamentos_atitudes), que são ignorados na entrada: para duplicar uma vaga, areas_atuacao e comportamento_atitudes_ids devolvidos pelo GET podem ser enviados como estão no POST do rascunho (sem o id da vaga).
       parameters:
       - description: Dados da vaga
         in: body
@@ -9205,9 +9260,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/response.ErrorWithFields'
         "500":
           description: Internal Server Error
           schema:
@@ -9251,7 +9304,10 @@ paths:
       tags:
       - empregabilidade-vagas
     get:
-      description: Retorna uma vaga pelo ID
+      description: 'Retorna uma vaga pelo ID, com as habilidades e competências cadastradas:
+        areas_atuacao (cada área com id_area_atuacao, nome, conhecimento_ids e conhecimentos),
+        comportamento_atitudes_ids e comportamentos_atitudes. Vaga sem registro devolve
+        listas vazias. As rotas públicas não trazem esses campos.'
       parameters:
       - description: ID da vaga
         in: path
@@ -9300,6 +9356,7 @@ paths:
         PcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.".
         Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e "" remove a exigência; com a chave "experiencia_carteira" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.
         Idade: jovem_aprendiz (Jovem Aprendiz, faixa fixa de 14 a 24 anos) ausente ou null mantém o valor gravado; com a chave "jovem_aprendiz" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem jovem_aprendiz true retorna 400. Maiores de 18 segue em idade_minima; um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave "jovem_aprendiz" ligada (enviados ou mantidos) retorna 400.
+        Habilidades e competências: areas_atuacao e comportamento_atitudes_ids ausentes ou null mantêm o gravado; a lista enviada substitui o conjunto inteiro (apaga o que saiu, insere o que entrou; [] apaga tudo). Mesmas regras e erros por campo do POST. A resposta é a vaga relida, com as listas e os nomes.
       parameters:
       - description: ID da vaga
         in: path
@@ -9322,9 +9379,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/response.ErrorWithFields'
         "403":
           description: Forbidden
           schema:
@@ -9704,7 +9759,10 @@ paths:
       - empregabilidade-vagas
   /api/v1/empregabilidade/vagas/{id}/publish:
     put:
-      description: Publica uma vaga em edição
+      description: 'Publica uma vaga em edição ou em aprovação. Exige ao menos uma
+        área de atuação, ao menos um conhecimento em cada área e ao menos um comportamento
+        ou atitude: sem eles retorna 400 com o erro de cada campo em "fields" (areas_atuacao,
+        areas_atuacao.conhecimento_ids, comportamento_atitudes_ids).'
       parameters:
       - description: ID da vaga
         in: path
@@ -9723,9 +9781,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/response.ErrorWithFields'
         "404":
           description: Not Found
           schema:
@@ -9795,7 +9851,10 @@ paths:
       - empregabilidade-vagas
   /api/v1/empregabilidade/vagas/{id}/send-to-approval:
     put:
-      description: Envia uma vaga em edição para o fluxo de aprovação
+      description: 'Envia uma vaga em edição para o fluxo de aprovação. Exige ao menos
+        uma área de atuação, ao menos um conhecimento em cada área e ao menos um comportamento
+        ou atitude: sem eles retorna 400 com o erro de cada campo em "fields" (areas_atuacao,
+        areas_atuacao.conhecimento_ids, comportamento_atitudes_ids).'
       parameters:
       - description: ID da vaga
         in: path
@@ -9814,9 +9873,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/response.ErrorWithFields'
         "404":
           description: Not Found
           schema:
@@ -10022,6 +10079,7 @@ paths:
         PcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 "Selecione ao menos um tipo de deficiência.". O bloqueio de candidatura PcD é a chave "pcd" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.
         Experiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou "" = sem exigência). O bloqueio de candidatura é a chave "experiencia_carteira" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.
         Idade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave "jovem_aprendiz" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave "jovem_aprendiz" ligada retorna 400.
+        Habilidades e competências: areas_atuacao (lista de {id_area_atuacao, conhecimento_ids}, cada área uma vez, cada conhecimento da área em que foi marcado) e comportamento_atitudes_ids. Opcionais no rascunho. Área repetida, área, conhecimento ou comportamento fora do catálogo, conhecimento de outra área e lista acima do limite (50 áreas, 300 conhecimentos por área, 100 comportamentos) retornam 400 com o erro do campo em "fields" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids). A resposta traz as listas com os nomes (nome, conhecimentos, comportamentos_atitudes), que são ignorados na entrada: para duplicar uma vaga, areas_atuacao e comportamento_atitudes_ids devolvidos pelo GET podem ser enviados como estão no POST do rascunho (sem o id da vaga).
       parameters:
       - description: Dados da vaga
         in: body
@@ -10039,9 +10097,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/response.ErrorWithFields'
         "500":
           description: Internal Server Error
           schema:

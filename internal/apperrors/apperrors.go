@@ -44,6 +44,9 @@ type Error struct {
 	Kind    Kind
 	Message string
 	Err     error
+	// Fields guarda, quando há, o erro de cada campo da entrada (nome do
+	// campo → mensagem pública). A resposta HTTP o devolve em "fields".
+	Fields map[string]string
 }
 
 // Error devolve só a mensagem pública, nunca a causa interna.
@@ -95,6 +98,14 @@ func Invalid(message string) *Error { return New(KindInvalid, message) }
 
 // Validation is an alias of Invalid (400).
 func Validation(message string) *Error { return Invalid(message) }
+
+// ValidationFields cria um erro de entrada inválida (400) com o erro de cada
+// campo, além da mensagem geral.
+func ValidationFields(message string, fields map[string]string) *Error {
+	err := Invalid(message)
+	err.Fields = fields
+	return err
+}
 
 // Forbidden cria um erro de operação proibida (403).
 func Forbidden(message string) *Error { return New(KindForbidden, message) }

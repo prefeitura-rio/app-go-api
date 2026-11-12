@@ -24,12 +24,29 @@ type mockVagaRepoH struct {
 	listItems []*empmodels.Vaga
 	listTotal int
 	err       error
+	// Habilidades e competências (DEV-524): o que a vaga tem gravado, o
+	// catálogo de conhecimentos por área e a vaga recebida pelo Create.
+	habilidades          *empmodels.VagaHabilidadesCompetencias
+	conhecimentosPorArea map[int64][]int64
+	created              *empmodels.Vaga
 }
 
-func (m *mockVagaRepoH) Create(_ context.Context, _ *empmodels.Vaga) (uuid.UUID, error) {
+func (m *mockVagaRepoH) Create(_ context.Context, entity *empmodels.Vaga) (uuid.UUID, error) {
 	if m.err != nil {
 		return uuid.Nil, m.err
 	}
+	// Cópia das listas como chegaram: o service depois troca as da entidade
+	// pela releitura que vai na resposta.
+	copia := *entity
+	if entity.AreasAtuacao != nil {
+		areas := append([]empmodels.VagaAreaAtuacao(nil), *entity.AreasAtuacao...)
+		copia.AreasAtuacao = &areas
+	}
+	if entity.ComportamentoAtitudesIDs != nil {
+		ids := append([]int64(nil), *entity.ComportamentoAtitudesIDs...)
+		copia.ComportamentoAtitudesIDs = &ids
+	}
+	m.created = &copia
 	return uuid.New(), nil
 }
 
@@ -661,7 +678,7 @@ func TestVagaHandler_SendToDraft_Success(t *testing.T) {
 
 func TestVagaHandler_SendToApproval_Success(t *testing.T) {
 	id := uuid.MustParse(validUUID)
-	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}}
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmEdicao}, habilidades: habilidadesGravadas()}
 	empresaRepo := &mockEmpresaRepoForVaga{}
 	r := setupVagaRouter(vagaRepo, empresaRepo, true)
 	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/send-to-approval", nil)
@@ -678,7 +695,7 @@ func TestVagaHandler_SendToApproval_Success(t *testing.T) {
 
 func TestVagaHandler_Publish_Success(t *testing.T) {
 	id := uuid.MustParse(validUUID)
-	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmAprovacao}}
+	vagaRepo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Status: empmodels.StatusVagaEmAprovacao}, habilidades: habilidadesGravadas()}
 	empresaRepo := &mockEmpresaRepoForVaga{}
 	r := setupVagaRouter(vagaRepo, empresaRepo, true)
 	req := httptest.NewRequest(http.MethodPut, "/vagas/"+validUUID+"/publish", nil)
