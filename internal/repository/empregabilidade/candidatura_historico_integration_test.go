@@ -293,3 +293,49 @@ func TestCandidaturaHistoricoIntegration(t *testing.T) {
 		assert.Equal(t, 2, contagem["operador/sem_motivo"])
 	})
 }
+
+// DEV-533: a etapa removida da vaga ainda era a etapa atual de uma candidatura
+// excluída (soft delete); a remoção desvincula também essa candidatura, sem
+// violar a FK e sem gerar evento de histórico para ela.
+func TestVagaRepositoryIntegration_RemoveEtapaComCandidaturaExcluida(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	vagaTexto := vagaDeTesteParticipacao(t, tx)
+	vaga := uuid.MustParse(vagaTexto)
+	mantida := etapaDeTeste(t, tx, vagaTexto, "mantida", 1)
+	removida := etapaDeTeste(t, tx, vagaTexto, "removida", 2)
+
+	repo := emprepo.NewCandidaturaRepository(tx)
+	ativa := &empregabilidade.Candidatura{CPF: "90000000201", IDVaga: vaga, Status: empregabilidade.StatusCandidaturaEnviada}
+	excluida := &empregabilidade.Candidatura{CPF: "90000000202", IDVaga: vaga, Status: empregabilidade.StatusCandidaturaEnviada}
+	for _, candidatura := range []*empregabilidade.Candidatura{ativa, excluida} {
+		_, err := repo.Create(context.Background(), candidatura)
+		require.NoError(t, err)
+		require.NoError(t, repo.UpdateEtapa(context.Background(), candidatura.ID, removida))
+	}
+	require.NoError(t, repo.Delete(context.Background(), excluida.ID))
+	eventosExcluidaAntes := len(eventosDaCandidatura(t, tx, excluida.ID))
+
+	var atual empregabilidade.Vaga
+	require.NoError(t, tx.First(&atual, "id = ?", vaga).Error)
+	atual.Etapas = []empregabilidade.Etapa{{ID: mantida, Titulo: "mantida", Ordem: 1}}
+	require.NoError(t, emprepo.NewVagaRepository(tx).UpdateWithAssociations(context.Background(), &atual))
+
+	var etapas int64
+	require.NoError(t, tx.Raw(`SELECT COUNT(*) FROM emp_etapas WHERE id = ?`, removida).Scan(&etapas).Error)
+	assert.Zero(t, etapas, "a etapa foi removida")
+
+	for _, candidatura := range []*empregabilidade.Candidatura{ativa, excluida} {
+		var etapa *string
+		require.NoError(t, tx.Raw(`SELECT id_etapa_atual FROM emp_candidaturas WHERE id = ?`, candidatura.ID).Scan(&etapa).Error)
+		assert.Nil(t, etapa, "candidatura %s ficou sem etapa", candidatura.CPF)
+	}
+
+	var deletedAt *time.Time
+	require.NoError(t, tx.Raw(`SELECT deleted_at FROM emp_candidaturas WHERE id = ?`, excluida.ID).Scan(&deletedAt).Error)
+	assert.NotNil(t, deletedAt, "a candidatura excluída continua excluída")
+
+	eventosAtiva := eventosDaCandidatura(t, tx, ativa.ID)
+	require.NotEmpty(t, eventosAtiva)
+	assert.Equal(t, empregabilidade.EventoEtapaRemovida, eventosAtiva[len(eventosAtiva)-1].TipoEvento)
+	assert.Len(t, eventosDaCandidatura(t, tx, excluida.ID), eventosExcluidaAntes, "candidatura excluída não ganha evento etapa_removida")
+}
