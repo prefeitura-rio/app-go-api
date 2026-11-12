@@ -187,8 +187,10 @@ func TestVagaHandler_Create_AreaRepetidaOuConhecimentoDeOutraArea_400PorCampo(t 
 	}
 }
 
-// Duplicar = ler a vaga e enviar o mesmo corpo ao POST: o que o GET devolve é
-// aceito de volta e grava as mesmas áreas, conhecimentos e comportamentos.
+// Duplicar = ler a vaga e enviar ao POST o corpo sem o id da vaga (como faz o
+// botão de duplicar do portal-interno): as listas que o GET devolve, com os
+// nomes, são aceitas de volta e gravam as mesmas áreas, conhecimentos e
+// comportamentos.
 func TestVagaHandler_Duplicar_GetDepoisPostGravaOMesmoConjunto(t *testing.T) {
 	id := uuid.New()
 	repo := &mockVagaRepoH{
@@ -198,10 +200,13 @@ func TestVagaHandler_Duplicar_GetDepoisPostGravaOMesmoConjunto(t *testing.T) {
 	}
 	r := setupVagaRouter(repo, &mockEmpresaRepoForVaga{entity: &empmodels.Empresa{CNPJ: "12345678000100"}}, true)
 
-	w, _ := doJSON(t, r, http.MethodGet, "/vagas/"+id.String(), "")
+	w, lida := doJSON(t, r, http.MethodGet, "/vagas/"+id.String(), "")
 	require.Equal(t, http.StatusOK, w.Code)
+	delete(lida, "id")
+	corpo, err := json.Marshal(lida)
+	require.NoError(t, err)
 
-	w2, _ := doJSON(t, r, http.MethodPost, "/vagas", w.Body.String())
+	w2, _ := doJSON(t, r, http.MethodPost, "/vagas", string(corpo))
 	require.Equal(t, http.StatusCreated, w2.Code, w2.Body.String())
 	require.NotNil(t, repo.created.AreasAtuacao)
 	assert.Equal(t, []empmodels.VagaAreaAtuacao{

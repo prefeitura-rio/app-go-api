@@ -19,6 +19,15 @@ const (
 	CampoComportamentoAtitudesIDs = "comportamento_atitudes_ids"
 )
 
+// Tamanho máximo das listas aceitas no corpo da vaga. Folgados para o
+// formulário, eles mantêm a validação (um IN por lista) bem abaixo do limite
+// de parâmetros do Postgres.
+const (
+	MaxAreasAtuacaoPorVaga   = 50
+	MaxConhecimentosPorArea  = 300
+	MaxComportamentosPorVaga = 100
+)
+
 // Mensagens dos campos exigidos para publicar ou enviar para aprovação.
 const (
 	MsgAreaAtuacaoObrigatoria   = "Informe ao menos uma área de atuação."
@@ -64,6 +73,9 @@ func (s *VagaService) validarHabilidadesCompetencias(ctx context.Context, entity
 }
 
 func (s *VagaService) normalizarAreasAtuacao(ctx context.Context, entrada []empregabilidade.VagaAreaAtuacao) ([]empregabilidade.VagaAreaAtuacao, error) {
+	if len(entrada) > MaxAreasAtuacaoPorVaga {
+		return nil, erroCampo(CampoAreasAtuacao, fmt.Sprintf("Informe no máximo %d áreas de atuação por vaga.", MaxAreasAtuacaoPorVaga))
+	}
 	areas := make([]empregabilidade.VagaAreaAtuacao, 0, len(entrada))
 	vistas := make(map[int64]bool, len(entrada))
 	areaIDs := make([]int64, 0, len(entrada))
@@ -77,6 +89,9 @@ func (s *VagaService) normalizarAreasAtuacao(ctx context.Context, entrada []empr
 		}
 		vistas[a.IDAreaAtuacao] = true
 		areaIDs = append(areaIDs, a.IDAreaAtuacao)
+		if len(a.ConhecimentoIDs) > MaxConhecimentosPorArea {
+			return nil, erroCampo(CampoConhecimentosDaArea, fmt.Sprintf("Informe no máximo %d conhecimentos por área de atuação (área %d).", MaxConhecimentosPorArea, a.IDAreaAtuacao))
+		}
 
 		conhecimentos := make([]int64, 0, len(a.ConhecimentoIDs))
 		repetido := make(map[int64]bool, len(a.ConhecimentoIDs))
@@ -142,6 +157,9 @@ func (s *VagaService) normalizarAreasAtuacao(ctx context.Context, entrada []empr
 }
 
 func (s *VagaService) normalizarComportamentos(ctx context.Context, entrada []int64) ([]int64, error) {
+	if len(entrada) > MaxComportamentosPorVaga {
+		return nil, erroCampo(CampoComportamentoAtitudesIDs, fmt.Sprintf("Informe no máximo %d comportamentos ou atitudes por vaga.", MaxComportamentosPorVaga))
+	}
 	out := make([]int64, 0, len(entrada))
 	visto := make(map[int64]bool, len(entrada))
 	for _, id := range entrada {

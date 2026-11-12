@@ -277,6 +277,43 @@ func TestVagaService_Create_RecusaEntradaInvalidaDasHabilidades(t *testing.T) {
 	}
 }
 
+// Listas grandes demais são recusadas antes de consultar o banco (o IN da
+// validação tem limite de parâmetros no Postgres).
+func TestVagaService_Create_RecusaListasAcimaDoLimite(t *testing.T) {
+	muitasAreas := make([]empregabilidade.VagaAreaAtuacao, services.MaxAreasAtuacaoPorVaga+1)
+	for i := range muitasAreas {
+		muitasAreas[i] = empregabilidade.VagaAreaAtuacao{IDAreaAtuacao: int64(i + 1)}
+	}
+	muitosConhecimentos := make([]int64, services.MaxConhecimentosPorArea+1)
+	for i := range muitosConhecimentos {
+		muitosConhecimentos[i] = int64(i + 1)
+	}
+	muitosComportamentos := make([]int64, services.MaxComportamentosPorVaga+1)
+	for i := range muitosComportamentos {
+		muitosComportamentos[i] = int64(i + 1)
+	}
+
+	tests := []struct {
+		name           string
+		areas          *[]empregabilidade.VagaAreaAtuacao
+		comportamentos *[]int64
+		campo          string
+	}{
+		{"áreas demais", &muitasAreas, nil, "areas_atuacao"},
+		{"conhecimentos demais numa área", areas(empregabilidade.VagaAreaAtuacao{IDAreaAtuacao: 3, ConhecimentoIDs: muitosConhecimentos}), nil, "areas_atuacao.conhecimento_ids"},
+		{"comportamentos demais", nil, &muitosComportamentos, "comportamento_atitudes_ids"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, repo := novoServicoHabilidades()
+			repo.catalogoError = errors.New("o catálogo não deveria ser consultado")
+			_, err := svc.Create(context.Background(), vagaNovaComHabilidades(tt.areas, tt.comportamentos))
+			requireFieldError(t, err, tt.campo, "no máximo")
+			assert.Empty(t, repo.vagas)
+		})
+	}
+}
+
 func TestVagaService_Create_ErroDoCatalogoPropaga(t *testing.T) {
 	svc, repo := novoServicoHabilidades()
 	repo.catalogoError = errors.New("db fora")
