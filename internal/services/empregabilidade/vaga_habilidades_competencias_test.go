@@ -3,6 +3,7 @@ package empregabilidade_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
@@ -312,6 +313,36 @@ func TestVagaService_Create_RecusaListasAcimaDoLimite(t *testing.T) {
 			assert.Empty(t, repo.vagas)
 		})
 	}
+}
+
+// No teto exato as listas são aceitas.
+func TestVagaService_Create_AceitaListasNoLimite(t *testing.T) {
+	svc, repo := novoServicoHabilidades()
+	areasNoLimite := make([]empregabilidade.VagaAreaAtuacao, services.MaxAreasAtuacaoPorVaga)
+	for i := range areasNoLimite {
+		id := int64(100 + i)
+		repo.catalogo.areas[id] = fmt.Sprintf("Área %d", id)
+		areasNoLimite[i] = empregabilidade.VagaAreaAtuacao{IDAreaAtuacao: id}
+	}
+	conhecimentos := make([]int64, services.MaxConhecimentosPorArea)
+	repo.catalogo.conhecimentos[100] = map[int64]string{}
+	for i := range conhecimentos {
+		conhecimentos[i] = int64(1000 + i)
+		repo.catalogo.conhecimentos[100][conhecimentos[i]] = "Conhecimento"
+	}
+	areasNoLimite[0].ConhecimentoIDs = conhecimentos
+	comportamentos := make([]int64, services.MaxComportamentosPorVaga)
+	for i := range comportamentos {
+		comportamentos[i] = int64(500 + i)
+		repo.catalogo.comportamentos[comportamentos[i]] = "Comportamento"
+	}
+
+	id, err := svc.Create(context.Background(), vagaNovaComHabilidades(&areasNoLimite, &comportamentos))
+	require.NoError(t, err)
+	gravado := repo.habilidades[id]
+	assert.Len(t, gravado.AreasAtuacao, services.MaxAreasAtuacaoPorVaga)
+	assert.Len(t, gravado.AreasAtuacao[0].Conhecimentos, services.MaxConhecimentosPorArea)
+	assert.Len(t, gravado.ComportamentosAtitudes, services.MaxComportamentosPorVaga)
 }
 
 func TestVagaService_Create_ErroDoCatalogoPropaga(t *testing.T) {
