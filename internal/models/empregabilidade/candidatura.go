@@ -58,9 +58,12 @@ type Candidatura struct {
 	// Origem e AssociadoPorCPF são definidos pela API, nunca pelo corpo da requisição.
 	Origem          *OrigemCandidatura `json:"origem,omitempty" gorm:"type:varchar(64)"`
 	AssociadoPorCPF *string            `json:"associado_por_cpf,omitempty" gorm:"type:varchar(14);column:associado_por_cpf"`
-	DeletedAt       gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
-	CreatedAt       time.Time          `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt       time.Time          `json:"updated_at" gorm:"autoUpdateTime"`
+	// UltimoEventoVisto é o id do último evento do histórico que o candidato
+	// viu. É da API: fica fora do JSON, então o corpo da requisição não o define.
+	UltimoEventoVisto *int64         `json:"-" gorm:"column:ultimo_evento_visto"`
+	DeletedAt         gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
+	CreatedAt         time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt         time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Computed field (not stored in DB) - populated from CitizenSnapshot
 	PersonalInfo *models.CitizenPersonalInfo `json:"personal_info,omitempty" gorm:"-"`

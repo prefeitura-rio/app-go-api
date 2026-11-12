@@ -30,6 +30,8 @@ type CandidaturaRepositoryInterface interface {
 	BulkSaveAndUpdateStatusByVagaID(ctx context.Context, vagaID uuid.UUID, newStatus empregabilidade.StatusCandidatura) error
 	BulkRestoreStatusByVagaID(ctx context.Context, vagaID uuid.UUID) error
 	CountByStatus(ctx context.Context, filter empregabilidade.CandidaturaFilter) (map[empregabilidade.StatusCandidatura]int64, error)
+	CountAtualizacoesNaoVistas(ctx context.Context, cpf string) (int64, error)
+	MarcarAtualizacoesComoVistas(ctx context.Context, cpf string) error
 }
 
 type VagaRepositoryInterface interface {
@@ -199,6 +201,8 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 	}
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
+	// Candidatura nova começa sem evento visto.
+	entity.UltimoEventoVisto = nil
 
 	id, err := s.repo.Create(comOrigemDaCriacao(ctx, entity.Origem), entity)
 	if err != nil {
@@ -277,6 +281,7 @@ func (s *CandidaturaService) Update(ctx context.Context, entity *empregabilidade
 	entity.CurriculoSnapshot = existing.CurriculoSnapshot
 	entity.Origem = existing.Origem
 	entity.AssociadoPorCPF = existing.AssociadoPorCPF
+	entity.UltimoEventoVisto = existing.UltimoEventoVisto
 
 	return s.repo.Update(ctx, entity)
 }
@@ -305,6 +310,17 @@ func (s *CandidaturaService) List(ctx context.Context, filter empregabilidade.Ca
 
 func (s *CandidaturaService) CountByStatus(ctx context.Context, filter empregabilidade.CandidaturaFilter) (map[empregabilidade.StatusCandidatura]int64, error) {
 	return s.repo.CountByStatus(ctx, filter)
+}
+
+// CountAtualizacoesNaoVistas conta as candidaturas do CPF com mudança de status
+// ou de etapa (no histórico) depois da última vez que o candidato viu a lista.
+func (s *CandidaturaService) CountAtualizacoesNaoVistas(ctx context.Context, cpf string) (int64, error) {
+	return s.repo.CountAtualizacoesNaoVistas(ctx, cpf)
+}
+
+// MarcarAtualizacoesComoVistas zera a contagem de atualizações do CPF.
+func (s *CandidaturaService) MarcarAtualizacoesComoVistas(ctx context.Context, cpf string) error {
+	return s.repo.MarcarAtualizacoesComoVistas(ctx, cpf)
 }
 
 func (s *CandidaturaService) UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error {

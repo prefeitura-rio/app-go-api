@@ -2910,7 +2910,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/candidaturas/usuario/{cpf}": {
             "get": {
-                "description": "Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF; com o RBAC ligado, o editor de empregabilidade que consulta outro CPF só vê candidaturas de vagas dos órgãos do seu escopo.",
+                "description": "Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF; com o RBAC ligado, o editor de empregabilidade que consulta outro CPF só vê candidaturas de vagas dos órgãos do seu escopo. O campo atualizacoes conta as candidaturas do CPF com mudança de status ou de etapa (registrada no histórico) que o candidato ainda não viu (ignora os filtros da listagem).",
                 "produces": [
                     "application/json"
                 ],
@@ -2964,6 +2964,56 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/candidaturas/usuario/{cpf}/visualizar": {
+            "put": {
+                "description": "Marca como vistas as mudanças de status e de etapa das candidaturas do CPF, zerando o campo atualizacoes da listagem por CPF. Só o próprio candidato pode marcar.",
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Marcar atualizações das candidaturas como vistas",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -5348,7 +5398,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "O cidadão escolhe se os recrutadores podem consultar o currículo no banco de currículos. Vale para qualquer currículo, completo ou não (422 quando a pessoa ainda não salvou nenhuma parte). Só o próprio cidadão.",
+                "description": "O cidadão escolhe se os recrutadores podem consultar o currículo no banco de currículos. Só entra no banco o currículo com o mínimo para se candidatar (422 com as pendências; 422 também quando a pessoa ainda não salvou nenhuma parte). Sair do banco vale sempre. Só o próprio cidadão.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5414,10 +5464,7 @@ const docTemplate = `{
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/empregabilidade.ParticipacaoBancoRecusadaResponse"
                         }
                     },
                     "500": {
@@ -14296,6 +14343,20 @@ const docTemplate = `{
                 "OrigemCandidaturaBancoCurriculos"
             ]
         },
+        "empregabilidade.ParticipacaoBancoRecusadaResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "pendencias": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "empregabilidade.ParticipacaoBancoStatus": {
             "type": "object",
             "properties": {
@@ -14304,10 +14365,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "curriculo_completo": {
-                    "description": "CurriculoCompleto diz se o currículo tem o mínimo exigido para se\ncandidatar; Pendencias diz o que falta. Não impede a participação no banco,\nque mostra o que a pessoa conseguiu salvar.",
+                    "description": "CurriculoCompleto diz se o currículo tem o mínimo exigido para se\ncandidatar; Pendencias diz o que falta. Sem o mínimo, o currículo não\naparece para os recrutadores nem pode ser ativado no banco.",
                     "type": "boolean"
                 },
                 "disponivel": {
+                    "description": "Disponivel é a escolha do cidadão; o recrutador só vê o currículo que,\nalém de disponível, está completo.",
                     "type": "boolean"
                 },
                 "disponivel_alterado_em": {

@@ -434,3 +434,42 @@ func (r *CandidaturaRepository) BulkRestoreStatusByVagaID(ctx context.Context, v
 		return inserirEventos(tx, eventos)
 	})
 }
+
+// atualizacaoNaoVista filtra as candidaturas com evento no histórico que o
+// candidato ainda não viu: mudança de status ou de etapa feita pelo recrutador
+// ou pela automação. A criação não conta (a associação pelo banco de currículos
+// não é novidade para o candidato), nem o cancelamento, nem o que o próprio
+// candidato provocou. O cursor é o id do evento, que cresce na ordem de
+// gravação: não depende do relógio da aplicação nem do banco.
+const atualizacaoNaoVista = `cpf = ? AND EXISTS (SELECT 1 FROM emp_candidatura_historico h` +
+	` WHERE h.id_candidatura = emp_candidaturas.id AND h.ator <> 'candidato'` +
+	` AND h.tipo_evento NOT IN ('candidatura_criada', 'candidatura_cancelada')` +
+	` AND h.id > COALESCE(emp_candidaturas.ultimo_evento_visto, 0))`
+
+// CountAtualizacoesNaoVistas conta as candidaturas do CPF com atualização que o
+// candidato ainda não viu.
+func (r *CandidaturaRepository) CountAtualizacoesNaoVistas(ctx context.Context, cpf string) (int64, error) {
+	var total int64
+	err := r.db.WithContext(ctx).
+		Model(&empregabilidade.Candidatura{}).
+		Where(atualizacaoNaoVista, cpf).
+		Count(&total).Error
+	if err != nil {
+		return 0, fmt.Errorf("erro ao contar atualizações das candidaturas: %w", err)
+	}
+	return total, nil
+}
+
+// MarcarAtualizacoesComoVistas marca como vistas as atualizações do CPF,
+// levando o cursor ao último evento de cada candidatura. Só o cursor muda: ver
+// a lista não é atualização da candidatura, então updated_at fica como está.
+func (r *CandidaturaRepository) MarcarAtualizacoesComoVistas(ctx context.Context, cpf string) error {
+	err := r.db.WithContext(ctx).
+		Model(&empregabilidade.Candidatura{}).
+		Where(atualizacaoNaoVista, cpf).
+		UpdateColumn("ultimo_evento_visto", gorm.Expr("(SELECT MAX(h.id) FROM emp_candidatura_historico h WHERE h.id_candidatura = emp_candidaturas.id)")).Error
+	if err != nil {
+		return fmt.Errorf("erro ao marcar atualizações das candidaturas como vistas: %w", err)
+	}
+	return nil
+}

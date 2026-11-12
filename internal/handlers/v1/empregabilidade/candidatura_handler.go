@@ -170,7 +170,7 @@ func (h *CandidaturaHandler) List(c *gin.Context) {
 }
 
 // @Summary      Listar candidaturas por CPF
-// @Description  Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF; com o RBAC ligado, o editor de empregabilidade que consulta outro CPF só vê candidaturas de vagas dos órgãos do seu escopo.
+// @Description  Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF; com o RBAC ligado, o editor de empregabilidade que consulta outro CPF só vê candidaturas de vagas dos órgãos do seu escopo. O campo atualizacoes conta as candidaturas do CPF com mudança de status ou de etapa (registrada no histórico) que o candidato ainda não viu (ignora os filtros da listagem).
 // @Tags         empregabilidade-candidaturas
 // @Produce      json
 // @Param        cpf       path      string  true   "CPF do usuário"
@@ -250,6 +250,12 @@ func (h *CandidaturaHandler) ListByCPF(c *gin.Context) {
 		return
 	}
 
+	atualizacoes, err := h.service.CountAtualizacoesNaoVistas(c.Request.Context(), cpf)
+	if err != nil {
+		response.RespondError(c, err)
+		return
+	}
+
 	forceRefresh := c.Query("refresh") == "true" || c.Query("sync") == "true"
 	h.service.EnrichRespostasWithTituloMultiple(entities)
 	h.service.EnrichMultipleWithPersonalInfo(c.Request.Context(), entities, forceRefresh)
@@ -260,8 +266,39 @@ func (h *CandidaturaHandler) ListByCPF(c *gin.Context) {
 			"page_size": pageSize,
 			"total":     total,
 		},
-		"resumo": resumo,
+		"resumo":       resumo,
+		"atualizacoes": atualizacoes,
 	})
+}
+
+// @Summary      Marcar atualizações das candidaturas como vistas
+// @Description  Marca como vistas as mudanças de status e de etapa das candidaturas do CPF, zerando o campo atualizacoes da listagem por CPF. Só o próprio candidato pode marcar.
+// @Tags         empregabilidade-candidaturas
+// @Param        cpf  path  string  true  "CPF do usuário"
+// @Success      204
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /api/v1/empregabilidade/candidaturas/usuario/{cpf}/visualizar [put]
+func (h *CandidaturaHandler) MarcarAtualizacoesVistas(c *gin.Context) {
+	cpf := c.Param("cpf")
+
+	// Ver as atualizações é do candidato: nem admin marca no lugar dele.
+	userCPF := middlewares.GetUserCPF(c)
+	if userCPF == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não identificado"})
+		return
+	}
+	if userCPF != cpf {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado"})
+		return
+	}
+
+	if err := h.service.MarcarAtualizacoesComoVistas(c.Request.Context(), cpf); err != nil {
+		response.RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 // @Summary      Buscar candidatura

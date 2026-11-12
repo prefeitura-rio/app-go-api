@@ -85,6 +85,16 @@ func (s *candidaturaRepoStub) BulkSaveAndUpdateStatusByVagaID(_ context.Context,
 	return nil
 }
 
+func (s *candidaturaRepoStub) CountAtualizacoesNaoVistas(_ context.Context, _ string) (int64, error) {
+	s.calls++
+	return 0, nil
+}
+
+func (s *candidaturaRepoStub) MarcarAtualizacoesComoVistas(_ context.Context, _ string) error {
+	s.calls++
+	return nil
+}
+
 func (s *candidaturaRepoStub) BulkRestoreStatusByVagaID(_ context.Context, _ uuid.UUID) error {
 	s.calls++
 	return nil

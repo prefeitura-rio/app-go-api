@@ -28,6 +28,23 @@ type mockCandidaturaRepoH struct {
 	exists    bool
 	err       error
 	countMap  map[empmodels.StatusCandidatura]int64
+
+	// atualizacoes é o que CountAtualizacoesNaoVistas devolve; marcadasCPF
+	// guarda o CPF passado a MarcarAtualizacoesComoVistas.
+	atualizacoes int64
+	marcadasCPF  string
+}
+
+func (m *mockCandidaturaRepoH) CountAtualizacoesNaoVistas(_ context.Context, _ string) (int64, error) {
+	return m.atualizacoes, m.err
+}
+
+func (m *mockCandidaturaRepoH) MarcarAtualizacoesComoVistas(_ context.Context, cpf string) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.marcadasCPF = cpf
+	return nil
 }
 
 func (m *mockCandidaturaRepoH) Create(_ context.Context, _ *empmodels.Candidatura) (uuid.UUID, error) {
@@ -175,6 +192,7 @@ func setupCandidaturaRouter(
 	r.POST("/candidaturas", h.Create)
 	r.GET("/candidaturas", h.List)
 	r.GET("/candidaturas/usuario/:cpf", h.ListByCPF)
+	r.PUT("/candidaturas/usuario/:cpf/visualizar", h.MarcarAtualizacoesVistas)
 	r.GET("/candidaturas/:id", h.GetByID)
 	r.PUT("/candidaturas/:id", h.Update)
 	r.DELETE("/candidaturas/:id", h.Delete)
@@ -210,6 +228,7 @@ func setupCandidaturaRouterWithRoles(
 	r.POST("/candidaturas", h.Create)
 	r.GET("/candidaturas", h.List)
 	r.GET("/candidaturas/usuario/:cpf", h.ListByCPF)
+	r.PUT("/candidaturas/usuario/:cpf/visualizar", h.MarcarAtualizacoesVistas)
 	r.GET("/candidaturas/:id", h.GetByID)
 	r.PUT("/candidaturas/:id", h.Update)
 	r.DELETE("/candidaturas/:id", h.Delete)
