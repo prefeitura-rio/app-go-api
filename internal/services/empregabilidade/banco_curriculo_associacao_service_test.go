@@ -200,6 +200,41 @@ func TestAssociacaoCandidatoService_ResultadoPorVaga(t *testing.T) {
 	assert.Equal(t, "ana@example.com", *criada.Email)
 }
 
+func TestAssociacaoCandidatoService_RespeitaBloqueioDosCriterios(t *testing.T) {
+	idEscolaridade, idIdioma, idNivel := uuid.New(), uuid.New(), uuid.New()
+	comCriterios := func(ligados ...empregabilidade.CriterioBloqueio) *empregabilidade.Vaga {
+		vaga := vagaAtiva("2600")
+		vaga.IDEscolaridadeMinima = &idEscolaridade
+		vaga.IdiomasRequisito = []empregabilidade.VagaIdiomaRequisito{{IDIdioma: idIdioma, IDNivelMinimo: idNivel}}
+		vaga.CriteriosBloqueio = ligados
+		return vaga
+	}
+	idDesligados, idEscolaridadeLigada, idIdiomaLigado := uuid.New(), uuid.New(), uuid.New()
+	cenario := &cenarioAssociacao{vagas: map[uuid.UUID]*empregabilidade.Vaga{
+		idDesligados:         comCriterios(),
+		idEscolaridadeLigada: comCriterios(empregabilidade.CriterioBloqueioEscolaridade),
+		idIdiomaLigado:       comCriterios(empregabilidade.CriterioBloqueioIdioma),
+	}}
+
+	resultados, err := cenario.service().Associar(context.Background(), services.AssociarParams{
+		CPF:         bancoCPF,
+		IDsVagas:    []uuid.UUID{idDesligados, idEscolaridadeLigada, idIdiomaLigado},
+		OperadorCPF: operadorCPF,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, resultados, 3)
+	assert.Equal(t, empregabilidade.AssociacaoRealizada, resultados[0].Resultado,
+		"escolaridade e idioma com o bloqueio desligado não impedem a associação")
+	assert.Empty(t, resultados[0].Motivos)
+	assert.Equal(t, empregabilidade.AssociacaoNaoElegivel, resultados[1].Resultado)
+	assert.Equal(t, []string{"Formação mínima — Escolaridade mínima exigida"}, resultados[1].Motivos)
+	assert.Equal(t, empregabilidade.AssociacaoNaoElegivel, resultados[2].Resultado)
+	assert.Equal(t, []string{"Idioma exigido — nível mínimo exigido ou superior"}, resultados[2].Motivos)
+	require.Len(t, cenario.criador.criadas, 1)
+	assert.Equal(t, idDesligados, cenario.criador.criadas[0].IDVaga)
+}
+
 func TestAssociacaoCandidatoService_AdminAssociaAQualquerOrgao(t *testing.T) {
 	idVaga := uuid.New()
 	cenario := &cenarioAssociacao{vagas: map[uuid.UUID]*empregabilidade.Vaga{idVaga: vagaAtiva("9999")}}

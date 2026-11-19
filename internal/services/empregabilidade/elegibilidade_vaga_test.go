@@ -67,8 +67,9 @@ func TestRequisitosNaoAtendidos_IdadeMinima(t *testing.T) {
 }
 
 func TestRequisitosNaoAtendidos_Escolaridade(t *testing.T) {
-	exigeMedioCompleto := &empregabilidade.Vaga{IDEscolaridadeMinima: &idMedioCompleto}
-	exigeMedioIncompleto := &empregabilidade.Vaga{IDEscolaridadeMinima: &idMedioIncompleto}
+	ligado := []empregabilidade.CriterioBloqueio{empregabilidade.CriterioBloqueioEscolaridade}
+	exigeMedioCompleto := &empregabilidade.Vaga{IDEscolaridadeMinima: &idMedioCompleto, CriteriosBloqueio: ligado}
+	exigeMedioIncompleto := &empregabilidade.Vaga{IDEscolaridadeMinima: &idMedioIncompleto, CriteriosBloqueio: ligado}
 	falta := []string{"Formação mínima — Médio completo"}
 
 	cases := []struct {
@@ -126,9 +127,25 @@ func TestRequisitosNaoAtendidos_Escolaridade(t *testing.T) {
 		},
 		{
 			name:      "exigência sem ordem nunca é atendida",
-			vaga:      &empregabilidade.Vaga{IDEscolaridadeMinima: &idSemOrdem},
+			vaga:      &empregabilidade.Vaga{IDEscolaridadeMinima: &idSemOrdem, CriteriosBloqueio: ligado},
 			candidato: candidatoElegibilidade{escolaridadeCadastro: "Superior completo"},
 			faltas:    []string{"Formação mínima — Sem ordem"},
+		},
+		{
+			name:      "bloqueio desligado não exige escolaridade",
+			vaga:      &empregabilidade.Vaga{IDEscolaridadeMinima: &idMedioCompleto},
+			candidato: candidatoElegibilidade{escolaridadeCadastro: "Fundamental incompleto"},
+		},
+		{
+			name: "bloqueio de outro critério ligado não exige escolaridade",
+			vaga: &empregabilidade.Vaga{IDEscolaridadeMinima: &idMedioCompleto,
+				CriteriosBloqueio: []empregabilidade.CriterioBloqueio{empregabilidade.CriterioBloqueioIdioma}},
+			candidato: candidatoElegibilidade{},
+		},
+		{
+			name:      "bloqueio ligado sem escolaridade mínima não exige nada",
+			vaga:      &empregabilidade.Vaga{CriteriosBloqueio: ligado},
+			candidato: candidatoElegibilidade{},
 		},
 	}
 
@@ -140,10 +157,13 @@ func TestRequisitosNaoAtendidos_Escolaridade(t *testing.T) {
 }
 
 func TestRequisitosNaoAtendidos_Idiomas(t *testing.T) {
-	vaga := &empregabilidade.Vaga{IdiomasRequisito: []empregabilidade.VagaIdiomaRequisito{
-		{IDIdioma: idIngles, IDNivelMinimo: idIntermediario},
-		{IDIdioma: idEspanhol, IDNivelMinimo: idBasico},
-	}}
+	vaga := &empregabilidade.Vaga{
+		IdiomasRequisito: []empregabilidade.VagaIdiomaRequisito{
+			{IDIdioma: idIngles, IDNivelMinimo: idIntermediario},
+			{IDIdioma: idEspanhol, IDNivelMinimo: idBasico},
+		},
+		CriteriosBloqueio: []empregabilidade.CriterioBloqueio{empregabilidade.CriterioBloqueioIdioma},
+	}
 	curriculo := &empregabilidade.CurriculoCompleto{Idiomas: []*empregabilidade.CurriculoIdioma{
 		{IDIdioma: idIngles, IDNivel: idAvancado},
 	}}
@@ -159,11 +179,37 @@ func TestRequisitosNaoAtendidos_Idiomas(t *testing.T) {
 	assert.Equal(t, []string{"Idioma Inglês — nível Intermediário ou superior"}, faltas)
 }
 
+func TestRequisitosNaoAtendidos_IdiomasBloqueioDesligado(t *testing.T) {
+	requisitos := []empregabilidade.VagaIdiomaRequisito{{IDIdioma: idIngles, IDNivelMinimo: idAvancado}}
+	semIdioma := candidatoElegibilidade{curriculo: &empregabilidade.CurriculoCompleto{}}
+
+	cases := []struct {
+		name string
+		vaga *empregabilidade.Vaga
+	}{
+		{"bloqueio desligado não exige idioma", &empregabilidade.Vaga{IdiomasRequisito: requisitos}},
+		{"bloqueio de outro critério ligado não exige idioma", &empregabilidade.Vaga{
+			IdiomasRequisito:  requisitos,
+			CriteriosBloqueio: []empregabilidade.CriterioBloqueio{empregabilidade.CriterioBloqueioEscolaridade},
+		}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Empty(t, requisitosNaoAtendidos(tc.vaga, semIdioma, refsTeste, hojeTeste))
+			assert.Empty(t, requisitosNaoAtendidos(tc.vaga, candidatoElegibilidade{}, refsTeste, hojeTeste), "sem currículo")
+		})
+	}
+}
+
 func TestRequisitosNaoAtendidos_JuntaTodasAsFaltas(t *testing.T) {
 	vaga := &empregabilidade.Vaga{
 		IdadeMinima:          ordem(18),
 		IDEscolaridadeMinima: &idMedioCompleto,
 		IdiomasRequisito:     []empregabilidade.VagaIdiomaRequisito{{IDIdioma: idIngles, IDNivelMinimo: idBasico}},
+		CriteriosBloqueio: []empregabilidade.CriterioBloqueio{
+			empregabilidade.CriterioBloqueioEscolaridade, empregabilidade.CriterioBloqueioIdioma,
+		},
 	}
 
 	faltas := requisitosNaoAtendidos(vaga, candidatoElegibilidade{}, refsTeste, hojeTeste)
