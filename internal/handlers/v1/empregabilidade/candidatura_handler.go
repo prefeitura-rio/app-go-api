@@ -84,8 +84,7 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 // @Param        search    query     string  false  "Busca parcial por CPF, nome ou email"
 // @Param        etapa_id  query     string  false  "Filtrar por ID da etapa atual"
 // @Param        genero               query  []string  false  "Gêneros autodeclarados (repetível ou separado por vírgula)"  collectionFormat(multi)
-// @Param        idade_min            query  int       false  "Idade mínima"
-// @Param        idade_max            query  int       false  "Idade máxima"
+// @Param        faixa_etaria         query  string    false  "Faixa etária pela data de nascimento do cadastro: maiores_de_18 (18 anos ou mais) ou jovem_aprendiz (14 a 24 anos); sem data de nascimento fica de fora"  Enums(maiores_de_18, jovem_aprendiz)
 // @Param        tempo_experiencia    query  string    false  "Soma das experiências"  Enums(sem_experiencia, ate_2_anos, 2_a_4_anos, 4_a_6_anos, 6_a_8_anos, 8_a_10_anos, mais_de_10_anos)
 // @Param        experiencia_carteira query  string    false  "Experiência comprovada em carteira"  Enums(sim, 6_meses)
 // @Param        escolaridade         query  string    false  "Escolaridade do cadastro (exata)"

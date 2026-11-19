@@ -209,6 +209,8 @@ func TestBancoCurriculosRequiresAuthorization(t *testing.T) {
 	for _, endpoint := range []struct{ method, path string }{
 		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos"},
 		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos?pcd=sim&genero=Mulher%20cisg%C3%AAnero"},
+		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos?faixa_etaria=jovem_aprendiz"},
+		{http.MethodGet, "/api/v1/empregabilidade/candidaturas?faixa_etaria=maiores_de_18"},
 		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos/11111111111"},
 		{http.MethodGet, "/api/v1/empregabilidade/banco-curriculos/11111111111/candidaturas"},
 		{http.MethodPost, "/api/v1/empregabilidade/banco-curriculos/11111111111/associacoes"},
@@ -439,7 +441,10 @@ func getBaseURL(t *testing.T) string {
 
 // TestCandidatosFiltroAvancadoContract checks the running API publishes the
 // advanced candidate filters, the same on the banco de currículos listing and
-// on the candidates of a vaga, which the admin sends as query parameters.
+// on the candidates of a vaga, which the admin sends as query parameters. The
+// age filter has only the fixed options of the vaga's age criterion
+// (faixa_etaria: maiores_de_18 or jovem_aprendiz); the free minimum and
+// maximum age were removed to avoid ageism.
 func TestCandidatosFiltroAvancadoContract(t *testing.T) {
 	baseURL := getBaseURL(t)
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -453,8 +458,9 @@ func TestCandidatosFiltroAvancadoContract(t *testing.T) {
 	var spec struct {
 		Paths map[string]map[string]struct {
 			Parameters []struct {
-				Name string `json:"name"`
-				In   string `json:"in"`
+				Name string   `json:"name"`
+				In   string   `json:"in"`
+				Enum []string `json:"enum"`
 			} `json:"parameters"`
 		} `json:"paths"`
 	}
@@ -463,7 +469,7 @@ func TestCandidatosFiltroAvancadoContract(t *testing.T) {
 	}
 
 	filtros := []string{
-		"genero", "idade_min", "idade_max", "tempo_experiencia", "experiencia_carteira",
+		"genero", "faixa_etaria", "tempo_experiencia", "experiencia_carteira",
 		"escolaridade", "id_idioma", "id_nivel_idioma", "bairro", "pcd",
 	}
 	for _, path := range []string{
@@ -475,16 +481,24 @@ func TestCandidatosFiltroAvancadoContract(t *testing.T) {
 			t.Errorf("OpenAPI spec missing GET %s", path)
 			continue
 		}
-		publicados := map[string]bool{}
+		publicados := map[string][]string{}
 		for _, p := range operation.Parameters {
 			if p.In == "query" {
-				publicados[p.Name] = true
+				publicados[p.Name] = p.Enum
 			}
 		}
 		for _, filtro := range filtros {
-			if !publicados[filtro] {
+			if _, ok := publicados[filtro]; !ok {
 				t.Errorf("GET %s missing query parameter %s", path, filtro)
 			}
+		}
+		for _, removido := range []string{"idade_min", "idade_max"} {
+			if _, ok := publicados[removido]; ok {
+				t.Errorf("GET %s still publishes the free age parameter %s", path, removido)
+			}
+		}
+		if faixas := strings.Join(publicados["faixa_etaria"], ","); faixas != "maiores_de_18,jovem_aprendiz" {
+			t.Errorf("GET %s faixa_etaria options = %q, want maiores_de_18,jovem_aprendiz", path, faixas)
 		}
 	}
 }

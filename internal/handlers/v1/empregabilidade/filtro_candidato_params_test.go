@@ -15,17 +15,14 @@ func TestBancoCurriculoHandler_List_FiltrosAvancados(t *testing.T) {
 	svc := &fakeBancoCurriculoService{items: []*empmodels.BancoCurriculoItem{}}
 
 	w := doBancoGet(newBancoCurriculoRouter(svc), "/banco-curriculos?genero=Mulher%20cisg%C3%AAnero,Mulher%20transg%C3%AAnero&genero=N%C3%A3o%20bin%C3%A1rio"+
-		"&idade_min=18&idade_max=30&tempo_experiencia=2_a_4_anos&experiencia_carteira=6_meses"+
+		"&faixa_etaria=jovem_aprendiz&tempo_experiencia=2_a_4_anos&experiencia_carteira=6_meses"+
 		"&escolaridade=M%C3%A9dio%20completo&id_idioma="+idioma.String()+"&id_nivel_idioma="+nivel.String()+
 		"&bairro=Andara%C3%AD&pcd=sim")
 
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	f := svc.gotFilter.Candidato
 	assert.Equal(t, []string{"Mulher cisgênero", "Mulher transgênero", "Não binário"}, f.Generos)
-	require.NotNil(t, f.IdadeMinima)
-	assert.Equal(t, 18, *f.IdadeMinima)
-	require.NotNil(t, f.IdadeMaxima)
-	assert.Equal(t, 30, *f.IdadeMaxima)
+	assert.Equal(t, empmodels.FaixaEtariaJovemAprendiz, f.FaixaEtaria)
 	assert.Equal(t, empmodels.Faixa2a4Anos, f.TempoExperiencia)
 	assert.Equal(t, empmodels.CarteiraSeisMeses, f.Carteira)
 	assert.Equal(t, "Médio completo", f.Escolaridade)
@@ -48,16 +45,34 @@ func TestBancoCurriculoHandler_List_SemFiltros(t *testing.T) {
 	assert.True(t, svc.gotFilter.Candidato.Vazio())
 }
 
+// A idade livre saiu do filtro (etarismo): idade_min e idade_max não filtram mais.
+func TestBancoCurriculoHandler_List_IdadeLivreIgnorada(t *testing.T) {
+	svc := &fakeBancoCurriculoService{items: []*empmodels.BancoCurriculoItem{}}
+
+	w := doBancoGet(newBancoCurriculoRouter(svc), "/banco-curriculos?idade_min=30&idade_max=40")
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, svc.gotFilter.Candidato.Vazio())
+}
+
+func TestBancoCurriculoHandler_List_MaioresDe18(t *testing.T) {
+	svc := &fakeBancoCurriculoService{items: []*empmodels.BancoCurriculoItem{}}
+
+	w := doBancoGet(newBancoCurriculoRouter(svc), "/banco-curriculos?faixa_etaria=maiores_de_18")
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, empmodels.FaixaEtariaMaioresDe18, svc.gotFilter.Candidato.FaixaEtaria)
+}
+
 func TestBancoCurriculoHandler_List_FiltroInvalido(t *testing.T) {
 	cases := map[string]string{
-		"idade não numérica":       "idade_min=abc",
-		"idade negativa":           "idade_max=-1",
-		"faixa de idade invertida": "idade_min=40&idade_max=30",
-		"faixa de experiência":     "tempo_experiencia=muito",
-		"carteira":                 "experiencia_carteira=talvez",
-		"idioma inválido":          "id_idioma=xyz",
-		"nível sem idioma":         "id_nivel_idioma=" + uuid.NewString(),
-		"pcd fora de sim/nao":      "pcd=talvez",
+		"faixa etária com idade livre": "faixa_etaria=30",
+		"faixa etária desconhecida":    "faixa_etaria=idosos",
+		"faixa de experiência":         "tempo_experiencia=muito",
+		"carteira":                     "experiencia_carteira=talvez",
+		"idioma inválido":              "id_idioma=xyz",
+		"nível sem idioma":             "id_nivel_idioma=" + uuid.NewString(),
+		"pcd fora de sim/nao":          "pcd=talvez",
 	}
 	for nome, query := range cases {
 		t.Run(nome, func(t *testing.T) {

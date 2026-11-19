@@ -2,7 +2,6 @@ package empregabilidade
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +13,7 @@ import (
 // os mesmos parâmetros na listagem do banco de currículos e na lista de
 // candidatos de uma vaga:
 //
-//	genero (repetível ou separado por vírgula), idade_min, idade_max,
+//	genero (repetível ou separado por vírgula), faixa_etaria (maiores_de_18|jovem_aprendiz),
 //	tempo_experiencia, experiencia_carteira, escolaridade, id_idioma,
 //	id_nivel_idioma, bairro, pcd (sim|nao)
 func lerFiltroCandidato(c *gin.Context) (empregabilidade.FiltroCandidato, error) {
@@ -28,15 +27,11 @@ func lerFiltroCandidato(c *gin.Context) (empregabilidade.FiltroCandidato, error)
 		}
 	}
 
-	var err error
-	if f.IdadeMinima, err = lerIdade(c.Query("idade_min")); err != nil {
-		return f, err
-	}
-	if f.IdadeMaxima, err = lerIdade(c.Query("idade_max")); err != nil {
-		return f, err
-	}
-	if f.IdadeMinima != nil && f.IdadeMaxima != nil && *f.IdadeMinima > *f.IdadeMaxima {
-		return f, errors.New("idade mínima maior que a máxima")
+	if raw := strings.TrimSpace(c.Query("faixa_etaria")); raw != "" {
+		f.FaixaEtaria = empregabilidade.FaixaEtaria(raw)
+		if !f.FaixaEtaria.IsValid() {
+			return f, errors.New("faixa etária deve ser maiores_de_18 ou jovem_aprendiz")
+		}
 	}
 
 	if raw := strings.TrimSpace(c.Query("tempo_experiencia")); raw != "" {
@@ -52,6 +47,7 @@ func lerFiltroCandidato(c *gin.Context) (empregabilidade.FiltroCandidato, error)
 		}
 	}
 
+	var err error
 	f.Escolaridade = strings.TrimSpace(c.Query("escolaridade"))
 	f.Bairro = strings.TrimSpace(c.Query("bairro"))
 
@@ -78,18 +74,6 @@ func lerFiltroCandidato(c *gin.Context) (empregabilidade.FiltroCandidato, error)
 	}
 
 	return f, nil
-}
-
-func lerIdade(raw string) (*int, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil, nil
-	}
-	idade, err := strconv.Atoi(raw)
-	if err != nil || idade < 0 || idade > 130 {
-		return nil, errors.New("idade inválida")
-	}
-	return &idade, nil
 }
 
 func lerUUID(raw, mensagem string) (*uuid.UUID, error) {

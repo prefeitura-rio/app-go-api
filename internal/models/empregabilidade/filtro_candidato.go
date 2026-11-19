@@ -60,15 +60,46 @@ func (e ExigenciaCarteira) IsValid() bool {
 	return e == CarteiraExigida || e == CarteiraSeisMeses
 }
 
+// FaixaEtaria é o filtro de idade, com as mesmas opções do critério de idade
+// da vaga (PREF-634): Maiores de 18 ou Jovem Aprendiz, sem idade livre, para
+// não abrir espaço a etarismo. A idade vem da data de nascimento do cadastro.
+type FaixaEtaria string
+
+const (
+	FaixaEtariaMaioresDe18   FaixaEtaria = "maiores_de_18"
+	FaixaEtariaJovemAprendiz FaixaEtaria = "jovem_aprendiz"
+)
+
+// IdadeMinimaMaioresDe18 é a idade da opção Maiores de 18.
+const IdadeMinimaMaioresDe18 = 18
+
+// LimitesIdade devolve a idade mínima e a máxima da faixa, as duas inclusivas;
+// máximo nil é sem teto.
+func (f FaixaEtaria) LimitesIdade() (minimo int, maximo *int, ok bool) {
+	switch f {
+	case FaixaEtariaMaioresDe18:
+		return IdadeMinimaMaioresDe18, nil, true
+	case FaixaEtariaJovemAprendiz:
+		teto := IdadeMaximaJovemAprendiz
+		return IdadeMinimaJovemAprendiz, &teto, true
+	}
+	return 0, nil, false
+}
+
+func (f FaixaEtaria) IsValid() bool {
+	_, _, ok := f.LimitesIdade()
+	return ok
+}
+
 // FiltroCandidato são os filtros avançados de candidatos, os mesmos no banco
 // de currículos e na lista de candidatos de uma vaga. Os dados pessoais vêm do
 // cadastro do cidadão; experiência e idiomas, do currículo. Campo vazio não
 // filtra, e quem não informou o dado filtrado fica de fora.
 type FiltroCandidato struct {
 	// Generos são identidades de gênero autodeclaradas, como o cidadão marca no app.
-	Generos     []string
-	IdadeMinima *int
-	IdadeMaxima *int
+	Generos []string
+	// FaixaEtaria deixa de fora quem não tem data de nascimento no cadastro.
+	FaixaEtaria FaixaEtaria
 	// TempoExperiencia vale pela soma das experiências do currículo.
 	TempoExperiencia FaixaExperiencia
 	Carteira         ExigenciaCarteira
@@ -85,7 +116,7 @@ type FiltroCandidato struct {
 
 // Vazio diz se nenhum filtro foi pedido.
 func (f FiltroCandidato) Vazio() bool {
-	return len(f.Generos) == 0 && f.IdadeMinima == nil && f.IdadeMaxima == nil &&
+	return len(f.Generos) == 0 && f.FaixaEtaria == "" &&
 		f.TempoExperiencia == "" && f.Carteira == "" && f.Escolaridade == "" &&
 		f.IDIdioma == nil && f.Bairro == "" && f.PCD == nil
 }
