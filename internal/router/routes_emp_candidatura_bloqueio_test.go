@@ -18,15 +18,17 @@ import (
 // bloqueioRepoStub atende o List da rota GET /candidatura-bloqueios e conta as
 // chamadas, para provar que um chamador barrado nunca chega ao repositório.
 type bloqueioRepoStub struct {
-	listCalls int
+	listCalls    int
+	listOrgaoIDs []string
 }
 
 func (s *bloqueioRepoStub) Create(_ context.Context, _ *empModels.CandidaturaBloqueio) (uuid.UUID, error) {
 	return uuid.New(), nil
 }
 
-func (s *bloqueioRepoStub) List(_ context.Context, _ map[string]interface{}, _, _ int) ([]*empModels.CandidaturaBloqueio, int, error) {
+func (s *bloqueioRepoStub) List(_ context.Context, _ map[string]interface{}, orgaoParceiroIDs []string, _, _ int) ([]*empModels.CandidaturaBloqueio, int, error) {
 	s.listCalls++
+	s.listOrgaoIDs = orgaoParceiroIDs
 	return []*empModels.CandidaturaBloqueio{}, 0, nil
 }
 
@@ -91,6 +93,53 @@ func TestRegisterEmpregabilidadeRoutes_CandidaturaBloqueiosList_Authorization(t 
 			} else {
 				assert.Equal(t, 1, repo.listCalls)
 			}
+		})
+	}
+}
+
+// DEV-518: com o RBAC ligado, a listagem de bloqueios fica restrita às vagas dos
+// órgãos do escopo do editor (o mesmo de VagaListFilter na listagem de vagas).
+// ADMIN e go:empregabilidade:admin não recebem escopo; com o RBAC desligado o
+// escopo não é calculado (comportamento igual ao da listagem de vagas).
+func TestRegisterEmpregabilidadeRoutes_CandidaturaBloqueiosList_EscopoDeOrgao(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const path = "/api/v1/empregabilidade/candidatura-bloqueios"
+
+	tests := []struct {
+		name        string
+		rbacEnabled bool
+		role        string
+		roles       []string
+		orgaoID     string
+		wantOrgaos  []string
+	}{
+		{"editor com órgão, RBAC ligado", true, "USER", []string{"go:empregabilidade:editor"}, "orgao-1", []string{"orgao-1"}},
+		{"editor com curadoria com órgão, RBAC ligado", true, "USER", []string{"go:empregabilidade:editor_com_curadoria"}, "orgao-2", []string{"orgao-2"}},
+		{"admin de empregabilidade, RBAC ligado", true, "USER", []string{"go:empregabilidade:admin"}, "", nil},
+		{"ADMIN, RBAC ligado", true, "ADMIN", []string{"go:admin"}, "", nil},
+		{"editor com órgão, RBAC desligado", false, "USER", []string{"go:empregabilidade:editor"}, "orgao-1", nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &bloqueioRepoStub{}
+			app := createMockAppContainer()
+			app.EmpCandidaturaBloqueioHandler = empHandlers.NewCandidaturaBloqueioHandler(
+				empServices.NewCandidaturaBloqueioServiceWithInterface(repo, vagaExistenciaStub{}),
+			)
+
+			router := gin.New()
+			apiV1 := router.Group("/api/v1", injectCaller(tt.role, tt.roles, tt.orgaoID))
+			cfg := &config.AppConfig{App: config.AppSettings{RBACEnabled: tt.rbacEnabled}}
+			registerEmpregabilidadeRoutes(apiV1, router.Group("/api/public"), app, cfg)
+
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+
+			assert.Equal(t, http.StatusOK, w.Code, w.Body.String())
+			assert.Equal(t, 1, repo.listCalls)
+			assert.Equal(t, tt.wantOrgaos, repo.listOrgaoIDs)
 		})
 	}
 }

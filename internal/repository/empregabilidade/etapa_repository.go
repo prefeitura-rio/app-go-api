@@ -43,14 +43,14 @@ func (r *EtapaRepository) GetByID(ctx context.Context, id uuid.UUID) (*empregabi
 	return &entity, nil
 }
 
-// Update grava título, descrição e ordem da etapa entity.ID somente se ela
-// pertence à vaga entity.IDVaga. Não cria etapa (sem upsert) nem muda a vaga
-// dona; sem linha afetada devolve ErrEtapaNaoEncontrada.
+// Update grava título, descrição e ordem (e o tipo, quando informado) da etapa
+// entity.ID somente se ela pertence à vaga entity.IDVaga. Não cria etapa (sem
+// upsert) nem muda a vaga dona; sem linha afetada devolve ErrEtapaNaoEncontrada.
 func (r *EtapaRepository) Update(ctx context.Context, entity *empregabilidade.Etapa) error {
 	result := r.db.WithContext(ctx).
 		Model(&empregabilidade.Etapa{}).
 		Where("id = ? AND id_vaga = ?", entity.ID, entity.IDVaga).
-		Select("titulo", "descricao", "ordem", "updated_at").
+		Select(camposAtualizaveisEtapa(entity, "updated_at")).
 		Updates(entity)
 	if result.Error != nil {
 		return fmt.Errorf("erro ao atualizar etapa: %w", result.Error)
@@ -96,4 +96,15 @@ func (r *EtapaRepository) DeleteByVaga(ctx context.Context, vagaID uuid.UUID) er
 		return fmt.Errorf("erro ao excluir etapas da vaga: %w", result.Error)
 	}
 	return nil
+}
+
+// camposAtualizaveisEtapa são as colunas que a atualização de uma etapa grava:
+// título, descrição e ordem sempre; tipo_etapa só quando veio preenchido, para
+// quem ainda não conhece o campo não apagar o tipo gravado.
+func camposAtualizaveisEtapa(entity *empregabilidade.Etapa, extras ...string) []string {
+	campos := []string{"titulo", "descricao", "ordem"}
+	if entity.TipoEtapa != nil {
+		campos = append(campos, "tipo_etapa")
+	}
+	return append(campos, extras...)
 }

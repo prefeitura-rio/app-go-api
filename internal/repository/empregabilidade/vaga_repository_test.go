@@ -1359,6 +1359,7 @@ func TestVagaRepository_UpdateWithAssociations_ClearEtapaAtualError(t *testing.T
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnError(assert.AnError)
 	mock.ExpectRollback()
@@ -1389,6 +1390,7 @@ func TestVagaRepository_UpdateWithAssociations_DeleteEtapasError(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
@@ -1423,6 +1425,7 @@ func TestVagaRepository_UpdateWithAssociations_CreateEtapasError(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
@@ -1468,6 +1471,7 @@ func TestVagaRepository_UpdateWithAssociations_Etapas_PreservesExistingUUID(t *t
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(etapaID))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
@@ -1524,6 +1528,7 @@ func TestVagaRepository_UpdateWithAssociations_Etapas_MixExistingAndNew(t *testi
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(existingEtapaID))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
@@ -1575,8 +1580,17 @@ func TestVagaRepository_UpdateWithAssociations_Etapas_RemovesMissing_ClearsOnlyT
 	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(keptEtapaID))
 	// Clear só candidaturas cuja etapa NÃO está no payload preservado
+	// A candidatura da etapa removida fica sem etapa e ganha o evento etapa_removida (DEV-532).
+	candidaturaID, etapaRemovidaID := uuid.New(), uuid.New()
+	mock.ExpectQuery(sqlTravaCandidaturas).
+		WillReturnRows(linhasEstado(estadoTeste{id: candidaturaID, vaga: vagaID, cpf: cpfSintetico, status: empregabilidade.StatusCandidaturaEnviada, etapa: etapaRemovidaID}))
 	mock.ExpectExec(`UPDATE "emp_candidaturas".*id NOT IN`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	esperarEventos(mock, eventoEsperado{
+		candidatura: candidaturaID, vaga: vagaID, tipo: empregabilidade.EventoEtapaRemovida, ator: empregabilidade.AtorAutomacao,
+		statusAnterior: string(empregabilidade.StatusCandidaturaEnviada), statusNovo: empregabilidade.StatusCandidaturaEnviada,
+		etapaAnterior: etapaRemovidaID.String(), etapaNova: nil, motivo: empregabilidade.MotivoEtapaExcluida,
+	})
 	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(`UPDATE "emp_etapas" SET`).
@@ -1587,6 +1601,56 @@ func TestVagaRepository_UpdateWithAssociations_Etapas_RemovesMissing_ClearsOnlyT
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 	assert.Equal(t, keptEtapaID, vaga.Etapas[0].ID)
+}
+
+// TestVagaRepository_UpdateWithAssociations_Etapas_RemoveEtapaDesvinculaCandidaturasExcluidas
+// prova DEV-533: a candidatura excluída (soft delete) ainda aponta para a etapa
+// pela FK, então o desvínculo antes do DELETE da etapa vale também para ela
+// (UPDATE sem o filtro de deleted_at), enquanto a trava que gera o evento
+// etapa_removida continua só nas candidaturas não excluídas.
+func TestVagaRepository_UpdateWithAssociations_Etapas_RemoveEtapaDesvinculaCandidaturasExcluidas(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+	keptEtapaID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  vagaID,
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		Etapas: []empregabilidade.Etapa{
+			{ID: keptEtapaID, Titulo: "Candidatura recebida", Ordem: 1},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(keptEtapaID))
+	// Só as candidaturas não excluídas são travadas e ganham evento.
+	mock.ExpectQuery(`SELECT .+ FROM "emp_candidaturas" WHERE .+"emp_candidaturas"\."deleted_at" IS NULL .*FOR UPDATE`).
+		WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
+	// O desvínculo alcança também as excluídas: nenhum filtro de deleted_at.
+	mock.ExpectExec(`^UPDATE "emp_candidaturas" SET "id_etapa_atual"=\$1,"updated_at"=\$2 WHERE id_etapa_atual IN \(SELECT id FROM emp_etapas WHERE id_vaga = \$3 AND id NOT IN \(\$4\)\)$`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE "emp_etapas" SET`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // TestVagaRepository_UpdateWithAssociations_Etapas_EphemeralUUIDInsertsNew
@@ -1621,6 +1685,7 @@ func TestVagaRepository_UpdateWithAssociations_Etapas_EphemeralUUIDInsertsNew(t 
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
@@ -1695,6 +1760,7 @@ func TestVagaRepository_UpdateWithAssociations_UpdateEtapaError(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(etapaID))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas"`).

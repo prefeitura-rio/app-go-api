@@ -30,6 +30,8 @@ type CandidaturaRepositoryInterface interface {
 	BulkSaveAndUpdateStatusByVagaID(ctx context.Context, vagaID uuid.UUID, newStatus empregabilidade.StatusCandidatura) error
 	BulkRestoreStatusByVagaID(ctx context.Context, vagaID uuid.UUID) error
 	CountByStatus(ctx context.Context, filter empregabilidade.CandidaturaFilter) (map[empregabilidade.StatusCandidatura]int64, error)
+	CountAtualizacoesNaoVistas(ctx context.Context, cpf string) (int64, error)
+	MarcarAtualizacoesComoVistas(ctx context.Context, cpf string) error
 }
 
 type VagaRepositoryInterface interface {
@@ -199,8 +201,10 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 	}
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
+	// Candidatura nova começa sem evento visto.
+	entity.UltimoEventoVisto = nil
 
-	id, err := s.repo.Create(ctx, entity)
+	id, err := s.repo.Create(comOrigemDaCriacao(ctx, entity.Origem), entity)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -225,6 +229,21 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 	}()
 
 	return id, nil
+}
+
+// comOrigemDaCriacao atribui o evento candidatura_criada do histórico: a
+// candidatura enviada pelo app é do candidato; o cadastro pela secretaria e a
+// associação pelo banco de currículos são do operador. Uma origem já declarada
+// no contexto é mantida.
+func comOrigemDaCriacao(ctx context.Context, origem *empregabilidade.OrigemCandidatura) context.Context {
+	if _, ok := empregabilidade.OrigemEventoDoContexto(ctx); ok {
+		return ctx
+	}
+	ator := empregabilidade.AtorOperador
+	if origem == nil || *origem == empregabilidade.OrigemCandidaturaPortalCidadao {
+		ator = empregabilidade.AtorCandidato
+	}
+	return empregabilidade.ComOrigemEvento(ctx, empregabilidade.OrigemEventoCandidatura{Ator: ator})
 }
 
 // registrarOrigemCadastro grava a origem do currículo na primeira candidatura
@@ -262,12 +281,26 @@ func (s *CandidaturaService) Update(ctx context.Context, entity *empregabilidade
 	entity.CurriculoSnapshot = existing.CurriculoSnapshot
 	entity.Origem = existing.Origem
 	entity.AssociadoPorCPF = existing.AssociadoPorCPF
+	entity.UltimoEventoVisto = existing.UltimoEventoVisto
 
 	return s.repo.Update(ctx, entity)
 }
 
 func (s *CandidaturaService) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
+}
+
+// GetVagaOrgaoParceiroID devolve o órgão parceiro da vaga, ou NotFound quando
+// ela não existe.
+func (s *CandidaturaService) GetVagaOrgaoParceiroID(ctx context.Context, vagaID uuid.UUID) (string, error) {
+	vaga, err := s.vagaRepo.GetByID(ctx, vagaID)
+	if err != nil {
+		return "", err
+	}
+	if vaga == nil {
+		return "", apperrors.NotFound("vaga não encontrada")
+	}
+	return vaga.IDOrgaoParceiro, nil
 }
 
 func (s *CandidaturaService) List(ctx context.Context, filter empregabilidade.CandidaturaFilter, page, pageSize int) ([]*empregabilidade.Candidatura, int, error) {
@@ -277,6 +310,17 @@ func (s *CandidaturaService) List(ctx context.Context, filter empregabilidade.Ca
 
 func (s *CandidaturaService) CountByStatus(ctx context.Context, filter empregabilidade.CandidaturaFilter) (map[empregabilidade.StatusCandidatura]int64, error) {
 	return s.repo.CountByStatus(ctx, filter)
+}
+
+// CountAtualizacoesNaoVistas conta as candidaturas do CPF com mudança de status
+// ou de etapa (no histórico) depois da última vez que o candidato viu a lista.
+func (s *CandidaturaService) CountAtualizacoesNaoVistas(ctx context.Context, cpf string) (int64, error) {
+	return s.repo.CountAtualizacoesNaoVistas(ctx, cpf)
+}
+
+// MarcarAtualizacoesComoVistas zera a contagem de atualizações do CPF.
+func (s *CandidaturaService) MarcarAtualizacoesComoVistas(ctx context.Context, cpf string) error {
+	return s.repo.MarcarAtualizacoesComoVistas(ctx, cpf)
 }
 
 func (s *CandidaturaService) UpdateStatus(ctx context.Context, id uuid.UUID, status empregabilidade.StatusCandidatura) error {

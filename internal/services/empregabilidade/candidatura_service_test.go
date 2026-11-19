@@ -143,6 +143,14 @@ func (m *MockCandidaturaRepo) CountByStatus(ctx context.Context, filter empregab
 	return map[empregabilidade.StatusCandidatura]int64{}, nil
 }
 
+func (m *MockCandidaturaRepo) CountAtualizacoesNaoVistas(ctx context.Context, cpf string) (int64, error) {
+	return 0, nil
+}
+
+func (m *MockCandidaturaRepo) MarcarAtualizacoesComoVistas(ctx context.Context, cpf string) error {
+	return nil
+}
+
 // Mock Vaga Repository
 type MockVagaRepo struct {
 	vagas    map[uuid.UUID]*empregabilidade.Vaga

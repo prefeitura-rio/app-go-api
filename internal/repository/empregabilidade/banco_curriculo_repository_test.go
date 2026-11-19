@@ -56,6 +56,26 @@ func TestCurriculoRepository_ListBancoCurriculos(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	// O banco segue a regra das vagas: além de disponível, o currículo precisa
+	// do mínimo para se candidatar (termos aceitos e situação atual, com o tempo
+	// procurando emprego para quem está sem trabalho).
+	t.Run("somente disponíveis exige o currículo mínimo", func(t *testing.T) {
+		db, mock, cleanup := repository.SetupMockDB(t)
+		defer cleanup()
+		repo := NewCurriculoRepository(db)
+
+		mock.ExpectQuery(regexp.QuoteMeta(bancoCurriculosCountSQL+` WHERE c.disponivel_banco AND EXISTS (SELECT 1 FROM emp_termos_uso t WHERE t.cpf = c.cpf AND t.user_consent) AND EXISTS (SELECT 1 FROM emp_curriculo_situacao_interesses si LEFT JOIN emp_situacoes_atual sa ON sa.id = si.id_situacao WHERE si.cpf = c.cpf AND si.id_situacao IS NOT NULL AND (sa.descricao IS NULL OR sa.descricao NOT IN ($1,$2) OR btrim(COALESCE(si.tempo_procurando_emprego, '')) <> ''))`)).
+			WithArgs("Desempregado(a)", "Buscando primeiro emprego").
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+		items, total, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{SomenteDisponiveis: true}, 1, 10)
+
+		require.NoError(t, err)
+		assert.Zero(t, total)
+		assert.Empty(t, items)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("busca por nome ou nome social ignorando acento", func(t *testing.T) {
 		db, mock, cleanup := repository.SetupMockDB(t)
 		defer cleanup()

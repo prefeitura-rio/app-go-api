@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/prefeitura-rio/app-go-api/internal/apperrors"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 	repository "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
@@ -25,7 +26,20 @@ func NewEtapaServiceWithInterface(repo EtapaRepositoryInterface) *EtapaService {
 }
 
 func (s *EtapaService) Create(ctx context.Context, entity *empregabilidade.Etapa) (uuid.UUID, error) {
+	if err := normalizarTipoEtapa(entity); err != nil {
+		return uuid.Nil, err
+	}
 	return s.repo.Create(ctx, entity)
+}
+
+// normalizarTipoEtapa ajusta o tipo_etapa da etapa ou o recusa como erro de validação.
+func normalizarTipoEtapa(entity *empregabilidade.Etapa) error {
+	tipo, err := empregabilidade.NormalizarTipoEtapa(entity.TipoEtapa)
+	if err != nil {
+		return apperrors.Validation(err.Error())
+	}
+	entity.TipoEtapa = tipo
+	return nil
 }
 
 func (s *EtapaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilidade.Etapa, error) {
@@ -36,6 +50,9 @@ func (s *EtapaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilid
 // A autorização das rotas é feita sobre a vaga do path; etapa de outra vaga (ou
 // inexistente) devolve ErrEtapaNaoEncontrada sem gravar nada.
 func (s *EtapaService) Update(ctx context.Context, entity *empregabilidade.Etapa) error {
+	if err := normalizarTipoEtapa(entity); err != nil {
+		return err
+	}
 	if err := s.ensureEtapaDaVaga(ctx, entity.IDVaga, entity.ID); err != nil {
 		return err
 	}

@@ -20,3 +20,15 @@ func MaskCNPJForLog(cnpj string) string {
 	}
 	return string(digits[:2]) + strings.Repeat("*", len(digits)-4) + string(digits[len(digits)-2:])
 }
+
+// MaskEmailForLog masks an e-mail address for logging: the local part, which
+// identifies the citizen, is dropped and only the lower-cased domain is kept
+// ("***@example.com"). Values without a domain become "***".
+func MaskEmailForLog(email string) string {
+	email = strings.TrimSpace(email)
+	at := strings.LastIndex(email, "@")
+	if at < 0 || at == len(email)-1 {
+		return "***"
+	}
+	return "***@" + strings.ToLower(email[at+1:])
+}

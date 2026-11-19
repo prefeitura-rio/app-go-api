@@ -46,8 +46,14 @@ func TestParticipacaoBancoIntegration_OcultarEMostrar(t *testing.T) {
 		cpfOculto       = "90000000002"
 		cpfSemCurriculo = "90000000004"
 	)
+	// Os dois têm o currículo mínimo (situação atual e termos aceitos): sem ele,
+	// a listagem do banco já deixa o currículo de fora.
+	var situacao empregabilidade.SituacaoAtual
+	require.NoError(t, tx.Where("descricao NOT IN ?", empregabilidade.SituacoesProcurandoEmprego).First(&situacao).Error)
 	for _, cpf := range []string{cpfVisivel, cpfOculto} {
 		require.NoError(t, tx.Exec(`INSERT INTO emp_curriculos (cpf) VALUES (?)`, cpf).Error)
+		require.NoError(t, repo.UpsertSituacaoInteresses(ctx, &empregabilidade.CurriculoSituacaoInteresses{CPF: cpf, IDSituacao: &situacao.ID}))
+		require.NoError(t, tx.Create(&empregabilidade.TermosUso{CPF: cpf, UserConsent: true}).Error)
 	}
 
 	t.Run("sem currículo não há participação", func(t *testing.T) {

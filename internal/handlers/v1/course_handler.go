@@ -1032,6 +1032,7 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 // @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
 // @Success      200               {object}  object
 // @Failure      400               {object}  models.ErrorResponse
+// @Failure      403               {object}  models.ErrorResponse
 // @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/v1/users/{userId}/courses [get]
 func (h *CourseHandler) ListByUser(c *gin.Context) {

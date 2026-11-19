@@ -74,7 +74,10 @@ type ZonaRepositoryInterface interface {
 // CandidaturaBloqueioRepositoryInterface defines the interface for CandidaturaBloqueio repository.
 type CandidaturaBloqueioRepositoryInterface interface {
 	Create(ctx context.Context, entity *empregabilidade.CandidaturaBloqueio) (uuid.UUID, error)
-	List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.CandidaturaBloqueio, int, error)
+	// List restringe aos bloqueios de vagas dos órgãos parceiros em
+	// orgaoParceiroIDs (escopo do editor): nil não restringe; lista vazia não
+	// devolve nada.
+	List(ctx context.Context, filter map[string]interface{}, orgaoParceiroIDs []string, limit, offset int) ([]*empregabilidade.CandidaturaBloqueio, int, error)
 }
 
 // TipoConquistaRepositoryInterface defines the interface for TipoConquista repository.

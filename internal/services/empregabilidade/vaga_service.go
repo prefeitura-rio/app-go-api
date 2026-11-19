@@ -2,6 +2,7 @@ package empregabilidade
 
 import (
 	"context"
+	"log"
 	"regexp"
 	"slices"
 	"strings"
@@ -27,6 +28,12 @@ type VagaRepoInterface interface {
 	UpdateIdiomasRequisito(ctx context.Context, vagaID uuid.UUID, requisitos []empregabilidade.VagaIdiomaRequisito) error
 	ListByContratante(ctx context.Context, cnpj string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
 	ListByOrgaoParceiro(ctx context.Context, orgaoID string, limit, offset int) ([]*empregabilidade.Vaga, int, error)
+
+	// Habilidades e competências da vaga (DEV-524).
+	GetHabilidadesCompetencias(ctx context.Context, vagaID uuid.UUID) (*empregabilidade.VagaHabilidadesCompetencias, error)
+	AreasAtuacaoExistentes(ctx context.Context, ids []int64) ([]int64, error)
+	ConhecimentosDasAreas(ctx context.Context, areaIDs, habilidadeIDs []int64) (map[int64]map[int64]bool, error)
+	ComportamentosExistentes(ctx context.Context, ids []int64) ([]int64, error)
 }
 
 type EmpresaRepoInterface interface {
@@ -181,6 +188,12 @@ func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) 
 	if err := validateQuantidadeEstimada(entity.QuantidadeEstimadaContratacoes); err != nil {
 		return uuid.Nil, err
 	}
+	if err := normalizarTiposEtapa(entity.Etapas); err != nil {
+		return uuid.Nil, err
+	}
+	if err := s.validarHabilidadesCompetencias(ctx, entity); err != nil {
+		return uuid.Nil, err
+	}
 
 	entity.Status = empregabilidade.StatusVagaEmEdicao
 	entity.CriteriosBloqueio = criterios
@@ -192,6 +205,13 @@ func (s *VagaService) Create(ctx context.Context, entity *empregabilidade.Vaga) 
 	// A resposta do POST devolve o estado como as leituras: [] sem critério ligado.
 	if entity.CriteriosBloqueio == nil {
 		entity.CriteriosBloqueio = []empregabilidade.CriterioBloqueio{}
+	}
+	// E as habilidades e competências como a leitura da gestão, com os nomes.
+	// A vaga já foi criada: se a releitura falhar, a resposta leva o que veio
+	// no corpo (sem os nomes) em vez de um erro que levaria a criar de novo.
+	if err := s.CarregarHabilidadesCompetencias(ctx, entity); err != nil {
+		log.Printf("vaga %s criada, mas a releitura das habilidades falhou: %v", id, err)
+		entity.SetHabilidadesCompetencias(habilidadesDoCorpo(entity))
 	}
 	return id, nil
 }
@@ -205,6 +225,30 @@ func (s *VagaService) GetByID(ctx context.Context, id uuid.UUID) (*empregabilida
 		vaga.UpdateStatusBasedOnExpiration()
 	}
 	return vaga, nil
+}
+
+// GetByIDGestao é a leitura da vaga pela gestão: GetByID mais as áreas de
+// atuação (com os conhecimentos), os comportamentos e atitudes. As rotas
+// públicas usam GetByID, que não os carrega.
+func (s *VagaService) GetByIDGestao(ctx context.Context, id uuid.UUID) (*empregabilidade.Vaga, error) {
+	vaga, err := s.GetByID(ctx, id)
+	if err != nil || vaga == nil {
+		return vaga, err
+	}
+	if err := s.CarregarHabilidadesCompetencias(ctx, vaga); err != nil {
+		return nil, err
+	}
+	return vaga, nil
+}
+
+// CarregarHabilidadesCompetencias põe na vaga o que está gravado para ela.
+func (s *VagaService) CarregarHabilidadesCompetencias(ctx context.Context, vaga *empregabilidade.Vaga) error {
+	habilidades, err := s.repo.GetHabilidadesCompetencias(ctx, vaga.ID)
+	if err != nil {
+		return err
+	}
+	vaga.SetHabilidadesCompetencias(habilidades)
+	return nil
 }
 
 var hexPrefix12 = regexp.MustCompile(`^[0-9a-f]{12}$`)
@@ -227,6 +271,9 @@ func (s *VagaService) GetBySlug(ctx context.Context, vagaSlug string) (*empregab
 
 func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
 	if err := validateQuantidadeEstimada(entity.QuantidadeEstimadaContratacoes); err != nil {
+		return err
+	}
+	if err := normalizarTiposEtapa(entity.Etapas); err != nil {
 		return err
 	}
 
@@ -284,6 +331,15 @@ func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) 
 		tipos = existing.TiposPCD
 	}
 	if err := resolverOpcaoPCD(entity, len(tipos)); err != nil {
+		return err
+	}
+	// areas_atuacao e comportamento_atitudes_ids ausentes (nil) mantêm o
+	// gravado; a lista enviada substitui o conjunto e, fora do rascunho, não
+	// pode vir vazia.
+	if err := recusarListasVaziasForaDoRascunho(existing.Status, entity); err != nil {
+		return err
+	}
+	if err := s.validarHabilidadesCompetencias(ctx, entity); err != nil {
 		return err
 	}
 
@@ -368,6 +424,9 @@ func (s *VagaService) Publish(ctx context.Context, id uuid.UUID) error {
 	if vaga.Status != empregabilidade.StatusVagaEmEdicao && vaga.Status != empregabilidade.StatusVagaEmAprovacao {
 		return apperrors.Conflict("vaga não está em estado de edição ou aprovação")
 	}
+	if err := s.exigirHabilidadesCompetencias(ctx, id, "publicar"); err != nil {
+		return err
+	}
 
 	vaga.Status = empregabilidade.StatusVagaPublicadoAtivo
 	return s.repo.Update(ctx, vaga)
@@ -402,6 +461,9 @@ func (s *VagaService) SendToApproval(ctx context.Context, id uuid.UUID) error {
 	if vaga.Status != empregabilidade.StatusVagaEmEdicao {
 		return apperrors.Conflict("vaga não está em estado de edição")
 	}
+	if err := s.exigirHabilidadesCompetencias(ctx, id, "enviar para aprovação"); err != nil {
+		return err
+	}
 
 	vaga.Status = empregabilidade.StatusVagaEmAprovacao
 	return s.repo.Update(ctx, vaga)
@@ -421,7 +483,7 @@ func (s *VagaService) FreezeVaga(ctx context.Context, id uuid.UUID) error {
 		return apperrors.Conflict("vaga não está em estado publicado_ativo para ser congelada")
 	}
 
-	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(ctx, id, empregabilidade.StatusCandidaturaVagaCongelada); err != nil {
+	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(comOrigemAutomacao(ctx, empregabilidade.MotivoVagaCongelada), id, empregabilidade.StatusCandidaturaVagaCongelada); err != nil {
 		return err
 	}
 
@@ -442,7 +504,7 @@ func (s *VagaService) UnfreezeVaga(ctx context.Context, id uuid.UUID) error {
 		return apperrors.Conflict("vaga não está em estado vaga_congelada para ser descongelada")
 	}
 
-	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(ctx, id); err != nil {
+	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(comOrigemAutomacao(ctx, empregabilidade.MotivoVagaDescongelada), id); err != nil {
 		return err
 	}
 
@@ -467,7 +529,7 @@ func (s *VagaService) DiscontinueVaga(ctx context.Context, id uuid.UUID) error {
 		return apperrors.Conflict("vaga não está em estado publicado ou congelado para ser descontinuada")
 	}
 
-	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(ctx, id, empregabilidade.StatusCandidaturaDescontinuada); err != nil {
+	if err := s.candidaturaRepo.BulkSaveAndUpdateStatusByVagaID(comOrigemAutomacao(ctx, empregabilidade.MotivoVagaDescontinuada), id, empregabilidade.StatusCandidaturaDescontinuada); err != nil {
 		return err
 	}
 
@@ -488,11 +550,30 @@ func (s *VagaService) ReactivateVaga(ctx context.Context, id uuid.UUID) error {
 		return apperrors.Conflict("vaga não está em estado vaga_descontinuada para ser reativada")
 	}
 
-	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(ctx, id); err != nil {
+	if err := s.candidaturaRepo.BulkRestoreStatusByVagaID(comOrigemAutomacao(ctx, empregabilidade.MotivoVagaReativada), id); err != nil {
 		return err
 	}
 
 	vaga.Status = empregabilidade.StatusVagaPublicadoAtivo
 	vaga.UpdateStatusBasedOnExpiration()
 	return s.repo.Update(ctx, vaga)
+}
+
+// comOrigemAutomacao atribui à automação, com o motivo, as transições que a
+// mudança de estado da vaga provoca nas candidaturas (histórico, DEV-532).
+func comOrigemAutomacao(ctx context.Context, motivo string) context.Context {
+	return empregabilidade.ComOrigemEvento(ctx, empregabilidade.OrigemEventoCandidatura{
+		Ator:   empregabilidade.AtorAutomacao,
+		Motivo: motivo,
+	})
+}
+
+// normalizarTiposEtapa ajusta o tipo_etapa das etapas enviadas com a vaga.
+func normalizarTiposEtapa(etapas []empregabilidade.Etapa) error {
+	for i := range etapas {
+		if err := normalizarTipoEtapa(&etapas[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }

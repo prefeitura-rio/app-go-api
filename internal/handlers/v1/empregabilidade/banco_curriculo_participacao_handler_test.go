@@ -117,6 +117,19 @@ func TestParticipacaoBancoHandler_Atualizar_SemCurriculo(t *testing.T) {
 	assert.Equal(t, "Crie o currículo antes de escolher se ele aparece no banco de currículos", corpo["error"])
 }
 
+func TestParticipacaoBancoHandler_Atualizar_CurriculoIncompleto(t *testing.T) {
+	svc := &fakeParticipacaoService{err: &services.CurriculoIncompletoParaBancoError{Pendencias: []string{"Termos de uso não aceitos"}}}
+	w := httptest.NewRecorder()
+
+	participacaoRouter(svc, cpfDono, "").ServeHTTP(w, httptest.NewRequest(http.MethodPut, "/curriculo/"+cpfDono+"/banco-curriculos", bodyOf(`{"disponivel": true}`)))
+
+	require.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	var corpo empregabilidade.ParticipacaoBancoRecusadaResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &corpo))
+	assert.Equal(t, "Complete o currículo para entrar no banco de currículos", corpo.Error)
+	assert.Equal(t, []string{"Termos de uso não aceitos"}, corpo.Pendencias)
+}
+
 // A escolha é do cidadão: nem o admin liga ou desliga o currículo de outra pessoa.
 func TestParticipacaoBancoHandler_Atualizar_AdminNaoAlteraOutroCPF(t *testing.T) {
 	svc := &fakeParticipacaoService{}

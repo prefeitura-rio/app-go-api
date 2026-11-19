@@ -79,7 +79,7 @@ func (h *CandidaturaBloqueioHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Listar bloqueios de candidatura (admin)
-// @Description  Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria); os demais recebem 403.
+// @Description  Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria e só vê bloqueios de vagas dos órgãos desse escopo); os demais recebem 403.
 // @Tags         empregabilidade-candidatura-bloqueios
 // @Produce      json
 // @Param        page      query     int     false  "Número da página (default: 1)"
@@ -114,7 +114,12 @@ func (h *CandidaturaBloqueioHandler) List(c *gin.Context) {
 		filter["id_vaga"] = id
 	}
 
-	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
+	// Com o RBAC ligado, VagaListFilter injeta o escopo de órgão do editor; os
+	// bloqueios (com CPF do cidadão) ficam restritos às vagas desse escopo
+	// (DEV-518). nil (admin ou RBAC desligado) não restringe.
+	orgaoParceiroIDs := middlewares.GetVagaOrgaoParceiroIDs(c)
+
+	entities, total, err := h.service.List(c.Request.Context(), filter, orgaoParceiroIDs, page, pageSize)
 	if err != nil {
 		handleCandidaturaBloqueioError(c, err)
 		return

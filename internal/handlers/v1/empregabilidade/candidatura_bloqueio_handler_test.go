@@ -21,6 +21,10 @@ type mockCandidaturaBloqueioRepoH struct {
 	listTotal int
 	err       error
 	created   *empmodels.CandidaturaBloqueio
+	// listCalls e listOrgaoIDs registram as chamadas a List e o escopo de
+	// órgão parceiro recebido na última delas.
+	listCalls    int
+	listOrgaoIDs []string
 }
 
 func (m *mockCandidaturaBloqueioRepoH) Create(_ context.Context, entity *empmodels.CandidaturaBloqueio) (uuid.UUID, error) {
@@ -33,7 +37,9 @@ func (m *mockCandidaturaBloqueioRepoH) Create(_ context.Context, entity *empmode
 	return uuid.New(), nil
 }
 
-func (m *mockCandidaturaBloqueioRepoH) List(_ context.Context, _ map[string]interface{}, _, _ int) ([]*empmodels.CandidaturaBloqueio, int, error) {
+func (m *mockCandidaturaBloqueioRepoH) List(_ context.Context, _ map[string]interface{}, orgaoParceiroIDs []string, _, _ int) ([]*empmodels.CandidaturaBloqueio, int, error) {
+	m.listCalls++
+	m.listOrgaoIDs = orgaoParceiroIDs
 	return m.listItems, m.listTotal, m.err
 }
 

@@ -2412,7 +2412,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/candidatura-bloqueios": {
             "get": {
-                "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria); os demais recebem 403.",
+                "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria e só vê bloqueios de vagas dos órgãos desse escopo); os demais recebem 403.",
                 "produces": [
                     "application/json"
                 ],
@@ -2554,7 +2554,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/candidaturas": {
             "get": {
-                "description": "Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores.",
+                "description": "Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores e editores de empregabilidade; com o RBAC ligado, o editor só vê candidaturas de vagas dos órgãos do seu escopo.",
                 "produces": [
                     "application/json"
                 ],
@@ -2910,7 +2910,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/candidaturas/usuario/{cpf}": {
             "get": {
-                "description": "Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF.",
+                "description": "Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF; com o RBAC ligado, o editor de empregabilidade que consulta outro CPF só vê candidaturas de vagas dos órgãos do seu escopo. O campo atualizacoes conta as candidaturas do CPF com mudança de status ou de etapa (registrada no histórico) que o candidato ainda não viu (ignora os filtros da listagem).",
                 "produces": [
                     "application/json"
                 ],
@@ -2964,6 +2964,56 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/candidaturas/usuario/{cpf}/visualizar": {
+            "put": {
+                "description": "Marca como vistas as mudanças de status e de etapa das candidaturas do CPF, zerando o campo atualizacoes da listagem por CPF. Só o próprio candidato pode marcar.",
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Marcar atualizações das candidaturas como vistas",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -5348,7 +5398,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "O cidadão escolhe se os recrutadores podem consultar o currículo no banco de currículos. Vale para qualquer currículo, completo ou não (422 quando a pessoa ainda não salvou nenhuma parte). Só o próprio cidadão.",
+                "description": "O cidadão escolhe se os recrutadores podem consultar o currículo no banco de currículos. Só entra no banco o currículo com o mínimo para se candidatar (422 com as pendências; 422 também quando a pessoa ainda não salvou nenhuma parte). Sair do banco vale sempre. Só o próprio cidadão.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5414,10 +5464,7 @@ const docTemplate = `{
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/empregabilidade.ParticipacaoBancoRecusadaResponse"
                         }
                     },
                     "500": {
@@ -9792,7 +9839,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada retorna 400.",
+                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada retorna 400.\nHabilidades e competências: areas_atuacao (lista de {id_area_atuacao, conhecimento_ids}, cada área uma vez, cada conhecimento da área em que foi marcado) e comportamento_atitudes_ids. Opcionais no rascunho. Área repetida, área, conhecimento ou comportamento fora do catálogo, conhecimento de outra área e lista acima do limite (50 áreas, 300 conhecimentos por área, 100 comportamentos) retornam 400 com o erro do campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids). A resposta traz as listas com os nomes (nome, conhecimentos, comportamentos_atitudes), que são ignorados na entrada: para duplicar uma vaga, areas_atuacao e comportamento_atitudes_ids devolvidos pelo GET podem ser enviados como estão no POST do rascunho (sem o id da vaga).",
                 "consumes": [
                     "application/json"
                 ],
@@ -9824,10 +9871,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "500": {
@@ -9844,7 +9888,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/draft": {
             "post": {
-                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada retorna 400.",
+                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada retorna 400.\nHabilidades e competências: areas_atuacao (lista de {id_area_atuacao, conhecimento_ids}, cada área uma vez, cada conhecimento da área em que foi marcado) e comportamento_atitudes_ids. Opcionais no rascunho. Área repetida, área, conhecimento ou comportamento fora do catálogo, conhecimento de outra área e lista acima do limite (50 áreas, 300 conhecimentos por área, 100 comportamentos) retornam 400 com o erro do campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids). A resposta traz as listas com os nomes (nome, conhecimentos, comportamentos_atitudes), que são ignorados na entrada: para duplicar uma vaga, areas_atuacao e comportamento_atitudes_ids devolvidos pelo GET podem ser enviados como estão no POST do rascunho (sem o id da vaga).",
                 "consumes": [
                     "application/json"
                 ],
@@ -9876,10 +9920,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "500": {
@@ -9896,7 +9937,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}": {
             "get": {
-                "description": "Retorna uma vaga pelo ID",
+                "description": "Retorna uma vaga pelo ID, com as habilidades e competências cadastradas: areas_atuacao (cada área com id_area_atuacao, nome, conhecimento_ids e conhecimentos), comportamento_atitudes_ids e comportamentos_atitudes. Vaga sem registro devolve listas vazias. As rotas públicas não trazem esses campos.",
                 "produces": [
                     "application/json"
                 ],
@@ -9959,7 +10000,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza uma vaga existente\nPcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\".\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e \"\" remove a exigência; com a chave \"experiencia_carteira\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.\nIdade: jovem_aprendiz (Jovem Aprendiz, faixa fixa de 14 a 24 anos) ausente ou null mantém o valor gravado; com a chave \"jovem_aprendiz\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem jovem_aprendiz true retorna 400. Maiores de 18 segue em idade_minima; um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada (enviados ou mantidos) retorna 400.",
+                "description": "Atualiza uma vaga existente\nPcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\".\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e \"\" remove a exigência; com a chave \"experiencia_carteira\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.\nIdade: jovem_aprendiz (Jovem Aprendiz, faixa fixa de 14 a 24 anos) ausente ou null mantém o valor gravado; com a chave \"jovem_aprendiz\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem jovem_aprendiz true retorna 400. Maiores de 18 segue em idade_minima; um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada (enviados ou mantidos) retorna 400.\nHabilidades e competências: areas_atuacao e comportamento_atitudes_ids ausentes ou null mantêm o gravado; a lista enviada substitui o conjunto inteiro (apaga o que saiu, insere o que entrou; [] apaga tudo no rascunho, em_edicao). Em vaga em aprovação ou já publicada, lista enviada vazia (areas_atuacao [], área com conhecimento_ids [] ou comportamento_atitudes_ids []) retorna 400 com o erro do campo, como ao publicar. Mesmas regras e erros por campo do POST. A resposta é a vaga relida, com as listas e os nomes.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9998,10 +10039,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "403": {
@@ -10614,7 +10652,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}/publish": {
             "put": {
-                "description": "Publica uma vaga em edição",
+                "description": "Publica uma vaga em edição ou em aprovação. Exige ao menos uma área de atuação, ao menos um conhecimento em cada área e ao menos um comportamento ou atitude: sem eles retorna 400 com o erro de cada campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids).",
                 "produces": [
                     "application/json"
                 ],
@@ -10644,10 +10682,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "404": {
@@ -10750,7 +10785,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}/send-to-approval": {
             "put": {
-                "description": "Envia uma vaga em edição para o fluxo de aprovação",
+                "description": "Envia uma vaga em edição para o fluxo de aprovação. Exige ao menos uma área de atuação, ao menos um conhecimento em cada área e ao menos um comportamento ou atitude: sem eles retorna 400 com o erro de cada campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids).",
                 "produces": [
                     "application/json"
                 ],
@@ -10780,10 +10815,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "404": {
@@ -13771,6 +13803,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -14596,6 +14634,10 @@ const docTemplate = `{
                 "ordem": {
                     "type": "integer"
                 },
+                "tipo_etapa": {
+                    "description": "TipoEtapa classifica a etapa (código livre definido pela gestão) para\ncomparar o funil do histórico de candidaturas entre vagas. Opcional:\nausente (ou vazio) numa atualização mantém o valor gravado.",
+                    "type": "string"
+                },
                 "titulo": {
                     "type": "string"
                 },
@@ -14821,6 +14863,20 @@ const docTemplate = `{
                 "OrigemCandidaturaBancoCurriculos"
             ]
         },
+        "empregabilidade.ParticipacaoBancoRecusadaResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "pendencias": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "empregabilidade.ParticipacaoBancoStatus": {
             "type": "object",
             "properties": {
@@ -14829,10 +14885,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "curriculo_completo": {
-                    "description": "CurriculoCompleto diz se o currículo tem o mínimo exigido para se\ncandidatar; Pendencias diz o que falta. Não impede a participação no banco,\nque mostra o que a pessoa conseguiu salvar.",
+                    "description": "CurriculoCompleto diz se o currículo tem o mínimo exigido para se\ncandidatar; Pendencias diz o que falta. Sem o mínimo, o currículo não\naparece para os recrutadores nem pode ser ativado no banco.",
                     "type": "boolean"
                 },
                 "disponivel": {
+                    "description": "Disponivel é a escolha do cidadão; o recrutador só vê o currículo que,\nalém de disponível, está completo.",
                     "type": "boolean"
                 },
                 "disponivel_alterado_em": {
@@ -15129,6 +15186,13 @@ const docTemplate = `{
                 "acessibilidade_pcd": {
                     "$ref": "#/definitions/empregabilidade.AcessibilidadePCD"
                 },
+                "areas_atuacao": {
+                    "description": "Habilidades e competências da vaga (DEV-524), fora da tabela emp_vagas.\nSó a gestão (POST, PUT e GET /api/v1/empregabilidade/vagas/{id}) os\ndevolve, sempre como lista ([] na vaga sem registro); rotas públicas,\nlistagens e candidaturas não os trazem. No PUT, o campo ausente (ou null)\nmantém o gravado e a lista enviada substitui o conjunto inteiro ([] apaga\ntudo). Publicar ou enviar para aprovação exige ao menos uma área, ao\nmenos um conhecimento em cada área e ao menos um comportamento; o\nrascunho não exige nada.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.VagaAreaAtuacao"
+                    }
+                },
                 "areas_formacao_elegibilidade": {
                     "type": "array",
                     "items": {
@@ -15146,6 +15210,20 @@ const docTemplate = `{
                 },
                 "beneficios": {
                     "type": "string"
+                },
+                "comportamento_atitudes_ids": {
+                    "description": "ComportamentoAtitudesIDs são os ids dos comportamentos/atitudes da vaga\n(catálogo GET /api/v1/empregabilidade/comportamentos-atitudes).",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "comportamentos_atitudes": {
+                    "description": "ComportamentosAtitudes são os mesmos comportamentos com o nome; só na\nresposta, ignorado na entrada.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CatalogoItem"
+                    }
                 },
                 "contratante": {
                     "description": "Relationships",
@@ -15288,6 +15366,31 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/empregabilidade.Zona"
                     }
+                }
+            }
+        },
+        "empregabilidade.VagaAreaAtuacao": {
+            "type": "object",
+            "properties": {
+                "conhecimento_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "conhecimentos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CatalogoItem"
+                    }
+                },
+                "id_area_atuacao": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "nome": {
+                    "type": "string",
+                    "example": "Tecnologia da Informação"
                 }
             }
         },
@@ -17456,6 +17559,21 @@ const docTemplate = `{
                 "error": {
                     "type": "string",
                     "example": "Mensagem de erro aqui"
+                }
+            }
+        },
+        "response.ErrorWithFields": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "Preencha os campos obrigatórios da vaga."
+                },
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },

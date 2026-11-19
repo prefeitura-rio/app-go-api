@@ -110,7 +110,12 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	jobAccess := rbacMiddleware(cfg.App.RBACEnabled, middlewares.JobAccess(jobCursoLoader, cursoLoader))
 
 	apiV1.Group("/jobs").GET("/:jobId/status", jobAccess, app.JobHandler.GetStatus)
-	apiV1.Group("/users").GET("/:userId/courses", app.CourseHandler.ListByUser)
+	// Lista todos os cursos do órgão (rascunhos e em revisão incluídos): exige
+	// perfil de Cursos mesmo com RBAC_ENABLED=false (DEV-506); com o RBAC
+	// ligado, o editor só lista órgão do seu escopo.
+	courseGestaoAuth := middlewares.CourseGestaoAuthorization()
+	userCoursesScope := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOrgaoParamScope("userId"))
+	apiV1.Group("/users").GET("/:userId/courses", courseGestaoAuth, userCoursesScope, app.CourseHandler.ListByUser)
 	enrollments := apiV1.Group("/enrollments")
 	enrollments.GET("/user/:cpf", app.InscricaoHandler.ListByUser)
 	enrollments.PUT("/:enrollmentId/schedule", app.InscricaoHandler.ChangeSchedule)

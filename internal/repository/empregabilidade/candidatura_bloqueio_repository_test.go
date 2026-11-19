@@ -91,7 +91,7 @@ func TestCandidaturaBloqueioRepository_List(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidatura_bloqueios"`)).
 		WillReturnRows(rows)
 
-	results, total, err := repo.List(ctx, map[string]interface{}{}, 10, 0)
+	results, total, err := repo.List(ctx, map[string]interface{}{}, nil, 10, 0)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, total)
@@ -112,7 +112,7 @@ func TestCandidaturaBloqueioRepository_List_Empty(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidatura_bloqueios"`)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "cpf", "id_vaga"}))
 
-	results, total, err := repo.List(ctx, map[string]interface{}{}, 10, 0)
+	results, total, err := repo.List(ctx, map[string]interface{}{}, nil, 10, 0)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 0, total)
@@ -151,7 +151,7 @@ func TestCandidaturaBloqueioRepository_List_WithFilter(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidatura_bloqueios" WHERE cpf = $1 AND id_vaga = $2`)).
 		WillReturnRows(rows)
 
-	results, total, err := repo.List(ctx, filter, 10, 0)
+	results, total, err := repo.List(ctx, filter, nil, 10, 0)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, total)
@@ -173,7 +173,7 @@ func TestCandidaturaBloqueioRepository_List_Error(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "emp_candidatura_bloqueios"`)).
 		WillReturnError(errors.New("database error"))
 
-	results, total, err := repo.List(ctx, map[string]interface{}{}, 10, 0)
+	results, total, err := repo.List(ctx, map[string]interface{}{}, nil, 10, 0)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "erro ao listar bloqueios de candidatura")
