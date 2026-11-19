@@ -266,3 +266,39 @@ func TestVagaHandler_PublicarComHabilidades_200(t *testing.T) {
 		})
 	}
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Editar vaga publicada ou em aprovação (DEV-551)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestVagaHandler_Update_ForaDoRascunho_ListasVazias_400PorCampo(t *testing.T) {
+	for _, status := range []empmodels.StatusVaga{empmodels.StatusVagaEmAprovacao, empmodels.StatusVagaPublicadoAtivo} {
+		t.Run(string(status), func(t *testing.T) {
+			id := uuid.New()
+			repo := &mockVagaRepoH{
+				entity:               &empmodels.Vaga{ID: id, Titulo: "Analista", Status: status},
+				habilidades:          habilidadesGravadas(),
+				conhecimentosPorArea: map[int64][]int64{3: {10, 11}, 4: {20}},
+			}
+			r := setupVagaRouter(repo, &mockEmpresaRepoForVaga{}, true)
+
+			w, body := doJSON(t, r, http.MethodPut, "/vagas/"+id.String(), `{"titulo":"Analista editado","areas_atuacao":[],"comportamento_atitudes_ids":[]}`)
+			require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+			fields, ok := body["fields"].(map[string]any)
+			require.True(t, ok, w.Body.String())
+			assert.Contains(t, fields["areas_atuacao"], "Informe ao menos uma área de atuação")
+			assert.Contains(t, fields["comportamento_atitudes_ids"], "Informe ao menos um comportamento ou atitude")
+			assert.Equal(t, "Analista", repo.entity.Titulo, "a vaga não pode ser gravada")
+		})
+	}
+}
+
+func TestVagaHandler_Update_ForaDoRascunho_SemListas_200(t *testing.T) {
+	id := uuid.New()
+	repo := &mockVagaRepoH{entity: &empmodels.Vaga{ID: id, Titulo: "Analista", Status: empmodels.StatusVagaPublicadoAtivo}}
+	r := setupVagaRouter(repo, &mockEmpresaRepoForVaga{}, true)
+
+	w, _ := doJSON(t, r, http.MethodPut, "/vagas/"+id.String(), `{"titulo":"Analista editado"}`)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	assert.Equal(t, "Analista editado", repo.entity.Titulo)
+}
