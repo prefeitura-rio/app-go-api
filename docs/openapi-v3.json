@@ -2720,19 +2720,15 @@
             }
           },
           {
-            "description": "Idade mínima",
-            "name": "idade_min",
+            "description": "Faixa etária pela data de nascimento do cadastro: maiores_de_18 (18 anos ou mais) ou jovem_aprendiz (14 a 24 anos); sem data de nascimento fica de fora",
+            "name": "faixa_etaria",
             "in": "query",
             "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Idade máxima",
-            "name": "idade_max",
-            "in": "query",
-            "schema": {
-              "type": "integer"
+              "type": "string",
+              "enum": [
+                "maiores_de_18",
+                "jovem_aprendiz"
+              ]
             }
           },
           {
@@ -3430,19 +3426,15 @@
             }
           },
           {
-            "description": "Idade mínima",
-            "name": "idade_min",
+            "description": "Faixa etária pela data de nascimento do cadastro: maiores_de_18 (18 anos ou mais) ou jovem_aprendiz (14 a 24 anos); sem data de nascimento fica de fora",
+            "name": "faixa_etaria",
             "in": "query",
             "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Idade máxima",
-            "name": "idade_max",
-            "in": "query",
-            "schema": {
-              "type": "integer"
+              "type": "string",
+              "enum": [
+                "maiores_de_18",
+                "jovem_aprendiz"
+              ]
             }
           },
           {

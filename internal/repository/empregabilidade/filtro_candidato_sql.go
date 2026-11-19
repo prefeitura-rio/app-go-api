@@ -36,13 +36,16 @@ func condicaoFiltroCandidato(f empregabilidade.FiltroCandidato, cpfExpr string) 
 		cadastro = append(cadastro, "lower(trim(fcs.genero)) IN ?")
 		argsCadastro = append(argsCadastro, generos)
 	}
-	if f.IdadeMinima != nil {
-		cadastro = append(cadastro, "date_part('year', age(CURRENT_DATE, fcs.data_nascimento)) >= ?")
-		argsCadastro = append(argsCadastro, *f.IdadeMinima)
-	}
-	if f.IdadeMaxima != nil {
-		cadastro = append(cadastro, "date_part('year', age(CURRENT_DATE, fcs.data_nascimento)) <= ?")
-		argsCadastro = append(argsCadastro, *f.IdadeMaxima)
+	if minimo, maximo, ok := f.FaixaEtaria.LimitesIdade(); ok {
+		// Sem data de nascimento a comparação dá NULL e o candidato fica de
+		// fora, como no bloqueio de idade da vaga.
+		idade := "date_part('year', age(CURRENT_DATE, fcs.data_nascimento))"
+		cadastro = append(cadastro, idade+" >= ?")
+		argsCadastro = append(argsCadastro, minimo)
+		if maximo != nil {
+			cadastro = append(cadastro, idade+" <= ?")
+			argsCadastro = append(argsCadastro, *maximo)
+		}
 	}
 	if f.Escolaridade != "" {
 		cadastro = append(cadastro, "lower(trim(fcs.escolaridade)) = lower(trim(?))")
