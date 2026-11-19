@@ -39,3 +39,23 @@ func TestNewHTTPServer_UsesCustomTimeouts(t *testing.T) {
 	assert.Equal(t, 15*time.Second, srv.ReadTimeout)
 	assert.Equal(t, 60*time.Second, srv.IdleTimeout)
 }
+
+func TestNewHTTPServer_NonPositiveTimeoutsFallBackToDefaults(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  config.ServerSettings
+	}{
+		{"zero", config.ServerSettings{}},
+		{"negative", config.ServerSettings{ReadHeaderTimeout: -1, ReadTimeout: -30, IdleTimeout: -120}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newHTTPServer(http.NewServeMux(), tt.cfg)
+
+			assert.Equal(t, 10*time.Second, srv.ReadHeaderTimeout)
+			assert.Equal(t, 30*time.Second, srv.ReadTimeout)
+			assert.Equal(t, 120*time.Second, srv.IdleTimeout)
+		})
+	}
+}

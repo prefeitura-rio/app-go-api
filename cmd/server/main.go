@@ -167,7 +167,9 @@ func main() {
 // newHTTPServer builds an http.Server with timeouts from ServerSettings.
 // Defaults (via config): ReadHeaderTimeout 10s, ReadTimeout 30s, IdleTimeout 120s
 // — aligned with Istio idle connection behaviour and gosec G112.
+// Non-positive values fall back to those defaults, since 0 disables the limit.
 func newHTTPServer(handler http.Handler, cfg config.ServerSettings) *http.Server {
+	cfg = cfg.WithHTTPTimeoutDefaults()
 	return &http.Server{
 		Handler:           handler,
 		ReadHeaderTimeout: time.Duration(cfg.ReadHeaderTimeout) * time.Second,
