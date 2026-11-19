@@ -334,7 +334,11 @@ func (s *VagaService) Update(ctx context.Context, entity *empregabilidade.Vaga) 
 		return err
 	}
 	// areas_atuacao e comportamento_atitudes_ids ausentes (nil) mantêm o
-	// gravado; a lista enviada substitui o conjunto.
+	// gravado; a lista enviada substitui o conjunto e, fora do rascunho, não
+	// pode vir vazia.
+	if err := recusarListasVaziasForaDoRascunho(existing.Status, entity); err != nil {
+		return err
+	}
 	if err := s.validarHabilidadesCompetencias(ctx, entity); err != nil {
 		return err
 	}
