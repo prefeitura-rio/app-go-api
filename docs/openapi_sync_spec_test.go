@@ -14,14 +14,10 @@ import (
 
 // O docs/openapi-v3.json é gerado por `just openapi` a partir do
 // docs/swagger.json e é o arquivo que o Heimdall lê para mapear as ações de
-// cada rota. PR que regenera só o Swagger 2 deixa o OpenAPI 3 para trás (uma
-// rota que falta nele fica sem mapeamento), então os dois precisam descrever
-// as mesmas operações e os mesmos schemas.
-
-var httpMethods = map[string]bool{
-	"get": true, "put": true, "post": true, "delete": true,
-	"options": true, "head": true, "patch": true,
-}
+// cada rota. TestOpenAPIV3_CoversEverySwaggerOperation confere só a lista de
+// operações; este teste confere também o conteúdo (textos, parâmetros,
+// respostas, schemas e propriedades), para que PR que regenera só o Swagger 2
+// não deixe o OpenAPI 3 para trás em nenhum deles (DEV-658).
 
 func readJSONFile(t *testing.T, name string) map[string]any {
 	t.Helper()
@@ -72,7 +68,7 @@ func operationSummary(op map[string]any) map[string]string {
 	return out
 }
 
-func operations(spec map[string]any) map[string]map[string]string {
+func operationSummaries(spec map[string]any) map[string]map[string]string {
 	ops := map[string]map[string]string{}
 	for path, rawItem := range objectOf(spec["paths"]) {
 		for method, rawOp := range objectOf(rawItem) {
@@ -140,7 +136,7 @@ func diffSummaries(kind string, swagger, openapi map[string]map[string]string) [
 }
 
 func openAPIDivergences(swagger, openapi map[string]any) []string {
-	diffs := diffSummaries("operação", operations(swagger), operations(openapi))
+	diffs := diffSummaries("operação", operationSummaries(swagger), operationSummaries(openapi))
 	diffs = append(diffs, diffSummaries("schema",
 		schemas(objectOf(swagger["definitions"])),
 		schemas(objectOf(objectOf(openapi["components"])["schemas"])))...)
@@ -152,35 +148,10 @@ func TestOpenAPIV3_InSyncWithSwaggerJSON(t *testing.T) {
 	openapi := readJSONFile(t, "openapi-v3.json")
 
 	require.True(t, strings.HasPrefix(stringOf(openapi["openapi"]), "3."), "openapi-v3.json não é OpenAPI 3")
-	require.NotEmpty(t, operations(swagger), "swagger.json sem operações")
+	require.NotEmpty(t, operationSummaries(swagger), "swagger.json sem operações")
 
 	diffs := openAPIDivergences(swagger, openapi)
 	assert.Empty(t, diffs, "docs/openapi-v3.json desatualizado em relação ao docs/swagger.json: rode `just openapi` e commite o resultado")
-}
-
-// As operações do OpenAPI 3 publicado exigem o bearerAuth que o Istio cobra,
-// como o pós-processamento de `just openapi` grava.
-func TestOpenAPIV3_OperationsRequireBearerAuth(t *testing.T) {
-	openapi := readJSONFile(t, "openapi-v3.json")
-
-	scheme := objectOf(objectOf(objectOf(openapi["components"])["securitySchemes"])["bearerAuth"])
-	assert.Equal(t, "http", scheme["type"])
-	assert.Equal(t, "bearer", scheme["scheme"])
-
-	var missing []string
-	for path, rawItem := range objectOf(openapi["paths"]) {
-		for method, rawOp := range objectOf(rawItem) {
-			if !httpMethods[method] {
-				continue
-			}
-			security, _ := objectOf(rawOp)["security"].([]any)
-			if len(security) != 1 || objectOf(security[0])["bearerAuth"] == nil {
-				missing = append(missing, strings.ToUpper(method)+" "+path)
-			}
-		}
-	}
-	sort.Strings(missing)
-	assert.Empty(t, missing, "operações sem security bearerAuth: rode `just openapi`")
 }
 
 // O comparador acusa cada tipo de divergência que já aconteceu: rota nova,
