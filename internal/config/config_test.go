@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -1222,6 +1223,114 @@ func TestJobSettings_Normalize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, tt.in.normalized())
+		})
+	}
+}
+
+func TestServerSettings_WithHTTPTimeoutDefaults(t *testing.T) {
+	tests := []struct {
+		name string
+		in   ServerSettings
+		want ServerSettings
+	}{
+		{
+			name: "positive values unchanged",
+			in:   ServerSettings{Host: "0.0.0.0", Port: 8080, RequestTimeout: 30, ReadHeaderTimeout: 5, ReadTimeout: 15, IdleTimeout: 60},
+			want: ServerSettings{Host: "0.0.0.0", Port: 8080, RequestTimeout: 30, ReadHeaderTimeout: 5, ReadTimeout: 15, IdleTimeout: 60},
+		},
+		{
+			name: "zero values fall back to defaults",
+			in:   ServerSettings{Host: "0.0.0.0", Port: 8080, RequestTimeout: 30},
+			want: ServerSettings{Host: "0.0.0.0", Port: 8080, RequestTimeout: 30, ReadHeaderTimeout: 10, ReadTimeout: 30, IdleTimeout: 120},
+		},
+		{
+			name: "negative values fall back to defaults",
+			in:   ServerSettings{Host: "0.0.0.0", Port: 8080, RequestTimeout: 30, ReadHeaderTimeout: -1, ReadTimeout: -15, IdleTimeout: -120},
+			want: ServerSettings{Host: "0.0.0.0", Port: 8080, RequestTimeout: 30, ReadHeaderTimeout: 10, ReadTimeout: 30, IdleTimeout: 120},
+		},
+		{
+			name: "only the non-positive value is replaced",
+			in:   ServerSettings{ReadHeaderTimeout: 0, ReadTimeout: 20, IdleTimeout: 90},
+			want: ServerSettings{ReadHeaderTimeout: 10, ReadTimeout: 20, IdleTimeout: 90},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.in.WithHTTPTimeoutDefaults())
+		})
+	}
+}
+
+func TestServerSettings_WithHTTPTimeoutDefaults_LogsWarning(t *testing.T) {
+	var buf strings.Builder
+	origOutput := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(origOutput)
+
+	ServerSettings{ReadHeaderTimeout: 0, ReadTimeout: -5, IdleTimeout: 60}.WithHTTPTimeoutDefaults()
+
+	out := buf.String()
+	assert.Contains(t, out, "SERVER_READ_HEADER_TIMEOUT")
+	assert.Contains(t, out, "SERVER_READ_TIMEOUT")
+	assert.NotContains(t, out, "SERVER_IDLE_TIMEOUT")
+	assert.Contains(t, out, "-5")
+
+	buf.Reset()
+	ServerSettings{ReadHeaderTimeout: 10, ReadTimeout: 30, IdleTimeout: 120}.WithHTTPTimeoutDefaults()
+	assert.Empty(t, buf.String())
+}
+
+func TestLoad_ServerHTTPTimeoutsNonPositiveFallBackToDefaults(t *testing.T) {
+	envVars := []string{
+		"SERVER_HOST", "SERVER_PORT",
+		"SERVER_READ_HEADER_TIMEOUT", "SERVER_READ_TIMEOUT", "SERVER_IDLE_TIMEOUT",
+		"DB_HOST", "DB_PORT",
+	}
+	originalEnv := make(map[string]string)
+	for _, key := range envVars {
+		originalEnv[key] = os.Getenv(key)
+	}
+	reset := func() {
+		instance = nil
+		once = sync.Once{}
+		v = nil
+	}
+	defer func() {
+		for key, value := range originalEnv {
+			if value == "" {
+				os.Unsetenv(key)
+			} else {
+				os.Setenv(key, value)
+			}
+		}
+		reset()
+	}()
+
+	os.Setenv("SERVER_HOST", "0.0.0.0")
+	os.Setenv("SERVER_PORT", "8080")
+	os.Setenv("DB_HOST", "localhost")
+	os.Setenv("DB_PORT", "5432")
+
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{"zero", "0"},
+		{"negative", "-30"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("SERVER_READ_HEADER_TIMEOUT", tt.value)
+			os.Setenv("SERVER_READ_TIMEOUT", tt.value)
+			os.Setenv("SERVER_IDLE_TIMEOUT", tt.value)
+			reset()
+
+			cfg, err := Load()
+			require.NoError(t, err)
+			assert.Equal(t, 10, cfg.Server.ReadHeaderTimeout)
+			assert.Equal(t, 30, cfg.Server.ReadTimeout)
+			assert.Equal(t, 120, cfg.Server.IdleTimeout)
 		})
 	}
 }
