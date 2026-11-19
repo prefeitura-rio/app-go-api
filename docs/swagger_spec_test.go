@@ -80,3 +80,32 @@ func TestSwaggerSpec_NonBodyParams_HaveNoExample(t *testing.T) {
 		})
 	}
 }
+
+// TestSwaggerSpec_LookupCatalogs_DocumentAllVerbs garante que os catálogos de
+// lookup registrados por registerLookup estão no spec: sem a operação no spec, o
+// Heimdall não cria a ação e o ext_authz nega a rota (DEV-228, DEV-494).
+func TestSwaggerSpec_LookupCatalogs_DocumentAllVerbs(t *testing.T) {
+	var spec map[string]any
+	require.NoError(t, json.Unmarshal([]byte(docs.SwaggerInfo.ReadDoc()), &spec))
+	paths, ok := spec["paths"].(map[string]any)
+	require.True(t, ok, "spec sem paths")
+
+	catalogs := []string{"instituicoes", "empresas", "categorias", "acessibilidades", "escolaridades", "empregos"}
+	for _, catalog := range catalogs {
+		t.Run(catalog, func(t *testing.T) {
+			expected := map[string][]string{
+				"/api/v1/" + catalog:           {"get", "post"},
+				"/api/v1/" + catalog + "/{id}": {"get", "put", "delete"},
+			}
+			for path, methods := range expected {
+				item, ok := paths[path].(map[string]any)
+				require.True(t, ok, "path %s ausente do spec", path)
+				for _, method := range methods {
+					op, ok := item[method].(map[string]any)
+					require.True(t, ok, "%s %s ausente do spec", method, path)
+					assert.NotEmpty(t, op["summary"], "%s %s sem summary", method, path)
+				}
+			}
+		})
+	}
+}
