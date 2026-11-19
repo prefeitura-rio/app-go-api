@@ -550,3 +550,145 @@ func TestVagaService_TransicoesErroAoLerHabilidades_NaoMudaStatus(t *testing.T) 
 		})
 	}
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Editar vaga fora do rascunho (DEV-551)
+// ──────────────────────────────────────────────────────────────────────────────
+
+// statusForaDoRascunho são os estados de vaga em aprovação ou já publicada, em
+// que o PUT não pode esvaziar as habilidades e competências.
+func statusForaDoRascunho() []empregabilidade.StatusVaga {
+	return []empregabilidade.StatusVaga{
+		empregabilidade.StatusVagaEmAprovacao,
+		empregabilidade.StatusVagaPublicadoAtivo,
+		empregabilidade.StatusVagaPublicadoExpirado,
+		empregabilidade.StatusVagaCongelada,
+		empregabilidade.StatusVagaDescontinuada,
+	}
+}
+
+func TestVagaService_Update_ForaDoRascunho_ListasVaziasRecusadas(t *testing.T) {
+	casos := []struct {
+		name           string
+		areas          *[]empregabilidade.VagaAreaAtuacao
+		comportamentos *[]int64
+		campos         map[string]string
+		semCampos      []string
+	}{
+		{
+			name:           "áreas e comportamentos vazios",
+			areas:          areas(),
+			comportamentos: ids(),
+			campos: map[string]string{
+				"areas_atuacao":              "Informe ao menos uma área de atuação",
+				"comportamento_atitudes_ids": "Informe ao menos um comportamento ou atitude",
+			},
+		},
+		{
+			name:      "só áreas vazias",
+			areas:     areas(),
+			campos:    map[string]string{"areas_atuacao": "Informe ao menos uma área de atuação"},
+			semCampos: []string{"comportamento_atitudes_ids"},
+		},
+		{
+			name:           "só comportamentos vazios",
+			comportamentos: ids(),
+			campos:         map[string]string{"comportamento_atitudes_ids": "Informe ao menos um comportamento ou atitude"},
+			semCampos:      []string{"areas_atuacao"},
+		},
+		{
+			name: "área sem conhecimento",
+			areas: areas(
+				empregabilidade.VagaAreaAtuacao{IDAreaAtuacao: 3, ConhecimentoIDs: []int64{10}},
+				empregabilidade.VagaAreaAtuacao{IDAreaAtuacao: 4, ConhecimentoIDs: []int64{}},
+			),
+			campos:    map[string]string{"areas_atuacao.conhecimento_ids": "Informe ao menos um conhecimento em cada área de atuação (falta em: 4)"},
+			semCampos: []string{"areas_atuacao", "comportamento_atitudes_ids"},
+		},
+	}
+	for _, status := range statusForaDoRascunho() {
+		for _, tt := range casos {
+			t.Run(string(status)+"/"+tt.name, func(t *testing.T) {
+				svc, repo := novoServicoHabilidades()
+				id := vagaGravada(repo, status)
+				seedHabilidadesCompletas(repo, id)
+
+				err := svc.Update(context.Background(), &empregabilidade.Vaga{
+					ID:                       id,
+					Titulo:                   "Analista",
+					AreasAtuacao:             tt.areas,
+					ComportamentoAtitudesIDs: tt.comportamentos,
+				})
+				for campo, trecho := range tt.campos {
+					requireFieldError(t, err, campo, trecho)
+				}
+				appErr, _ := apperrors.As(err)
+				for _, campo := range tt.semCampos {
+					assert.NotContains(t, appErr.Fields, campo)
+				}
+				assert.Nil(t, repo.updateWithAssocArg, "a vaga não pode ser gravada")
+				gravado, gErr := repo.GetHabilidadesCompetencias(context.Background(), id)
+				require.NoError(t, gErr)
+				assert.Len(t, gravado.AreasAtuacao, 1, "o gravado continua")
+				assert.Len(t, gravado.ComportamentosAtitudes, 1, "o gravado continua")
+			})
+		}
+	}
+}
+
+// Sem as listas no corpo, a vaga fora do rascunho segue editável, inclusive a
+// vaga antiga que não tem área nem comportamento gravados.
+func TestVagaService_Update_ForaDoRascunho_SemListasSegueEditavel(t *testing.T) {
+	for _, status := range statusForaDoRascunho() {
+		t.Run(string(status), func(t *testing.T) {
+			svc, repo := novoServicoHabilidades()
+			id := vagaGravada(repo, status)
+
+			require.NoError(t, svc.Update(context.Background(), &empregabilidade.Vaga{ID: id, Titulo: "Analista editado"}))
+			require.NotNil(t, repo.updateWithAssocArg)
+			assert.Nil(t, repo.updateWithAssocArg.AreasAtuacao)
+			assert.Nil(t, repo.updateWithAssocArg.ComportamentoAtitudesIDs)
+		})
+	}
+}
+
+func TestVagaService_Update_ForaDoRascunho_ListasPreenchidasGravam(t *testing.T) {
+	for _, status := range statusForaDoRascunho() {
+		t.Run(string(status), func(t *testing.T) {
+			svc, repo := novoServicoHabilidades()
+			id := vagaGravada(repo, status)
+			seedHabilidadesCompletas(repo, id)
+
+			err := svc.Update(context.Background(), &empregabilidade.Vaga{
+				ID:                       id,
+				Titulo:                   "Analista",
+				AreasAtuacao:             areas(empregabilidade.VagaAreaAtuacao{IDAreaAtuacao: 4, ConhecimentoIDs: []int64{20}}),
+				ComportamentoAtitudesIDs: ids(8),
+			})
+			require.NoError(t, err)
+			require.NotNil(t, repo.updateWithAssocArg)
+			assert.Equal(t, []int64{8}, *repo.updateWithAssocArg.ComportamentoAtitudesIDs)
+		})
+	}
+}
+
+// O rascunho segue salvando com as listas vazias (DEV-524).
+func TestVagaService_Update_Rascunho_ListasVaziasGravam(t *testing.T) {
+	svc, repo := novoServicoHabilidades()
+	id := vagaGravada(repo, empregabilidade.StatusVagaEmEdicao)
+	seedHabilidadesCompletas(repo, id)
+
+	err := svc.Update(context.Background(), &empregabilidade.Vaga{
+		ID:                       id,
+		Titulo:                   "Analista",
+		AreasAtuacao:             areas(empregabilidade.VagaAreaAtuacao{IDAreaAtuacao: 3, ConhecimentoIDs: []int64{}}),
+		ComportamentoAtitudesIDs: ids(),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, repo.updateWithAssocArg)
+	assert.Empty(t, *repo.updateWithAssocArg.ComportamentoAtitudesIDs)
+
+	err = svc.Update(context.Background(), &empregabilidade.Vaga{ID: id, Titulo: "Analista", AreasAtuacao: areas()})
+	require.NoError(t, err)
+	assert.Empty(t, *repo.updateWithAssocArg.AreasAtuacao)
+}
