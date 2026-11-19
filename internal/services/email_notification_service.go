@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
@@ -42,6 +43,13 @@ type EmailNotifier interface {
 	SendCandidaturaProximaEtapaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura, etapaNome string) error
 }
 
+// defaultEmailNotificationInfoLog receives the service's informational lines
+// (sent, skipped because disabled or without an address). It writes to stdout:
+// plain-text container logs get severity INFO from stdout and ERROR from stderr
+// in GKE, and none of these lines is a failure. Send failures are returned to
+// the caller, which decides how to log them.
+var defaultEmailNotificationInfoLog = log.New(os.Stdout, "", log.LstdFlags)
+
 // EmailNotificationService handles enrollment email notifications
 type EmailNotificationService struct {
 	dataRelayClient     EmailSender
@@ -50,6 +58,14 @@ type EmailNotificationService struct {
 	citizenSnapshotRepo *repository.CitizenSnapshotRepository
 	enabled             bool
 	prefrioDomain       string
+	infoLog             *log.Logger // nil: defaultEmailNotificationInfoLog
+}
+
+func (s *EmailNotificationService) infoLogger() *log.Logger {
+	if s.infoLog != nil {
+		return s.infoLog
+	}
+	return defaultEmailNotificationInfoLog
 }
 
 // NewEmailNotificationService creates a new email notification service
@@ -155,13 +171,13 @@ func (s *EmailNotificationService) getScheduleInfo(ctx context.Context, inscrica
 // SendEnrollmentCreatedEmail sends "Em Análise" email when enrollment is created
 func (s *EmailNotificationService) SendEnrollmentCreatedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
 	if !s.enabled {
-		log.Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment created email for %s", inscricao.Email)
+		s.infoLogger().Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment created email for enrollment %s", inscricao.ID)
 		return nil
 	}
 
 	email := s.resolveEmail(ctx, inscricao)
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
 		return nil
 	}
 
@@ -179,20 +195,20 @@ func (s *EmailNotificationService) SendEnrollmentCreatedEmail(ctx context.Contex
 		return fmt.Errorf("failed to send enrollment created email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent enrollment created email to %s for course '%s'", email, curso.Titulo)
+	s.infoLogger().Printf("[EmailNotificationService] Sent enrollment created email to %s (enrollment %s) for course '%s'", utils.MaskEmailForLog(email), inscricao.ID, curso.Titulo)
 	return nil
 }
 
 // SendEnrollmentApprovedEmail sends "Inscrito" email when enrollment is approved
 func (s *EmailNotificationService) SendEnrollmentApprovedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
 	if !s.enabled {
-		log.Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment approved email for %s", inscricao.Email)
+		s.infoLogger().Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment approved email for enrollment %s", inscricao.ID)
 		return nil
 	}
 
 	email := s.resolveEmail(ctx, inscricao)
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
 		return nil
 	}
 
@@ -211,20 +227,20 @@ func (s *EmailNotificationService) SendEnrollmentApprovedEmail(ctx context.Conte
 		return fmt.Errorf("failed to send enrollment approved email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent enrollment approved email to %s for course '%s'", email, curso.Titulo)
+	s.infoLogger().Printf("[EmailNotificationService] Sent enrollment approved email to %s (enrollment %s) for course '%s'", utils.MaskEmailForLog(email), inscricao.ID, curso.Titulo)
 	return nil
 }
 
 // SendEnrollmentRejectedEmail sends "Recusado" email when enrollment is rejected
 func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
 	if !s.enabled {
-		log.Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment rejected email for %s", inscricao.Email)
+		s.infoLogger().Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment rejected email for enrollment %s", inscricao.ID)
 		return nil
 	}
 
 	email := s.resolveEmail(ctx, inscricao)
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
 		return nil
 	}
 
@@ -242,20 +258,20 @@ func (s *EmailNotificationService) SendEnrollmentRejectedEmail(ctx context.Conte
 		return fmt.Errorf("failed to send enrollment rejected email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent enrollment rejected email to %s for course '%s'", email, curso.Titulo)
+	s.infoLogger().Printf("[EmailNotificationService] Sent enrollment rejected email to %s (enrollment %s) for course '%s'", utils.MaskEmailForLog(email), inscricao.ID, curso.Titulo)
 	return nil
 }
 
 // SendEnrollmentConcludedEmail sends email when enrollment is marked as concluded
 func (s *EmailNotificationService) SendEnrollmentConcludedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
 	if !s.enabled {
-		log.Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment concluded email for %s", inscricao.Email)
+		s.infoLogger().Printf("[EmailNotificationService] Email notifications disabled - skipping enrollment concluded email for enrollment %s", inscricao.ID)
 		return nil
 	}
 
 	email := s.resolveEmail(ctx, inscricao)
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
 		return nil
 	}
 
@@ -272,7 +288,7 @@ func (s *EmailNotificationService) SendEnrollmentConcludedEmail(ctx context.Cont
 		return fmt.Errorf("failed to send enrollment concluded email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent enrollment concluded email to %s for course '%s'", email, curso.Titulo)
+	s.infoLogger().Printf("[EmailNotificationService] Sent enrollment concluded email to %s (enrollment %s) for course '%s'", utils.MaskEmailForLog(email), inscricao.ID, curso.Titulo)
 	return nil
 }
 
@@ -281,13 +297,13 @@ func (s *EmailNotificationService) SendEnrollmentConcludedEmail(ctx context.Cont
 // can release their Redis dedup claim and retry later.
 func (s *EmailNotificationService) SendEnrollmentClassReminderEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
 	if !s.enabled {
-		log.Printf("[EmailNotificationService] Email notifications disabled - skipping class reminder email for enrollment %s", inscricao.ID)
+		s.infoLogger().Printf("[EmailNotificationService] Email notifications disabled - skipping class reminder email for enrollment %s", inscricao.ID)
 		return ErrEmailNotDeliverable
 	}
 
 	email := s.resolveEmail(ctx, inscricao)
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for enrollment ID %s (CPF %s) - skipping", inscricao.ID, utils.MaskCPFForLog(inscricao.CPF))
+		s.infoLogger().Printf("[EmailNotificationService] No email address for enrollment ID %s (CPF %s) - skipping", inscricao.ID, utils.MaskCPFForLog(inscricao.CPF))
 		return ErrEmailNotDeliverable
 	}
 
@@ -306,21 +322,21 @@ func (s *EmailNotificationService) SendEnrollmentClassReminderEmail(ctx context.
 		return fmt.Errorf("failed to send class reminder email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent class reminder email to %s for course '%s'", email, curso.Titulo)
+	s.infoLogger().Printf("[EmailNotificationService] Sent class reminder email to %s (enrollment %s) for course '%s'", utils.MaskEmailForLog(email), inscricao.ID, curso.Titulo)
 	return nil
 }
 
 // SendScheduleChangedEmail sends a email confirming the new schedule
 func (s *EmailNotificationService) SendScheduleChangedEmail(ctx context.Context, inscricao *models.Inscricao, curso *models.Curso) error {
 	if !s.enabled {
-		log.Printf("[EmailNotificationService] Email notifications disabled - skipping schedule changed email for %s", inscricao.Email)
+		s.infoLogger().Printf("[EmailNotificationService] Email notifications disabled - skipping schedule changed email for enrollment %s", inscricao.ID)
 		return nil
 	}
 
 	email := s.resolveEmail(ctx, inscricao)
 
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No email address for enrollment ID %s - skipping", inscricao.ID)
 		return nil
 	}
 
@@ -339,7 +355,7 @@ func (s *EmailNotificationService) SendScheduleChangedEmail(ctx context.Context,
 		return fmt.Errorf("failed to send schedule changed email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent schedule changed email to %s for course '%s'", email, curso.Titulo)
+	s.infoLogger().Printf("[EmailNotificationService] Sent schedule changed email to %s (enrollment %s) for course '%s'", utils.MaskEmailForLog(email), inscricao.ID, curso.Titulo)
 
 	return nil
 }
@@ -347,18 +363,12 @@ func (s *EmailNotificationService) SendScheduleChangedEmail(ctx context.Context,
 // SendCandidaturaEnviadaEmail sends a email confirming the application was received
 func (s *EmailNotificationService) SendCandidaturaEnviadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error {
 	if !s.enabled {
-		logMessage := "[EmailNotificationService] Email notifications disabled - skipping received application email"
-
-		if candidatura.Email != nil {
-			logMessage += fmt.Sprintf(" for %s", *candidatura.Email)
-		}
-
-		log.Printf("%s", logMessage)
+		s.infoLogger().Printf("[EmailNotificationService] Email notifications disabled - skipping received application email for application %s", candidatura.ID)
 		return nil
 	}
 
 	if candidatura.Vaga == nil {
-		log.Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping received application email", candidatura.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping received application email", candidatura.ID)
 		return nil
 	}
 
@@ -371,7 +381,7 @@ func (s *EmailNotificationService) SendCandidaturaEnviadaEmail(ctx context.Conte
 		CPF:   candidatura.CPF,
 	})
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for application ID %s (CPF %s) - skipping", candidatura.ID, utils.MaskCPFForLog(candidatura.CPF))
+		s.infoLogger().Printf("[EmailNotificationService] No email address for application ID %s (CPF %s) - skipping", candidatura.ID, utils.MaskCPFForLog(candidatura.CPF))
 		return nil
 	}
 
@@ -401,7 +411,7 @@ func (s *EmailNotificationService) SendCandidaturaEnviadaEmail(ctx context.Conte
 		return fmt.Errorf("failed to send received application email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent received application email to %s for position '%s'", email, candidatura.Vaga.Titulo)
+	s.infoLogger().Printf("[EmailNotificationService] Sent received application email to %s (application %s) for position '%s'", utils.MaskEmailForLog(email), candidatura.ID, candidatura.Vaga.Titulo)
 
 	return nil
 }
@@ -409,23 +419,17 @@ func (s *EmailNotificationService) SendCandidaturaEnviadaEmail(ctx context.Conte
 // SendCandidaturaAprovadaEmail sends a email confirming the application approval
 func (s *EmailNotificationService) SendCandidaturaAprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error {
 	if !s.enabled {
-		logMessage := "[EmailNotificationService] Email notifications disabled - skipping approved application email"
-
-		if candidatura.Email != nil {
-			logMessage += fmt.Sprintf(" for %s", *candidatura.Email)
-		}
-
-		log.Printf("%s", logMessage)
+		s.infoLogger().Printf("[EmailNotificationService] Email notifications disabled - skipping approved application email for application %s", candidatura.ID)
 		return nil
 	}
 
 	if candidatura.Email == nil || *candidatura.Email == "" {
-		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
 		return nil
 	}
 
 	if candidatura.Vaga == nil {
-		log.Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping approved application email", candidatura.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping approved application email", candidatura.ID)
 		return nil
 	}
 
@@ -447,7 +451,7 @@ func (s *EmailNotificationService) SendCandidaturaAprovadaEmail(ctx context.Cont
 		return fmt.Errorf("failed to send approved application email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent approved application email to %s for position '%s'", email, candidatura.Vaga.Titulo)
+	s.infoLogger().Printf("[EmailNotificationService] Sent approved application email to %s (application %s) for position '%s'", utils.MaskEmailForLog(email), candidatura.ID, candidatura.Vaga.Titulo)
 
 	return nil
 }
@@ -455,23 +459,17 @@ func (s *EmailNotificationService) SendCandidaturaAprovadaEmail(ctx context.Cont
 // SendCandidaturaReprovadaEmail sends a email confirming the application failure
 func (s *EmailNotificationService) SendCandidaturaReprovadaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura) error {
 	if !s.enabled {
-		logMessage := "[EmailNotificationService] Email notifications disabled - skipping failed application email"
-
-		if candidatura.Email != nil {
-			logMessage += fmt.Sprintf(" for %s", *candidatura.Email)
-		}
-
-		log.Printf("%s", logMessage)
+		s.infoLogger().Printf("[EmailNotificationService] Email notifications disabled - skipping failed application email for application %s", candidatura.ID)
 		return nil
 	}
 
 	if candidatura.Email == nil || *candidatura.Email == "" {
-		log.Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No email address for application ID %s - skipping", candidatura.ID)
 		return nil
 	}
 
 	if candidatura.Vaga == nil {
-		log.Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping failed application email", candidatura.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping failed application email", candidatura.ID)
 		return nil
 	}
 
@@ -493,7 +491,7 @@ func (s *EmailNotificationService) SendCandidaturaReprovadaEmail(ctx context.Con
 		return fmt.Errorf("failed to send failed application email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent failed application email to %s for position '%s'", email, candidatura.Vaga.Titulo)
+	s.infoLogger().Printf("[EmailNotificationService] Sent failed application email to %s (application %s) for position '%s'", utils.MaskEmailForLog(email), candidatura.ID, candidatura.Vaga.Titulo)
 
 	return nil
 }
@@ -501,16 +499,12 @@ func (s *EmailNotificationService) SendCandidaturaReprovadaEmail(ctx context.Con
 // SendCandidaturaProximaEtapaEmail sends email when a candidate advances to the next selective stage
 func (s *EmailNotificationService) SendCandidaturaProximaEtapaEmail(ctx context.Context, candidatura *empregabilidade.Candidatura, etapaNome string) error {
 	if !s.enabled {
-		logMessage := "[EmailNotificationService] Email notifications disabled - skipping next stage application email"
-		if candidatura.Email != nil {
-			logMessage += fmt.Sprintf(" for %s", *candidatura.Email)
-		}
-		log.Printf("%s", logMessage)
+		s.infoLogger().Printf("[EmailNotificationService] Email notifications disabled - skipping next stage application email for application %s", candidatura.ID)
 		return nil
 	}
 
 	if candidatura.Vaga == nil {
-		log.Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping próxima etapa email", candidatura.ID)
+		s.infoLogger().Printf("[EmailNotificationService] No vaga attached for application ID %s - skipping próxima etapa email", candidatura.ID)
 		return nil
 	}
 
@@ -523,7 +517,7 @@ func (s *EmailNotificationService) SendCandidaturaProximaEtapaEmail(ctx context.
 		CPF:   candidatura.CPF,
 	})
 	if email == "" {
-		log.Printf("[EmailNotificationService] No email address for application ID %s (CPF %s) - skipping", candidatura.ID, utils.MaskCPFForLog(candidatura.CPF))
+		s.infoLogger().Printf("[EmailNotificationService] No email address for application ID %s (CPF %s) - skipping", candidatura.ID, utils.MaskCPFForLog(candidatura.CPF))
 		return nil
 	}
 
@@ -540,7 +534,7 @@ func (s *EmailNotificationService) SendCandidaturaProximaEtapaEmail(ctx context.
 		return fmt.Errorf("failed to send próxima etapa application email: %w", err)
 	}
 
-	log.Printf("[EmailNotificationService] Sent próxima etapa email to %s for position '%s' (etapa: %s)", email, candidatura.Vaga.Titulo, etapaNome)
+	s.infoLogger().Printf("[EmailNotificationService] Sent próxima etapa email to %s (application %s) for position '%s' (etapa: %s)", utils.MaskEmailForLog(email), candidatura.ID, candidatura.Vaga.Titulo, etapaNome)
 
 	return nil
 }

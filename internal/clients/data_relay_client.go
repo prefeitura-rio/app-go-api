@@ -79,9 +79,19 @@ func (c *DataRelayClient) SendEmail(ctx context.Context, req *EmailRequest) erro
 
 	// Check status code
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("data relay API returned status %d: %s", resp.StatusCode, string(body))
+		return dataRelayStatusError(resp)
 	}
 
 	return nil
+}
+
+// dataRelayStatusError builds the error for a non-2xx Data Relay response.
+// Callers log it and the body may echo the recipient or the e-mail content, so
+// only the excerpt kept by sanitizeRMIErrorBody goes into the message.
+func dataRelayStatusError(resp *http.Response) error {
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, rmiErrorBodyDrainLimit))
+	if snippet := sanitizeRMIErrorBody(body); snippet != "" {
+		return fmt.Errorf("data relay API returned status %d: %s", resp.StatusCode, snippet)
+	}
+	return fmt.Errorf("data relay API returned status %d", resp.StatusCode)
 }

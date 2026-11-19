@@ -232,6 +232,39 @@ func (s *VagaService) exigirHabilidadesCompetencias(ctx context.Context, vagaID 
 	return nil
 }
 
+// recusarListasVaziasForaDoRascunho impede que o PUT de vaga em aprovação ou
+// já publicada esvazie as habilidades e competências (DEV-551): lista enviada
+// vazia (áreas, conhecimentos de uma área ou comportamentos) é recusada com o
+// erro do campo, como ao publicar. Lista ausente (nil) mantém o gravado, então
+// a vaga antiga sem esses dados segue editável; o rascunho aceita listas vazias.
+func recusarListasVaziasForaDoRascunho(status empregabilidade.StatusVaga, entity *empregabilidade.Vaga) error {
+	if status == empregabilidade.StatusVagaEmEdicao {
+		return nil
+	}
+	fields := map[string]string{}
+	if entity.AreasAtuacao != nil {
+		if len(*entity.AreasAtuacao) == 0 {
+			fields[CampoAreasAtuacao] = MsgAreaAtuacaoObrigatoria
+		}
+		var semConhecimento []int64
+		for _, a := range *entity.AreasAtuacao {
+			if len(a.ConhecimentoIDs) == 0 {
+				semConhecimento = append(semConhecimento, a.IDAreaAtuacao)
+			}
+		}
+		if len(semConhecimento) > 0 {
+			fields[CampoConhecimentosDaArea] = "Informe ao menos um conhecimento em cada área de atuação (falta em: " + juntarIDs(semConhecimento) + ")."
+		}
+	}
+	if entity.ComportamentoAtitudesIDs != nil && len(*entity.ComportamentoAtitudesIDs) == 0 {
+		fields[CampoComportamentoAtitudesIDs] = MsgComportamentoObrigatorio
+	}
+	if len(fields) > 0 {
+		return apperrors.ValidationFields("A vaga em aprovação ou publicada não pode ficar sem as habilidades e competências.", fields)
+	}
+	return nil
+}
+
 // habilidadesDoCorpo monta, sem os nomes, as listas que vieram no corpo.
 func habilidadesDoCorpo(entity *empregabilidade.Vaga) *empregabilidade.VagaHabilidadesCompetencias {
 	h := &empregabilidade.VagaHabilidadesCompetencias{}

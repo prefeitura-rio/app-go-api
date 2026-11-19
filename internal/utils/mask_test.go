@@ -44,3 +44,27 @@ func TestMaskCNPJForLog(t *testing.T) {
 		})
 	}
 }
+
+func TestMaskEmailForLog(t *testing.T) {
+	tests := []struct {
+		name  string
+		email string
+		want  string
+	}{
+		{"regular address", "fulana.sintetica@example.com", "***@example.com"},
+		{"uppercase domain is lowered", "Fulana@Example.COM", "***@example.com"},
+		{"surrounding spaces", "  fulana@example.com  ", "***@example.com"},
+		{"empty", "", "***"},
+		{"no at sign", "fulana-sintetica", "***"},
+		{"empty domain", "fulana@", "***"},
+		{"empty local part", "@example.com", "***@example.com"},
+		{"multiple at signs keep last domain", "a@b@example.com", "***@example.com"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MaskEmailForLog(tt.email); got != tt.want {
+				t.Errorf("MaskEmailForLog(%q) = %q, want %q", tt.email, got, tt.want)
+			}
+		})
+	}
+}
