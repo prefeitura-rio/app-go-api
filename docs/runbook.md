@@ -37,6 +37,7 @@ conteúdo de um `Secret` do Kubernetes nem cole dados de cidadãos (CPF, nome, e
 | Keycloak (conta de serviço `KEYCLOAK_*`) | `go-secrets` | Sem token, o worker de cidadãos e o resolvedor de secretarias não chamam o RMI (efeito igual ao do RMI fora) |
 | Data Relay (`DATA_RELAY_*`) | `go-secrets` | E-mails falham e vão para retentativa; esgotadas, para a fila morta (seção 4.6) |
 | Cerbos (`CERBOS_*`, só se `CERBOS_ENABLED=true`) | `go-secrets` | Autorização fina de propostas MEI falha |
+| Salesforce (indireto) | Nenhuma chamada direta: os dados de cidadão que o app-go-api lê do app-rmi vêm em parte do Salesforce, que o app-rmi sincroniza | Salesforce fora ou atrasado não derruba a API: os dados de contato de cidadãos ficam desatualizados até o app-rmi voltar a sincronizar. Investigue no app-rmi, não aqui |
 | Coletor OTLP do SigNoz | `TRACING_*` em `k8s/<env>/resources.yaml` | Só perde traces; a API segue |
 
 ## 2. Onde olhar
@@ -203,6 +204,36 @@ continuar compatível com o schema novo (expand/contract). Veja a seção 4.3 an
   (`git revert <sha>`); o push na `main` dispara `deploy-staging.yaml` de novo.
 - O preview fica no `Service/go-preview` até a promoção (`autoPromotionEnabled: false`; quem
   promove é o workflow depois do smoke test).
+
+**Passo a passo: rollback em staging** (para quem não conhece o serviço; precisa de permissão de
+escrita em Actions no repositório e de leitura no cluster de staging):
+
+0. Prepare o acesso (uma vez por máquina): `gh auth login`; `gcloud auth login`;
+   `gcloud components install gke-gcloud-auth-plugin`; o plugin do Argo Rollouts
+   (`kubectl argo rollouts`, instalação em <https://argoproj.github.io/argo-rollouts/installation/#kubectl-plugin-installation>);
+   e a credencial do cluster de staging, que tem endpoint privado e só responde pelo DNS endpoint:
+   `gcloud container clusters get-credentials application --dns-endpoint --region us-central1 --project rj-superapp-staging`.
+   Sem acesso ao cluster, os passos 2, 3 e 5 funcionam só com o `gh`, e a conferência do passo 4
+   fica pelo run (`gh run view <run-id>` com conclusão `success`) e pelo `/health`.
+1. Confirme o sintoma e a versão em uso: `curl -s https://services.staging.app.dados.rio/go/health`
+   e `kubectl -n argocd get application go -o jsonpath='{.spec.source.kustomize.images}{"\n"}'`
+   (a imagem é `ghcr.io/prefeitura-rio/app-go-api:<sha-do-commit>@sha256:<digest>`).
+2. Ache o último deploy bom anterior: `gh run list --workflow deploy-staging.yaml --limit 10`
+   mostra os runs com o commit de cada um. Escolha o mais recente **antes** do commit com problema,
+   com conclusão `success` e que tenha feito build (`gh run view <run-id> -v` lista os passos e
+   "Build and Push Docker Image" precisa ter rodado; runs de mudança só em `k8s/` pulam o build e não servem).
+3. Reexecute esse run: `gh run rerun <run-id>` e acompanhe com `gh run watch <run-id>`. Ele refaz a
+   imagem daquele commit, aponta o Application `go` para ela, sobe o preview, roda o smoke test e só
+   então promove. Se o smoke test falhar, o run aborta e nada muda no serviço ativo.
+4. Confira: `kubectl -n argocd get application go -o jsonpath='{.spec.source.kustomize.images}{"\n"}'`
+   mostra o SHA do commit escolhido, `kubectl argo rollouts get rollout go -n go` mostra `Healthy` e o `/health` do
+   passo 1 responde `{"status":"ok"}`.
+5. Torne o rollback permanente: o próximo push na `main` volta a implantar o código com problema.
+   Abra um PR com `git revert <sha-do-commit-com-problema>` e registre na issue do incidente o run
+   reexecutado e o PR.
+
+O GitHub só reexecuta runs de até 30 dias; para um commit mais antigo, use direto o revert por PR
+(passo 5). As migrations não são desfeitas pelo rollback (seção 4.3).
 
 ### 4.2 Escalar e reiniciar com segurança
 
