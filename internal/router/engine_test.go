@@ -71,3 +71,26 @@ func TestNewEngine_LogsOneLinePerRequest(t *testing.T) {
 	assert.Len(t, lines, 1, "expected a single access log line, got %q", out.String())
 	assert.Contains(t, out.String(), "[GIN]")
 }
+
+// Every request, panics included, feeds the per-route latency histogram the
+// production latency alert reads (monitoring/prometheus/alerting-rules.yaml).
+func TestNewEngine_RecordsRequestLatencyByRoute(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previousOut, previousErr := gin.DefaultWriter, gin.DefaultErrorWriter
+	gin.DefaultWriter, gin.DefaultErrorWriter = &bytes.Buffer{}, &bytes.Buffer{}
+	t.Cleanup(func() { gin.DefaultWriter, gin.DefaultErrorWriter = previousOut, previousErr })
+
+	r := newEngine()
+	r.GET("/engine-metrics/:id", func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/engine-metrics-panic", func(c *gin.Context) { panic("falha simulada") })
+	registerMetricsRoute(r)
+
+	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/engine-metrics/1", nil))
+	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/engine-metrics-panic", nil))
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	body := w.Body.String()
+	assert.Contains(t, body, `goapi_http_request_duration_seconds_count{method="GET",route="/engine-metrics/:id"} 1`)
+	assert.Contains(t, body, `goapi_http_request_duration_seconds_count{method="GET",route="/engine-metrics-panic"} 1`)
+}

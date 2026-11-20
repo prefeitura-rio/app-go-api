@@ -53,7 +53,10 @@ conteúdo de um `Secret` do Kubernetes nem cole dados de cidadãos (CPF, nome, e
 - `GET /metrics` expõe o formato Prometheus (métricas padrão de Go/processo e as do cliente RMI).
   Pela entrada pública ele responde **403** (bloqueado pelo `ext_authz`); leia de dentro do cluster:
   `kubectl -n go port-forward svc/go 8080:80` e `curl -s localhost:8080/metrics | grep rmi_client_`.
-- Não há scrape versionado dessas métricas neste repositório (sem `ServiceMonitor` nem anotação).
+- O Rollout `go` (staging e produção) tem as anotações `prometheus.io/scrape|port|path` (porta 8080,
+  `/metrics`): o Prometheus do `istio-system` coleta pelo job `kubernetes-pods`.
+- Latência por rota: `goapi_http_request_duration_seconds{method,route}` (histograma; `route` é o
+  template da rota, nunca o caminho cru, que pode ter CPF; caminho sem rota vira `(rota não encontrada)`).
 - Métricas do cliente RMI (label `client`: `api` para as requisições, `orgao_sync` para o worker):
 
 | Métrica | Leitura |
@@ -138,12 +141,18 @@ Os sinais que existem hoje (versionados neste repositório ou no `prefeitura-rio
 | **"❌ Staging Deployment Failed"** | Discord (`deploy-staging.yaml`) | O smoke test (`/health` no `go-preview`) falhou ou o rollout não promoveu; o workflow abortou o rollout e o serviço ativo segue na versão anterior | `gh run view <run> --log-failed`; logs dos pods novos (`--previous`); erro comum: migration que falhou no `goose up` do entrypoint |
 | **"🛑 Production Release Aborted"** | Discord (`release.yaml`) | A análise `go-success-rate` reprovou o canário (sucesso < 95% ou 5xx > 5%, até 5 falhas); o Argo Rollouts voltou o tráfego para a versão estável | Confirme `kubectl -n go get rollout go` (fase `Degraded`/abortado) e o `AnalysisRun` mais recente; leia os logs dos pods canário; corrija e publique nova release |
 | **"❌ Production Release Failed"** (`Degraded`) ou **"⚠️ Unknown"** | Discord (`release.yaml`) | O rollout não ficou saudável no prazo do workflow (45 min) ou o estado não pôde ser lido | `kubectl argo rollouts get rollout go -n go`; se o canário está preso, siga a seção 4.1 |
-| Circuito do RMI aberto (`rmi_client_circuit_breaker_state == 2`, log `[RMIClient] circuit breaker "api": closed -> open`) | Só métrica/log (sem alerta configurado) | 5 falhas seguidas no RMI (padrão `RMI_CIRCUIT_BREAKER_FAILURE_THRESHOLD`); chamadas são recusadas por 30 s antes de testar de novo | Seção 4.5 |
+| **`GoApiRMICircuitBreakerOpen`**: circuito do RMI fora do fechado por 5 min (`rmi_client_circuit_breaker_state > 0`, log `[RMIClient] circuit breaker "api": closed -> open`) | Regra versionada, ainda não instalada (veja abaixo) | 5 falhas seguidas no RMI (padrão `RMI_CIRCUIT_BREAKER_FAILURE_THRESHOLD`); chamadas são recusadas por 30 s antes de testar de novo, e nenhuma deu certo em 5 min | Seção 4.5 |
+| **`GoApiHighErrorRate`**: mais de 2% de 5xx por 5 min (`istio_requests_total` do workload `go`) | Regra versionada, ainda não instalada | Erros do servidor ou do Envoy (pod sem responder) acima do limiar | Rotina da seção 4: pods, logs `--previous`, traces com erro no SigNoz |
+| **`GoApiHighLatencyP95`**: p95 de uma rota `/api/v1` ou `/api/public` acima de 1 s por 10 min (label `route`) | Regra versionada, ainda não instalada | Lentidão de um endpoint | Traces da rota no SigNoz ordenados por duração; banco, Redis e RMI (`db.system`, `rmi_client_*`) |
+| **`GoApiPodRestarting`**: mais de 3 reinícios do contêiner `go` em 15 min (label `pod`) | Regra versionada, ainda não instalada (precisa do kube-state-metrics) | CrashLoopBackOff, OOMKilled ou liveness falhando | `kubectl -n go describe pod <pod>` (motivo do último término) e `kubectl -n go logs <pod> --previous`; seção 4.2 |
 | KEDA em fallback (`ScaledObject` com condição `Fallback`) | Só no recurso | A consulta ao Prometheus falhou 3 vezes; a escala deixa de seguir a carga e vai para o `fallback.replicas` (limitado pelo mínimo do HPA) | Verifique o `prometheus-server` do `istio-system`; não escale à mão (seção 4.2) |
 | Fila morta de e-mail crescendo (`email:queue:failed`) | Só no Redis/log | E-mails que esgotaram as 5 tentativas ou causaram panic | Seção 4.6 |
 
-Não existem alertas do SigNoz nem do Prometheus/Alertmanager para este serviço. Se um alerta novo
-for criado, acrescente-o nesta tabela.
+As regras `GoApi*` ficam em `monitoring/prometheus/alerting-rules.yaml` (formato, instalação e
+pré-requisitos em `docs/observability.md`, seção "Production alerts"). Instalá-las no Prometheus e
+rotear a notificação é da raia Infra (`prefeitura-rio/infra`): até isso acontecer, não há alerta do
+SigNoz nem do Prometheus/Alertmanager para este serviço, e os sinais só se leem por consulta. Se um
+alerta novo for criado, acrescente-o nesta tabela e no arquivo de regras.
 
 ## 4. Rotina de incidente
 
