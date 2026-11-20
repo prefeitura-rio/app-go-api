@@ -41,9 +41,21 @@ empregabilidade (DEV-532 / PREF-687). A API grava o evento **na mesma transaçã
 | `candidatura_cancelada` | exclusão da candidatura (desistência ou remoção) | `candidato` (a própria pessoa) ou `operador` |
 | `status_alterado` | outro status: reabertura, vaga congelada/descongelada/descontinuada/reativada | `operador` / `automacao` |
 
-`emp_etapas.tipo_etapa` (opcional, até 64 caracteres) classifica a etapa com um código definido
-pela gestão, para comparar o funil entre vagas com etapas de nomes diferentes. Numa atualização,
-ausente ou vazio mantém o valor gravado.
+`emp_etapas.tipo_etapa` classifica a etapa para comparar o funil entre vagas com etapas de nomes
+diferentes; o título continua livre. A API aceita só `analise_curriculo`, `entrevista`, `teste`,
+`proposta` e `outro` (outro valor é 400). Etapa nova sem tipo recebe o inferido do título; numa
+atualização, ausente ou vazio mantém o valor gravado. A migration
+`20261120160000_classifica_tipo_etapa_emp_etapas.sql` (DEV-688) aplicou a mesma regra às etapas
+existentes sem tipo. A regra (`empregabilidade.RegrasTipoEtapaPorTitulo`) procura no título, sem
+diferenciar maiúsculas, nesta ordem, e a primeira que casa vence:
+
+| Título contém | `tipo_etapa` |
+|---|---|
+| `currícul`/`curricul`, `triagem` | `analise_curriculo` |
+| `entrevista` | `entrevista` |
+| `teste`, `prova`, `avalia`, `dinâmica` | `teste` |
+| `proposta`, `oferta`, `contrata`, `admiss` | `proposta` |
+| nenhum desses | `outro` |
 
 ## Consultas
 

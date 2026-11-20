@@ -98,7 +98,7 @@ type Etapa struct {
 	// proposta ou outro) para comparar o funil do histórico de candidaturas
 	// entre vagas; o título continua livre. Ausente (ou vazio) na criação é
 	// inferido do título; numa atualização, mantém o valor gravado.
-	TipoEtapa *string   `json:"tipo_etapa,omitempty" gorm:"type:varchar(64)"`
+	TipoEtapa *string   `json:"tipo_etapa,omitempty" gorm:"type:varchar(64)" enums:"analise_curriculo,entrevista,teste,proposta,outro"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 

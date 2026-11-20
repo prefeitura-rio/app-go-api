@@ -1,6 +1,7 @@
 package empregabilidade_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	emprepo "github.com/prefeitura-rio/app-go-api/internal/repository/empregabilidade"
 )
 
 // Classificação das etapas existentes (DEV-688). Executa o SQL exato da
@@ -80,4 +82,65 @@ func TestEtapaTipoEtapaBackfillIntegration(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Etapas novas sem tipo, criadas pela API (com a vaga, sozinhas ou na edição da
+// vaga), gravam o tipo inferido do título no banco.
+func TestEtapaTipoEtapaInferidoIntegration(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	ctx := context.Background()
+	vagaRepo := emprepo.NewVagaRepository(tx)
+	etapaRepo := emprepo.NewEtapaRepository(tx)
+
+	var regime, modelo string
+	require.NoError(t, tx.Exec(`INSERT INTO emp_empresas (cnpj) VALUES ('99999999000353') ON CONFLICT DO NOTHING`).Error)
+	require.NoError(t, tx.Raw(`SELECT id FROM emp_regimes_contratacao LIMIT 1`).Scan(&regime).Error)
+	require.NoError(t, tx.Raw(`SELECT id FROM emp_modelos_trabalho LIMIT 1`).Scan(&modelo).Error)
+
+	proposta := empregabilidade.TipoEtapaProposta
+	vaga := &empregabilidade.Vaga{
+		Titulo: "Vaga com etapas novas", Descricao: "Descrição", IDContratante: "99999999000353",
+		IDRegimeContratacao: uuid.MustParse(regime), IDModeloTrabalho: uuid.MustParse(modelo), Status: empregabilidade.StatusVagaEmEdicao,
+		Etapas: []empregabilidade.Etapa{
+			{Titulo: "Análise de currículo", Ordem: 1},
+			{Titulo: "Conversa final", Ordem: 2, TipoEtapa: &proposta},
+		},
+	}
+	id, err := vagaRepo.Create(ctx, vaga)
+	require.NoError(t, err)
+
+	avulsa := &empregabilidade.Etapa{IDVaga: id, Titulo: "Teste prático", Ordem: 3}
+	_, err = etapaRepo.Create(ctx, avulsa)
+	require.NoError(t, err)
+
+	tipos := func() map[string]string {
+		etapas, err := etapaRepo.ListByVaga(ctx, id)
+		require.NoError(t, err)
+		porTitulo := map[string]string{}
+		for _, e := range etapas {
+			require.NotNil(t, e.TipoEtapa, "etapa %q sem tipo", e.Titulo)
+			porTitulo[e.Titulo] = *e.TipoEtapa
+		}
+		return porTitulo
+	}
+	assert.Equal(t, map[string]string{
+		"Análise de currículo": empregabilidade.TipoEtapaAnaliseCurriculo,
+		"Conversa final":       empregabilidade.TipoEtapaProposta,
+		"Teste prático":        empregabilidade.TipoEtapaTeste,
+	}, tipos())
+
+	salva, err := vagaRepo.GetByID(ctx, id)
+	require.NoError(t, err)
+	existentes := salva.Etapas
+	for i := range existentes {
+		existentes[i].TipoEtapa = nil // cliente que não conhece o campo: mantém o gravado
+	}
+	salva.Etapas = append(existentes, empregabilidade.Etapa{Titulo: "Entrevista com o gestor", Ordem: 4})
+	require.NoError(t, vagaRepo.UpdateWithAssociations(ctx, salva))
+	assert.Equal(t, map[string]string{
+		"Análise de currículo":    empregabilidade.TipoEtapaAnaliseCurriculo,
+		"Conversa final":          empregabilidade.TipoEtapaProposta,
+		"Teste prático":           empregabilidade.TipoEtapaTeste,
+		"Entrevista com o gestor": empregabilidade.TipoEtapaEntrevista,
+	}, tipos())
 }
