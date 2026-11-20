@@ -199,6 +199,13 @@ continuar compatível com o schema novo (expand/contract). Veja a seção 4.3 an
 **Passo a passo: rollback em staging** (para quem não conhece o serviço; precisa de permissão de
 escrita em Actions no repositório e de leitura no cluster de staging):
 
+0. Prepare o acesso (uma vez por máquina): `gh auth login`; `gcloud auth login`;
+   `gcloud components install gke-gcloud-auth-plugin`; o plugin do Argo Rollouts
+   (`kubectl argo rollouts`, instalação em <https://argoproj.github.io/argo-rollouts/installation/#kubectl-plugin-installation>);
+   e a credencial do cluster de staging, que tem endpoint privado e só responde pelo DNS endpoint:
+   `gcloud container clusters get-credentials application --dns-endpoint --region us-central1 --project rj-superapp-staging`.
+   Sem acesso ao cluster, os passos 2, 3 e 5 funcionam só com o `gh`, e a conferência do passo 4
+   fica pelo run (`gh run view <run-id>` com conclusão `success`) e pelo `/health`.
 1. Confirme o sintoma e a versão em uso: `curl -s https://services.staging.app.dados.rio/go/health`
    e `kubectl -n argocd get application go -o jsonpath='{.spec.source.kustomize.images}{"\n"}'`
    (a imagem é `ghcr.io/prefeitura-rio/app-go-api:<sha-do-commit>@sha256:<digest>`).
