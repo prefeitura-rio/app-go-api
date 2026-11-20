@@ -58,3 +58,65 @@ func TestCamposAtualizaveisEtapa(t *testing.T) {
 	assert.Equal(t, []string{"titulo", "descricao", "ordem"}, camposAtualizaveisEtapa(&empregabilidade.Etapa{}))
 	assert.Equal(t, []string{"titulo", "descricao", "ordem", "tipo_etapa", "updated_at"}, camposAtualizaveisEtapa(&empregabilidade.Etapa{TipoEtapa: &tipo}, "updated_at"))
 }
+
+// DEV-688: etapa nova sem tipo_etapa grava o tipo inferido do título; o título
+// continua o que veio.
+func TestEtapaRepository_Create_SemTipoEtapaInfereDoTitulo(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewEtapaRepository(db)
+	entity := &empregabilidade.Etapa{IDVaga: uuid.New(), Titulo: "Entrevista com o gestor", Ordem: 2}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_etapas" ("id_vaga","titulo","descricao","ordem","tipo_etapa","created_at","updated_at")`)).
+		WithArgs(entity.IDVaga, "Entrevista com o gestor", "", 2, empregabilidade.TipoEtapaEntrevista, sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+	mock.ExpectCommit()
+
+	_, err := repo.Create(context.Background(), entity)
+	require.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// DEV-688: etapas novas enviadas com a vaga (syncEtapas) também ganham o tipo
+// inferido do título; a que veio com tipo mantém o dela.
+func TestVagaRepository_UpdateWithAssociations_EtapasNovasInferemTipo(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	proposta := empregabilidade.TipoEtapaProposta
+	vaga := &empregabilidade.Vaga{
+		ID:                  uuid.New(),
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		Etapas: []empregabilidade.Etapa{
+			{Titulo: "Análise de currículo", Ordem: 1},
+			{Titulo: "Conversa final", Ordem: 2, TipoEtapa: &proposta},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
+	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery(`INSERT INTO "emp_etapas"`).
+		WithArgs(vaga.ID, "Análise de currículo", "", 1, empregabilidade.TipoEtapaAnaliseCurriculo, sqlmock.AnyArg(), sqlmock.AnyArg(),
+			vaga.ID, "Conversa final", "", 2, empregabilidade.TipoEtapaProposta, sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	err := repo.UpdateWithAssociations(context.Background(), vaga)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao criar etapas")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}

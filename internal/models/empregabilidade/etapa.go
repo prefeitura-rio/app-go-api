@@ -2,31 +2,88 @@ package empregabilidade
 
 import (
 	"fmt"
+	"regexp"
+	"slices"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
-// TamanhoMaximoTipoEtapa é o tamanho da coluna emp_etapas.tipo_etapa.
-const TamanhoMaximoTipoEtapa = 64
+// Classificações de tipo_etapa (PREF-687): comparam o funil do histórico de
+// candidaturas entre vagas cujas etapas têm títulos livres diferentes.
+const (
+	TipoEtapaAnaliseCurriculo = "analise_curriculo"
+	TipoEtapaEntrevista       = "entrevista"
+	TipoEtapaTeste            = "teste"
+	TipoEtapaProposta         = "proposta"
+	TipoEtapaOutro            = "outro"
+)
 
-// ErrTipoEtapaLongo indica tipo_etapa acima de TamanhoMaximoTipoEtapa caracteres.
-var ErrTipoEtapaLongo = fmt.Errorf("tipo_etapa deve ter no máximo %d caracteres", TamanhoMaximoTipoEtapa)
+// TiposEtapa são os valores aceitos em emp_etapas.tipo_etapa, na ordem exibida.
+var TiposEtapa = []string{
+	TipoEtapaAnaliseCurriculo,
+	TipoEtapaEntrevista,
+	TipoEtapaTeste,
+	TipoEtapaProposta,
+	TipoEtapaOutro,
+}
 
-// NormalizarTipoEtapa tira os espaços das pontas do tipo_etapa; vazio vira nil
-// (o valor gravado não muda) e acima do tamanho da coluna é recusado.
+// ErrTipoEtapaInvalido indica tipo_etapa fora de TiposEtapa.
+var ErrTipoEtapaInvalido = fmt.Errorf("tipo_etapa deve ser um de: %s", strings.Join(TiposEtapa, ", "))
+
+// RegraTipoEtapa associa um padrão do título da etapa a um tipo.
+type RegraTipoEtapa struct {
+	Tipo   string
+	Padrao string
+}
+
+// RegrasTipoEtapaPorTitulo classificam o título livre, na ordem: a primeira que
+// casa vence; nenhuma, TipoEtapaOutro. Os padrões são os mesmos da migration
+// 20261120160000_classifica_tipo_etapa_emp_etapas.sql (que os aplica com ~* no
+// PostgreSQL às etapas existentes), por isso as letras acentuadas aparecem nas
+// duas caixas.
+var RegrasTipoEtapaPorTitulo = []RegraTipoEtapa{
+	{TipoEtapaAnaliseCurriculo, "curr[iíÍ]cul|triagem"},
+	{TipoEtapaEntrevista, "entrevista"},
+	{TipoEtapaTeste, "teste|prova|avalia|din[aâÂ]mica"},
+	{TipoEtapaProposta, "proposta|oferta|contrata|admiss"},
+}
+
+var regexesTipoEtapa = compilarRegrasTipoEtapa()
+
+func compilarRegrasTipoEtapa() []*regexp.Regexp {
+	regexes := make([]*regexp.Regexp, len(RegrasTipoEtapaPorTitulo))
+	for i, regra := range RegrasTipoEtapaPorTitulo {
+		regexes[i] = regexp.MustCompile("(?i)" + regra.Padrao)
+	}
+	return regexes
+}
+
+// InferirTipoEtapa classifica a etapa pelo título livre (RegrasTipoEtapaPorTitulo).
+func InferirTipoEtapa(titulo string) string {
+	for i, re := range regexesTipoEtapa {
+		if re.MatchString(titulo) {
+			return RegrasTipoEtapaPorTitulo[i].Tipo
+		}
+	}
+	return TipoEtapaOutro
+}
+
+// NormalizarTipoEtapa tira os espaços das pontas e passa o tipo_etapa para
+// minúsculas; vazio vira nil (o valor gravado não muda) e valor fora de
+// TiposEtapa é recusado com ErrTipoEtapaInvalido.
 func NormalizarTipoEtapa(tipo *string) (*string, error) {
 	if tipo == nil {
 		return nil, nil
 	}
-	valor := strings.TrimSpace(*tipo)
+	valor := strings.ToLower(strings.TrimSpace(*tipo))
 	if valor == "" {
 		return nil, nil
 	}
-	if utf8.RuneCountInString(valor) > TamanhoMaximoTipoEtapa {
-		return nil, ErrTipoEtapaLongo
+	if !slices.Contains(TiposEtapa, valor) {
+		return nil, ErrTipoEtapaInvalido
 	}
 	return &valor, nil
 }
@@ -37,9 +94,10 @@ type Etapa struct {
 	Titulo    string    `json:"titulo" gorm:"type:varchar(500);not null"`
 	Descricao string    `json:"descricao" gorm:"type:text"`
 	Ordem     int       `json:"ordem" gorm:"not null"`
-	// TipoEtapa classifica a etapa (código livre definido pela gestão) para
-	// comparar o funil do histórico de candidaturas entre vagas. Opcional:
-	// ausente (ou vazio) numa atualização mantém o valor gravado.
+	// TipoEtapa classifica a etapa (analise_curriculo, entrevista, teste,
+	// proposta ou outro) para comparar o funil do histórico de candidaturas
+	// entre vagas; o título continua livre. Ausente (ou vazio) na criação é
+	// inferido do título; numa atualização, mantém o valor gravado.
 	TipoEtapa *string   `json:"tipo_etapa,omitempty" gorm:"type:varchar(64)"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
@@ -50,4 +108,13 @@ type Etapa struct {
 
 func (Etapa) TableName() string {
 	return "emp_etapas"
+}
+
+// BeforeCreate infere o tipo_etapa do título quando a etapa nova chega sem ele.
+func (e *Etapa) BeforeCreate(_ *gorm.DB) error {
+	if e.TipoEtapa == nil {
+		tipo := InferirTipoEtapa(e.Titulo)
+		e.TipoEtapa = &tipo
+	}
+	return nil
 }

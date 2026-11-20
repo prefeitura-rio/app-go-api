@@ -14,8 +14,9 @@ import (
 	services "github.com/prefeitura-rio/app-go-api/internal/services/empregabilidade"
 )
 
-// tipo_etapa (DEV-532): espaços das pontas saem, vazio não altera, acima de 64
-// caracteres é erro de validação e nada é gravado.
+// tipo_etapa (DEV-532, DEV-688): espaços das pontas saem e vira minúsculas,
+// vazio não altera, valor fora da lista fechada é erro de validação e nada é
+// gravado.
 
 func strPtr(s string) *string { return &s }
 
@@ -30,8 +31,11 @@ func TestEtapaService_TipoEtapa_Normalizacao(t *testing.T) {
 	}{
 		{"ausente", nil, nil, false},
 		{"com espaços nas pontas", strPtr("  entrevista "), strPtr("entrevista"), false},
+		{"maiúsculas", strPtr("PROPOSTA"), strPtr("proposta"), false},
 		{"só espaços vira ausente", strPtr("   "), nil, false},
-		{"no limite de 64", strPtr(strings.Repeat("á", 64)), strPtr(strings.Repeat("á", 64)), false},
+		{"cada tipo da lista", strPtr("analise_curriculo"), strPtr("analise_curriculo"), false},
+		{"outro", strPtr("outro"), strPtr("outro"), false},
+		{"código fora da lista", strPtr("triagem"), nil, true},
 		{"acima de 64", strPtr(strings.Repeat("a", 65)), nil, true},
 	}
 
@@ -71,18 +75,18 @@ func TestEtapaService_TipoEtapa_Normalizacao(t *testing.T) {
 }
 
 func TestVagaService_TipoEtapaInvalidoNasEtapas(t *testing.T) {
-	longo := strings.Repeat("a", 65)
+	invalido := "fase_final"
 
 	t.Run("create", func(t *testing.T) {
 		svc := services.NewVagaServiceWithInterfaces(NewMockVagaRepoForService(), NewMockEmpresaRepoForService(), nil)
-		_, err := svc.Create(context.Background(), &empregabilidade.Vaga{Etapas: []empregabilidade.Etapa{{Titulo: "Etapa", TipoEtapa: &longo}}})
+		_, err := svc.Create(context.Background(), &empregabilidade.Vaga{Etapas: []empregabilidade.Etapa{{Titulo: "Etapa", TipoEtapa: &invalido}}})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsKind(err, apperrors.KindValidation), "esperado erro de validação, veio %v", err)
 	})
 
 	t.Run("update", func(t *testing.T) {
 		svc := services.NewVagaServiceWithInterfaces(NewMockVagaRepoForService(), NewMockEmpresaRepoForService(), nil)
-		err := svc.Update(context.Background(), &empregabilidade.Vaga{ID: uuid.New(), Etapas: []empregabilidade.Etapa{{Titulo: "Etapa", TipoEtapa: &longo}}})
+		err := svc.Update(context.Background(), &empregabilidade.Vaga{ID: uuid.New(), Etapas: []empregabilidade.Etapa{{Titulo: "Etapa", TipoEtapa: &invalido}}})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsKind(err, apperrors.KindValidation), "esperado erro de validação, veio %v", err)
 	})
