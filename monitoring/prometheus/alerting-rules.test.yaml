@@ -1,0 +1,157 @@
+# Testes das regras: promtool test rules monitoring/prometheus/alerting-rules.test.yaml
+# Séries sintéticas (amostra a cada 1 min) que devem disparar, e não disparar, cada alerta.
+rule_files:
+  - alerting-rules.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # 5% de 5xx com 100 req/min: dispara; 1% ou tráfego baixo: não.
+  - interval: 1m
+    input_series:
+      - series: 'istio_requests_total{reporter="destination", destination_workload_namespace="go", destination_workload="go", response_code="200"}'
+        values: '0+95x30'
+      - series: 'istio_requests_total{reporter="destination", destination_workload_namespace="go", destination_workload="go", response_code="500"}'
+        values: '0+5x30'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: GoApiHighErrorRate
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: GoApiHighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: app-go-api
+            exp_annotations:
+              summary: "app-go-api: mais de 2% de respostas 5xx há 5 min"
+              description: "5% das respostas do workload go são 5xx (limite: 2% por 5 min)."
+              runbook_url: "https://github.com/prefeitura-rio/app-go-api/blob/main/docs/runbook.md#3-alertas-o-que-significam-e-o-primeiro-passo"
+  - interval: 1m
+    input_series:
+      - series: 'istio_requests_total{reporter="destination", destination_workload_namespace="go", destination_workload="go", response_code="200"}'
+        values: '0+99x30'
+      - series: 'istio_requests_total{reporter="destination", destination_workload_namespace="go", destination_workload="go", response_code="503"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: GoApiHighErrorRate
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      # 3 req/min, um terço 5xx: abaixo do mínimo de 0,1 req/s.
+      - series: 'istio_requests_total{reporter="destination", destination_workload_namespace="go", destination_workload="go", response_code="200"}'
+        values: '0+2x30'
+      - series: 'istio_requests_total{reporter="destination", destination_workload_namespace="go", destination_workload="go", response_code="500"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: GoApiHighErrorRate
+        exp_alerts: []
+
+  # Rota pública com todas as requisições entre 1 s e 2,5 s: dispara depois de 10 min.
+  # A mesma lentidão em /health, ou numa rota com tráfego baixo, não dispara.
+  - interval: 1m
+    input_series:
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="GET", route="/api/public/courses", le="0.5"}'
+        values: '0x30'
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="GET", route="/api/public/courses", le="1"}'
+        values: '0x30'
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="GET", route="/api/public/courses", le="2.5"}'
+        values: '0+60x30'
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="GET", route="/api/public/courses", le="+Inf"}'
+        values: '0+60x30'
+      - series: 'goapi_http_request_duration_seconds_count{namespace="go", method="GET", route="/api/public/courses"}'
+        values: '0+60x30'
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="GET", route="/health", le="1"}'
+        values: '0x30'
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="GET", route="/health", le="+Inf"}'
+        values: '0+60x30'
+      - series: 'goapi_http_request_duration_seconds_count{namespace="go", method="GET", route="/health"}'
+        values: '0+60x30'
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="POST", route="/api/v1/jobs/enrollments/import", le="1"}'
+        values: '0x30'
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="POST", route="/api/v1/jobs/enrollments/import", le="+Inf"}'
+        values: '0+1x30'
+      - series: 'goapi_http_request_duration_seconds_count{namespace="go", method="POST", route="/api/v1/jobs/enrollments/import"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: GoApiHighLatencyP95
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: GoApiHighLatencyP95
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: app-go-api
+              route: /api/public/courses
+            exp_annotations:
+              summary: "app-go-api: p95 acima de 1 s há 10 min em /api/public/courses"
+              description: "A latência p95 da rota /api/public/courses está em 2.425s (limite: 1 s por 10 min)."
+              runbook_url: "https://github.com/prefeitura-rio/app-go-api/blob/main/docs/runbook.md#3-alertas-o-que-significam-e-o-primeiro-passo"
+  - interval: 1m
+    input_series:
+      # p95 abaixo de 1 s (95% até 0,5 s).
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="GET", route="/api/v1/courses", le="0.5"}'
+        values: '0+96x30'
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="GET", route="/api/v1/courses", le="1"}'
+        values: '0+98x30'
+      - series: 'goapi_http_request_duration_seconds_bucket{namespace="go", method="GET", route="/api/v1/courses", le="+Inf"}'
+        values: '0+100x30'
+      - series: 'goapi_http_request_duration_seconds_count{namespace="go", method="GET", route="/api/v1/courses"}'
+        values: '0+100x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: GoApiHighLatencyP95
+        exp_alerts: []
+
+  # Um reinício por minuto (CrashLoop): dispara; dois em 15 min: não.
+  - interval: 1m
+    input_series:
+      - series: 'kube_pod_container_status_restarts_total{namespace="go", pod="go-6d8f9b7c4-abcde", container="go"}'
+        values: '0+1x20'
+      - series: 'kube_pod_container_status_restarts_total{namespace="go", pod="go-6d8f9b7c4-fghij", container="go"}'
+        values: '0 0 0 1 1 1 1 2 2 2 2 2 2 2 2 2 2 2 2 2 2'
+      - series: 'kube_pod_container_status_restarts_total{namespace="go", pod="go-6d8f9b7c4-fghij", container="istio-proxy"}'
+        values: '0+1x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: GoApiPodRestarting
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: app-go-api
+              namespace: go
+              pod: go-6d8f9b7c4-abcde
+              container: go
+            exp_annotations:
+              summary: "app-go-api: pod go-6d8f9b7c4-abcde reiniciou mais de 3 vezes em 15 min"
+              description: "O contêiner go do pod go-6d8f9b7c4-abcde reiniciou 15 vezes nos últimos 15 min."
+              runbook_url: "https://github.com/prefeitura-rio/app-go-api/blob/main/docs/runbook.md#3-alertas-o-que-significam-e-o-primeiro-passo"
+
+  # Circuito aberto (ou alternando aberto/meio-aberto) por 5 min: dispara.
+  # Aberto 3 min e fechado de novo: não.
+  - interval: 1m
+    input_series:
+      - series: 'rmi_client_circuit_breaker_state{namespace="go", pod="go-6d8f9b7c4-abcde", client="api"}'
+        values: '0 0 2 2 1 2 1 2 2 1 2 2 2'
+      - series: 'rmi_client_circuit_breaker_state{namespace="go", pod="go-6d8f9b7c4-abcde", client="orgao_sync"}'
+        values: '0 0 2 2 2 0 0 0 2 2 2 0 0'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: GoApiRMICircuitBreakerOpen
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: GoApiRMICircuitBreakerOpen
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: app-go-api
+              namespace: go
+              pod: go-6d8f9b7c4-abcde
+              client: api
+            exp_annotations:
+              summary: "app-go-api: circuito do RMI (api) aberto há mais de 5 min"
+              description: "O circuit breaker do cliente RMI api no pod go-6d8f9b7c4-abcde não fecha há 5 min: as chamadas ao RMI são recusadas (leitura segue sem escopo de secretaria, escrita restrita por secretaria é negada, consulta de CNPJ/CNAE falha)."
+              runbook_url: "https://github.com/prefeitura-rio/app-go-api/blob/main/docs/runbook.md#45-rmi-fora-do-ar-fail-open"
