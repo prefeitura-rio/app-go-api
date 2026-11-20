@@ -69,11 +69,16 @@ metrics (`rmi_client_*`, see `docs/runbook.md` section 2) and the per-route requ
 | `goapi_http_request_duration_seconds` (histogram, buckets 0.05 … 10 s) | `method`, `route` | Duration of every request. `route` is the Gin route template (`/api/v1/enrollments/user/:cpf`), never the raw path, which may carry a CPF; a path with no route is `(rota não encontrada)` and a non-standard method is `OTHER` |
 | `rmi_client_circuit_breaker_state` (gauge) | `client` (`api`, `orgao_sync`) | `0` closed, `1` half-open, `2` open |
 
-The `go` Rollout (staging and production) carries the `prometheus.io/scrape|port|path` annotations
-(port `8080`, path `/metrics`). The Istio sidecar injector rewrites them to the agent port
-(`15020/stats/prometheus`) and merges the application metrics with the Envoy ones, so the
-`kubernetes-pods` job of the Prometheus in `istio-system` collects both, with the `namespace`, `pod`
-and `app` target labels. From the public entry point `/metrics` answers 403 (`ext_authz`).
+The `go` Service (staging and production; the active/stable one, not `go-preview`/`go-canary`)
+carries the `prometheus.io/scrape|port|path` annotations (port `8080`, path `/metrics`), so the
+`kubernetes-service-endpoints` job of the Prometheus in `istio-system` scrapes every ready pod behind
+it, with the `namespace`, `service`, `app` and `instance` (pod `IP:8080`) target labels; that job
+sets no `pod` label. The annotations are not on the Rollout pod template on purpose: the Argo CD
+Application `go` (`superapp/modules/k8s/yamls/argocd/applications/go.yaml` in `prefeitura-rio/infra`)
+ignores `/spec/template/metadata/annotations` of the Rollout with `RespectIgnoreDifferences`, so a
+change there never reaches the pods (and, on a fresh Rollout, the Istio metrics merge would scrape
+the same series a second time through the `kubernetes-pods` job). `internal/router/scrape_manifests_test.go`
+keeps it that way. From the public entry point `/metrics` answers 403 (`ext_authz`).
 
 ## Production alerts
 
@@ -90,7 +95,7 @@ a top-level `groups:` list with one group, `app-go-api`, of alerting rules (`ale
 Prometheus Operator CRDs, so Argo CD must not apply it.
 
 - Labels on every alert: `severity` (`critical` or `warning`) and `service: app-go-api`, for routing.
-- Annotations: `summary`, `description` (with the value and the `route`/`pod`/`client` label) and
+- Annotations: `summary`, `description` (with the value and the `route`, `pod` (kube-state-metrics), `instance` or `client` label) and
   `runbook_url` (a section of `docs/runbook.md`).
 - The same file serves staging and production: the namespace and the workload are both `go` in each
   cluster, and each cluster has its own Prometheus.
@@ -118,7 +123,8 @@ Prerequisites on the stack side:
 - **Alertmanager** (or another receiver) for the notifications: the chart runs with
   `alertmanager = { enabled = false }`; without it the alerts only show in `/alerts`.
 - `istio_requests_total` is already collected (KEDA and the canary analysis read it); the
-  `goapi_*` and `rmi_client_*` series exist after the deploy that adds the scrape annotations.
+  `goapi_*` and `rmi_client_*` series exist once the `go` Service carries the scrape annotations
+  (job `kubernetes-service-endpoints`, already in the chart's default scrape config).
 
 ### Changing the rules
 

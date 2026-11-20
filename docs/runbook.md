@@ -54,8 +54,10 @@ conteúdo de um `Secret` do Kubernetes nem cole dados de cidadãos (CPF, nome, e
 - `GET /metrics` expõe o formato Prometheus (métricas padrão de Go/processo e as do cliente RMI).
   Pela entrada pública ele responde **403** (bloqueado pelo `ext_authz`); leia de dentro do cluster:
   `kubectl -n go port-forward svc/go 8080:80` e `curl -s localhost:8080/metrics | grep rmi_client_`.
-- O Rollout `go` (staging e produção) tem as anotações `prometheus.io/scrape|port|path` (porta 8080,
-  `/metrics`): o Prometheus do `istio-system` coleta pelo job `kubernetes-pods`.
+- O Service `go` (staging e produção) tem as anotações `prometheus.io/scrape|port|path` (porta 8080,
+  `/metrics`): o Prometheus do `istio-system` coleta os pods ativos pelo job `kubernetes-service-endpoints`
+  (label `instance` = IP:porta do pod; sem label `pod`). Não ponha essas anotações no template do
+  Rollout: a Application `go` do Argo CD ignora `/spec/template/metadata/annotations`.
 - Latência por rota: `goapi_http_request_duration_seconds{method,route}` (histograma; `route` é o
   template da rota, nunca o caminho cru, que pode ter CPF; caminho sem rota vira `(rota não encontrada)`).
 - Métricas do cliente RMI (label `client`: `api` para as requisições, `orgao_sync` para o worker):

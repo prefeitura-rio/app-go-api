@@ -50,11 +50,6 @@ spec:
         sidecar.istio.io/proxyCPULimit: "1000m"
         sidecar.istio.io/proxyMemory: "1Gi"
         sidecar.istio.io/proxyMemoryLimit: "1536Mi"
-        # /metrics (goapi_* sinais dos alertas, rmi_client_*) coletado pelo Prometheus do
-        # istio-system (job kubernetes-pods); pela entrada pública ele segue com 403.
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "8080"
-        prometheus.io/path: "/metrics"
     spec:
       automountServiceAccountToken: false
       containers:
@@ -169,6 +164,14 @@ metadata:
   labels:
     app: go
   name: go
+  annotations:
+    # /metrics (goapi_* sinais dos alertas, rmi_client_*) coletado pelo Prometheus do
+    # istio-system (job kubernetes-service-endpoints), só nos pods ativos/estáveis; pela
+    # entrada pública ele segue com 403. Fica no Service, não no template do Rollout: a
+    # Application go do Argo CD ignora /spec/template/metadata/annotations.
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
 spec:
   ports:
     - name: "80"

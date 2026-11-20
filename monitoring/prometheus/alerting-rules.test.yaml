@@ -134,9 +134,9 @@ tests:
   # Aberto 3 min e fechado de novo: não.
   - interval: 1m
     input_series:
-      - series: 'rmi_client_circuit_breaker_state{namespace="go", pod="go-6d8f9b7c4-abcde", client="api"}'
+      - series: 'rmi_client_circuit_breaker_state{job="kubernetes-service-endpoints", namespace="go", service="go", app="go", instance="10.4.1.23:8080", client="api"}'
         values: '0 0 2 2 1 2 1 2 2 1 2 2 2'
-      - series: 'rmi_client_circuit_breaker_state{namespace="go", pod="go-6d8f9b7c4-abcde", client="orgao_sync"}'
+      - series: 'rmi_client_circuit_breaker_state{job="kubernetes-service-endpoints", namespace="go", service="go", app="go", instance="10.4.1.23:8080", client="orgao_sync"}'
         values: '0 0 2 2 2 0 0 0 2 2 2 0 0'
     alert_rule_test:
       - eval_time: 6m
@@ -148,10 +148,12 @@ tests:
           - exp_labels:
               severity: warning
               service: app-go-api
+              job: kubernetes-service-endpoints
               namespace: go
-              pod: go-6d8f9b7c4-abcde
+              app: go
+              instance: 10.4.1.23:8080
               client: api
             exp_annotations:
               summary: "app-go-api: circuito do RMI (api) aberto há mais de 5 min"
-              description: "O circuit breaker do cliente RMI api no pod go-6d8f9b7c4-abcde não fecha há 5 min: as chamadas ao RMI são recusadas (leitura segue sem escopo de secretaria, escrita restrita por secretaria é negada, consulta de CNPJ/CNAE falha)."
+              description: "O circuit breaker do cliente RMI api na instância 10.4.1.23:8080 não fecha há 5 min: as chamadas ao RMI são recusadas (leitura segue sem escopo de secretaria, escrita restrita por secretaria é negada, consulta de CNPJ/CNAE falha)."
               runbook_url: "https://github.com/prefeitura-rio/app-go-api/blob/main/docs/runbook.md#45-rmi-fora-do-ar-fail-open"

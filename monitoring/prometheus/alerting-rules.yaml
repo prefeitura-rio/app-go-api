@@ -61,7 +61,8 @@ groups:
       # Circuito do cliente RMI fora do estado fechado (1 = meio-aberto, 2 = aberto)
       # por 5 min: sem nenhuma chamada bem-sucedida ao RMI nesse tempo. O meio-aberto
       # conta porque, com o RMI fora, o circuito alterna entre aberto e meio-aberto
-      # a cada 30 s. Uma série por pod e por cliente (api, orgao_sync).
+      # a cada 30 s. Uma série por pod (label instance, IP:porta do pod: o job
+      # kubernetes-service-endpoints não põe o label pod) e por cliente (api, orgao_sync).
       - alert: GoApiRMICircuitBreakerOpen
         expr: |
           rmi_client_circuit_breaker_state{namespace="go"} > 0
@@ -71,5 +72,5 @@ groups:
           service: app-go-api
         annotations:
           summary: "app-go-api: circuito do RMI ({{ $labels.client }}) aberto há mais de 5 min"
-          description: "O circuit breaker do cliente RMI {{ $labels.client }} no pod {{ $labels.pod }} não fecha há 5 min: as chamadas ao RMI são recusadas (leitura segue sem escopo de secretaria, escrita restrita por secretaria é negada, consulta de CNPJ/CNAE falha)."
+          description: "O circuit breaker do cliente RMI {{ $labels.client }} na instância {{ $labels.instance }} não fecha há 5 min: as chamadas ao RMI são recusadas (leitura segue sem escopo de secretaria, escrita restrita por secretaria é negada, consulta de CNPJ/CNAE falha)."
           runbook_url: "https://github.com/prefeitura-rio/app-go-api/blob/main/docs/runbook.md#45-rmi-fora-do-ar-fail-open"
