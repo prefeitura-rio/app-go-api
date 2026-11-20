@@ -40,10 +40,12 @@ type RegraTipoEtapa struct {
 }
 
 // RegrasTipoEtapaPorTitulo classificam o título livre, na ordem: a primeira que
-// casa vence; nenhuma, TipoEtapaOutro. Os padrões são os mesmos da migration
-// 20261120160000_classifica_tipo_etapa_emp_etapas.sql (que os aplica com ~* no
-// PostgreSQL às etapas existentes), por isso as letras acentuadas aparecem nas
-// duas caixas.
+// casa vence; nenhuma, TipoEtapaOutro. Cada padrão casa, sem diferenciar
+// maiúsculas, no começo de uma palavra do título ("Prova" casa, "Aprovação"
+// não). Os padrões são os mesmos da migration
+// 20261120160000_classifica_tipo_etapa_emp_etapas.sql, que os aplica às etapas
+// existentes com ~* '\m(<padrão>)' no PostgreSQL, por isso as letras
+// acentuadas aparecem nas duas caixas.
 var RegrasTipoEtapaPorTitulo = []RegraTipoEtapa{
 	{TipoEtapaAnaliseCurriculo, "curr[iíÍ]cul|triagem"},
 	{TipoEtapaEntrevista, "entrevista"},
@@ -56,7 +58,9 @@ var regexesTipoEtapa = compilarRegrasTipoEtapa()
 func compilarRegrasTipoEtapa() []*regexp.Regexp {
 	regexes := make([]*regexp.Regexp, len(RegrasTipoEtapaPorTitulo))
 	for i, regra := range RegrasTipoEtapaPorTitulo {
-		regexes[i] = regexp.MustCompile("(?i)" + regra.Padrao)
+		// Começo de palavra como o \m do PostgreSQL: o início do título ou um
+		// caractere que não é letra, dígito nem "_" (o \b do Go só vê ASCII).
+		regexes[i] = regexp.MustCompile(`(?i)(?:^|[^\p{L}\p{N}_])(?:` + regra.Padrao + `)`)
 	}
 	return regexes
 }

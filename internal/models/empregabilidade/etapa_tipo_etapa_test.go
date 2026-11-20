@@ -75,7 +75,15 @@ func TestInferirTipoEtapa(t *testing.T) {
 		{"Contratação", empregabilidade.TipoEtapaProposta},
 		{"Exame admissional", empregabilidade.TipoEtapaProposta},
 		{"Currículo e entrevista", empregabilidade.TipoEtapaAnaliseCurriculo},
+		{"Pré-entrevista", empregabilidade.TipoEtapaEntrevista},
+		{"Testes", empregabilidade.TipoEtapaTeste},
 		{"Inscrição", empregabilidade.TipoEtapaOutro},
+		// Os padrões casam só no começo de uma palavra (revisão 6.1).
+		{"Comprovação de documentos", empregabilidade.TipoEtapaOutro},
+		{"Aprovação final", empregabilidade.TipoEtapaOutro},
+		{"Aprovado", empregabilidade.TipoEtapaOutro},
+		{"Contestação", empregabilidade.TipoEtapaOutro},
+		{"Reavaliação", empregabilidade.TipoEtapaOutro},
 		{"", empregabilidade.TipoEtapaOutro},
 		{"   ", empregabilidade.TipoEtapaOutro},
 	}
@@ -110,7 +118,7 @@ func TestRegrasTipoEtapa_IguaisAsDaMigration(t *testing.T) {
 
 	ultimo := -1
 	for _, regra := range empregabilidade.RegrasTipoEtapaPorTitulo {
-		clausula := fmt.Sprintf("WHEN titulo ~* '%s' THEN '%s'", regra.Padrao, regra.Tipo)
+		clausula := fmt.Sprintf(`WHEN titulo ~* '\m(%s)' THEN '%s'`, regra.Padrao, regra.Tipo)
 		pos := strings.Index(up, clausula)
 		require.GreaterOrEqual(t, pos, 0, "migration sem a cláusula %q", clausula)
 		assert.Greater(t, pos, ultimo, "cláusula fora de ordem: %q", clausula)

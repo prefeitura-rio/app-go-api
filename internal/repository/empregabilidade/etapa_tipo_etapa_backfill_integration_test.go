@@ -2,6 +2,7 @@ package empregabilidade_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -38,11 +39,11 @@ func TestEtapaTipoEtapaBackfillIntegration(t *testing.T) {
 	type esperado struct {
 		titulo   string
 		tipo     *string
-		inferido bool // sem tipo gravado: a migration classifica pelo título
+		inferido bool // sem tipo válido gravado: a migration classifica pelo título
 	}
 	casos := map[uuid.UUID]esperado{}
 	nova := func(titulo string, tipo *string, tipoEsperado *string) {
-		semTipo := tipo == nil || strings.TrimSpace(*tipo) == ""
+		semTipo := tipo == nil || !slices.Contains(empregabilidade.TiposEtapa, strings.ToLower(strings.TrimSpace(*tipo)))
 		casos[etapaCrua(t, tx, vaga, titulo, len(casos)+1, tipo)] = esperado{titulo, tipoEsperado, semTipo}
 	}
 
@@ -57,9 +58,14 @@ func TestEtapaTipoEtapaBackfillIntegration(t *testing.T) {
 	nova("Exame admissional", nil, texto(empregabilidade.TipoEtapaProposta))
 	nova("Currículo e entrevista", nil, texto(empregabilidade.TipoEtapaAnaliseCurriculo))
 	nova("Inscrição", nil, texto(empregabilidade.TipoEtapaOutro))
+	nova("Pré-entrevista", nil, texto(empregabilidade.TipoEtapaEntrevista))
+	nova("Comprovação de documentos", nil, texto(empregabilidade.TipoEtapaOutro))
+	nova("Aprovação final", nil, texto(empregabilidade.TipoEtapaOutro))
+	nova("Reavaliação", nil, texto(empregabilidade.TipoEtapaOutro))
 	nova("Conversa", texto(" Entrevista "), texto(empregabilidade.TipoEtapaEntrevista))
 	nova("Entrevista", texto(empregabilidade.TipoEtapaProposta), texto(empregabilidade.TipoEtapaProposta))
-	nova("Entrevista", texto("codigo_livre"), texto("codigo_livre"))
+	nova("Entrevista", texto("codigo_livre"), texto(empregabilidade.TipoEtapaEntrevista))
+	nova("Prova escrita", texto("Triagem"), texto(empregabilidade.TipoEtapaTeste))
 
 	for rodada := 1; rodada <= 2; rodada++ {
 		for _, comando := range comandosDaMigration(t, migrationClassificaTipoEtapa) {

@@ -46,10 +46,12 @@ diferentes; o título continua livre. A API aceita só `analise_curriculo`, `ent
 `proposta` e `outro` (outro valor é 400). Etapa nova sem tipo recebe o inferido do título; numa
 atualização, ausente ou vazio mantém o valor gravado. A migration
 `20261120160000_classifica_tipo_etapa_emp_etapas.sql` (DEV-688) aplicou a mesma regra às etapas
-existentes sem tipo. A regra (`empregabilidade.RegrasTipoEtapaPorTitulo`) procura no título, sem
-diferenciar maiúsculas, nesta ordem, e a primeira que casa vence:
+existentes sem tipo válido (sem tipo, vazio ou código fora da lista); tipos que só diferiam por
+espaços ou maiúsculas foram normalizados. A regra (`empregabilidade.RegrasTipoEtapaPorTitulo`)
+procura no começo das palavras do título ("Prova" casa, "Aprovação" não), sem diferenciar
+maiúsculas, nesta ordem, e a primeira que casa vence:
 
-| Título contém | `tipo_etapa` |
+| Palavra do título começa com | `tipo_etapa` |
 |---|---|
 | `currícul`/`curricul`, `triagem` | `analise_curriculo` |
 | `entrevista` | `entrevista` |
