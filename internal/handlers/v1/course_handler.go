@@ -94,6 +94,7 @@ func transformCursoToResponse(curso *models.Curso) gin.H {
 		"accessibility":             curso.Accessibility,
 		"is_visible":                curso.IsVisible,
 		"auto_approve_enrollments":  curso.AutoApproveEnrollments,
+		"gratuito":                  curso.IsGratuito(),
 		"custom_fields":             curso.CustomFields,
 		"locations":                 curso.LocationClasses,
 		"remote_class":              curso.RemoteClass,
@@ -391,6 +392,12 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	// Preserve auto_approve_enrollments if not provided in request
 	if curso.AutoApproveEnrollments == nil {
 		curso.AutoApproveEnrollments = existingCurso.AutoApproveEnrollments
+	}
+
+	// The update writes every column and gratuito is NOT NULL: keep the stored value when absent.
+	if curso.Gratuito == nil {
+		gratuito := existingCurso.IsGratuito()
+		curso.Gratuito = &gratuito
 	}
 
 	// Preserve accepting_enrollments for existing schedules if not provided in request
