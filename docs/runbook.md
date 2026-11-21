@@ -37,6 +37,7 @@ conteúdo de um `Secret` do Kubernetes nem cole dados de cidadãos (CPF, nome, e
 | Keycloak (conta de serviço `KEYCLOAK_*`) | `go-secrets` | Sem token, o worker de cidadãos e o resolvedor de secretarias não chamam o RMI (efeito igual ao do RMI fora) |
 | Data Relay (`DATA_RELAY_*`) | `go-secrets` | E-mails falham e vão para retentativa; esgotadas, para a fila morta (seção 4.6) |
 | Cerbos (`CERBOS_*`, só se `CERBOS_ENABLED=true`) | `go-secrets` | Autorização fina de propostas MEI falha |
+| Salesforce (indireto) | Nenhuma chamada direta: os dados de cidadão que o app-go-api lê do app-rmi vêm em parte do Salesforce, que o app-rmi sincroniza | Salesforce fora ou atrasado não derruba a API: os dados de contato de cidadãos ficam desatualizados até o app-rmi voltar a sincronizar. Investigue no app-rmi, não aqui |
 | Coletor OTLP do SigNoz | `TRACING_*` em `k8s/<env>/resources.yaml` | Só perde traces; a API segue |
 
 ## 2. Onde olhar
@@ -53,7 +54,10 @@ conteúdo de um `Secret` do Kubernetes nem cole dados de cidadãos (CPF, nome, e
 - `GET /metrics` expõe o formato Prometheus (métricas padrão de Go/processo e as do cliente RMI).
   Pela entrada pública ele responde **403** (bloqueado pelo `ext_authz`); leia de dentro do cluster:
   `kubectl -n go port-forward svc/go 8080:80` e `curl -s localhost:8080/metrics | grep rmi_client_`.
-- Não há scrape versionado dessas métricas neste repositório (sem `ServiceMonitor` nem anotação).
+- O Rollout `go` (staging e produção) tem as anotações `prometheus.io/scrape|port|path` (porta 8080,
+  `/metrics`): o Prometheus do `istio-system` coleta pelo job `kubernetes-pods`.
+- Latência por rota: `goapi_http_request_duration_seconds{method,route}` (histograma; `route` é o
+  template da rota, nunca o caminho cru, que pode ter CPF; caminho sem rota vira `(rota não encontrada)`).
 - Métricas do cliente RMI (label `client`: `api` para as requisições, `orgao_sync` para o worker):
 
 | Métrica | Leitura |
@@ -138,12 +142,18 @@ Os sinais que existem hoje (versionados neste repositório ou no `prefeitura-rio
 | **"❌ Staging Deployment Failed"** | Discord (`deploy-staging.yaml`) | O smoke test (`/health` no `go-preview`) falhou ou o rollout não promoveu; o workflow abortou o rollout e o serviço ativo segue na versão anterior | `gh run view <run> --log-failed`; logs dos pods novos (`--previous`); erro comum: migration que falhou no `goose up` do entrypoint |
 | **"🛑 Production Release Aborted"** | Discord (`release.yaml`) | A análise `go-success-rate` reprovou o canário (sucesso < 95% ou 5xx > 5%, até 5 falhas); o Argo Rollouts voltou o tráfego para a versão estável | Confirme `kubectl -n go get rollout go` (fase `Degraded`/abortado) e o `AnalysisRun` mais recente; leia os logs dos pods canário; corrija e publique nova release |
 | **"❌ Production Release Failed"** (`Degraded`) ou **"⚠️ Unknown"** | Discord (`release.yaml`) | O rollout não ficou saudável no prazo do workflow (45 min) ou o estado não pôde ser lido | `kubectl argo rollouts get rollout go -n go`; se o canário está preso, siga a seção 4.1 |
-| Circuito do RMI aberto (`rmi_client_circuit_breaker_state == 2`, log `[RMIClient] circuit breaker "api": closed -> open`) | Só métrica/log (sem alerta configurado) | 5 falhas seguidas no RMI (padrão `RMI_CIRCUIT_BREAKER_FAILURE_THRESHOLD`); chamadas são recusadas por 30 s antes de testar de novo | Seção 4.5 |
+| **`GoApiRMICircuitBreakerOpen`**: circuito do RMI fora do fechado por 5 min (`rmi_client_circuit_breaker_state > 0`, log `[RMIClient] circuit breaker "api": closed -> open`) | Regra versionada, ainda não instalada (veja abaixo) | 5 falhas seguidas no RMI (padrão `RMI_CIRCUIT_BREAKER_FAILURE_THRESHOLD`); chamadas são recusadas por 30 s antes de testar de novo, e nenhuma deu certo em 5 min | Seção 4.5 |
+| **`GoApiHighErrorRate`**: mais de 2% de 5xx por 5 min (`istio_requests_total` do workload `go`) | Regra versionada, ainda não instalada | Erros do servidor ou do Envoy (pod sem responder) acima do limiar | Rotina da seção 4: pods, logs `--previous`, traces com erro no SigNoz |
+| **`GoApiHighLatencyP95`**: p95 de uma rota `/api/v1` ou `/api/public` acima de 1 s por 10 min (label `route`) | Regra versionada, ainda não instalada | Lentidão de um endpoint | Traces da rota no SigNoz ordenados por duração; banco, Redis e RMI (`db.system`, `rmi_client_*`) |
+| **`GoApiPodRestarting`**: mais de 3 reinícios do contêiner `go` em 15 min (label `pod`) | Regra versionada, ainda não instalada (precisa do kube-state-metrics) | CrashLoopBackOff, OOMKilled ou liveness falhando | `kubectl -n go describe pod <pod>` (motivo do último término) e `kubectl -n go logs <pod> --previous`; seção 4.2 |
 | KEDA em fallback (`ScaledObject` com condição `Fallback`) | Só no recurso | A consulta ao Prometheus falhou 3 vezes; a escala deixa de seguir a carga e vai para o `fallback.replicas` (limitado pelo mínimo do HPA) | Verifique o `prometheus-server` do `istio-system`; não escale à mão (seção 4.2) |
 | Fila morta de e-mail crescendo (`email:queue:failed`) | Só no Redis/log | E-mails que esgotaram as 5 tentativas ou causaram panic | Seção 4.6 |
 
-Não existem alertas do SigNoz nem do Prometheus/Alertmanager para este serviço. Se um alerta novo
-for criado, acrescente-o nesta tabela.
+As regras `GoApi*` ficam em `monitoring/prometheus/alerting-rules.yaml` (formato, instalação e
+pré-requisitos em `docs/observability.md`, seção "Production alerts"). Instalá-las no Prometheus e
+rotear a notificação é da raia Infra (`prefeitura-rio/infra`): até isso acontecer, não há alerta do
+SigNoz nem do Prometheus/Alertmanager para este serviço, e os sinais só se leem por consulta. Se um
+alerta novo for criado, acrescente-o nesta tabela e no arquivo de regras.
 
 ## 4. Rotina de incidente
 
@@ -194,6 +204,36 @@ continuar compatível com o schema novo (expand/contract). Veja a seção 4.3 an
   (`git revert <sha>`); o push na `main` dispara `deploy-staging.yaml` de novo.
 - O preview fica no `Service/go-preview` até a promoção (`autoPromotionEnabled: false`; quem
   promove é o workflow depois do smoke test).
+
+**Passo a passo: rollback em staging** (para quem não conhece o serviço; precisa de permissão de
+escrita em Actions no repositório e de leitura no cluster de staging):
+
+0. Prepare o acesso (uma vez por máquina): `gh auth login`; `gcloud auth login`;
+   `gcloud components install gke-gcloud-auth-plugin`; o plugin do Argo Rollouts
+   (`kubectl argo rollouts`, instalação em <https://argoproj.github.io/argo-rollouts/installation/#kubectl-plugin-installation>);
+   e a credencial do cluster de staging, que tem endpoint privado e só responde pelo DNS endpoint:
+   `gcloud container clusters get-credentials application --dns-endpoint --region us-central1 --project rj-superapp-staging`.
+   Sem acesso ao cluster, os passos 2, 3 e 5 funcionam só com o `gh`, e a conferência do passo 4
+   fica pelo run (`gh run view <run-id>` com conclusão `success`) e pelo `/health`.
+1. Confirme o sintoma e a versão em uso: `curl -s https://services.staging.app.dados.rio/go/health`
+   e `kubectl -n argocd get application go -o jsonpath='{.spec.source.kustomize.images}{"\n"}'`
+   (a imagem é `ghcr.io/prefeitura-rio/app-go-api:<sha-do-commit>@sha256:<digest>`).
+2. Ache o último deploy bom anterior: `gh run list --workflow deploy-staging.yaml --limit 10`
+   mostra os runs com o commit de cada um. Escolha o mais recente **antes** do commit com problema,
+   com conclusão `success` e que tenha feito build (`gh run view <run-id> -v` lista os passos e
+   "Build and Push Docker Image" precisa ter rodado; runs de mudança só em `k8s/` pulam o build e não servem).
+3. Reexecute esse run: `gh run rerun <run-id>` e acompanhe com `gh run watch <run-id>`. Ele refaz a
+   imagem daquele commit, aponta o Application `go` para ela, sobe o preview, roda o smoke test e só
+   então promove. Se o smoke test falhar, o run aborta e nada muda no serviço ativo.
+4. Confira: `kubectl -n argocd get application go -o jsonpath='{.spec.source.kustomize.images}{"\n"}'`
+   mostra o SHA do commit escolhido, `kubectl argo rollouts get rollout go -n go` mostra `Healthy` e o `/health` do
+   passo 1 responde `{"status":"ok"}`.
+5. Torne o rollback permanente: o próximo push na `main` volta a implantar o código com problema.
+   Abra um PR com `git revert <sha-do-commit-com-problema>` e registre na issue do incidente o run
+   reexecutado e o PR.
+
+O GitHub só reexecuta runs de até 30 dias; para um commit mais antigo, use direto o revert por PR
+(passo 5). As migrations não são desfeitas pelo rollback (seção 4.3).
 
 ### 4.2 Escalar e reiniciar com segurança
 

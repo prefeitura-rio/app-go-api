@@ -34,10 +34,11 @@ func rbacMiddleware(enabled bool, real gin.HandlerFunc) gin.HandlerFunc {
 
 // newEngine cria o engine do Gin com recuperação de panic e log de acesso sem dados
 // pessoais (no lugar do gin.Logger de gin.Default, que grava o caminho e a query string
-// crus, com o CPF de /enrollments/user/:cpf ou de ?search=).
+// crus, com o CPF de /enrollments/user/:cpf ou de ?search=) e com a latência por
+// template de rota em /metrics (antes do Recovery, para medir também os panics).
 func newEngine() *gin.Engine {
 	r := gin.New()
-	r.Use(middlewares.AccessLogger(gin.DefaultWriter), gin.Recovery())
+	r.Use(middlewares.AccessLogger(gin.DefaultWriter), middlewares.RequestMetrics(), gin.Recovery())
 	return r
 }
 

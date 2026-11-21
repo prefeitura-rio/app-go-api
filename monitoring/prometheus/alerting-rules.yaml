@@ -1,0 +1,75 @@
+# Regras de alerta de produção do app-go-api, no formato de rule file do
+# Prometheus (https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).
+# Como são lidas, onde instalar e de que séries dependem: docs/observability.md,
+# seção "Production alerts". Valide com `promtool check rules` antes de mudar.
+#
+# Valem iguais para staging e produção: o namespace e o workload se chamam `go`
+# nos dois clusters, e cada cluster tem o seu Prometheus.
+groups:
+  - name: app-go-api
+    rules:
+      # 5xx do Istio (sidecar de destino): conta também o erro que o Envoy gera
+      # quando o processo não responde. Só avalia com pelo menos 0,1 req/s
+      # (30 requisições em 5 min), para um erro isolado de madrugada não disparar.
+      - alert: GoApiHighErrorRate
+        expr: |
+          (
+            sum(rate(istio_requests_total{reporter="destination", destination_workload_namespace="go", destination_workload="go", response_code=~"5.."}[5m]))
+            /
+            sum(rate(istio_requests_total{reporter="destination", destination_workload_namespace="go", destination_workload="go"}[5m]))
+          ) > 0.02
+          and
+          sum(rate(istio_requests_total{reporter="destination", destination_workload_namespace="go", destination_workload="go"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: app-go-api
+        annotations:
+          summary: "app-go-api: mais de 2% de respostas 5xx há 5 min"
+          description: "{{ $value | humanizePercentage }} das respostas do workload go são 5xx (limite: 2% por 5 min)."
+          runbook_url: "https://github.com/prefeitura-rio/app-go-api/blob/main/docs/runbook.md#3-alertas-o-que-significam-e-o-primeiro-passo"
+
+      # p95 por template de rota da API (/api/v1 e /api/public; fora /health,
+      # /metrics, /docs e caminho sem rota), com pelo menos 0,05 req/s na rota.
+      - alert: GoApiHighLatencyP95
+        expr: |
+          histogram_quantile(0.95, sum by (le, route) (rate(goapi_http_request_duration_seconds_bucket{namespace="go", route=~"/api/(v1|public)/.*"}[5m]))) > 1
+          and on (route)
+          sum by (route) (rate(goapi_http_request_duration_seconds_count{namespace="go", route=~"/api/(v1|public)/.*"}[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: app-go-api
+        annotations:
+          summary: "app-go-api: p95 acima de 1 s há 10 min em {{ $labels.route }}"
+          description: "A latência p95 da rota {{ $labels.route }} está em {{ $value | humanizeDuration }} (limite: 1 s por 10 min)."
+          runbook_url: "https://github.com/prefeitura-rio/app-go-api/blob/main/docs/runbook.md#3-alertas-o-que-significam-e-o-primeiro-passo"
+
+      # Reinícios do contêiner go (CrashLoopBackOff, OOMKilled, liveness).
+      # Lê o kube-state-metrics.
+      - alert: GoApiPodRestarting
+        expr: |
+          increase(kube_pod_container_status_restarts_total{namespace="go", container="go"}[15m]) > 3
+        labels:
+          severity: critical
+          service: app-go-api
+        annotations:
+          summary: "app-go-api: pod {{ $labels.pod }} reiniciou mais de 3 vezes em 15 min"
+          description: "O contêiner go do pod {{ $labels.pod }} reiniciou {{ $value | humanize }} vezes nos últimos 15 min."
+          runbook_url: "https://github.com/prefeitura-rio/app-go-api/blob/main/docs/runbook.md#3-alertas-o-que-significam-e-o-primeiro-passo"
+
+      # Circuito do cliente RMI fora do estado fechado (1 = meio-aberto, 2 = aberto)
+      # por 5 min: sem nenhuma chamada bem-sucedida ao RMI nesse tempo. O meio-aberto
+      # conta porque, com o RMI fora, o circuito alterna entre aberto e meio-aberto
+      # a cada 30 s. Uma série por pod e por cliente (api, orgao_sync).
+      - alert: GoApiRMICircuitBreakerOpen
+        expr: |
+          rmi_client_circuit_breaker_state{namespace="go"} > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: app-go-api
+        annotations:
+          summary: "app-go-api: circuito do RMI ({{ $labels.client }}) aberto há mais de 5 min"
+          description: "O circuit breaker do cliente RMI {{ $labels.client }} no pod {{ $labels.pod }} não fecha há 5 min: as chamadas ao RMI são recusadas (leitura segue sem escopo de secretaria, escrita restrita por secretaria é negada, consulta de CNPJ/CNAE falha)."
+          runbook_url: "https://github.com/prefeitura-rio/app-go-api/blob/main/docs/runbook.md#45-rmi-fora-do-ar-fail-open"
