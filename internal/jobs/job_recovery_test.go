@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
 	"testing"
 	"time"
@@ -195,6 +196,24 @@ func TestProcessJob_RunsHeartbeatWhileProcessing(t *testing.T) {
 	close(release)
 	require.NoError(t, <-done)
 	assert.Equal(t, models.JobStatusCompleted, loadJob(t, db, id).Status)
+}
+
+// TestSetupTestDB_SurvivesDiscardedConnection covers DEV-723: cancelling the
+// heartbeat in the middle of its update makes database/sql discard the pooled
+// connection (go-sqlite3 cannot reset a session), and the next connection must
+// still see the same database and its tables.
+func TestSetupTestDB_SurvivesDiscardedConnection(t *testing.T) {
+	db := setupTestDB(t)
+	id := insertJobUpdatedAt(t, db, models.JobStatusProcessing, time.Now())
+
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	conn, err := sqlDB.Conn(context.Background())
+	require.NoError(t, err)
+	// Returning ErrBadConn from Raw makes the pool close this connection.
+	require.ErrorIs(t, conn.Raw(func(any) error { return driver.ErrBadConn }), driver.ErrBadConn)
+
+	assert.Equal(t, models.JobStatusProcessing, loadJob(t, db, id).Status)
 }
 
 func TestSetHeartbeatInterval_IgnoresNonPositive(t *testing.T) {
