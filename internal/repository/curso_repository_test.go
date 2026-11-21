@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -1970,4 +1971,52 @@ func TestCursoRepository_Update_HelperIntegration(t *testing.T) {
 		assert.Contains(t, err.Error(), "erro ao deletar course schedules obsoletos")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+}
+
+// insertedValue devolve o valor que o INSERT de curso grava numa coluna.
+func insertedValue(t *testing.T, db *gorm.DB, curso *models.Curso, column string) string {
+	t.Helper()
+	sql := db.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Omit("CustomFields", "LocationClasses", "RemoteClass", "Inscricoes").Create(curso)
+	})
+	m := regexp.MustCompile(`INSERT INTO "cursos" \((.*)\) VALUES \((.*)\) RETURNING`).FindStringSubmatch(sql)
+	if !assert.Len(t, m, 3, sql) {
+		return ""
+	}
+	columns := strings.Split(m[1], ",")
+	values := strings.Split(m[2], ",")
+	if !assert.Len(t, values, len(columns), "os valores do curso de teste não podem ter vírgula") {
+		return ""
+	}
+	for i, c := range columns {
+		if c == `"`+column+`"` {
+			return values[i]
+		}
+	}
+	t.Fatalf("coluna %s ausente do INSERT: %s", column, m[1])
+	return ""
+}
+
+// DEV-715: o INSERT grava gratuito; ausente vale o padrão da coluna (true),
+// nunca NULL, e false enviado grava o curso como pago.
+func TestCursoRepository_Create_Gratuito(t *testing.T) {
+	db, _, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	pago := false
+	gratuito := true
+	tests := []struct {
+		name  string
+		curso *models.Curso
+		want  string
+	}{
+		{"ausente", &models.Curso{Titulo: "a"}, "true"},
+		{"pago", &models.Curso{Titulo: "a", Gratuito: &pago}, "false"},
+		{"gratuito", &models.Curso{Titulo: "a", Gratuito: &gratuito}, "true"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, insertedValue(t, db, tt.curso, "gratuito"))
+		})
+	}
 }

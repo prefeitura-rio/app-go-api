@@ -15745,6 +15745,11 @@ const docTemplate = `{
                 "formato_aula": {
                     "$ref": "#/definitions/models.FormatoAula"
                 },
+                "gratuito": {
+                    "description": "Gratuito informa se o curso é gratuito (true) ou pago (false). Na criação, ausente vale true; no PUT, ausente preserva o valor gravado. As respostas sempre trazem o campo.",
+                    "type": "boolean",
+                    "example": true
+                },
                 "has_certificate": {
                     "description": "Optional fields matching specification",
                     "type": "boolean"
@@ -15992,6 +15997,11 @@ const docTemplate = `{
                 },
                 "formato_aula": {
                     "$ref": "#/definitions/models.FormatoAula"
+                },
+                "gratuito": {
+                    "description": "Gratuito informa se o curso é gratuito (true) ou pago (false). Na criação, ausente vale true; no PUT, ausente preserva o valor gravado. As respostas sempre trazem o campo.",
+                    "type": "boolean",
+                    "example": true
                 },
                 "has_certificate": {
                     "description": "Optional fields matching specification",
