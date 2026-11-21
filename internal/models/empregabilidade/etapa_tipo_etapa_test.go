@@ -112,7 +112,7 @@ func TestEtapa_BeforeCreate_MantemTipoInformado(t *testing.T) {
 // A migration que classifica as etapas existentes usa as mesmas regras, na
 // mesma ordem, que a inferência das etapas novas.
 func TestRegrasTipoEtapa_IguaisAsDaMigration(t *testing.T) {
-	conteudo, err := os.ReadFile(filepath.Join("..", "..", "db", "migrations", "20261120160000_classifica_tipo_etapa_emp_etapas.sql"))
+	conteudo, err := os.ReadFile(filepath.Join("..", "..", "db", "migrations", "20261121140000_classifica_tipo_etapa_emp_etapas.sql"))
 	require.NoError(t, err)
 	up := strings.Split(string(conteudo), "-- +goose Down")[0]
 

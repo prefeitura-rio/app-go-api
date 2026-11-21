@@ -20,7 +20,7 @@ import (
 // migration contra um banco com as migrations aplicadas (just migrate-up), numa
 // transação desfeita ao fim.
 
-const migrationClassificaTipoEtapa = "20261120160000_classifica_tipo_etapa_emp_etapas.sql"
+const migrationClassificaTipoEtapa = "20261121140000_classifica_tipo_etapa_emp_etapas.sql"
 
 // etapaCrua grava a etapa direto no banco (sem o hook do modelo), como as
 // etapas anteriores ao DEV-532.

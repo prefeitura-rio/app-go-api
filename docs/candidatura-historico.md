@@ -45,7 +45,7 @@ empregabilidade (DEV-532 / PREF-687). A API grava o evento **na mesma transaçã
 diferentes; o título continua livre. A API aceita só `analise_curriculo`, `entrevista`, `teste`,
 `proposta` e `outro` (outro valor é 400). Etapa nova sem tipo recebe o inferido do título; numa
 atualização, ausente ou vazio mantém o valor gravado. A migration
-`20261120160000_classifica_tipo_etapa_emp_etapas.sql` (DEV-688) aplicou a mesma regra às etapas
+`20261121140000_classifica_tipo_etapa_emp_etapas.sql` (DEV-688) aplicou a mesma regra às etapas
 existentes sem tipo válido (sem tipo, vazio ou código fora da lista); tipos que só diferiam por
 espaços ou maiúsculas foram normalizados. A regra (`empregabilidade.RegrasTipoEtapaPorTitulo`)
 procura no começo das palavras do título ("Prova" casa, "Aprovação" não), sem diferenciar

@@ -43,7 +43,7 @@ type RegraTipoEtapa struct {
 // casa vence; nenhuma, TipoEtapaOutro. Cada padrão casa, sem diferenciar
 // maiúsculas, no começo de uma palavra do título ("Prova" casa, "Aprovação"
 // não). Os padrões são os mesmos da migration
-// 20261120160000_classifica_tipo_etapa_emp_etapas.sql, que os aplica às etapas
+// 20261121140000_classifica_tipo_etapa_emp_etapas.sql, que os aplica às etapas
 // existentes com ~* '\m(<padrão>)' no PostgreSQL, por isso as letras
 // acentuadas aparecem nas duas caixas.
 var RegrasTipoEtapaPorTitulo = []RegraTipoEtapa{
