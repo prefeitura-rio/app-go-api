@@ -18926,8 +18926,15 @@
             "type": "integer"
           },
           "tipo_etapa": {
-            "description": "TipoEtapa classifica a etapa (código livre definido pela gestão) para\ncomparar o funil do histórico de candidaturas entre vagas. Opcional:\nausente (ou vazio) numa atualização mantém o valor gravado.",
-            "type": "string"
+            "description": "TipoEtapa classifica a etapa (analise_curriculo, entrevista, teste,\nproposta ou outro) para comparar o funil do histórico de candidaturas\nentre vagas; o título continua livre. Ausente (ou vazio) na criação é\ninferido do título; numa atualização, mantém o valor gravado.",
+            "type": "string",
+            "enum": [
+              "analise_curriculo",
+              "entrevista",
+              "teste",
+              "proposta",
+              "outro"
+            ]
           },
           "titulo": {
             "type": "string"
