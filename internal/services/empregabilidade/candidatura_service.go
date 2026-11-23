@@ -158,6 +158,12 @@ func (s *CandidaturaService) CreateSemNotificacao(ctx context.Context, entity *e
 }
 
 func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.Candidatura, notificar bool) (uuid.UUID, error) {
+	// A etapa e a vaga aninhadas no corpo não valem: o GORM as gravaria e
+	// copiaria os ids delas para id_etapa_atual/id_vaga, contornando as
+	// validações abaixo. Só os ids informados são validados e gravados.
+	entity.EtapaAtual = nil
+	entity.Vaga = nil
+
 	vaga, err := s.vagaRepo.GetByID(ctx, entity.IDVaga)
 	if err != nil {
 		return uuid.Nil, err

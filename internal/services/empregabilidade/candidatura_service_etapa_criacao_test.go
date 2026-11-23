@@ -130,3 +130,30 @@ func TestCandidaturaService_Create_DescartaStatusAnterior(t *testing.T) {
 	assert.Nil(t, repo.candidaturas[id].StatusAnterior)
 	assert.Equal(t, empregabilidade.StatusCandidaturaEnviada, repo.candidaturas[id].Status)
 }
+
+// A etapa e a vaga aninhadas no corpo (etapa_atual, vaga) não valem: o GORM
+// as gravaria e copiaria os ids delas para id_etapa_atual/id_vaga, contornando
+// a validação. A candidatura nova nasce só com os ids validados (DEV-767).
+func TestCandidaturaService_Create_DescartaAssociacoesAninhadas(t *testing.T) {
+	repo := NewMockCandidaturaRepo()
+	vagaRepo := NewMockVagaRepo()
+	vagaID, _ := novaVagaComEtapa(vagaRepo)
+	outraVaga, etapaOutraVaga := novaVagaComEtapa(vagaRepo)
+	service := services.NewCandidaturaService(repo, vagaRepo, NewMockCurriculoService(), nil, nil, newDisabledEmailSvc())
+
+	id, err := service.Create(context.Background(), &empregabilidade.Candidatura{
+		CPF:        "12345678900",
+		IDVaga:     vagaID,
+		EtapaAtual: &empregabilidade.Etapa{ID: etapaOutraVaga, IDVaga: outraVaga},
+		Vaga:       &empregabilidade.Vaga{ID: outraVaga},
+	})
+
+	require.NoError(t, err)
+	criada := repo.candidaturas[id]
+	assert.Nil(t, criada.EtapaAtual)
+	assert.Nil(t, criada.IDEtapaAtual)
+	assert.Equal(t, vagaID, criada.IDVaga)
+	if criada.Vaga != nil {
+		assert.Equal(t, vagaID, criada.Vaga.ID, "a vaga da candidatura só pode ser a validada")
+	}
+}

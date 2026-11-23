@@ -93,3 +93,27 @@ func TestCandidaturaHandler_Create_Admin_ValidaEtapaDaVaga(t *testing.T) {
 		}
 	})
 }
+
+// Etapa aninhada no corpo (etapa_atual) também é descartada: o GORM copiaria o
+// id dela para id_etapa_atual sem passar pela validação (DEV-767).
+func TestCandidaturaHandler_Create_DescartaEtapaAninhada(t *testing.T) {
+	for _, admin := range []bool{false, true} {
+		cpf := "12345678900"
+		body := `{"id_vaga":"` + validUUID + `","etapa_atual":{"id":"` + etapaOutraVagaUID + `","titulo":"Forjada","ordem":9}}`
+		if admin {
+			cpf = "admin-user"
+			body = `{"cpf":"12345678900","id_vaga":"` + validUUID + `","etapa_atual":{"id":"` + etapaOutraVagaUID + `","titulo":"Forjada","ordem":9}}`
+		}
+		w := postCandidatura(t, cpf, admin, body)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("admin=%v: expected 201, got %d: %s", admin, w.Code, w.Body.String())
+		}
+		var criada empmodels.Candidatura
+		if err := json.Unmarshal(w.Body.Bytes(), &criada); err != nil {
+			t.Fatal(err)
+		}
+		if criada.IDEtapaAtual != nil || criada.EtapaAtual != nil {
+			t.Errorf("admin=%v: etapa aninhada deveria ser descartada, veio id=%v etapa=%v", admin, criada.IDEtapaAtual, criada.EtapaAtual)
+		}
+	}
+}

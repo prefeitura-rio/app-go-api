@@ -731,3 +731,38 @@ func TestCandidaturaRepository_Update_NaoRegravaStatusNemEtapa(t *testing.T) {
 	assert.NotContains(t, sqlUpdate, `"status_anterior"=`)
 	assert.NotContains(t, sqlUpdate, `"id_etapa_atual"=`)
 }
+
+// Create grava só a candidatura: as associações aninhadas (etapa_atual, vaga)
+// vindas do corpo não são gravadas nem trocam id_etapa_atual/id_vaga (DEV-767).
+func TestCandidaturaRepository_Create_IgnoraAssociacoesAninhadas(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewCandidaturaRepository(db)
+	vagaID := uuid.New()
+	outraVaga := uuid.New()
+	candidatura := &empregabilidade.Candidatura{
+		ID:         uuid.New(),
+		CPF:        cpfSintetico,
+		IDVaga:     vagaID,
+		Status:     empregabilidade.StatusCandidaturaEnviada,
+		EtapaAtual: &empregabilidade.Etapa{ID: uuid.New(), IDVaga: outraVaga, Titulo: "Etapa forjada", Ordem: 9},
+		Vaga:       &empregabilidade.Vaga{ID: outraVaga, Titulo: "Vaga forjada"},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "emp_candidaturas"`)).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(candidatura.ID))
+	esperarEventos(mock, eventoEsperado{
+		candidatura: candidatura.ID, vaga: vagaID,
+		tipo: empregabilidade.EventoCandidaturaCriada, ator: empregabilidade.AtorCandidato,
+		statusNovo: empregabilidade.StatusCandidaturaEnviada,
+	})
+	mock.ExpectCommit()
+
+	_, err := repo.Create(ctxComOrigem(empregabilidade.AtorCandidato, ""), candidatura)
+	require.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+	assert.Nil(t, candidatura.IDEtapaAtual)
+	assert.Equal(t, vagaID, candidatura.IDVaga)
+}
