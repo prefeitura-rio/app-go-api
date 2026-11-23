@@ -175,6 +175,12 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 		return uuid.Nil, apperrors.Validation("vaga não está ativa para candidaturas")
 	}
 
+	// A etapa inicial, quando informada, tem de ser da própria vaga: a FK só
+	// garante que a etapa existe, não que é desta vaga.
+	if entity.IDEtapaAtual != nil && !etapaDaVaga(vaga, *entity.IDEtapaAtual) {
+		return uuid.Nil, apperrors.Validation("etapa não pertence à vaga desta candidatura")
+	}
+
 	exists, err := s.repo.CheckExistingCandidatura(ctx, entity.CPF, entity.IDVaga)
 	if err != nil {
 		return uuid.Nil, err
@@ -201,6 +207,9 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 	}
 
 	entity.Status = empregabilidade.StatusCandidaturaEnviada
+	// Candidatura nova não tem status anterior: o descongelamento da vaga
+	// restauraria o que viesse do corpo.
+	entity.StatusAnterior = nil
 	// Candidatura nova começa sem evento visto.
 	entity.UltimoEventoVisto = nil
 
@@ -229,6 +238,16 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 	}()
 
 	return id, nil
+}
+
+// etapaDaVaga diz se etapaID é uma das etapas da vaga.
+func etapaDaVaga(vaga *empregabilidade.Vaga, etapaID uuid.UUID) bool {
+	for i := range vaga.Etapas {
+		if vaga.Etapas[i].ID == etapaID {
+			return true
+		}
+	}
+	return false
 }
 
 // comOrigemDaCriacao atribui o evento candidatura_criada do histórico: a
