@@ -163,6 +163,9 @@ func (s *CandidaturaService) criar(ctx context.Context, entity *empregabilidade.
 	// validações abaixo. Só os ids informados são validados e gravados.
 	entity.EtapaAtual = nil
 	entity.Vaga = nil
+	// id, deleted_at e os instantes são da API e do banco, nunca do corpo:
+	// o cliente não escolhe o id nem cria a candidatura já removida.
+	entity.LimparCamposDoServidor()
 
 	vaga, err := s.vagaRepo.GetByID(ctx, entity.IDVaga)
 	if err != nil {
