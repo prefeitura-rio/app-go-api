@@ -28,6 +28,9 @@ func NewCandidaturaRepository(db *gorm.DB) *CandidaturaRepository {
 // do histórico, atribuído à origem do contexto.
 func (r *CandidaturaRepository) Create(ctx context.Context, entity *empregabilidade.Candidatura) (uuid.UUID, error) {
 	origem := origemEvento(ctx)
+	// O id é gerado pelo banco e a candidatura nasce ativa: nada do que veio
+	// em id/deleted_at/created_at/updated_at é gravado.
+	entity.LimparCamposDoServidor()
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Só a candidatura: associações aninhadas (etapa_atual, vaga) nunca são
 		// gravadas por aqui nem trocam id_etapa_atual/id_vaga.

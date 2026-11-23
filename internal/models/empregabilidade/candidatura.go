@@ -77,6 +77,16 @@ func (Candidatura) TableName() string {
 	return "emp_candidaturas"
 }
 
+// LimparCamposDoServidor descarta os campos que só a API e o banco definem
+// (id, deleted_at, created_at, updated_at): na criação, os que vierem do corpo
+// não valem. O id é gerado pelo banco e a candidatura nunca nasce removida.
+func (c *Candidatura) LimparCamposDoServidor() {
+	c.ID = uuid.Nil
+	c.DeletedAt = gorm.DeletedAt{}
+	c.CreatedAt = time.Time{}
+	c.UpdatedAt = time.Time{}
+}
+
 type CandidaturaFilter struct {
 	CPF     string
 	VagaID  *uuid.UUID
