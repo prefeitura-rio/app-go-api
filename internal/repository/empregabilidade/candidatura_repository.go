@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
 )
@@ -28,7 +29,9 @@ func NewCandidaturaRepository(db *gorm.DB) *CandidaturaRepository {
 func (r *CandidaturaRepository) Create(ctx context.Context, entity *empregabilidade.Candidatura) (uuid.UUID, error) {
 	origem := origemEvento(ctx)
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(entity).Error; err != nil {
+		// Só a candidatura: associações aninhadas (etapa_atual, vaga) nunca são
+		// gravadas por aqui nem trocam id_etapa_atual/id_vaga.
+		if err := tx.Omit(clause.Associations).Create(entity).Error; err != nil {
 			return fmt.Errorf("erro ao criar candidatura: %w", err)
 		}
 		status := entity.Status

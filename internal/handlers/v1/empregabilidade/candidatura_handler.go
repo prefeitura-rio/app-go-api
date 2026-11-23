@@ -48,6 +48,9 @@ func (h *CandidaturaHandler) Create(c *gin.Context) {
 	} else {
 		origem := empregabilidade.OrigemCandidaturaPortalCidadao
 		entity.Origem = &origem
+		// A etapa é do fluxo autorizado de atualização de etapa, nunca do
+		// candidato: a candidatura enviada pelo app nasce sem etapa.
+		entity.IDEtapaAtual = nil
 		cpf := middlewares.GetUserCPF(c)
 		if cpf == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "CPF não encontrado no token de autenticação"})
