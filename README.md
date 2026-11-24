@@ -125,11 +125,40 @@ app-go-api
 
 ### Cursos
 
-- `GET /api/v1/cursos` - Listar cursos
-- `POST /api/v1/cursos` - Criar curso
-- `GET /api/v1/cursos/:id` - Obter curso por ID
-- `PUT /api/v1/cursos/:id` - Atualizar curso
-- `DELETE /api/v1/cursos/:id` - Excluir curso
+Rotas de gestão em `/api/v1/courses`. A autorização (perfil de Cursos, escopo de órgão/secretaria e ownership do curso) é aplicada por middleware em `internal/router/routes_core.go`; os contratos completos estão no Swagger (`/docs/`).
+
+- `GET /api/v1/courses` - Listar cursos
+- `POST /api/v1/courses` - Criar curso
+- `POST /api/v1/courses/draft` - Criar curso como rascunho
+- `GET /api/v1/courses/drafts` - Listar cursos rascunho
+- `GET /api/v1/courses/:courseId` - Obter curso por ID
+- `PUT /api/v1/courses/:courseId` - Editar curso
+- `DELETE /api/v1/courses/:courseId` - Excluir curso
+- `PUT /api/v1/courses/:courseId/send-to-review` - Enviar curso para revisão
+- `PUT /api/v1/courses/:courseId/approve` - Aprovar e publicar curso
+- `PUT /api/v1/courses/:courseId/request-changes` - Solicitar edição do curso
+- `PUT /api/v1/courses/:courseId/request-deletion` - Solicitar exclusão do curso
+- `GET /api/v1/users/:userId/courses` - Listar cursos de um usuário (órgão)
+
+Inscrições:
+
+- `POST /api/v1/courses/:courseId/enrollments` - Criar inscrição
+- `POST /api/v1/courses/:courseId/enrollments/manual` - Criar inscrição manual
+- `POST /api/v1/courses/:courseId/enrollments/import` - Importar inscrições via CSV/XLSX
+- `GET /api/v1/courses/:courseId/enrollments` - Listar inscrições de um curso
+- `PUT /api/v1/courses/:courseId/enrollments/status` - Atualizar status de múltiplas inscrições
+- `GET /api/v1/courses/:courseId/enrollments/:enrollmentId` - Obter inscrição por ID
+- `PUT /api/v1/courses/:courseId/enrollments/:enrollmentId` - Atualizar inscrição
+- `PUT /api/v1/courses/:courseId/enrollments/:enrollmentId/status` - Atualizar status de uma inscrição
+- `PUT /api/v1/courses/:courseId/enrollments/:enrollmentId/certificate` - Atualizar certificado de inscrição
+- `DELETE /api/v1/courses/:courseId/enrollments/:enrollmentId` - Excluir inscrição
+- `GET /api/v1/enrollments/user/:cpf` - Listar inscrições de um usuário
+- `PUT /api/v1/enrollments/:enrollmentId/schedule` - Trocar turma/horário de inscrição
+
+Públicas (`/api/public`):
+
+- `GET /api/public/courses` - Listar cursos (visão pública)
+- `GET /api/public/courses/:courseId` - Obter curso por ID (visão pública)
 
 ### Empregos
 
