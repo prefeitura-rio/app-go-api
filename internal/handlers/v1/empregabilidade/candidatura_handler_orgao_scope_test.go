@@ -2,6 +2,7 @@ package empregabilidade_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -237,17 +238,33 @@ func candidaturaDaVaga(orgaoID string) *empmodels.Candidatura {
 	}
 }
 
+// Mensagens do 403 de escopo (DEV-797: a negativa confere a resposta exata).
+const (
+	msgCandidaturaForaDoEscopo = "Acesso negado: candidatura de vaga fora da sua secretaria"
+	msgVagaForaDoEscopo        = "Acesso negado: vaga não pertence à sua secretaria"
+)
+
+func errorMessage(t *testing.T, w *httptest.ResponseRecorder) string {
+	t.Helper()
+	var body struct {
+		Error string `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body), w.Body.String())
+	return body.Error
+}
+
 func TestCandidaturaHandler_EscritaPorID_AplicaEscopoDeOrgao(t *testing.T) {
-	etapa := uuid.New().String()
 	routes := []struct {
 		name string
 		path string
-		body string
+		body func(cand *empmodels.Candidatura) string
 	}{
-		{"status", "/status", `{"status":"aprovada"}`},
-		{"approve", "/approve", ""},
-		{"reject", "/reject", ""},
-		{"etapa", "/etapa", `{"id_etapa_atual":"` + etapa + `"}`},
+		{"status", "/status", func(*empmodels.Candidatura) string { return `{"status":"aprovada"}` }},
+		{"approve", "/approve", func(*empmodels.Candidatura) string { return "" }},
+		{"reject", "/reject", func(*empmodels.Candidatura) string { return "" }},
+		{"etapa", "/etapa", func(cand *empmodels.Candidatura) string {
+			return `{"id_etapa_atual":"` + cand.Vaga.Etapas[0].ID.String() + `"}`
+		}},
 	}
 	callers := []struct {
 		name      string
@@ -269,13 +286,15 @@ func TestCandidaturaHandler_EscritaPorID_AplicaEscopoDeOrgao(t *testing.T) {
 				repo := &scopeCandidaturaRepo{mockCandidaturaRepoH: mockCandidaturaRepoH{entity: cand}}
 				r := newScopeRouter(t, repo, &mockVagaForCandidaturaH{entity: cand.Vaga}, tt.caller)
 
-				w := doRequest(r, http.MethodPut, "/candidaturas/"+cand.ID.String()+rt.path, rt.body)
+				w := doRequest(r, http.MethodPut, "/candidaturas/"+cand.ID.String()+rt.path, rt.body(cand))
 
 				if tt.forbidden {
 					assert.Equal(t, http.StatusForbidden, w.Code, w.Body.String())
+					assert.Equal(t, msgCandidaturaForaDoEscopo, errorMessage(t, w))
 					assert.Equal(t, 0, repo.writes, "candidatura fora do escopo não pode ser alterada")
 				} else {
-					assert.NotEqual(t, http.StatusForbidden, w.Code, w.Body.String())
+					assert.Equal(t, http.StatusOK, w.Code, w.Body.String())
+					assert.Equal(t, 1, repo.writes, "candidatura no escopo é alterada")
 				}
 			})
 		}
@@ -332,9 +351,11 @@ func TestCandidaturaHandler_EscritaEmLote_AplicaEscopoDeOrgao(t *testing.T) {
 
 				if tt.forbidden {
 					assert.Equal(t, http.StatusForbidden, w.Code, w.Body.String())
+					assert.Equal(t, msgVagaForaDoEscopo, errorMessage(t, w))
 					assert.Equal(t, 0, repo.bulkWrites, "vaga fora do escopo não pode ter candidaturas alteradas")
 				} else {
-					assert.NotEqual(t, http.StatusForbidden, w.Code, w.Body.String())
+					assert.Equal(t, http.StatusOK, w.Code, w.Body.String())
+					assert.Equal(t, 1, repo.bulkWrites, "vaga no escopo tem as candidaturas alteradas")
 				}
 			})
 		}
