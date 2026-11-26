@@ -4,6 +4,13 @@
 empregabilidade (DEV-532 / PREF-687). A API grava o evento **na mesma transação** que muda
 `emp_candidaturas`: se o evento falha, a mudança é desfeita.
 
+**Leitura para produto (DEV-806):** quem consulta a cópia no BigQuery
+(`rj-superapp.brutos_go.emp_candidatura_historico`) sem ler este repositório tem o guia
+"Empregabilidade — como ler a tabela emp_candidatura_historico (BigQuery)", nos Docs do projeto
+`DEV` do It's a Plan, ligado às issues DEV-805 e DEV-806. Ele explica cada coluna, os status que
+vêm da vaga, o join com `emp_etapas` e o início do histórico (v0.1.21, 19/11/2026). Ao mudar
+colunas, `tipo_evento`, `motivo` ou status aqui, atualize também o guia.
+
 ## Regras
 
 - **Só de inclusão.** Triggers recusam `UPDATE`, `DELETE` e `TRUNCATE` na tabela. Não há
