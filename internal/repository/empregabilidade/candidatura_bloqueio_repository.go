@@ -27,7 +27,10 @@ func (r *CandidaturaBloqueioRepository) Create(ctx context.Context, entity *empr
 	return entity.ID, nil
 }
 
-func (r *CandidaturaBloqueioRepository) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]*empregabilidade.CandidaturaBloqueio, int, error) {
+// List devolve os bloqueios paginados. orgaoParceiroIDs restringe aos bloqueios
+// de vagas desses órgãos parceiros (escopo do editor, DEV-518): nil não
+// restringe (admin); lista vazia não devolve nada.
+func (r *CandidaturaBloqueioRepository) List(ctx context.Context, filter map[string]interface{}, orgaoParceiroIDs []string, limit, offset int) ([]*empregabilidade.CandidaturaBloqueio, int, error) {
 	var entities []*empregabilidade.CandidaturaBloqueio
 	var total int64
 
@@ -43,6 +46,7 @@ func (r *CandidaturaBloqueioRepository) List(ctx context.Context, filter map[str
 	for _, key := range keys {
 		db = db.Where(key+" = ?", filter[key])
 	}
+	db = restringirBloqueiosAoEscopoDeOrgao(db, orgaoParceiroIDs)
 
 	db.Count(&total)
 
@@ -52,4 +56,16 @@ func (r *CandidaturaBloqueioRepository) List(ctx context.Context, filter map[str
 	}
 
 	return entities, int(total), nil
+}
+
+// restringirBloqueiosAoEscopoDeOrgao limita aos bloqueios de vagas dos órgãos
+// parceiros do escopo do editor: nil não restringe, lista vazia não devolve nada.
+func restringirBloqueiosAoEscopoDeOrgao(db *gorm.DB, orgaoParceiroIDs []string) *gorm.DB {
+	if orgaoParceiroIDs == nil {
+		return db
+	}
+	if len(orgaoParceiroIDs) == 0 {
+		return db.Where("1 = 0")
+	}
+	return db.Where("id_vaga IN (SELECT id FROM emp_vagas WHERE id_orgao_parceiro IN ?)", orgaoParceiroIDs)
 }

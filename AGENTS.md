@@ -354,6 +354,10 @@ Key variables (see `.env.example` for the full list):
 | `REDIS_HOST` | `localhost` | Redis host |
 | `REDIS_PORT` | `6379` | Redis port |
 | `SERVER_PORT` | `8080` | HTTP server port |
+| `SERVER_REQUEST_TIMEOUT` | `30` | Per-request Gin handler deadline (seconds) |
+| `SERVER_READ_HEADER_TIMEOUT` | `10` | `http.Server` ReadHeaderTimeout in seconds (slowloris / gosec G112) |
+| `SERVER_READ_TIMEOUT` | `30` | `http.Server` ReadTimeout in seconds |
+| `SERVER_IDLE_TIMEOUT` | `120` | `http.Server` IdleTimeout in seconds (keep-alive; aligned with Istio idle) |
 | `RUN_MIGRATIONS` | `false` | Auto-run GORM AutoMigrate on startup |
 | `TYPESENSE_HOST` | `localhost` | Typesense search engine host |
 | `TYPESENSE_API_KEY` | `` | Typesense API key |

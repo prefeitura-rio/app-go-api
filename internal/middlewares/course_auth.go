@@ -59,6 +59,54 @@ func CourseAuthorization() gin.HandlerFunc {
 	}
 }
 
+// CourseGestaoAuthorization guards course management reads that are not scoped
+// by CourseListFilter (GET /users/:userId/courses lists every course of an
+// orgao, drafts and courses under review included). Only total admins,
+// go:cursos:casa_civil and go:cursos:editor pass; anyone else (citizens,
+// other modules' profiles) gets 403.
+//
+// Unlike CourseAuthorization it is applied always, regardless of
+// RBAC_ENABLED (DEV-506): with RBAC off the RBAC middlewares are no-ops and
+// any authenticated user would read unpublished courses of any secretaria.
+// With RBAC on, CourseOrgaoParamScope runs next and checks the editor's scope.
+func CourseGestaoAuthorization() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") || isCursosEditor(c) {
+			c.Next()
+			return
+		}
+
+		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
+		c.Abort()
+	}
+}
+
+// CourseOrgaoParamScope lets total admins and go:cursos:casa_civil through and,
+// for go:cursos:editor, only when the orgao in the path parameter param is in
+// the caller's secretaria/orgao scope (the same rule as CourseOwnershipCheck).
+// Anyone else gets 403.
+func CourseOrgaoParamScope(param string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if IsAdmin(c) || HasRole(c, "go:cursos:casa_civil") {
+			c.Next()
+			return
+		}
+
+		if isCursosEditor(c) {
+			if courseOrgaoInScope(c, c.Param(param)) {
+				c.Next()
+				return
+			}
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado: órgão não pertence à sua secretaria"})
+			c.Abort()
+			return
+		}
+
+		c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para acessar este recurso"})
+		c.Abort()
+	}
+}
+
 // CourseListFilter scopes list queries. Without a cursos role, results are empty
 // (secretaria alone does not grant access).
 func CourseListFilter() gin.HandlerFunc {

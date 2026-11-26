@@ -1359,6 +1359,7 @@ func TestVagaRepository_UpdateWithAssociations_ClearEtapaAtualError(t *testing.T
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnError(assert.AnError)
 	mock.ExpectRollback()
@@ -1389,6 +1390,7 @@ func TestVagaRepository_UpdateWithAssociations_DeleteEtapasError(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
@@ -1423,6 +1425,7 @@ func TestVagaRepository_UpdateWithAssociations_CreateEtapasError(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "emp_vagas"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
@@ -1468,6 +1471,7 @@ func TestVagaRepository_UpdateWithAssociations_Etapas_PreservesExistingUUID(t *t
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(etapaID))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
@@ -1524,6 +1528,7 @@ func TestVagaRepository_UpdateWithAssociations_Etapas_MixExistingAndNew(t *testi
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(existingEtapaID))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
@@ -1575,8 +1580,17 @@ func TestVagaRepository_UpdateWithAssociations_Etapas_RemovesMissing_ClearsOnlyT
 	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(keptEtapaID))
 	// Clear só candidaturas cuja etapa NÃO está no payload preservado
+	// A candidatura da etapa removida fica sem etapa e ganha o evento etapa_removida (DEV-532).
+	candidaturaID, etapaRemovidaID := uuid.New(), uuid.New()
+	mock.ExpectQuery(sqlTravaCandidaturas).
+		WillReturnRows(linhasEstado(estadoTeste{id: candidaturaID, vaga: vagaID, cpf: cpfSintetico, status: empregabilidade.StatusCandidaturaEnviada, etapa: etapaRemovidaID}))
 	mock.ExpectExec(`UPDATE "emp_candidaturas".*id NOT IN`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	esperarEventos(mock, eventoEsperado{
+		candidatura: candidaturaID, vaga: vagaID, tipo: empregabilidade.EventoEtapaRemovida, ator: empregabilidade.AtorAutomacao,
+		statusAnterior: string(empregabilidade.StatusCandidaturaEnviada), statusNovo: empregabilidade.StatusCandidaturaEnviada,
+		etapaAnterior: etapaRemovidaID.String(), etapaNova: nil, motivo: empregabilidade.MotivoEtapaExcluida,
+	})
 	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(`UPDATE "emp_etapas" SET`).
@@ -1587,6 +1601,56 @@ func TestVagaRepository_UpdateWithAssociations_Etapas_RemovesMissing_ClearsOnlyT
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 	assert.Equal(t, keptEtapaID, vaga.Etapas[0].ID)
+}
+
+// TestVagaRepository_UpdateWithAssociations_Etapas_RemoveEtapaDesvinculaCandidaturasExcluidas
+// prova DEV-533: a candidatura excluída (soft delete) ainda aponta para a etapa
+// pela FK, então o desvínculo antes do DELETE da etapa vale também para ela
+// (UPDATE sem o filtro de deleted_at), enquanto a trava que gera o evento
+// etapa_removida continua só nas candidaturas não excluídas.
+func TestVagaRepository_UpdateWithAssociations_Etapas_RemoveEtapaDesvinculaCandidaturasExcluidas(t *testing.T) {
+	db, mock, cleanup := repository.SetupMockDB(t)
+	defer cleanup()
+
+	repo := NewVagaRepository(db)
+	ctx := context.Background()
+
+	vagaID := uuid.New()
+	keptEtapaID := uuid.New()
+
+	vaga := &empregabilidade.Vaga{
+		ID:                  vagaID,
+		Titulo:              "Desenvolvedor Go",
+		Descricao:           "Vaga para desenvolvedor Go",
+		IDContratante:       "12345678000190",
+		IDRegimeContratacao: uuid.New(),
+		IDModeloTrabalho:    uuid.New(),
+		Status:              empregabilidade.StatusVagaEmEdicao,
+		Etapas: []empregabilidade.Etapa{
+			{ID: keptEtapaID, Titulo: "Candidatura recebida", Ordem: 1},
+		},
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "emp_vagas"`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(keptEtapaID))
+	// Só as candidaturas não excluídas são travadas e ganham evento.
+	mock.ExpectQuery(`SELECT .+ FROM "emp_candidaturas" WHERE .+"emp_candidaturas"\."deleted_at" IS NULL .*FOR UPDATE`).
+		WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
+	// O desvínculo alcança também as excluídas: nenhum filtro de deleted_at.
+	mock.ExpectExec(`^UPDATE "emp_candidaturas" SET "id_etapa_atual"=\$1,"updated_at"=\$2 WHERE id_etapa_atual IN \(SELECT id FROM emp_etapas WHERE id_vaga = \$3 AND id NOT IN \(\$4\)\)$`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`DELETE FROM "emp_etapas".*id NOT IN`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE "emp_etapas" SET`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	err := repo.UpdateWithAssociations(ctx, vaga)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // TestVagaRepository_UpdateWithAssociations_Etapas_EphemeralUUIDInsertsNew
@@ -1621,6 +1685,7 @@ func TestVagaRepository_UpdateWithAssociations_Etapas_EphemeralUUIDInsertsNew(t 
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
@@ -1695,6 +1760,7 @@ func TestVagaRepository_UpdateWithAssociations_UpdateEtapaError(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery(`SELECT "id" FROM "emp_etapas"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(etapaID))
+	mock.ExpectQuery(sqlTravaCandidaturas).WillReturnRows(sqlmock.NewRows(colunasEstadoCandidatura))
 	mock.ExpectExec(`UPDATE "emp_candidaturas"`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`DELETE FROM "emp_etapas"`).
@@ -2641,6 +2707,348 @@ func TestVagaRepository_ExistsByID(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			assert.Equal(t, tt.want, got)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+// nullArg casa só com o NULL do SQL (nil no driver), nunca com o JSON "null".
+type nullArg struct{}
+
+func (nullArg) Match(v driver.Value) bool { return v == nil }
+
+func TestVagaRepository_Update_CriteriosBloqueio(t *testing.T) {
+	tests := []struct {
+		name     string
+		criterio []empregabilidade.CriterioBloqueio
+		arg      sqlmock.Argument
+	}{
+		{
+			name:     "critérios ligados chegam como JSON",
+			criterio: []empregabilidade.CriterioBloqueio{empregabilidade.CriterioBloqueioEscolaridade, empregabilidade.CriterioBloqueioIdioma},
+			arg:      jsonStringSliceArg{want: []string{"escolaridade", "idioma"}},
+		},
+		{name: "nenhum critério ligado grava NULL", criterio: nil, arg: nullArg{}},
+		{name: "lista vazia grava NULL", criterio: []empregabilidade.CriterioBloqueio{}, arg: nullArg{}},
+	}
+
+	for _, tt := range tests {
+		for _, metodo := range []string{"Update", "UpdateWithAssociations"} {
+			t.Run(metodo+"/"+tt.name, func(t *testing.T) {
+				db, mock, cleanup := repository.SetupMockDB(t)
+				defer cleanup()
+
+				repo := NewVagaRepository(db)
+				vaga := &empregabilidade.Vaga{
+					ID:                  uuid.New(),
+					Titulo:              "Desenvolvedor Go",
+					Descricao:           "Vaga para desenvolvedor Go",
+					IDContratante:       "12345678000190",
+					IDRegimeContratacao: uuid.New(),
+					IDModeloTrabalho:    uuid.New(),
+					Status:              empregabilidade.StatusVagaEmEdicao,
+					CriteriosBloqueio:   tt.criterio,
+				}
+
+				// As colunas do map entram em ordem alfabética, cada uma com um
+				// único argumento (bairros e áreas vazios também vão como NULL
+				// ligado): criterios_bloqueio é o 6º argumento.
+				mock.ExpectBegin()
+				mock.ExpectExec(`(?s)UPDATE "emp_vagas" SET .*"beneficios"=\$5,"criterios_bloqueio"=\$6,.*WHERE id = \$26`).
+					WithArgs(
+						sqlmock.AnyArg(), // acessibilidade_pcd
+						sqlmock.AnyArg(), // areas_formacao_elegibilidade
+						sqlmock.AnyArg(), // bairro
+						sqlmock.AnyArg(), // bairros_elegibilidade
+						sqlmock.AnyArg(), // beneficios
+						tt.arg,           // criterios_bloqueio
+						sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+						sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+						sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+						sqlmock.AnyArg(), // ... valor_vaga
+						vaga.ID,
+					).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+
+				var err error
+				if metodo == "Update" {
+					err = repo.Update(context.Background(), vaga)
+				} else {
+					err = repo.UpdateWithAssociations(context.Background(), vaga)
+				}
+				assert.NoError(t, err)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			})
+		}
+	}
+}
+
+func TestVagaRepository_Create_CriteriosBloqueio(t *testing.T) {
+	tests := []struct {
+		name     string
+		criterio []empregabilidade.CriterioBloqueio
+		arg      sqlmock.Argument
+	}{
+		{name: "sem critério ligado grava NULL", criterio: nil, arg: nullArg{}},
+		{
+			name:     "critério ligado grava JSON",
+			criterio: []empregabilidade.CriterioBloqueio{empregabilidade.CriterioBloqueioIdioma},
+			arg:      jsonStringSliceArg{want: []string{"idioma"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, cleanup := repository.SetupMockDB(t)
+			defer cleanup()
+
+			vaga := &empregabilidade.Vaga{
+				Titulo:              "Desenvolvedor Go",
+				Descricao:           "Vaga para desenvolvedor Go",
+				IDContratante:       "12345678000190",
+				IDRegimeContratacao: uuid.New(),
+				IDModeloTrabalho:    uuid.New(),
+				Status:              empregabilidade.StatusVagaEmEdicao,
+				CriteriosBloqueio:   tt.criterio,
+			}
+
+			// criterios_bloqueio é a última das 28 colunas do INSERT.
+			args := make([]driver.Value, 0, 28)
+			for i := 0; i < 27; i++ {
+				args = append(args, sqlmock.AnyArg())
+			}
+			args = append(args, tt.arg)
+
+			mock.ExpectBegin()
+			mock.ExpectQuery(`INSERT INTO "emp_vagas" \(.*"criterios_bloqueio"\) VALUES .*\$28\)`).
+				WithArgs(args...).
+				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+			mock.ExpectCommit()
+
+			_, err := NewVagaRepository(db).Create(context.Background(), vaga)
+			assert.NoError(t, err)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+// O Updates com map não passa pelo serializer:json do GORM: sem conversão
+// explícita, um []string vira uma expressão ("a","b") que o Postgres recusa
+// numa coluna jsonb. Os dois campos de elegibilidade precisam chegar ao driver
+// como texto JSON, ou NULL quando a lista está vazia.
+func TestVagaRepository_Update_ElegibilidadeJSONB(t *testing.T) {
+	hostil := `O'Hara "x"); DROP TABLE emp_vagas;--`
+	tests := []struct {
+		name       string
+		bairros    []string
+		areas      []string
+		bairrosArg sqlmock.Argument
+		areasArg   sqlmock.Argument
+	}{
+		{
+			name:       "listas com vários itens chegam como JSON",
+			bairros:    []string{"Centro", "Tijuca"},
+			areas:      []string{"Tecnologia", "Administração"},
+			bairrosArg: jsonStringSliceArg{want: []string{"Centro", "Tijuca"}},
+			areasArg:   jsonStringSliceArg{want: []string{"Tecnologia", "Administração"}},
+		},
+		{
+			name:       "lista com um item chega como JSON",
+			bairros:    []string{"São Cristóvão"},
+			areas:      []string{"Saúde"},
+			bairrosArg: jsonStringSliceArg{want: []string{"São Cristóvão"}},
+			areasArg:   jsonStringSliceArg{want: []string{"Saúde"}},
+		},
+		{
+			name:       "entrada hostil é só dado dentro do JSON",
+			bairros:    []string{hostil},
+			areas:      []string{hostil, "Direito"},
+			bairrosArg: jsonStringSliceArg{want: []string{hostil}},
+			areasArg:   jsonStringSliceArg{want: []string{hostil, "Direito"}},
+		},
+		{
+			name:       "listas ausentes gravam NULL",
+			bairros:    nil,
+			areas:      nil,
+			bairrosArg: nullArg{},
+			areasArg:   nullArg{},
+		},
+		{
+			name:       "listas vazias gravam NULL",
+			bairros:    []string{},
+			areas:      []string{},
+			bairrosArg: nullArg{},
+			areasArg:   nullArg{},
+		},
+		{
+			name:       "só um dos campos preenchido",
+			bairros:    []string{"Centro"},
+			areas:      nil,
+			bairrosArg: jsonStringSliceArg{want: []string{"Centro"}},
+			areasArg:   nullArg{},
+		},
+	}
+
+	for _, tt := range tests {
+		for _, metodo := range []string{"Update", "UpdateWithAssociations"} {
+			t.Run(metodo+"/"+tt.name, func(t *testing.T) {
+				db, mock, cleanup := repository.SetupMockDB(t)
+				defer cleanup()
+
+				repo := NewVagaRepository(db)
+				vaga := &empregabilidade.Vaga{
+					ID:                         uuid.New(),
+					Titulo:                     "Desenvolvedor Go",
+					Descricao:                  "Vaga para desenvolvedor Go",
+					IDContratante:              "12345678000190",
+					IDRegimeContratacao:        uuid.New(),
+					IDModeloTrabalho:           uuid.New(),
+					Status:                     empregabilidade.StatusVagaEmEdicao,
+					BairrosElegibilidade:       tt.bairros,
+					AreasFormacaoElegibilidade: tt.areas,
+				}
+
+				// As colunas do map entram em ordem alfabética, cada uma com um
+				// único argumento: areas_formacao_elegibilidade é o 2º,
+				// bairros_elegibilidade o 4º, e o id do WHERE o 26º.
+				args := []driver.Value{
+					sqlmock.AnyArg(), // acessibilidade_pcd
+					tt.areasArg,      // areas_formacao_elegibilidade
+					sqlmock.AnyArg(), // bairro
+					tt.bairrosArg,    // bairros_elegibilidade
+				}
+				for i := 0; i < 21; i++ { // beneficios ... valor_vaga
+					args = append(args, sqlmock.AnyArg())
+				}
+				args = append(args, vaga.ID)
+
+				mock.ExpectBegin()
+				mock.ExpectExec(`(?s)UPDATE "emp_vagas" SET "acessibilidade_pcd"=\$1,"areas_formacao_elegibilidade"=\$2,"bairro"=\$3,"bairros_elegibilidade"=\$4,"beneficios"=\$5,.*WHERE id = \$26`).
+					WithArgs(args...).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+
+				var err error
+				if metodo == "Update" {
+					err = repo.Update(context.Background(), vaga)
+				} else {
+					err = repo.UpdateWithAssociations(context.Background(), vaga)
+				}
+				assert.NoError(t, err)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			})
+		}
+	}
+}
+
+// opcao_pcd entra no UPDATE com o valor da vaga; vazio (vaga montada sem a
+// opção) grava aberta, o padrão da coluna, e nunca uma string vazia que a
+// CHECK recusaria.
+func TestVagaRepository_Update_OpcaoPCD(t *testing.T) {
+	tests := []struct {
+		name  string
+		opcao empregabilidade.OpcaoPCD
+		want  string
+	}{
+		{name: "exclusiva", opcao: empregabilidade.OpcaoPCDExclusiva, want: "exclusiva"},
+		{name: "preferencial", opcao: empregabilidade.OpcaoPCDPreferencial, want: "preferencial"},
+		{name: "vazia grava aberta", opcao: "", want: "aberta"},
+	}
+
+	for _, tt := range tests {
+		for _, metodo := range []string{"Update", "UpdateWithAssociations"} {
+			t.Run(metodo+"/"+tt.name, func(t *testing.T) {
+				db, mock, cleanup := repository.SetupMockDB(t)
+				defer cleanup()
+
+				vaga := &empregabilidade.Vaga{
+					ID:                  uuid.New(),
+					Titulo:              "Desenvolvedor Go",
+					IDContratante:       "12345678000190",
+					IDRegimeContratacao: uuid.New(),
+					IDModeloTrabalho:    uuid.New(),
+					Status:              empregabilidade.StatusVagaEmEdicao,
+					OpcaoPCD:            tt.opcao,
+				}
+
+				// Ordem alfabética das colunas: opcao_pcd é a 18ª, depois de
+				// idade_minima, e o id do WHERE é o 26º argumento.
+				args := make([]driver.Value, 0, 26)
+				for i := 0; i < 17; i++ {
+					args = append(args, sqlmock.AnyArg())
+				}
+				args = append(args, tt.want)
+				for i := 0; i < 7; i++ { // quantidade ... valor_vaga
+					args = append(args, sqlmock.AnyArg())
+				}
+				args = append(args, vaga.ID)
+
+				mock.ExpectBegin()
+				mock.ExpectExec(`(?s)UPDATE "emp_vagas" SET .*"idade_minima"=\$17,"opcao_pcd"=\$18,"quantidade_estimada_contratacoes"=\$19,.*WHERE id = \$26`).
+					WithArgs(args...).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+
+				repo := NewVagaRepository(db)
+				var err error
+				if metodo == "Update" {
+					err = repo.Update(context.Background(), vaga)
+				} else {
+					err = repo.UpdateWithAssociations(context.Background(), vaga)
+				}
+				assert.NoError(t, err)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			})
+		}
+	}
+}
+
+// O INSERT grava opcao_pcd; vaga criada sem a opção vai como aberta (hook
+// BeforeCreate do modelo).
+func TestVagaRepository_Create_OpcaoPCD(t *testing.T) {
+	tests := []struct {
+		name  string
+		opcao empregabilidade.OpcaoPCD
+		want  string
+	}{
+		{name: "exclusiva", opcao: empregabilidade.OpcaoPCDExclusiva, want: "exclusiva"},
+		{name: "vazia vira aberta", opcao: "", want: "aberta"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, cleanup := repository.SetupMockDB(t)
+			defer cleanup()
+
+			vaga := &empregabilidade.Vaga{
+				Titulo:              "Desenvolvedor Go",
+				IDContratante:       "12345678000190",
+				IDRegimeContratacao: uuid.New(),
+				IDModeloTrabalho:    uuid.New(),
+				Status:              empregabilidade.StatusVagaEmEdicao,
+				OpcaoPCD:            tt.opcao,
+			}
+
+			// Colunas do INSERT na ordem do struct: opcao_pcd vem logo depois
+			// de acessibilidade_pcd, a 7ª.
+			args := make([]driver.Value, 0, 28)
+			for i := 0; i < 6; i++ {
+				args = append(args, sqlmock.AnyArg())
+			}
+			args = append(args, tt.want)
+			for i := 0; i < 21; i++ {
+				args = append(args, sqlmock.AnyArg())
+			}
+
+			mock.ExpectBegin()
+			mock.ExpectQuery(`INSERT INTO "emp_vagas" \(.*"acessibilidade_pcd","opcao_pcd",.*\) VALUES .*\$28\)`).
+				WithArgs(args...).
+				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+			mock.ExpectCommit()
+
+			_, err := NewVagaRepository(db).Create(context.Background(), vaga)
+			assert.NoError(t, err)
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}

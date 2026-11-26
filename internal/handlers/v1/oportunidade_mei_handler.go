@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/prefeitura-rio/app-go-api/internal/handlers/v1/response"
+	"github.com/prefeitura-rio/app-go-api/internal/middlewares"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
@@ -29,6 +30,7 @@ func NewOportunidadeMEIHandler(service services.OportunidadeMEIServiceInterface)
 // @Param        request  body      models.OportunidadeMEI  true  "Dados da oportunidade"
 // @Success      201      {object}  models.OportunidadeMEI
 // @Failure      400      {object}  models.ErrorResponse
+// @Failure      403      {object}  models.ErrorResponse "Sem perfil de gestão MEI"
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei [post]
 func (h *OportunidadeMEIHandler) Create(c *gin.Context) {
@@ -56,6 +58,7 @@ func (h *OportunidadeMEIHandler) Create(c *gin.Context) {
 // @Param        request  body      models.OportunidadeMEI  true  "Dados da oportunidade"
 // @Success      201      {object}  models.OportunidadeMEI
 // @Failure      400      {object}  models.ErrorResponse
+// @Failure      403      {object}  models.ErrorResponse "Sem perfil de gestão MEI"
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/draft [post]
 func (h *OportunidadeMEIHandler) CreateDraft(c *gin.Context) {
@@ -99,7 +102,9 @@ func (h *OportunidadeMEIHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	if oportunidade == nil {
+	// Rascunho só é visível a quem gere MEI; para os demais, responde como
+	// inexistente para não revelar o conteúdo antes da publicação (DEV-478).
+	if oportunidade == nil || (oportunidade.Status == models.StatusOportunidadeDraft && !middlewares.CanGerirMEI(c)) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Oportunidade não encontrada"})
 		return
 	}
@@ -116,6 +121,7 @@ func (h *OportunidadeMEIHandler) GetByID(c *gin.Context) {
 // @Param        request  body      models.OportunidadeMEI  true  "Dados da oportunidade"
 // @Success      200      {object}  models.OportunidadeMEI
 // @Failure      400      {object}  models.ErrorResponse
+// @Failure      403      {object}  models.ErrorResponse "Sem perfil de gestão MEI"
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{id} [put]
 func (h *OportunidadeMEIHandler) Update(c *gin.Context) {
@@ -147,6 +153,7 @@ func (h *OportunidadeMEIHandler) Update(c *gin.Context) {
 // @Param        id   path      int  true  "ID da oportunidade"
 // @Success      200  {object}  object
 // @Failure      400  {object}  models.ErrorResponse
+// @Failure      403  {object}  models.ErrorResponse "Sem perfil de gestão MEI"
 // @Failure      500  {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{id} [delete]
 func (h *OportunidadeMEIHandler) Delete(c *gin.Context) {
@@ -172,6 +179,7 @@ func (h *OportunidadeMEIHandler) Delete(c *gin.Context) {
 // @Success      200  {object}  models.OportunidadeMEI
 // @Failure      400  {object}  models.ErrorResponse
 // @Failure      404  {object}  models.ErrorResponse
+// @Failure      403  {object}  models.ErrorResponse "Sem perfil de gestão MEI"
 // @Failure      500  {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/{id}/publish [put]
 func (h *OportunidadeMEIHandler) Publish(c *gin.Context) {
@@ -205,6 +213,7 @@ func (h *OportunidadeMEIHandler) Publish(c *gin.Context) {
 // @Param        status    query     string  false  "Filtrar por status (draft, active, expired)"
 // @Param        titulo    query     string  false  "Buscar por título (case-insensitive)"
 // @Success      200       {object}  models.OportunidadeMEIListResponse
+// @Failure      403       {object}  models.ErrorResponse "Sem perfil de gestão MEI"
 // @Failure      500       {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei [get]
 // @Router       /api/public/oportunidades-mei [get]
@@ -237,6 +246,10 @@ func (h *OportunidadeMEIHandler) List(c *gin.Context) {
 	if status != "" {
 		switch status {
 		case "draft":
+			if !middlewares.CanGerirMEI(c) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para listar rascunhos de oportunidades MEI"})
+				return
+			}
 			filters["status"] = models.StatusOportunidadeDraft
 		case "active":
 			filters["status"] = models.StatusOportunidadeActive
@@ -277,6 +290,7 @@ func (h *OportunidadeMEIHandler) List(c *gin.Context) {
 // @Param        orgaoId  query     string  false  "Filtrar por órgão"
 // @Param        titulo   query     string  false  "Buscar por título (case-insensitive)"
 // @Success      200      {object}  object
+// @Failure      403      {object}  models.ErrorResponse "Sem perfil de gestão MEI"
 // @Failure      500      {object}  models.ErrorResponse
 // @Router       /api/v1/oportunidades-mei/drafts [get]
 func (h *OportunidadeMEIHandler) ListDrafts(c *gin.Context) {

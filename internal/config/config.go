@@ -80,9 +80,38 @@ type DatabaseSettings struct {
 
 // ServerSettings define configurações do servidor HTTP
 type ServerSettings struct {
-	Host           string
-	Port           int
-	RequestTimeout int // in seconds
+	Host              string
+	Port              int
+	RequestTimeout    int // in seconds — per-request handler deadline (Gin middleware)
+	ReadHeaderTimeout int // in seconds — http.Server ReadHeaderTimeout (slowloris)
+	ReadTimeout       int // in seconds — http.Server ReadTimeout
+	IdleTimeout       int // in seconds — http.Server IdleTimeout (keep-alive)
+}
+
+// Padrões dos timeouts do http.Server, em segundos (gosec G112; IdleTimeout
+// alinhado ao idle do Istio).
+const (
+	defaultServerReadHeaderTimeout = 10
+	defaultServerReadTimeout       = 30
+	defaultServerIdleTimeout       = 120
+)
+
+// WithHTTPTimeoutDefaults troca cada timeout do http.Server não positivo pelo
+// padrão e registra um aviso: para o net/http, 0 (ou negativo) significa sem
+// limite, o que desligaria em silêncio a proteção contra slowloris.
+func (s ServerSettings) WithHTTPTimeoutDefaults() ServerSettings {
+	s.ReadHeaderTimeout = positiveOrDefault("SERVER_READ_HEADER_TIMEOUT", s.ReadHeaderTimeout, defaultServerReadHeaderTimeout)
+	s.ReadTimeout = positiveOrDefault("SERVER_READ_TIMEOUT", s.ReadTimeout, defaultServerReadTimeout)
+	s.IdleTimeout = positiveOrDefault("SERVER_IDLE_TIMEOUT", s.IdleTimeout, defaultServerIdleTimeout)
+	return s
+}
+
+func positiveOrDefault(key string, value, defaultValue int) int {
+	if value > 0 {
+		return value
+	}
+	log.Printf("AVISO: %s=%d não é positivo e desligaria o timeout do servidor HTTP; usando o padrão de %ds", key, value, defaultValue)
+	return defaultValue
 }
 
 // JWTSettings define configurações de autenticação
@@ -430,10 +459,13 @@ func Load() (*AppConfig, error) {
 			ConnMaxIdleTime: getInt(v, "DB_CONN_MAX_IDLE_TIME", 2),
 		},
 		Server: ServerSettings{
-			Host:           getEnv(v, "SERVER_HOST", "0.0.0.0"),
-			Port:           getInt(v, "SERVER_PORT", 8080),
-			RequestTimeout: getInt(v, "SERVER_REQUEST_TIMEOUT", 30),
-		},
+			Host:              getEnv(v, "SERVER_HOST", "0.0.0.0"),
+			Port:              getInt(v, "SERVER_PORT", 8080),
+			RequestTimeout:    getInt(v, "SERVER_REQUEST_TIMEOUT", 30),
+			ReadHeaderTimeout: getInt(v, "SERVER_READ_HEADER_TIMEOUT", defaultServerReadHeaderTimeout),
+			ReadTimeout:       getInt(v, "SERVER_READ_TIMEOUT", defaultServerReadTimeout),
+			IdleTimeout:       getInt(v, "SERVER_IDLE_TIMEOUT", defaultServerIdleTimeout),
+		}.WithHTTPTimeoutDefaults(),
 		Swagger: SwaggerSettings{
 			Host: getEnv(v, "SWAGGER_HOST", "localhost:8080"),
 		},

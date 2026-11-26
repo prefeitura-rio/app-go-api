@@ -58,9 +58,12 @@ type Candidatura struct {
 	// Origem e AssociadoPorCPF são definidos pela API, nunca pelo corpo da requisição.
 	Origem          *OrigemCandidatura `json:"origem,omitempty" gorm:"type:varchar(64)"`
 	AssociadoPorCPF *string            `json:"associado_por_cpf,omitempty" gorm:"type:varchar(14);column:associado_por_cpf"`
-	DeletedAt       gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
-	CreatedAt       time.Time          `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt       time.Time          `json:"updated_at" gorm:"autoUpdateTime"`
+	// UltimoEventoVisto é o id do último evento do histórico que o candidato
+	// viu. É da API: fica fora do JSON, então o corpo da requisição não o define.
+	UltimoEventoVisto *int64         `json:"-" gorm:"column:ultimo_evento_visto"`
+	DeletedAt         gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
+	CreatedAt         time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt         time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Computed field (not stored in DB) - populated from CitizenSnapshot
 	PersonalInfo *models.CitizenPersonalInfo `json:"personal_info,omitempty" gorm:"-"`
@@ -74,6 +77,16 @@ func (Candidatura) TableName() string {
 	return "emp_candidaturas"
 }
 
+// LimparCamposDoServidor descarta os campos que só a API e o banco definem
+// (id, deleted_at, created_at, updated_at): na criação, os que vierem do corpo
+// não valem. O id é gerado pelo banco e a candidatura nunca nasce removida.
+func (c *Candidatura) LimparCamposDoServidor() {
+	c.ID = uuid.Nil
+	c.DeletedAt = gorm.DeletedAt{}
+	c.CreatedAt = time.Time{}
+	c.UpdatedAt = time.Time{}
+}
+
 type CandidaturaFilter struct {
 	CPF     string
 	VagaID  *uuid.UUID
@@ -82,4 +95,8 @@ type CandidaturaFilter struct {
 	EtapaID *uuid.UUID // filtro por etapa atual
 	// Candidato são os filtros avançados de candidatos, os mesmos do banco de currículos.
 	Candidato FiltroCandidato
+	// OrgaoParceiroIDs restringe às candidaturas de vagas desses órgãos parceiros
+	// (escopo do editor, injetado por VagaListFilter). nil não restringe; lista
+	// vazia não devolve nenhuma candidatura.
+	OrgaoParceiroIDs []string
 }

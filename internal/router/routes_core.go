@@ -110,27 +110,37 @@ func registerCoreRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.Application
 	jobAccess := rbacMiddleware(cfg.App.RBACEnabled, middlewares.JobAccess(jobCursoLoader, cursoLoader))
 
 	apiV1.Group("/jobs").GET("/:jobId/status", jobAccess, app.JobHandler.GetStatus)
-	apiV1.Group("/users").GET("/:userId/courses", app.CourseHandler.ListByUser)
+	// Lista todos os cursos do órgão (rascunhos e em revisão incluídos): exige
+	// perfil de Cursos mesmo com RBAC_ENABLED=false (DEV-506); com o RBAC
+	// ligado, o editor só lista órgão do seu escopo.
+	courseGestaoAuth := middlewares.CourseGestaoAuthorization()
+	userCoursesScope := rbacMiddleware(cfg.App.RBACEnabled, middlewares.CourseOrgaoParamScope("userId"))
+	apiV1.Group("/users").GET("/:userId/courses", courseGestaoAuth, userCoursesScope, app.CourseHandler.ListByUser)
 	enrollments := apiV1.Group("/enrollments")
 	enrollments.GET("/user/:cpf", app.InscricaoHandler.ListByUser)
 	enrollments.PUT("/:enrollmentId/schedule", app.InscricaoHandler.ChangeSchedule)
 
+	// A gestão das oportunidades MEI (mutações, rascunhos) e a mudança de status
+	// das propostas exigem perfil de gestão MEI mesmo com RBAC_ENABLED=false
+	// (DEV-478). O GET por id esconde rascunhos e as listagens de propostas
+	// checam o perfil, a posse do CNPJ ou as ReadPermissions no handler.
+	meiGestaoAuth := middlewares.MEIGestaoAuthorization()
 	oportunidades := apiV1.Group("/oportunidades-mei")
 	{
-		oportunidades.POST("", app.OportunidadeMEIHandler.Create)
-		oportunidades.POST("/draft", app.OportunidadeMEIHandler.CreateDraft)
+		oportunidades.POST("", meiGestaoAuth, app.OportunidadeMEIHandler.Create)
+		oportunidades.POST("/draft", meiGestaoAuth, app.OportunidadeMEIHandler.CreateDraft)
 		oportunidades.GET("", app.OportunidadeMEIHandler.List)
-		oportunidades.GET("/drafts", app.OportunidadeMEIHandler.ListDrafts)
+		oportunidades.GET("/drafts", meiGestaoAuth, app.OportunidadeMEIHandler.ListDrafts)
 		oportunidades.GET("/:id", app.OportunidadeMEIHandler.GetByID)
-		oportunidades.PUT("/:id", app.OportunidadeMEIHandler.Update)
-		oportunidades.PUT("/:id/publish", app.OportunidadeMEIHandler.Publish)
-		oportunidades.DELETE("/:id", app.OportunidadeMEIHandler.Delete)
+		oportunidades.PUT("/:id", meiGestaoAuth, app.OportunidadeMEIHandler.Update)
+		oportunidades.PUT("/:id/publish", meiGestaoAuth, app.OportunidadeMEIHandler.Publish)
+		oportunidades.DELETE("/:id", meiGestaoAuth, app.OportunidadeMEIHandler.Delete)
 		oportunidades.POST("/:id/propostas", app.PropostaMEIHandler.Create)
 		oportunidades.GET("/:id/propostas", app.PropostaMEIHandler.List)
-		oportunidades.PUT("/:id/propostas/status", app.PropostaMEIHandler.UpdateStatusBulk)
+		oportunidades.PUT("/:id/propostas/status", meiGestaoAuth, app.PropostaMEIHandler.UpdateStatusBulk)
 		oportunidades.GET("/:id/propostas/:propostaId", app.PropostaMEIHandler.GetByID)
 		oportunidades.PUT("/:id/propostas/:propostaId", app.PropostaMEIHandler.Update)
-		oportunidades.PUT("/:id/propostas/:propostaId/status", app.PropostaMEIHandler.UpdateStatus)
+		oportunidades.PUT("/:id/propostas/:propostaId/status", meiGestaoAuth, app.PropostaMEIHandler.UpdateStatus)
 		oportunidades.DELETE("/:id/propostas/:propostaId", app.PropostaMEIHandler.Delete)
 	}
 	apiV1.Group("/propostas-mei").GET("/por-empresa", app.PropostaMEIHandler.ListByMEIEmpresa)

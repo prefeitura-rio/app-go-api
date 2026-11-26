@@ -33,6 +33,7 @@ func NewCandidaturaBloqueioHandler(service *services.CandidaturaBloqueioService)
 
 // @Summary      Registrar bloqueio de candidatura
 // @Description  Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.
+// @Description  criterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima (Maiores de 18 / idade mínima), escolaridade, idioma, pcd (vaga exclusiva para PcD), experiencia_carteira (experiência em carteira exigida pela vaga) e jovem_aprendiz (fora da faixa de 14 a 24 anos da vaga Jovem Aprendiz).
 // @Description  Para o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.
 // @Tags         empregabilidade-candidatura-bloqueios
 // @Accept       json
@@ -78,7 +79,7 @@ func (h *CandidaturaBloqueioHandler) Create(c *gin.Context) {
 }
 
 // @Summary      Listar bloqueios de candidatura (admin)
-// @Description  Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a administradores.
+// @Description  Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria e só vê bloqueios de vagas dos órgãos desse escopo); os demais recebem 403.
 // @Tags         empregabilidade-candidatura-bloqueios
 // @Produce      json
 // @Param        page      query     int     false  "Número da página (default: 1)"
@@ -87,6 +88,7 @@ func (h *CandidaturaBloqueioHandler) Create(c *gin.Context) {
 // @Param        id_vaga   query     string  false  "Filtrar por ID da vaga"
 // @Success      200       {object}  map[string]interface{}
 // @Failure      400       {object}  map[string]string
+// @Failure      403       {object}  map[string]string
 // @Failure      500       {object}  map[string]string
 // @Router       /api/v1/empregabilidade/candidatura-bloqueios [get]
 func (h *CandidaturaBloqueioHandler) List(c *gin.Context) {
@@ -112,7 +114,12 @@ func (h *CandidaturaBloqueioHandler) List(c *gin.Context) {
 		filter["id_vaga"] = id
 	}
 
-	entities, total, err := h.service.List(c.Request.Context(), filter, page, pageSize)
+	// Com o RBAC ligado, VagaListFilter injeta o escopo de órgão do editor; os
+	// bloqueios (com CPF do cidadão) ficam restritos às vagas desse escopo
+	// (DEV-518). nil (admin ou RBAC desligado) não restringe.
+	orgaoParceiroIDs := middlewares.GetVagaOrgaoParceiroIDs(c)
+
+	entities, total, err := h.service.List(c.Request.Context(), filter, orgaoParceiroIDs, page, pageSize)
 	if err != nil {
 		handleCandidaturaBloqueioError(c, err)
 		return

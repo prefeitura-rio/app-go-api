@@ -90,27 +90,38 @@ func registerEmpregabilidadeRoutes(apiV1, apiPublic *gin.RouterGroup, app *wire.
 	}
 
 	// Candidaturas
+	// A gestão (listagem com CPF do candidato, status e etapa) exige perfil de
+	// empregabilidade mesmo com RBAC_ENABLED=false (DEV-435); com o RBAC ligado,
+	// vagaAuth exige também o escopo de órgão/secretaria do editor e
+	// vagaListFilter restringe o editor às candidaturas de vagas desse escopo
+	// (DEV-517).
+	candidaturaGestaoAuth := middlewares.CandidaturaGestaoAuthorization()
 	empCandidaturas := emp.Group("/candidaturas")
 	{
 		empCandidaturas.POST("", app.EmpCandidaturaHandler.Create)
-		empCandidaturas.GET("", vagaAuth, app.EmpCandidaturaHandler.List)
-		empCandidaturas.PUT("/bulk-status", vagaAuth, app.EmpCandidaturaHandler.BulkUpdateStatus)
-		empCandidaturas.PUT("/bulk-etapa", vagaAuth, app.EmpCandidaturaHandler.BulkUpdateEtapa)
-		empCandidaturas.GET("/usuario/:cpf", app.EmpCandidaturaHandler.ListByCPF)
+		empCandidaturas.GET("", candidaturaGestaoAuth, vagaAuth, vagaListFilter, app.EmpCandidaturaHandler.List)
+		empCandidaturas.PUT("/bulk-status", candidaturaGestaoAuth, vagaAuth, vagaListFilter, app.EmpCandidaturaHandler.BulkUpdateStatus)
+		empCandidaturas.PUT("/bulk-etapa", candidaturaGestaoAuth, vagaAuth, vagaListFilter, app.EmpCandidaturaHandler.BulkUpdateEtapa)
+		empCandidaturas.GET("/usuario/:cpf", vagaListFilter, app.EmpCandidaturaHandler.ListByCPF)
+		empCandidaturas.PUT("/usuario/:cpf/visualizar", app.EmpCandidaturaHandler.MarcarAtualizacoesVistas)
 		empCandidaturas.GET("/:id", app.EmpCandidaturaHandler.GetByID)
 		empCandidaturas.PUT("/:id", app.EmpCandidaturaHandler.Update)
 		empCandidaturas.DELETE("/:id", app.EmpCandidaturaHandler.Delete)
-		empCandidaturas.PUT("/:id/status", vagaAuth, app.EmpCandidaturaHandler.UpdateStatus)
-		empCandidaturas.PUT("/:id/approve", vagaAuth, app.EmpCandidaturaHandler.Approve)
-		empCandidaturas.PUT("/:id/reject", vagaAuth, app.EmpCandidaturaHandler.Reject)
-		empCandidaturas.PUT("/:id/etapa", vagaAuth, app.EmpCandidaturaHandler.UpdateEtapa)
+		empCandidaturas.PUT("/:id/status", candidaturaGestaoAuth, vagaAuth, vagaListFilter, app.EmpCandidaturaHandler.UpdateStatus)
+		empCandidaturas.PUT("/:id/approve", candidaturaGestaoAuth, vagaAuth, vagaListFilter, app.EmpCandidaturaHandler.Approve)
+		empCandidaturas.PUT("/:id/reject", candidaturaGestaoAuth, vagaAuth, vagaListFilter, app.EmpCandidaturaHandler.Reject)
+		empCandidaturas.PUT("/:id/etapa", candidaturaGestaoAuth, vagaAuth, vagaListFilter, app.EmpCandidaturaHandler.UpdateEtapa)
 	}
 
 	// Candidatura Bloqueios (tentativas de candidatura bloqueadas por critérios de elegibilidade)
 	empCandidaturaBloqueios := emp.Group("/candidatura-bloqueios")
 	{
 		empCandidaturaBloqueios.POST("", app.EmpCandidaturaBloqueioHandler.Create)
-		empCandidaturaBloqueios.GET("", vagaAuth, app.EmpCandidaturaBloqueioHandler.List)
+		// A listagem traz CPFs de cidadãos: CandidaturaBloqueioListAuthorization vale
+		// mesmo com RBAC_ENABLED=false (DEV-434); com o RBAC ligado, vagaAuth exige
+		// também o escopo de órgão/secretaria do editor e vagaListFilter restringe
+		// a listagem aos bloqueios de vagas desse escopo (DEV-518).
+		empCandidaturaBloqueios.GET("", middlewares.CandidaturaBloqueioListAuthorization(), vagaAuth, vagaListFilter, app.EmpCandidaturaBloqueioHandler.List)
 	}
 
 	// Curriculo

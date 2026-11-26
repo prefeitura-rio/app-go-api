@@ -37,8 +37,20 @@ const bancoCurriculosSelect = `
 			LIMIT 1
 		) AS profissao`
 
+// condicaoCurriculoMinimo é o currículo mínimo para se candidatar
+// (pendenciasCurriculoMinimo, no service) em SQL: termos de uso aceitos e
+// situação atual, com o tempo procurando emprego para quem está sem trabalho.
+// O banco segue a regra das vagas: sem o mínimo, o currículo fica fora da
+// listagem dos recrutadores mesmo disponível. Recebe
+// empregabilidade.SituacoesProcurandoEmprego como argumentos.
+const condicaoCurriculoMinimo = `EXISTS (SELECT 1 FROM emp_termos_uso t WHERE t.cpf = c.cpf AND t.user_consent)` +
+	` AND EXISTS (SELECT 1 FROM emp_curriculo_situacao_interesses si` +
+	` LEFT JOIN emp_situacoes_atual sa ON sa.id = si.id_situacao` +
+	` WHERE si.cpf = c.cpf AND si.id_situacao IS NOT NULL` +
+	` AND (sa.descricao IS NULL OR sa.descricao NOT IN (?,?) OR btrim(COALESCE(si.tempo_procurando_emprego, '')) <> ''))`
+
 // ListBancoCurriculos lista os currículos da base (ou só os que o cidadão deixou
-// disponíveis, com SomenteDisponiveis), com os dados pessoais do cadastro do
+// disponíveis e com o currículo mínimo, com SomenteDisponiveis), com os dados pessoais do cadastro do
 // cidadão quando existirem, do mais recente para o mais antigo.
 func (r *CurriculoRepository) ListBancoCurriculos(ctx context.Context, filter empregabilidade.BancoCurriculoFilter, page, pageSize int) ([]*empregabilidade.BancoCurriculoItem, int64, error) {
 	var where string
@@ -68,9 +80,12 @@ func (r *CurriculoRepository) ListBancoCurriculos(ctx context.Context, filter em
 	}
 	if filter.SomenteDisponiveis {
 		if where == "" {
-			where = " WHERE c.disponivel_banco"
+			where = " WHERE c.disponivel_banco AND " + condicaoCurriculoMinimo
 		} else {
-			where += " AND c.disponivel_banco"
+			where += " AND c.disponivel_banco AND " + condicaoCurriculoMinimo
+		}
+		for _, situacao := range empregabilidade.SituacoesProcurandoEmprego {
+			args = append(args, situacao)
 		}
 	}
 

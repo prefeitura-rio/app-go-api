@@ -53,8 +53,27 @@ func TestNewEngine_RecoversFromPanic(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
-// Every request, panics included, feeds the per-endpoint latency histogram the
-// production latency alert reads.
+func TestNewEngine_LogsOneLinePerRequest(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var out bytes.Buffer
+	previous := gin.DefaultWriter
+	gin.DefaultWriter = &out
+	t.Cleanup(func() { gin.DefaultWriter = previous })
+
+	r := newEngine()
+	r.GET("/health", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/health", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	lines := bytes.Split(bytes.TrimSpace(out.Bytes()), []byte("\n"))
+	assert.Len(t, lines, 1, "expected a single access log line, got %q", out.String())
+	assert.Contains(t, out.String(), "[GIN]")
+}
+
+// Every request, panics included, feeds the per-route latency histogram the
+// production latency alert reads (monitoring/prometheus/alerting-rules.yaml).
 func TestNewEngine_RecordsRequestLatencyByRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	previousOut, previousErr := gin.DefaultWriter, gin.DefaultErrorWriter

@@ -122,6 +122,9 @@ type Curso struct {
 	// Auto-approve enrollments - when true, new enrollments are automatically approved instead of pending
 	AutoApproveEnrollments *bool `json:"auto_approve_enrollments,omitempty" gorm:"column:auto_approve_enrollments;default:false" example:"false" extensions:"x-nullable"`
 
+	// Gratuito informa se o curso é gratuito (true) ou pago (false). Na criação, ausente vale true; no PUT, ausente preserva o valor gravado. As respostas sempre trazem o campo.
+	Gratuito *bool `json:"gratuito" gorm:"column:gratuito;not null;default:true" example:"true"`
+
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
@@ -140,6 +143,11 @@ type Curso struct {
 // TableName especifica o nome da tabela para este modelo
 func (Curso) TableName() string {
 	return "cursos"
+}
+
+// IsGratuito devolve o valor de Gratuito, com o padrão da coluna (true) quando não foi carregado.
+func (c *Curso) IsGratuito() bool {
+	return c.Gratuito == nil || *c.Gratuito
 }
 
 // Validation methods

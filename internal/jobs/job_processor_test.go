@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -127,24 +128,28 @@ func createTestJob(jobType models.JobType, metadata datatypes.JSON) *models.Job 
 	}
 }
 
-// setupTestDB creates an in-memory SQLite database for testing
+// setupTestDB creates a SQLite database in a per-test temporary file.
 func setupTestDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+	// A file, not ":memory:": database/sql discards the connection of a
+	// transaction cancelled mid-flight (the heartbeat's update when its context
+	// is cancelled), and a new ":memory:" connection would open an empty
+	// database without the tables (DEV-723). Reopening the file keeps the data.
+	dsn := filepath.Join(t.TempDir(), "jobs.db") + "?_synchronous=OFF"
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
 	}
 
-	// Each new connection to ":memory:" opens a separate, empty database, so
-	// goroutines running jobs in parallel could land on a connection without
-	// the tables. Keep the pool at a single connection so everyone sees the
-	// same database.
+	// Keep the pool at a single connection so goroutines running jobs in
+	// parallel never contend for the SQLite write lock.
 	sqlDB, err := db.DB()
 	if err != nil {
 		t.Fatalf("Failed to get underlying sql.DB: %v", err)
 	}
 	sqlDB.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	// Create tables manually to avoid PostgreSQL-specific syntax issues with AutoMigrate
 	// Jobs table

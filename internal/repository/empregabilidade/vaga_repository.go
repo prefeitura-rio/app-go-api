@@ -2,6 +2,8 @@ package empregabilidade
 
 import (
 	"context"
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -24,9 +26,14 @@ func NewVagaRepository(db *gorm.DB) *VagaRepository {
 }
 
 func (r *VagaRepository) Create(ctx context.Context, entity *empregabilidade.Vaga) (uuid.UUID, error) {
-	result := r.db.WithContext(ctx).Create(entity)
-	if result.Error != nil {
-		return uuid.Nil, fmt.Errorf("erro ao criar vaga: %w", result.Error)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(entity).Error; err != nil {
+			return fmt.Errorf("erro ao criar vaga: %w", err)
+		}
+		return gravarHabilidadesCompetencias(tx, entity)
+	})
+	if err != nil {
+		return uuid.Nil, err
 	}
 	return entity.ID, nil
 }
@@ -65,6 +72,63 @@ func (r *VagaRepository) ExistsByID(ctx context.Context, id uuid.UUID) (bool, er
 	return count > 0, nil
 }
 
+// jsonbStringSlice leva um []string a uma coluna jsonb num Updates com map,
+// que não passa pelo serializer:json do GORM (sem ele, o slice vira a
+// expressão ("a","b"), que o Postgres recusa). O valor vai como texto JSON e,
+// com a lista vazia ou ausente, a coluna fica NULL.
+type jsonbStringSlice []string
+
+func (s jsonbStringSlice) Value() (driver.Value, error) {
+	if len(s) == 0 {
+		return nil, nil
+	}
+	raw, err := json.Marshal([]string(s))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao serializar lista para jsonb: %w", err)
+	}
+	return string(raw), nil
+}
+
+// criteriosBloqueioValue prepara criterios_bloqueio para um Updates com map,
+// que não passa pelo serializer do GORM: o JSON vai como texto e, sem nenhum
+// critério ligado, a coluna fica NULL (o desligado não é gravado).
+func criteriosBloqueioValue(criterios []empregabilidade.CriterioBloqueio) (interface{}, error) {
+	if len(criterios) == 0 {
+		return nil, nil
+	}
+	raw, err := json.Marshal(criterios)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao serializar critérios de bloqueio: %w", err)
+	}
+	return string(raw), nil
+}
+
+// opcaoPCDValue grava aberta, o padrão da coluna, quando a vaga chega sem a
+// opção PcD: a coluna é NOT NULL e só aceita as três opções.
+func opcaoPCDValue(opcao empregabilidade.OpcaoPCD) string {
+	if opcao == "" {
+		return string(empregabilidade.OpcaoPCDAberta)
+	}
+	return string(opcao)
+}
+
+// experienciaCarteiraValue grava o tempo exigido como texto, ou NULL quando a
+// vaga não exige experiência em carteira.
+func experienciaCarteiraValue(exigencia *empregabilidade.ExperienciaCarteira) interface{} {
+	if exigencia == nil || *exigencia == "" {
+		return nil
+	}
+	return string(*exigencia)
+}
+
+// setJovemAprendiz grava a opção Jovem Aprendiz quando a vaga a traz; sem
+// ela, a coluna não entra no UPDATE e o valor gravado fica.
+func setJovemAprendiz(updates map[string]interface{}, jovemAprendiz *bool) {
+	if jovemAprendiz != nil {
+		updates["jovem_aprendiz"] = *jovemAprendiz
+	}
+}
+
 func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vaga) error {
 	updates := map[string]interface{}{
 		"titulo":                           entity.Titulo,
@@ -85,10 +149,18 @@ func (r *VagaRepository) Update(ctx context.Context, entity *empregabilidade.Vag
 		"status":                           entity.Status,
 		"idade_minima":                     entity.IdadeMinima,
 		"idade_maxima":                     entity.IdadeMaxima,
-		"bairros_elegibilidade":            entity.BairrosElegibilidade,
+		"bairros_elegibilidade":            jsonbStringSlice(entity.BairrosElegibilidade),
 		"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
-		"areas_formacao_elegibilidade":     entity.AreasFormacaoElegibilidade,
+		"areas_formacao_elegibilidade":     jsonbStringSlice(entity.AreasFormacaoElegibilidade),
+		"opcao_pcd":                        opcaoPCDValue(entity.OpcaoPCD),
+		"experiencia_carteira":             experienciaCarteiraValue(entity.ExperienciaCarteira),
 	}
+	criterios, err := criteriosBloqueioValue(entity.CriteriosBloqueio)
+	if err != nil {
+		return err
+	}
+	updates["criterios_bloqueio"] = criterios
+	setJovemAprendiz(updates, entity.JovemAprendiz)
 
 	result := r.db.WithContext(ctx).
 		Model(&empregabilidade.Vaga{}).
@@ -121,10 +193,18 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			"status":                           entity.Status,
 			"idade_minima":                     entity.IdadeMinima,
 			"idade_maxima":                     entity.IdadeMaxima,
-			"bairros_elegibilidade":            entity.BairrosElegibilidade,
+			"bairros_elegibilidade":            jsonbStringSlice(entity.BairrosElegibilidade),
 			"id_escolaridade_minima":           entity.IDEscolaridadeMinima,
-			"areas_formacao_elegibilidade":     entity.AreasFormacaoElegibilidade,
+			"areas_formacao_elegibilidade":     jsonbStringSlice(entity.AreasFormacaoElegibilidade),
+			"opcao_pcd":                        opcaoPCDValue(entity.OpcaoPCD),
+			"experiencia_carteira":             experienciaCarteiraValue(entity.ExperienciaCarteira),
 		}
+		criterios, err := criteriosBloqueioValue(entity.CriteriosBloqueio)
+		if err != nil {
+			return err
+		}
+		updates["criterios_bloqueio"] = criterios
+		setJovemAprendiz(updates, entity.JovemAprendiz)
 
 		if err := tx.Model(&empregabilidade.Vaga{}).Where("id = ?", entity.ID).Updates(updates).Error; err != nil {
 			return fmt.Errorf("erro ao atualizar vaga: %w", err)
@@ -164,7 +244,7 @@ func (r *VagaRepository) UpdateWithAssociations(ctx context.Context, entity *emp
 			}
 		}
 
-		return nil
+		return substituirHabilidadesCompetencias(tx, entity)
 	})
 }
 
@@ -201,21 +281,27 @@ func syncEtapas(tx *gorm.DB, vagaID uuid.UUID, etapas []empregabilidade.Etapa) e
 		existentesIDs = append(existentesIDs, id)
 	}
 
-	// Desvincula candidaturas somente das etapas que serão removidas.
-	clearQuery := tx.Model(&empregabilidade.Candidatura{})
+	// Desvincula candidaturas somente das etapas que serão removidas. Só as
+	// candidaturas não excluídas são travadas e ganham evento etapa_removida;
+	// o UPDATE é Unscoped porque a candidatura excluída (soft delete) também
+	// aponta para a etapa pela FK e impediria o DELETE abaixo (DEV-533).
+	condicaoRemovidas := "id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)"
+	argsRemovidas := []interface{}{vagaID}
 	if len(existentesIDs) > 0 {
-		clearQuery = clearQuery.Where(
-			"id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ? AND id NOT IN ?)",
-			vagaID, existentesIDs,
-		)
-	} else {
-		clearQuery = clearQuery.Where(
-			"id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ?)",
-			vagaID,
-		)
+		condicaoRemovidas = "id_etapa_atual IN (SELECT id FROM emp_etapas WHERE id_vaga = ? AND id NOT IN ?)"
+		argsRemovidas = append(argsRemovidas, existentesIDs)
 	}
-	if err := clearQuery.Update("id_etapa_atual", nil).Error; err != nil {
+	desvinculadas, err := travarCandidaturas(tx, condicaoRemovidas, argsRemovidas...)
+	if err != nil {
+		return err
+	}
+	if err := tx.Unscoped().Model(&empregabilidade.Candidatura{}).
+		Where(condicaoRemovidas, argsRemovidas...).
+		Update("id_etapa_atual", nil).Error; err != nil {
 		return fmt.Errorf("erro ao desvincular etapas das candidaturas: %w", err)
+	}
+	if err := registrarEtapasRemovidas(tx, desvinculadas); err != nil {
+		return err
 	}
 
 	deleteQuery := tx.Where("id_vaga = ?", vagaID)
@@ -240,7 +326,7 @@ func syncEtapas(tx *gorm.DB, vagaID uuid.UUID, etapas []empregabilidade.Etapa) e
 
 		if err := tx.Model(&empregabilidade.Etapa{}).
 			Where("id = ? AND id_vaga = ?", etapas[i].ID, vagaID).
-			Select("titulo", "descricao", "ordem").
+			Select(camposAtualizaveisEtapa(&etapas[i])).
 			Updates(&etapas[i]).Error; err != nil {
 			return fmt.Errorf("erro ao atualizar etapa: %w", err)
 		}

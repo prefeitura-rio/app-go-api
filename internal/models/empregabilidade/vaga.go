@@ -1,6 +1,7 @@
 package empregabilidade
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -41,6 +42,9 @@ func (s StatusVaga) IsPublished() bool {
 	return false
 }
 
+// AcessibilidadePCD é o campo antigo "Acessibilidade PcD", descontinuado
+// (DEV-407): a opção PcD da vaga é OpcaoPCD. A coluna continua preenchida a
+// partir de OpcaoPCD para quem ainda lê ou filtra por ela.
 type AcessibilidadePCD string
 
 const (
@@ -57,6 +61,219 @@ func (a AcessibilidadePCD) IsValid() bool {
 	return false
 }
 
+// OpcaoPCD diz se a vaga é aberta a todos, preferencial ou exclusiva para
+// pessoas com deficiência (história PREF-632). Os tipos de deficiência aceitos
+// ficam em Vaga.TiposPCD e o bloqueio de candidatura, em CriteriosBloqueio
+// (chave CriterioBloqueioPCD).
+type OpcaoPCD string
+
+const (
+	OpcaoPCDAberta       OpcaoPCD = "aberta"
+	OpcaoPCDPreferencial OpcaoPCD = "preferencial"
+	OpcaoPCDExclusiva    OpcaoPCD = "exclusiva"
+)
+
+// MsgTipoPCDObrigatorio é o erro da vaga exclusiva sem tipo de deficiência.
+const MsgTipoPCDObrigatorio = "Selecione ao menos um tipo de deficiência."
+
+func (o OpcaoPCD) IsValid() bool {
+	switch o {
+	case OpcaoPCDAberta, OpcaoPCDPreferencial, OpcaoPCDExclusiva:
+		return true
+	}
+	return false
+}
+
+// OpcaoPCDDeAcessibilidade é o de/para do campo antigo: sem acessibilidade
+// ("Vaga PcD" desmarcada) é aberta; preferencial_pcd é preferencial;
+// exclusivo_pcd é exclusiva; para_pcd ("Vaga PcD" marcada sem modalidade) é
+// preferencial, que não bloqueia ninguém. A migração das vagas antigas usa a
+// mesma regra.
+func OpcaoPCDDeAcessibilidade(a *AcessibilidadePCD) OpcaoPCD {
+	if a == nil {
+		return OpcaoPCDAberta
+	}
+	if *a == AcessibilidadeExclusivoPCD {
+		return OpcaoPCDExclusiva
+	}
+	return OpcaoPCDPreferencial
+}
+
+// AcessibilidadeLegada é o valor do campo antigo que corresponde à opção,
+// gravado junto para os clientes que ainda o leem (nil para aberta).
+func (o OpcaoPCD) AcessibilidadeLegada() *AcessibilidadePCD {
+	var a AcessibilidadePCD
+	switch o {
+	case OpcaoPCDPreferencial:
+		a = AcessibilidadePreferencialPCD
+	case OpcaoPCDExclusiva:
+		a = AcessibilidadeExclusivoPCD
+	default:
+		return nil
+	}
+	return &a
+}
+
+// CriterioBloqueio identifica um critério de elegibilidade da vaga cujo
+// bloqueio de candidatura pode ser ligado ou desligado. A vaga guarda só os
+// critérios ligados (CriteriosBloqueio); o que não está na lista está
+// desligado, que é o padrão. Critério novo (PcD, idade, experiência) entra
+// como uma constante a mais e uma entrada em criteriosBloqueioConhecidos.
+type CriterioBloqueio string
+
+const (
+	// CriterioBloqueioEscolaridade é a escolaridade mínima (formação).
+	CriterioBloqueioEscolaridade CriterioBloqueio = "escolaridade"
+	// CriterioBloqueioIdioma são os requisitos de idioma.
+	CriterioBloqueioIdioma CriterioBloqueio = "idioma"
+	// CriterioBloqueioPCD é o critério PcD (vaga exclusiva). "pcd" é também o
+	// slug do critério em CandidaturaBloqueio.CriteriosNaoAtendidos.
+	CriterioBloqueioPCD CriterioBloqueio = "pcd"
+	// CriterioBloqueioExperienciaCarteira é a experiência comprovada em
+	// carteira (DEV-424), com o tempo exigido em Vaga.ExperienciaCarteira.
+	// "experiencia_carteira" é também o slug do critério em
+	// CandidaturaBloqueio.CriteriosNaoAtendidos.
+	CriterioBloqueioExperienciaCarteira CriterioBloqueio = "experiencia_carteira"
+	// CriterioBloqueioJovemAprendiz é a opção Jovem Aprendiz da seção Idade
+	// (DEV-428), com a faixa fixa de IdadeMinimaJovemAprendiz a
+	// IdadeMaximaJovemAprendiz anos. "jovem_aprendiz" é também o slug do
+	// critério em CandidaturaBloqueio.CriteriosNaoAtendidos. A opção Maiores de
+	// 18 continua sendo Vaga.IdadeMinima, com o slug "idade_minima".
+	CriterioBloqueioJovemAprendiz CriterioBloqueio = "jovem_aprendiz"
+)
+
+// criteriosBloqueioConhecidos são os critérios aceitos, na ordem em que são
+// gravados e devolvidos.
+var criteriosBloqueioConhecidos = []CriterioBloqueio{
+	CriterioBloqueioEscolaridade,
+	CriterioBloqueioIdioma,
+	CriterioBloqueioPCD,
+	CriterioBloqueioExperienciaCarteira,
+	CriterioBloqueioJovemAprendiz,
+}
+
+func (c CriterioBloqueio) IsValid() bool {
+	for _, conhecido := range criteriosBloqueioConhecidos {
+		if c == conhecido {
+			return true
+		}
+	}
+	return false
+}
+
+// NormalizarCriteriosBloqueio confere as chaves, tira as repetidas e põe na
+// ordem de criteriosBloqueioConhecidos. Sem nenhum critério ligado devolve
+// nil, para que o desligado nunca seja gravado na vaga.
+func NormalizarCriteriosBloqueio(criterios []CriterioBloqueio) ([]CriterioBloqueio, error) {
+	ligados := make(map[CriterioBloqueio]bool, len(criterios))
+	for _, c := range criterios {
+		if !c.IsValid() {
+			return nil, fmt.Errorf("critério de bloqueio desconhecido: %q", string(c))
+		}
+		ligados[c] = true
+	}
+	if len(ligados) == 0 {
+		return nil, nil
+	}
+	normalizados := make([]CriterioBloqueio, 0, len(ligados))
+	for _, c := range criteriosBloqueioConhecidos {
+		if ligados[c] {
+			normalizados = append(normalizados, c)
+		}
+	}
+	return normalizados, nil
+}
+
+// ExperienciaCarteira é o tempo de experiência comprovada em carteira que a
+// vaga exige (DEV-424, história PREF-633): qualquer tempo ou o mínimo fixo de
+// 6 meses. O bloqueio de candidatura é a chave
+// CriterioBloqueioExperienciaCarteira de Vaga.CriteriosBloqueio.
+type ExperienciaCarteira string
+
+const (
+	// ExperienciaCarteiraQualquerTempo pede ao menos uma experiência
+	// comprovada em carteira, de qualquer duração.
+	ExperienciaCarteiraQualquerTempo ExperienciaCarteira = "qualquer_tempo"
+	// ExperienciaCarteiraMinimo6Meses pede MesesMinimosExperienciaCarteira
+	// somados entre as experiências comprovadas em carteira.
+	ExperienciaCarteiraMinimo6Meses ExperienciaCarteira = "minimo_6_meses"
+)
+
+// MesesMinimosExperienciaCarteira é o prazo fixo da opção "mínimo de 6 meses".
+const MesesMinimosExperienciaCarteira = 6
+
+// MsgExperienciaCarteiraObrigatoria é o erro do bloqueio de experiência em
+// carteira ligado sem o tempo exigido.
+const MsgExperienciaCarteiraObrigatoria = "Selecione o tempo de experiência em carteira exigido (qualquer_tempo ou minimo_6_meses)."
+
+func (e ExperienciaCarteira) IsValid() bool {
+	return e == ExperienciaCarteiraQualquerTempo || e == ExperienciaCarteiraMinimo6Meses
+}
+
+// Atende diz se as experiências do currículo cumprem a exigência. Só contam
+// as comprovadas em carteira (experiencia_comprovada_ct): qualquer tempo pede
+// ao menos uma; o mínimo de 6 meses soma tempo_experiencia_meses entre elas
+// (sem tempo informado, ou negativo, conta zero). É a mesma regra do filtro
+// carteira do banco de currículos (sim / 6_meses).
+func (e ExperienciaCarteira) Atende(experiencias []*CurriculoExperiencia) bool {
+	algumaEmCarteira := false
+	totalMeses := 0
+	for _, exp := range experiencias {
+		if exp == nil || !exp.ExperienciaComprovadaCT {
+			continue
+		}
+		algumaEmCarteira = true
+		if exp.TempoExperienciaMeses != nil && *exp.TempoExperienciaMeses > 0 {
+			totalMeses += *exp.TempoExperienciaMeses
+		}
+	}
+	switch e {
+	case ExperienciaCarteiraQualquerTempo:
+		return algumaEmCarteira
+	case ExperienciaCarteiraMinimo6Meses:
+		return totalMeses >= MesesMinimosExperienciaCarteira
+	}
+	return false
+}
+
+// Requisito é o texto do requisito, como aparece na lista do que o candidato
+// não atende.
+func (e ExperienciaCarteira) Requisito() string {
+	if e == ExperienciaCarteiraMinimo6Meses {
+		return fmt.Sprintf("Experiência comprovada em carteira — mínimo de %d meses", MesesMinimosExperienciaCarteira)
+	}
+	return "Experiência comprovada em carteira"
+}
+
+// Faixa fixa da opção Jovem Aprendiz da seção Idade (DEV-428, história
+// PREF-634), sem campo livre de número: a vaga só marca a opção
+// (Vaga.JovemAprendiz).
+const (
+	IdadeMinimaJovemAprendiz = 14
+	IdadeMaximaJovemAprendiz = 24
+)
+
+// MsgJovemAprendizObrigatorio é o erro do bloqueio Jovem Aprendiz ligado sem a
+// opção marcada.
+const MsgJovemAprendizObrigatorio = "Marque a opção Jovem Aprendiz (jovem_aprendiz) para ligar o bloqueio jovem_aprendiz."
+
+// MsgIdadeCriterioUnico é o erro da vaga com os dois critérios de idade ativos
+// ao mesmo tempo (DEV-443): Maiores de 18 (idade_minima) e Jovem Aprendiz com
+// o bloqueio jovem_aprendiz ligado.
+const MsgIdadeCriterioUnico = "Escolha só um critério de idade: Maiores de 18 (idade_minima) ou Jovem Aprendiz (jovem_aprendiz com o bloqueio jovem_aprendiz), não os dois."
+
+// AtendeJovemAprendiz diz se a idade está na faixa de Jovem Aprendiz, com as
+// duas pontas incluídas. Idade desconhecida não atende.
+func AtendeJovemAprendiz(idade *int) bool {
+	return idade != nil && *idade >= IdadeMinimaJovemAprendiz && *idade <= IdadeMaximaJovemAprendiz
+}
+
+// RequisitoJovemAprendiz é o texto do requisito, como aparece na lista do que
+// o candidato não atende.
+func RequisitoJovemAprendiz() string {
+	return fmt.Sprintf("Jovem Aprendiz — ter entre %d e %d anos", IdadeMinimaJovemAprendiz, IdadeMaximaJovemAprendiz)
+}
+
 type Vaga struct {
 	ID                             uuid.UUID          `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Titulo                         string             `json:"titulo" gorm:"type:varchar(500);not null"`
@@ -65,6 +282,7 @@ type Vaga struct {
 	IDRegimeContratacao            uuid.UUID          `json:"id_regime_contratacao" gorm:"type:uuid;not null"`
 	IDModeloTrabalho               uuid.UUID          `json:"id_modelo_trabalho" gorm:"type:uuid;not null"`
 	AcessibilidadePCD              *AcessibilidadePCD `json:"acessibilidade_pcd,omitempty" gorm:"type:acessibilidade_pcd_enum"`
+	OpcaoPCD                       OpcaoPCD           `json:"opcao_pcd" gorm:"type:varchar(20);not null"`
 	ValorVaga                      *float64           `json:"valor_vaga" gorm:"type:decimal(12,2)" extensions:"x-nullable"`
 	QuantidadeEstimadaContratacoes *int               `json:"quantidade_estimada_contratacoes,omitempty" gorm:"type:integer"`
 	Bairro                         string             `json:"bairro" gorm:"type:varchar(255)"`
@@ -86,6 +304,38 @@ type Vaga struct {
 	BairrosElegibilidade       []string   `json:"bairros_elegibilidade,omitempty" gorm:"type:jsonb;serializer:json"`
 	IDEscolaridadeMinima       *uuid.UUID `json:"id_escolaridade_minima,omitempty" gorm:"type:uuid"`
 	AreasFormacaoElegibilidade []string   `json:"areas_formacao_elegibilidade,omitempty" gorm:"type:jsonb;serializer:json"`
+	// ExperienciaCarteira é o tempo de experiência em carteira exigido
+	// (qualquer_tempo ou minimo_6_meses); null = sem exigência. Sempre
+	// devolvido. Com a chave experiencia_carteira em criterios_bloqueio é
+	// obrigatório. No PUT, o campo ausente (ou null) mantém o valor gravado e
+	// "" remove a exigência.
+	ExperienciaCarteira *ExperienciaCarteira `json:"experiencia_carteira" gorm:"type:varchar(20)" swaggertype:"string" enums:"qualquer_tempo,minimo_6_meses" extensions:"x-nullable"`
+	// JovemAprendiz é a opção Jovem Aprendiz da seção Idade: faixa fixa de 14
+	// a 24 anos, sem número livre (a opção Maiores de 18 é IdadeMinima).
+	// Sempre devolvido; vaga nova sem o campo, e toda vaga anterior a ele,
+	// fica desligada. Com a chave jovem_aprendiz em criterios_bloqueio precisa
+	// ser true. No PUT, o campo ausente (ou null) mantém o valor gravado.
+	JovemAprendiz *bool `json:"jovem_aprendiz" gorm:"type:boolean;not null" swaggertype:"boolean" example:"false"`
+	// CriteriosBloqueio lista os critérios com bloqueio de candidatura ligado;
+	// os ausentes estão desligados. Sempre devolvido ([] quando nenhum). No
+	// PUT, o campo ausente mantém o estado gravado e [] desliga todos.
+	CriteriosBloqueio []CriterioBloqueio `json:"criterios_bloqueio" gorm:"type:jsonb;serializer:json"`
+
+	// Habilidades e competências da vaga (DEV-524), fora da tabela emp_vagas.
+	// Só a gestão (POST, PUT e GET /api/v1/empregabilidade/vagas/{id}) os
+	// devolve, sempre como lista ([] na vaga sem registro); rotas públicas,
+	// listagens e candidaturas não os trazem. No PUT, o campo ausente (ou null)
+	// mantém o gravado e a lista enviada substitui o conjunto inteiro ([] apaga
+	// tudo). Publicar ou enviar para aprovação exige ao menos uma área, ao
+	// menos um conhecimento em cada área e ao menos um comportamento; o
+	// rascunho não exige nada.
+	AreasAtuacao *[]VagaAreaAtuacao `json:"areas_atuacao,omitempty" gorm:"-"`
+	// ComportamentoAtitudesIDs são os ids dos comportamentos/atitudes da vaga
+	// (catálogo GET /api/v1/empregabilidade/comportamentos-atitudes).
+	ComportamentoAtitudesIDs *[]int64 `json:"comportamento_atitudes_ids,omitempty" gorm:"-"`
+	// ComportamentosAtitudes são os mesmos comportamentos com o nome; só na
+	// resposta, ignorado na entrada.
+	ComportamentosAtitudes *[]CatalogoItem `json:"comportamentos_atitudes,omitempty" gorm:"-"`
 
 	// Relationships
 	Contratante               *Empresa                 `json:"contratante,omitempty" gorm:"foreignKey:IDContratante;references:CNPJ"`
@@ -110,7 +360,31 @@ func BuildVagaSlug(titulo string, id uuid.UUID) string {
 
 func (v *Vaga) AfterFind(_ *gorm.DB) error {
 	v.Slug = BuildVagaSlug(v.Titulo, v.ID)
+	if v.CriteriosBloqueio == nil {
+		v.CriteriosBloqueio = []CriterioBloqueio{}
+	}
+	if v.OpcaoPCD == "" {
+		v.OpcaoPCD = OpcaoPCDAberta
+	}
+	v.desligaJovemAprendizSemValor()
 	return nil
+}
+
+func (v *Vaga) BeforeCreate(_ *gorm.DB) error {
+	if v.OpcaoPCD == "" {
+		v.OpcaoPCD = OpcaoPCDAberta
+	}
+	v.desligaJovemAprendizSemValor()
+	return nil
+}
+
+// desligaJovemAprendizSemValor deixa a opção Jovem Aprendiz desligada quando a
+// vaga não a traz: o padrão de toda vaga.
+func (v *Vaga) desligaJovemAprendizSemValor() {
+	if v.JovemAprendiz == nil {
+		desligado := false
+		v.JovemAprendiz = &desligado
+	}
 }
 
 type VagaFilter struct {

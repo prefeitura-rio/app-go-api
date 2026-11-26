@@ -120,6 +120,14 @@ func (m *MockCNAEValidationService) CheckCNPJOwnership(ctx context.Context, auth
 	return true, nil
 }
 
+// meiGestorContext gives the caller a MEI management profile, which the
+// proposal listings require (DEV-478); the negative cases live in
+// internal/router/routes_core_mei_test.go.
+func meiGestorContext(c *gin.Context) {
+	c.Set("user_roles", []string{"go:empregabilidade:editor"})
+	c.Next()
+}
+
 func setupRouter(service *MockPropostaMEIService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -158,11 +166,11 @@ func setupRouter(service *MockPropostaMEIService) *gin.Engine {
 		api.PUT("/:propostaId/status", handler.UpdateStatus)
 		api.PUT("/status", handler.UpdateStatusBulk)
 		api.DELETE("/:propostaId", handler.Delete)
-		api.GET("", handler.List)
+		api.GET("", meiGestorContext, handler.List)
 	}
 
 	// Additional route for ListByMEIEmpresa
-	r.GET("/api/v1/propostas-mei/por-empresa", handler.ListByMEIEmpresa)
+	r.GET("/api/v1/propostas-mei/por-empresa", mockUserContext, meiGestorContext, handler.ListByMEIEmpresa)
 
 	return r
 }

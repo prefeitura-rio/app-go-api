@@ -417,6 +417,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.OportunidadeMEIListResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2074,15 +2080,13 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Idade mínima",
-                        "name": "idade_min",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Idade máxima",
-                        "name": "idade_max",
+                        "enum": [
+                            "maiores_de_18",
+                            "jovem_aprendiz"
+                        ],
+                        "type": "string",
+                        "description": "Faixa etária pela data de nascimento do cadastro: maiores_de_18 (18 anos ou mais) ou jovem_aprendiz (14 a 24 anos); sem data de nascimento fica de fora",
+                        "name": "faixa_etaria",
                         "in": "query"
                     },
                     {
@@ -2406,7 +2410,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/candidatura-bloqueios": {
             "get": {
-                "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a administradores.",
+                "description": "Retorna lista paginada de bloqueios de candidatura, com filtros opcionais. Restrito a ADMIN, go:empregabilidade:admin e editores de Empregabilidade (com o RBAC ligado, o editor precisa também de escopo de órgão/secretaria e só vê bloqueios de vagas dos órgãos desse escopo); os demais recebem 403.",
                 "produces": [
                     "application/json"
                 ],
@@ -2457,6 +2461,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2469,7 +2482,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.\nPara o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.",
+                "description": "Registra a tentativa de candidatura de um CPF a uma vaga que foi bloqueada por não atender critérios de elegibilidade.\ncriterios_nao_atendidos leva os slugs dos critérios barrados: idade_minima (Maiores de 18 / idade mínima), escolaridade, idioma, pcd (vaga exclusiva para PcD), experiencia_carteira (experiência em carteira exigida pela vaga) e jovem_aprendiz (fora da faixa de 14 a 24 anos da vaga Jovem Aprendiz).\nPara o cidadão, o CPF gravado é sempre o do token (o campo cpf do corpo é ignorado). Só ADMIN ou go:empregabilidade:admin registra em nome de outro CPF informado no corpo. A vaga precisa existir.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2539,7 +2552,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/candidaturas": {
             "get": {
-                "description": "Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores.",
+                "description": "Retorna lista paginada de candidaturas com filtros e busca universal. Restrito a administradores e editores de empregabilidade; com o RBAC ligado, o editor só vê candidaturas de vagas dos órgãos do seu escopo.",
                 "produces": [
                     "application/json"
                 ],
@@ -2601,15 +2614,13 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Idade mínima",
-                        "name": "idade_min",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Idade máxima",
-                        "name": "idade_max",
+                        "enum": [
+                            "maiores_de_18",
+                            "jovem_aprendiz"
+                        ],
+                        "type": "string",
+                        "description": "Faixa etária pela data de nascimento do cadastro: maiores_de_18 (18 anos ou mais) ou jovem_aprendiz (14 a 24 anos); sem data de nascimento fica de fora",
+                        "name": "faixa_etaria",
                         "in": "query"
                     },
                     {
@@ -2801,6 +2812,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "409": {
                         "description": "Conflict",
                         "schema": {
@@ -2863,6 +2883,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2877,7 +2906,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/candidaturas/usuario/{cpf}": {
             "get": {
-                "description": "Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF.",
+                "description": "Retorna lista paginada de candidaturas de um usuário pelo CPF. Usuários só podem acessar o próprio CPF; admins podem acessar qualquer CPF; com o RBAC ligado, o editor de empregabilidade que consulta outro CPF só vê candidaturas de vagas dos órgãos do seu escopo. O campo atualizacoes conta as candidaturas do CPF com mudança de status ou de etapa (registrada no histórico) que o candidato ainda não viu (ignora os filtros da listagem).",
                 "produces": [
                     "application/json"
                 ],
@@ -2931,6 +2960,56 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empregabilidade/candidaturas/usuario/{cpf}/visualizar": {
+            "put": {
+                "description": "Marca como vistas as mudanças de status e de etapa das candidaturas do CPF, zerando o campo atualizacoes da listagem por CPF. Só o próprio candidato pode marcar.",
+                "tags": [
+                    "empregabilidade-candidaturas"
+                ],
+                "summary": "Marcar atualizações das candidaturas como vistas",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF do usuário",
+                        "name": "cpf",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -3161,6 +3240,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3223,6 +3311,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3266,6 +3363,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -3328,6 +3434,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -5279,7 +5394,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "O cidadão escolhe se os recrutadores podem consultar o currículo no banco de currículos. Vale para qualquer currículo, completo ou não (422 quando a pessoa ainda não salvou nenhuma parte). Só o próprio cidadão.",
+                "description": "O cidadão escolhe se os recrutadores podem consultar o currículo no banco de currículos. Só entra no banco o currículo com o mínimo para se candidatar (422 com as pendências; 422 também quando a pessoa ainda não salvou nenhuma parte). Sair do banco vale sempre. Só o próprio cidadão.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5345,10 +5460,7 @@ const docTemplate = `{
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/empregabilidade.ParticipacaoBancoRecusadaResponse"
                         }
                     },
                     "500": {
@@ -9723,7 +9835,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Cria uma nova vaga",
+                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada retorna 400.\nHabilidades e competências: areas_atuacao (lista de {id_area_atuacao, conhecimento_ids}, cada área uma vez, cada conhecimento da área em que foi marcado) e comportamento_atitudes_ids. Opcionais no rascunho. Área repetida, área, conhecimento ou comportamento fora do catálogo, conhecimento de outra área e lista acima do limite (50 áreas, 300 conhecimentos por área, 100 comportamentos) retornam 400 com o erro do campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids). A resposta traz as listas com os nomes (nome, conhecimentos, comportamentos_atitudes), que são ignorados na entrada: para duplicar uma vaga, areas_atuacao e comportamento_atitudes_ids devolvidos pelo GET podem ser enviados como estão no POST do rascunho (sem o id da vaga).",
                 "consumes": [
                     "application/json"
                 ],
@@ -9755,10 +9867,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "500": {
@@ -9775,7 +9884,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/draft": {
             "post": {
-                "description": "Cria uma nova vaga",
+                "description": "Cria uma nova vaga\nPcD: opcao_pcd (aberta, preferencial ou exclusiva; ausente = aberta) com os tipos em tipos_pcd; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\". O bloqueio de candidatura PcD é a chave \"pcd\" de criterios_bloqueio. acessibilidade_pcd está descontinuado: é preenchido a partir de opcao_pcd e só vale como entrada quando opcao_pcd não é enviada.\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses; ausente, null ou \"\" = sem exigência). O bloqueio de candidatura é a chave \"experiencia_carteira\" de criterios_bloqueio; ligado sem experiencia_carteira retorna 400.\nIdade: Maiores de 18 é idade_minima (como hoje); Jovem Aprendiz é jovem_aprendiz (booleano, faixa fixa de 14 a 24 anos, sem número livre; ausente = false). O bloqueio de candidatura é a chave \"jovem_aprendiz\" de criterios_bloqueio; ligado sem jovem_aprendiz true retorna 400. Um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada retorna 400.\nHabilidades e competências: areas_atuacao (lista de {id_area_atuacao, conhecimento_ids}, cada área uma vez, cada conhecimento da área em que foi marcado) e comportamento_atitudes_ids. Opcionais no rascunho. Área repetida, área, conhecimento ou comportamento fora do catálogo, conhecimento de outra área e lista acima do limite (50 áreas, 300 conhecimentos por área, 100 comportamentos) retornam 400 com o erro do campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids). A resposta traz as listas com os nomes (nome, conhecimentos, comportamentos_atitudes), que são ignorados na entrada: para duplicar uma vaga, areas_atuacao e comportamento_atitudes_ids devolvidos pelo GET podem ser enviados como estão no POST do rascunho (sem o id da vaga).",
                 "consumes": [
                     "application/json"
                 ],
@@ -9807,10 +9916,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "500": {
@@ -9827,7 +9933,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}": {
             "get": {
-                "description": "Retorna uma vaga pelo ID",
+                "description": "Retorna uma vaga pelo ID, com as habilidades e competências cadastradas: areas_atuacao (cada área com id_area_atuacao, nome, conhecimento_ids e conhecimentos), comportamento_atitudes_ids e comportamentos_atitudes. Vaga sem registro devolve listas vazias. As rotas públicas não trazem esses campos.",
                 "produces": [
                     "application/json"
                 ],
@@ -9890,7 +9996,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Atualiza uma vaga existente",
+                "description": "Atualiza uma vaga existente\nPcD: opcao_pcd (aberta, preferencial ou exclusiva) vale sobre acessibilidade_pcd (descontinuado); sem nenhum dos dois a vaga fica aberta. tipos_pcd ausente mantém os tipos gravados e [] remove todos; exclusiva sem nenhum tipo retorna 400 \"Selecione ao menos um tipo de deficiência.\".\nExperiência em carteira: experiencia_carteira (qualquer_tempo ou minimo_6_meses) ausente ou null mantém o valor gravado e \"\" remove a exigência; com a chave \"experiencia_carteira\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem experiencia_carteira retorna 400.\nIdade: jovem_aprendiz (Jovem Aprendiz, faixa fixa de 14 a 24 anos) ausente ou null mantém o valor gravado; com a chave \"jovem_aprendiz\" ligada em criterios_bloqueio (enviada ou mantida), a vaga sem jovem_aprendiz true retorna 400. Maiores de 18 segue em idade_minima; um critério de idade por vez: idade_minima junto de jovem_aprendiz true com a chave \"jovem_aprendiz\" ligada (enviados ou mantidos) retorna 400.\nHabilidades e competências: areas_atuacao e comportamento_atitudes_ids ausentes ou null mantêm o gravado; a lista enviada substitui o conjunto inteiro (apaga o que saiu, insere o que entrou; [] apaga tudo no rascunho, em_edicao). Em vaga em aprovação ou já publicada, lista enviada vazia (areas_atuacao [], área com conhecimento_ids [] ou comportamento_atitudes_ids []) retorna 400 com o erro do campo, como ao publicar. Mesmas regras e erros por campo do POST. A resposta é a vaga relida, com as listas e os nomes.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9929,10 +10035,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "403": {
@@ -10545,7 +10648,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}/publish": {
             "put": {
-                "description": "Publica uma vaga em edição",
+                "description": "Publica uma vaga em edição ou em aprovação. Exige ao menos uma área de atuação, ao menos um conhecimento em cada área e ao menos um comportamento ou atitude: sem eles retorna 400 com o erro de cada campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids).",
                 "produces": [
                     "application/json"
                 ],
@@ -10575,10 +10678,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "404": {
@@ -10681,7 +10781,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}/send-to-approval": {
             "put": {
-                "description": "Envia uma vaga em edição para o fluxo de aprovação",
+                "description": "Envia uma vaga em edição para o fluxo de aprovação. Exige ao menos uma área de atuação, ao menos um conhecimento em cada área e ao menos um comportamento ou atitude: sem eles retorna 400 com o erro de cada campo em \"fields\" (areas_atuacao, areas_atuacao.conhecimento_ids, comportamento_atitudes_ids).",
                 "produces": [
                     "application/json"
                 ],
@@ -10711,10 +10811,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/response.ErrorWithFields"
                         }
                     },
                     "404": {
@@ -10817,7 +10914,7 @@ const docTemplate = `{
         },
         "/api/v1/empregabilidade/vagas/{id}/tipos-pcd": {
             "put": {
-                "description": "Atualiza os tipos de PCD aceitos na vaga",
+                "description": "Atualiza os tipos de PCD aceitos na vaga. Vaga exclusiva (opcao_pcd = exclusiva) não pode ficar sem tipo: lista vazia retorna 400 \"Selecione ao menos um tipo de deficiência.\".",
                 "consumes": [
                     "application/json"
                 ],
@@ -11512,6 +11609,266 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/empresas": {
+            "get": {
+                "description": "Retorna lista paginada de empresas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empresas"
+                ],
+                "summary": "Listar empresas",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/models.Empresa"
+                                    }
+                                },
+                                "meta": {
+                                    "type": "object",
+                                    "properties": {
+                                        "page": {
+                                            "type": "integer"
+                                        },
+                                        "page_size": {
+                                            "type": "integer"
+                                        },
+                                        "total": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova empresa",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empresas"
+                ],
+                "summary": "Criar empresa",
+                "parameters": [
+                    {
+                        "description": "Dados da empresa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/empresas/{id}": {
+            "get": {
+                "description": "Retorna uma empresa pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empresas"
+                ],
+                "summary": "Buscar empresa",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da empresa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza uma empresa existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empresas"
+                ],
+                "summary": "Atualizar empresa",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da empresa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da empresa",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Empresa"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma empresa pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "empresas"
+                ],
+                "summary": "Excluir empresa",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da empresa",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/enrollments/user/{cpf}": {
             "get": {
                 "description": "Retorna lista paginada de inscrições realizadas por um usuário (identificado pelo CPF), incluindo certificate_url",
@@ -11902,6 +12259,266 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/instituicoes": {
+            "get": {
+                "description": "Retorna lista paginada de instituições de ensino",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instituicoes"
+                ],
+                "summary": "Listar instituições de ensino",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Número da página (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/models.InstituicaoEnsino"
+                                    }
+                                },
+                                "meta": {
+                                    "type": "object",
+                                    "properties": {
+                                        "page": {
+                                            "type": "integer"
+                                        },
+                                        "page_size": {
+                                            "type": "integer"
+                                        },
+                                        "total": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova instituição de ensino",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instituicoes"
+                ],
+                "summary": "Criar instituição de ensino",
+                "parameters": [
+                    {
+                        "description": "Dados da instituição de ensino",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/instituicoes/{id}": {
+            "get": {
+                "description": "Retorna uma instituição de ensino pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instituicoes"
+                ],
+                "summary": "Buscar instituição de ensino",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da instituição de ensino",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza uma instituição de ensino existente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instituicoes"
+                ],
+                "summary": "Atualizar instituição de ensino",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da instituição de ensino",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da instituição de ensino",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.InstituicaoEnsino"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma instituição de ensino pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instituicoes"
+                ],
+                "summary": "Excluir instituição de ensino",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID da instituição de ensino",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/jobs/{jobId}/status": {
             "get": {
                 "description": "Retorna o status e progresso de um job em execução ou concluído. Exige o mesmo acesso da importação que criou o job: admin, go:cursos:casa_civil ou go:cursos:editor com escopo no órgão do curso do job. Em errors[].data, a linha com falha é identificada pelas iniciais do nome e pelo CPF mascarado.",
@@ -12004,6 +12621,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.OportunidadeMEIListResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -12044,6 +12667,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12090,6 +12719,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12144,6 +12779,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "object"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "500": {
@@ -12244,6 +12885,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -12279,6 +12926,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12346,6 +12999,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "object"
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "500": {
@@ -12473,6 +13132,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12732,6 +13397,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Acesso negado",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -12769,6 +13440,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Sem perfil de gestão MEI",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -12828,6 +13505,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -13112,6 +13795,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -13564,6 +14253,23 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.CriterioBloqueio": {
+            "type": "string",
+            "enum": [
+                "escolaridade",
+                "idioma",
+                "pcd",
+                "experiencia_carteira",
+                "jovem_aprendiz"
+            ],
+            "x-enum-varnames": [
+                "CriterioBloqueioEscolaridade",
+                "CriterioBloqueioIdioma",
+                "CriterioBloqueioPCD",
+                "CriterioBloqueioExperienciaCarteira",
+                "CriterioBloqueioJovemAprendiz"
+            ]
+        },
         "empregabilidade.CurriculoCompleto": {
             "type": "object",
             "properties": {
@@ -13924,6 +14630,17 @@ const docTemplate = `{
                 "ordem": {
                     "type": "integer"
                 },
+                "tipo_etapa": {
+                    "description": "TipoEtapa classifica a etapa (analise_curriculo, entrevista, teste,\nproposta ou outro) para comparar o funil do histórico de candidaturas\nentre vagas; o título continua livre. Ausente (ou vazio) na criação é\ninferido do título; numa atualização, mantém o valor gravado.",
+                    "type": "string",
+                    "enum": [
+                        "analise_curriculo",
+                        "entrevista",
+                        "teste",
+                        "proposta",
+                        "outro"
+                    ]
+                },
                 "titulo": {
                     "type": "string"
                 },
@@ -14123,6 +14840,19 @@ const docTemplate = `{
                 }
             }
         },
+        "empregabilidade.OpcaoPCD": {
+            "type": "string",
+            "enum": [
+                "aberta",
+                "preferencial",
+                "exclusiva"
+            ],
+            "x-enum-varnames": [
+                "OpcaoPCDAberta",
+                "OpcaoPCDPreferencial",
+                "OpcaoPCDExclusiva"
+            ]
+        },
         "empregabilidade.OrigemCandidatura": {
             "type": "string",
             "enum": [
@@ -14136,6 +14866,20 @@ const docTemplate = `{
                 "OrigemCandidaturaBancoCurriculos"
             ]
         },
+        "empregabilidade.ParticipacaoBancoRecusadaResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "pendencias": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "empregabilidade.ParticipacaoBancoStatus": {
             "type": "object",
             "properties": {
@@ -14144,10 +14888,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "curriculo_completo": {
-                    "description": "CurriculoCompleto diz se o currículo tem o mínimo exigido para se\ncandidatar; Pendencias diz o que falta. Não impede a participação no banco,\nque mostra o que a pessoa conseguiu salvar.",
+                    "description": "CurriculoCompleto diz se o currículo tem o mínimo exigido para se\ncandidatar; Pendencias diz o que falta. Sem o mínimo, o currículo não\naparece para os recrutadores nem pode ser ativado no banco.",
                     "type": "boolean"
                 },
                 "disponivel": {
+                    "description": "Disponivel é a escolha do cidadão; o recrutador só vê o currículo que,\nalém de disponível, está completo.",
                     "type": "boolean"
                 },
                 "disponivel_alterado_em": {
@@ -14444,6 +15189,13 @@ const docTemplate = `{
                 "acessibilidade_pcd": {
                     "$ref": "#/definitions/empregabilidade.AcessibilidadePCD"
                 },
+                "areas_atuacao": {
+                    "description": "Habilidades e competências da vaga (DEV-524), fora da tabela emp_vagas.\nSó a gestão (POST, PUT e GET /api/v1/empregabilidade/vagas/{id}) os\ndevolve, sempre como lista ([] na vaga sem registro); rotas públicas,\nlistagens e candidaturas não os trazem. No PUT, o campo ausente (ou null)\nmantém o gravado e a lista enviada substitui o conjunto inteiro ([] apaga\ntudo). Publicar ou enviar para aprovação exige ao menos uma área, ao\nmenos um conhecimento em cada área e ao menos um comportamento; o\nrascunho não exige nada.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.VagaAreaAtuacao"
+                    }
+                },
                 "areas_formacao_elegibilidade": {
                     "type": "array",
                     "items": {
@@ -14462,6 +15214,20 @@ const docTemplate = `{
                 "beneficios": {
                     "type": "string"
                 },
+                "comportamento_atitudes_ids": {
+                    "description": "ComportamentoAtitudesIDs são os ids dos comportamentos/atitudes da vaga\n(catálogo GET /api/v1/empregabilidade/comportamentos-atitudes).",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "comportamentos_atitudes": {
+                    "description": "ComportamentosAtitudes são os mesmos comportamentos com o nome; só na\nresposta, ignorado na entrada.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CatalogoItem"
+                    }
+                },
                 "contratante": {
                     "description": "Relationships",
                     "allOf": [
@@ -14472,6 +15238,13 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string"
+                },
+                "criterios_bloqueio": {
+                    "description": "CriteriosBloqueio lista os critérios com bloqueio de candidatura ligado;\nos ausentes estão desligados. Sempre devolvido ([] quando nenhum). No\nPUT, o campo ausente mantém o estado gravado e [] desliga todos.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CriterioBloqueio"
+                    }
                 },
                 "data_limite": {
                     "type": "string",
@@ -14496,6 +15269,15 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/empregabilidade.Etapa"
                     }
+                },
+                "experiencia_carteira": {
+                    "description": "ExperienciaCarteira é o tempo de experiência em carteira exigido\n(qualquer_tempo ou minimo_6_meses); null = sem exigência. Sempre\ndevolvido. Com a chave experiencia_carteira em criterios_bloqueio é\nobrigatório. No PUT, o campo ausente (ou null) mantém o valor gravado e\n\"\" remove a exigência.",
+                    "type": "string",
+                    "enum": [
+                        "qualquer_tempo",
+                        "minimo_6_meses"
+                    ],
+                    "x-nullable": true
                 },
                 "id": {
                     "type": "string"
@@ -14534,8 +15316,16 @@ const docTemplate = `{
                         "$ref": "#/definitions/empregabilidade.InformacaoComplementar"
                     }
                 },
+                "jovem_aprendiz": {
+                    "description": "JovemAprendiz é a opção Jovem Aprendiz da seção Idade: faixa fixa de 14\na 24 anos, sem número livre (a opção Maiores de 18 é IdadeMinima).\nSempre devolvido; vaga nova sem o campo, e toda vaga anterior a ele,\nfica desligada. Com a chave jovem_aprendiz em criterios_bloqueio precisa\nser true. No PUT, o campo ausente (ou null) mantém o valor gravado.",
+                    "type": "boolean",
+                    "example": false
+                },
                 "modelo_trabalho": {
                     "$ref": "#/definitions/empregabilidade.ModeloTrabalho"
+                },
+                "opcao_pcd": {
+                    "$ref": "#/definitions/empregabilidade.OpcaoPCD"
                 },
                 "orgao_parceiro": {
                     "$ref": "#/definitions/models.OrgaoSnapshot"
@@ -14579,6 +15369,31 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/empregabilidade.Zona"
                     }
+                }
+            }
+        },
+        "empregabilidade.VagaAreaAtuacao": {
+            "type": "object",
+            "properties": {
+                "conhecimento_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "conhecimentos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/empregabilidade.CatalogoItem"
+                    }
+                },
+                "id_area_atuacao": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "nome": {
+                    "type": "string",
+                    "example": "Tecnologia da Informação"
                 }
             }
         },
@@ -14930,6 +15745,11 @@ const docTemplate = `{
                 "formato_aula": {
                     "$ref": "#/definitions/models.FormatoAula"
                 },
+                "gratuito": {
+                    "description": "Gratuito informa se o curso é gratuito (true) ou pago (false). Na criação, ausente vale true; no PUT, ausente preserva o valor gravado. As respostas sempre trazem o campo.",
+                    "type": "boolean",
+                    "example": true
+                },
                 "has_certificate": {
                     "description": "Optional fields matching specification",
                     "type": "boolean"
@@ -15177,6 +15997,11 @@ const docTemplate = `{
                 },
                 "formato_aula": {
                     "$ref": "#/definitions/models.FormatoAula"
+                },
+                "gratuito": {
+                    "description": "Gratuito informa se o curso é gratuito (true) ou pago (false). Na criação, ausente vale true; no PUT, ausente preserva o valor gravado. As respostas sempre trazem o campo.",
+                    "type": "boolean",
+                    "example": true
                 },
                 "has_certificate": {
                     "description": "Optional fields matching specification",
@@ -16747,6 +17572,21 @@ const docTemplate = `{
                 "error": {
                     "type": "string",
                     "example": "Mensagem de erro aqui"
+                }
+            }
+        },
+        "response.ErrorWithFields": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "Preencha os campos obrigatórios da vaga."
+                },
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },

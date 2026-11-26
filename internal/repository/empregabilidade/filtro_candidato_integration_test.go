@@ -120,8 +120,8 @@ func TestFiltroCandidatoIntegration_BancoDeCurriculos(t *testing.T) {
 		// A busca "filtro" pega quem tem cadastro; Diego (sem cadastro) só entra sem busca.
 		{"sem filtro", empregabilidade.FiltroCandidato{}, []string{cpfAna, cpfBruno, cpfCarla, cpfSemPCD}},
 		{"gêneros selecionados, sem diferenciar maiúsculas", empregabilidade.FiltroCandidato{Generos: []string{"mulher cisgênero", "Mulher transgênero"}}, []string{cpfAna, cpfCarla}},
-		{"idade mínima", empregabilidade.FiltroCandidato{IdadeMinima: meses(30)}, []string{cpfAna, cpfBruno}},
-		{"faixa de idade", empregabilidade.FiltroCandidato{IdadeMinima: meses(18), IdadeMaxima: meses(30)}, []string{cpfAna, cpfCarla}},
+		{"maiores de 18 deixa de fora quem não tem data de nascimento", empregabilidade.FiltroCandidato{FaixaEtaria: empregabilidade.FaixaEtariaMaioresDe18}, []string{cpfAna, cpfBruno, cpfCarla}},
+		{"jovem aprendiz, de 14 a 24 anos", empregabilidade.FiltroCandidato{FaixaEtaria: empregabilidade.FaixaEtariaJovemAprendiz}, []string{cpfCarla}},
 		{"sem experiência prévia", empregabilidade.FiltroCandidato{TempoExperiencia: empregabilidade.FaixaSemExperiencia}, []string{cpfCarla}},
 		{"até 2 anos", empregabilidade.FiltroCandidato{TempoExperiencia: empregabilidade.FaixaAte2Anos}, []string{cpfSemPCD}},
 		{"2 a 4 anos soma as experiências", empregabilidade.FiltroCandidato{TempoExperiencia: empregabilidade.Faixa2a4Anos}, []string{cpfAna}},
@@ -176,6 +176,7 @@ func TestFiltroCandidatoIntegration_CandidatosDaVaga(t *testing.T) {
 		// Gravada com máscara, como o backoffice às vezes grava.
 		{CPF: "900.000.000-03", IDVaga: vaga.ID, Status: empregabilidade.StatusCandidaturaAprovada},
 		{CPF: cpfBruno, IDVaga: vaga.ID, Status: empregabilidade.StatusCandidaturaReprovada},
+		{CPF: cpfSemPCD, IDVaga: vaga.ID, Status: empregabilidade.StatusCandidaturaEnviada},
 	} {
 		require.NoError(t, tx.Create(cand).Error)
 	}
@@ -211,4 +212,81 @@ func TestFiltroCandidatoIntegration_CandidatosDaVaga(t *testing.T) {
 		require.Len(t, candidaturas, 1)
 		assert.Equal(t, "900.000.000-03", candidaturas[0].CPF)
 	})
+
+	// A faixa etária vale também na lista de candidatos da vaga, e quem não
+	// tem data de nascimento só aparece sem o filtro de idade.
+	faixas := []struct {
+		nome  string
+		faixa empregabilidade.FaixaEtaria
+		cpfs  []string
+	}{
+		{"faixa etária maiores de 18", empregabilidade.FaixaEtariaMaioresDe18, []string{"900.000.000-03", cpfAna, cpfBruno}},
+		{"faixa etária jovem aprendiz", empregabilidade.FaixaEtariaJovemAprendiz, []string{"900.000.000-03"}},
+	}
+	for _, tc := range faixas {
+		t.Run(tc.nome, func(t *testing.T) {
+			porIdade := empregabilidade.CandidaturaFilter{
+				VagaID:    &vaga.ID,
+				Candidato: empregabilidade.FiltroCandidato{FaixaEtaria: tc.faixa},
+			}
+			candidaturas, total, err := repo.List(ctx, porIdade, 10, 0)
+			require.NoError(t, err)
+			assert.Equal(t, len(tc.cpfs), total)
+			cpfs := []string{}
+			for _, c := range candidaturas {
+				cpfs = append(cpfs, c.CPF)
+			}
+			sort.Strings(cpfs)
+			assert.Equal(t, tc.cpfs, cpfs)
+		})
+	}
+}
+
+// Os limites das faixas contam a idade completa pela data de nascimento, com
+// as duas pontas incluídas: 18 entra em Maiores de 18; 14 e 24 entram em
+// Jovem Aprendiz; quem faz 25 daqui a dois dias ainda tem 24. As datas ficam
+// a dois dias do aniversário para o fuso do banco (UTC) não mudar o resultado.
+func TestFiltroCandidatoIntegration_LimitesDaFaixaEtaria(t *testing.T) {
+	tx := bancoCurriculosIntegrationTx(t)
+	ctx := context.Background()
+	repo := emprepo.NewCurriculoRepository(tx)
+
+	aniversario := func(anos, dias int) *time.Time {
+		d := time.Now().AddDate(-anos, 0, dias)
+		return &d
+	}
+	candidatos := []struct {
+		cpf        string
+		nascimento *time.Time
+	}{
+		{"91000000013", aniversario(14, 2)},  // faz 14 em 2 dias: ainda 13
+		{"91000000014", aniversario(14, -2)}, // fez 14 há 2 dias
+		{"91000000017", aniversario(18, 2)},  // faz 18 em 2 dias: ainda 17
+		{"91000000018", aniversario(18, -2)}, // fez 18 há 2 dias
+		{"91000000024", aniversario(25, 2)},  // faz 25 em 2 dias: ainda 24
+		{"91000000025", aniversario(25, -2)}, // fez 25 há 2 dias
+	}
+	for _, c := range candidatos {
+		require.NoError(t, repo.UpsertSituacaoInteresses(ctx, &empregabilidade.CurriculoSituacaoInteresses{CPF: c.cpf}))
+		require.NoError(t, tx.Create(&models.CitizenSnapshot{
+			CPF: c.cpf, Nome: "Limite Idade " + c.cpf, DataNascimento: c.nascimento, LastSyncedAt: time.Now(),
+		}).Error)
+	}
+
+	listar := func(faixa empregabilidade.FaixaEtaria) []string {
+		items, _, err := repo.ListBancoCurriculos(ctx, empregabilidade.BancoCurriculoFilter{
+			Search: "limite idade", Candidato: empregabilidade.FiltroCandidato{FaixaEtaria: faixa},
+		}, 1, 100)
+		require.NoError(t, err)
+		cpfs := []string{}
+		for _, item := range items {
+			cpfs = append(cpfs, item.CPF)
+		}
+		sort.Strings(cpfs)
+		return cpfs
+	}
+
+	assert.Len(t, listar(""), len(candidatos), "sem filtro de idade aparecem todos")
+	assert.Equal(t, []string{"91000000018", "91000000024", "91000000025"}, listar(empregabilidade.FaixaEtariaMaioresDe18))
+	assert.Equal(t, []string{"91000000014", "91000000017", "91000000018", "91000000024"}, listar(empregabilidade.FaixaEtariaJovemAprendiz))
 }

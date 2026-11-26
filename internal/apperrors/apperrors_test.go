@@ -120,3 +120,16 @@ func TestMap_PostgresFKViolation(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, status)
 	assert.NotEmpty(t, message)
 }
+
+func TestValidationFields_GuardaOErroDeCadaCampo(t *testing.T) {
+	fields := map[string]string{"areas_atuacao": "Informe ao menos uma área de atuação."}
+	err := ValidationFields("Preencha os campos obrigatórios.", fields)
+
+	assert.Equal(t, "Preencha os campos obrigatórios.", err.Error())
+	assert.Equal(t, http.StatusBadRequest, err.HTTPStatus())
+	assert.Equal(t, fields, err.Fields)
+
+	status, message, _ := Map(fmt.Errorf("publicar vaga: %w", err))
+	assert.Equal(t, http.StatusBadRequest, status)
+	assert.Equal(t, "Preencha os campos obrigatórios.", message)
+}

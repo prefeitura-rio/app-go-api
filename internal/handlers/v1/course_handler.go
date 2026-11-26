@@ -94,6 +94,7 @@ func transformCursoToResponse(curso *models.Curso) gin.H {
 		"accessibility":             curso.Accessibility,
 		"is_visible":                curso.IsVisible,
 		"auto_approve_enrollments":  curso.AutoApproveEnrollments,
+		"gratuito":                  curso.IsGratuito(),
 		"custom_fields":             curso.CustomFields,
 		"locations":                 curso.LocationClasses,
 		"remote_class":              curso.RemoteClass,
@@ -391,6 +392,12 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	// Preserve auto_approve_enrollments if not provided in request
 	if curso.AutoApproveEnrollments == nil {
 		curso.AutoApproveEnrollments = existingCurso.AutoApproveEnrollments
+	}
+
+	// The update writes every column and gratuito is NOT NULL: keep the stored value when absent.
+	if curso.Gratuito == nil {
+		gratuito := existingCurso.IsGratuito()
+		curso.Gratuito = &gratuito
 	}
 
 	// Preserve accepting_enrollments for existing schedules if not provided in request
@@ -1032,6 +1039,7 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 // @Param        neighborhood_zone query     string  false  "Filtrar por zona do bairro"
 // @Success      200               {object}  object
 // @Failure      400               {object}  models.ErrorResponse
+// @Failure      403               {object}  models.ErrorResponse
 // @Failure      500               {object}  models.ErrorResponse
 // @Router       /api/v1/users/{userId}/courses [get]
 func (h *CourseHandler) ListByUser(c *gin.Context) {

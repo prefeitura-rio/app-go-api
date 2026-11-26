@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
@@ -13,6 +14,21 @@ import (
 // currículo, então não há o que mostrar ou ocultar no banco de currículos.
 var ErrSemCurriculoParaBanco = errors.New("cidadão ainda não tem currículo")
 
+// ErrCurriculoIncompletoParaBanco indica que o currículo não tem o mínimo para
+// se candidatar, então não pode entrar no banco.
+var ErrCurriculoIncompletoParaBanco = errors.New("currículo sem o mínimo para entrar no banco")
+
+// CurriculoIncompletoParaBancoError lista o que falta para entrar no banco.
+type CurriculoIncompletoParaBancoError struct {
+	Pendencias []string
+}
+
+func (e *CurriculoIncompletoParaBancoError) Error() string {
+	return fmt.Sprintf("%s: %s", ErrCurriculoIncompletoParaBanco, strings.Join(e.Pendencias, "; "))
+}
+
+func (e *CurriculoIncompletoParaBancoError) Unwrap() error { return ErrCurriculoIncompletoParaBanco }
+
 // ParticipacaoBancoRepositoryInterface guarda a escolha do cidadão no registro
 // raiz do currículo.
 type ParticipacaoBancoRepositoryInterface interface {
@@ -21,10 +37,9 @@ type ParticipacaoBancoRepositoryInterface interface {
 	GetUltimaAtualizacao(ctx context.Context, cpf string) (*time.Time, error)
 }
 
-// ParticipacaoBancoService atende o card do banco de currículos no app: quem já
-// salvou alguma parte do currículo escolhe se os recrutadores podem consultá-lo.
-// O banco mostra o que a pessoa conseguiu salvar, então a escolha não depende do
-// currículo mínimo; as pendências servem só para o app sugerir que termine.
+// ParticipacaoBancoService atende o card do banco de currículos no app. O banco
+// segue a regra das vagas: só entra o currículo com o mínimo para se candidatar
+// (situação atual e termos de uso aceitos). Sair do banco vale sempre.
 type ParticipacaoBancoService struct {
 	repo       ParticipacaoBancoRepositoryInterface
 	curriculos CurriculoCompletoGetterInterface
@@ -82,6 +97,15 @@ func (s *ParticipacaoBancoService) Atualizar(ctx context.Context, cpf string, di
 	}
 	if participacao == nil {
 		return nil, ErrSemCurriculoParaBanco
+	}
+	if disponivel {
+		pendencias, err := s.pendencias(ctx, cpf)
+		if err != nil {
+			return nil, err
+		}
+		if len(pendencias) > 0 {
+			return nil, &CurriculoIncompletoParaBancoError{Pendencias: pendencias}
+		}
 	}
 	if err := s.repo.AtualizarParticipacaoBanco(ctx, cpf, disponivel, s.agora()); err != nil {
 		return nil, err

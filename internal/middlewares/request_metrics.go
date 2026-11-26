@@ -13,9 +13,10 @@ import (
 // cannot create series with arbitrary method names.
 const otherMethod = "OTHER"
 
-// httpRequestDuration feeds the per-endpoint latency alert (docs/runbook.md,
-// section 3). The route label is the Gin route template, never the raw path,
-// which may carry a CPF; unmatched paths share one label.
+// httpRequestDuration feeds the per-route latency alert
+// (monitoring/prometheus/alerting-rules.yaml). The route label is the Gin route
+// template, never the raw path, which may carry a CPF; unmatched paths share
+// one label.
 var httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "goapi_http_request_duration_seconds",
 	Help:    "Duração das requisições HTTP por método e template da rota.",

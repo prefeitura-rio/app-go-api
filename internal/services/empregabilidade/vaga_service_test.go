@@ -32,6 +32,17 @@ type MockVagaRepoForService struct {
 	updateZonasCalls            []updateZonasCall
 	updateIdiomasRequisitoError error
 	updateIdiomasRequisitoCalls []updateIdiomasRequisitoCall
+	// createdCriteriosBloqueio guarda os critérios de bloqueio como chegaram ao
+	// Create, antes de o service preparar a resposta.
+	createdCriteriosBloqueio map[uuid.UUID][]empregabilidade.CriterioBloqueio
+	updateTiposPCDCalls      [][]uuid.UUID
+	// Habilidades e competências da vaga (DEV-524): o que está gravado por
+	// vaga, o catálogo que a validação consulta e os erros simulados.
+	habilidades        map[uuid.UUID]*empregabilidade.VagaHabilidadesCompetencias
+	catalogo           catalogoHabilidadesMock
+	habilidadesError   error
+	catalogoError      error
+	updateWithAssocArg *empregabilidade.Vaga
 }
 
 type updateZonasCall struct {
@@ -46,7 +57,10 @@ type updateIdiomasRequisitoCall struct {
 
 func NewMockVagaRepoForService() *MockVagaRepoForService {
 	return &MockVagaRepoForService{
-		vagas: make(map[uuid.UUID]*empregabilidade.Vaga),
+		vagas:                    make(map[uuid.UUID]*empregabilidade.Vaga),
+		createdCriteriosBloqueio: make(map[uuid.UUID][]empregabilidade.CriterioBloqueio),
+		habilidades:              make(map[uuid.UUID]*empregabilidade.VagaHabilidadesCompetencias),
+		catalogo:                 novoCatalogoHabilidadesMock(),
 	}
 }
 
@@ -57,6 +71,10 @@ func (m *MockVagaRepoForService) Create(ctx context.Context, entity *empregabili
 	id := uuid.New()
 	entity.ID = id
 	m.vagas[id] = entity
+	if entity.CriteriosBloqueio != nil {
+		m.createdCriteriosBloqueio[id] = append([]empregabilidade.CriterioBloqueio{}, entity.CriteriosBloqueio...)
+	}
+	m.gravarHabilidades(id, entity)
 	return id, nil
 }
 
@@ -93,10 +111,12 @@ func (m *MockVagaRepoForService) Update(ctx context.Context, entity *empregabili
 }
 
 func (m *MockVagaRepoForService) UpdateWithAssociations(ctx context.Context, entity *empregabilidade.Vaga) error {
+	m.updateWithAssocArg = entity
 	if m.updateError != nil {
 		return m.updateError
 	}
 	m.vagas[entity.ID] = entity
+	m.gravarHabilidades(entity.ID, entity)
 	return nil
 }
 
@@ -120,6 +140,7 @@ func (m *MockVagaRepoForService) List(ctx context.Context, filter empregabilidad
 }
 
 func (m *MockVagaRepoForService) UpdateTiposPCD(ctx context.Context, vagaID uuid.UUID, tiposPCDIDs []uuid.UUID) error {
+	m.updateTiposPCDCalls = append(m.updateTiposPCDCalls, tiposPCDIDs)
 	return nil
 }
 
@@ -212,6 +233,7 @@ func TestVagaService_Publish_Success(t *testing.T) {
 			Titulo: "Desenvolvedor Go",
 			Status: empregabilidade.StatusVagaEmEdicao,
 		}
+		seedHabilidadesCompletas(mockVagaRepo, vagaID)
 
 		ctx := context.Background()
 		err := service.Publish(ctx, vagaID)
@@ -236,6 +258,7 @@ func TestVagaService_Publish_Success(t *testing.T) {
 			Titulo: "Desenvolvedor Go",
 			Status: empregabilidade.StatusVagaEmAprovacao,
 		}
+		seedHabilidadesCompletas(mockVagaRepo, vagaID)
 
 		ctx := context.Background()
 		err := service.Publish(ctx, vagaID)
@@ -352,6 +375,7 @@ func TestVagaService_Publish_RepositoryErrors(t *testing.T) {
 			Titulo: "Desenvolvedor Go",
 			Status: empregabilidade.StatusVagaEmEdicao,
 		}
+		seedHabilidadesCompletas(mockVagaRepo, vagaID)
 		mockVagaRepo.updateError = errors.New("update failed")
 
 		ctx := context.Background()
@@ -381,6 +405,7 @@ func TestVagaService_SendToApproval_Success(t *testing.T) {
 			Titulo: "Desenvolvedor Go",
 			Status: empregabilidade.StatusVagaEmEdicao,
 		}
+		seedHabilidadesCompletas(mockVagaRepo, vagaID)
 
 		ctx := context.Background()
 		err := service.SendToApproval(ctx, vagaID)
@@ -483,6 +508,7 @@ func TestVagaService_SendToApproval_RepositoryErrors(t *testing.T) {
 			Titulo: "Desenvolvedor Go",
 			Status: empregabilidade.StatusVagaEmEdicao,
 		}
+		seedHabilidadesCompletas(mockVagaRepo, vagaID)
 		mockVagaRepo.updateError = errors.New("update failed")
 
 		ctx := context.Background()

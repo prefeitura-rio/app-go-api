@@ -37,6 +37,7 @@ conteúdo de um `Secret` do Kubernetes nem cole dados de cidadãos (CPF, nome, e
 | Keycloak (conta de serviço `KEYCLOAK_*`) | `go-secrets` | Sem token, o worker de cidadãos e o resolvedor de secretarias não chamam o RMI (efeito igual ao do RMI fora) |
 | Data Relay (`DATA_RELAY_*`) | `go-secrets` | E-mails falham e vão para retentativa; esgotadas, para a fila morta (seção 4.6) |
 | Cerbos (`CERBOS_*`, só se `CERBOS_ENABLED=true`) | `go-secrets` | Autorização fina de propostas MEI falha |
+| Salesforce (indireto) | Nenhuma chamada direta: os dados de cidadão que o app-go-api lê do app-rmi vêm em parte do Salesforce, que o app-rmi sincroniza | Salesforce fora ou atrasado não derruba a API: os dados de contato de cidadãos ficam desatualizados até o app-rmi voltar a sincronizar. Investigue no app-rmi, não aqui |
 | Coletor OTLP do SigNoz | `TRACING_*` em `k8s/<env>/resources.yaml` | Só perde traces; a API segue |
 
 ## 2. Onde olhar
@@ -154,18 +155,28 @@ Os sinais que existem hoje (versionados neste repositório ou no `prefeitura-rio
 | **"❌ Staging Deployment Failed"** | Discord (`deploy-staging.yaml`) | O smoke test (`/health` no `go-preview`) falhou ou o rollout não promoveu; o workflow abortou o rollout e o serviço ativo segue na versão anterior | `gh run view <run> --log-failed`; logs dos pods novos (`--previous`); erro comum: migration que falhou no `goose up` do entrypoint |
 | **"🛑 Production Release Aborted"** | Discord (`release.yaml`) | A análise `go-success-rate` reprovou o canário (sucesso < 95% ou 5xx > 5%, até 5 falhas); o Argo Rollouts voltou o tráfego para a versão estável | Confirme `kubectl -n go get rollout go` (fase `Degraded`/abortado) e o `AnalysisRun` mais recente; leia os logs dos pods canário; corrija e publique nova release |
 | **"❌ Production Release Failed"** (`Degraded`) ou **"⚠️ Unknown"** | Discord (`release.yaml`) | O rollout não ficou saudável no prazo do workflow (45 min) ou o estado não pôde ser lido | `kubectl argo rollouts get rollout go -n go`; se o canário está preso, siga a seção 4.1 |
-| Circuito do RMI aberto (`rmi_client_circuit_breaker_state == 2`, log `[RMIClient] circuit breaker "api": closed -> open`) | Só métrica/log (sem alerta configurado) | 5 falhas seguidas no RMI (padrão `RMI_CIRCUIT_BREAKER_FAILURE_THRESHOLD`); chamadas são recusadas por 30 s antes de testar de novo | Seção 4.5 |
+| **`GoApiRMICircuitBreakerOpen`**: circuito do RMI fora do fechado por 5 min (`rmi_client_circuit_breaker_state > 0`, log `[RMIClient] circuit breaker "api": closed -> open`) | Regra versionada, ainda não instalada (veja abaixo) | 5 falhas seguidas no RMI (padrão `RMI_CIRCUIT_BREAKER_FAILURE_THRESHOLD`); chamadas são recusadas por 30 s antes de testar de novo, e nenhuma deu certo em 5 min | Seção 4.5 |
+| **`GoApiHighErrorRate`**: mais de 2% de 5xx por 5 min (`istio_requests_total` do workload `go`) | Regra versionada, ainda não instalada | Erros do servidor ou do Envoy (pod sem responder) acima do limiar | Rotina da seção 4: pods, logs `--previous`, traces com erro no SigNoz |
+| **`GoApiHighLatencyP95`**: p95 de uma rota `/api/v1` ou `/api/public` acima de 1 s por 10 min (label `route`) | Regra versionada, ainda não instalada | Lentidão de um endpoint | Traces da rota no SigNoz ordenados por duração; banco, Redis e RMI (`db.system`, `rmi_client_*`) |
+| **`GoApiPodRestarting`**: mais de 3 reinícios do contêiner `go` em 15 min (label `pod`) | Regra versionada, ainda não instalada (precisa do kube-state-metrics) | CrashLoopBackOff, OOMKilled ou liveness falhando | `kubectl -n go describe pod <pod>` (motivo do último término) e `kubectl -n go logs <pod> --previous`; seção 4.2 |
 | KEDA em fallback (`ScaledObject` com condição `Fallback`) | Só no recurso | A consulta ao Prometheus falhou 3 vezes; a escala deixa de seguir a carga e vai para o `fallback.replicas` (limitado pelo mínimo do HPA) | Verifique o `prometheus-server` do `istio-system`; não escale à mão (seção 4.2) |
-| Fila morta de e-mail crescendo (`email:queue:failed`, `increase(goapi_email_dead_letter_total[30m]) > 0`) | Métrica/log (regra na OPS-151) | E-mails que esgotaram as 5 tentativas ou causaram panic | Seção 4.6 |
-| Taxa de 5xx > 5% por 5 min (`istio_requests_total{destination_workload="go"}`) | Prometheus (regra na OPS-151) | Erros do servidor acima do limiar do canário | Rotina da seção 4: pods, logs `--previous`, traces com erro |
-| Latência p95 > 1 s no serviço (`istio_request_duration_milliseconds_bucket`) ou > 2 s numa rota (`goapi_http_request_duration_seconds`) | Prometheus (regra na OPS-151) | Lentidão geral ou de um endpoint | Traces da rota no SigNoz, ordenados por duração; banco e Redis (`db.system`) |
-| Sync atrasada (`time() - max by (worker) (goapi_sync_last_success_timestamp_seconds) > 3600`) ou falhando (`goapi_sync_runs_total{result="failure"}`) | Prometheus (regra na OPS-151) | Órgãos ou cidadãos sem sincronizar com o RMI há mais de 1 h | Logs `[OrgaoSyncWorker]`/`[CitizenSyncWorker]`; circuito do RMI (seção 4.5); token do Keycloak |
-| Jobs de importação interrompidos (`increase(goapi_import_jobs_total{result="reaped"}[1h]) > 0`) | Prometheus (regra na OPS-151) | Um pod parou no meio de uma importação (deploy, OOM, escala) e o job foi fechado como `failed` | Eventos e reinícios dos pods; peça a quem importou para reenviar o arquivo |
-| Fila de e-mail parada (`max(goapi_email_queue_length{queue="pending"}) > 500` por 15 min) ou ilegível (`goapi_email_queue_up == 0`) | Prometheus (regra na OPS-151) | Consumidores parados ou Redis fora | Logs `[EmailWorker]`; Redis (seção 1); seção 4.6 |
+| **`GoApiIstio5xxRateHigh`**: mais de 5% de 5xx por 5 min no serviço (`istio_requests_total{destination_workload="go"}`, com pelo menos 0,1 req/s) | Prometheus do `istio-system` (regra do `prefeitura-rio/infra`, OPS-151; sem notificação até a OPS-332) | Erros do servidor acima do limiar do canário | Rotina da seção 4: pods, logs `--previous`, traces com erro |
+| **`GoApiIstioLatencyP95High`**: p95 do serviço acima de 1 s por 10 min (`istio_request_duration_milliseconds_bucket`) | Prometheus do `istio-system` (regra do `prefeitura-rio/infra`, OPS-151; sem notificação até a OPS-332) | Lentidão geral do serviço | Traces no SigNoz ordenados por duração; banco e Redis (`db.system`) |
+| **`GoApiRouteLatencyP95High`**: p95 de uma rota acima de 2 s por 15 min (`goapi_http_request_duration_seconds`, label `route`, com pelo menos 0,05 req/s) | Prometheus do `istio-system` (regra do `prefeitura-rio/infra`, OPS-151; sem notificação até a OPS-332) | Lentidão de um endpoint | Traces da rota no SigNoz, ordenados por duração; banco, Redis e RMI |
+| **`GoApiSyncStale`**: sync sem sucesso há mais de 1 h por 15 min (`time() - max by (worker) (goapi_sync_last_success_timestamp_seconds) > 3600`, label `worker`) | Prometheus do `istio-system` (regra do `prefeitura-rio/infra`, OPS-151; sem notificação até a OPS-332) | Órgãos ou cidadãos sem sincronizar com o RMI há mais de 1 h | Logs `[OrgaoSyncWorker]`/`[CitizenSyncWorker]`; circuito do RMI (seção 4.5); token do Keycloak |
+| **`GoApiSyncFailing`**: 3 ou mais ciclos de sync com falha em 1 h (`goapi_sync_runs_total{result="failure"}`, label `worker`) | Prometheus do `istio-system` (regra do `prefeitura-rio/infra`, OPS-151; sem notificação até a OPS-332) | A sync roda, mas cada ciclo termina em erro | Mesmo passo do `GoApiSyncStale` |
+| **`GoApiImportJobsReaped`**: job de importação interrompido na última hora (`increase(goapi_import_jobs_total{result="reaped"}[1h]) > 0`) | Prometheus do `istio-system` (regra do `prefeitura-rio/infra`, OPS-151; sem notificação até a OPS-332) | Um pod parou no meio de uma importação (deploy, OOM, escala) e o job foi fechado como `failed` | Eventos e reinícios dos pods; peça a quem importou para reenviar o arquivo |
+| **`GoApiTargetDown`**: coleta do pod falhando por 5 min (`up{job="kubernetes-pods",app="go"} == 0`, label `pod`) | Prometheus do `istio-system` (regra do `prefeitura-rio/infra`, OPS-151; sem notificação até a OPS-332) | O Prometheus não coleta o endpoint do sidecar do pod | `kubectl -n go get pods -l app=go`; eventos `Warning`; seção 4.2 |
+| **`GoApiEmailQueueStuck`**: fila de e-mail com mais de 500 tarefas por 15 min (`max(goapi_email_queue_length{queue="pending"})`) | Prometheus do `istio-system` (regra do `prefeitura-rio/infra`, OPS-151; sem notificação até a OPS-332) | Consumidores parados ou lentos | Logs `[EmailWorker]`; seção 4.6 |
+| **`GoApiEmailDeadLetterGrowing`**: fila morta cresceu em 30 min (`sum(increase(goapi_email_dead_letter_total[30m])) > 0`, `email:queue:failed`) | Prometheus do `istio-system` (regra do `prefeitura-rio/infra`, OPS-151; sem notificação até a OPS-332) | E-mails que esgotaram as 5 tentativas ou causaram panic; a fila morta não é reprocessada sozinha | Seção 4.6 |
+| **`GoApiEmailQueueUnreadable`**: leitura das filas de e-mail no Redis falhando por 10 min (`max(goapi_email_queue_up) == 0`) | Prometheus do `istio-system` (regra do `prefeitura-rio/infra`, OPS-151; sem notificação até a OPS-332) | Redis fora ou inacessível para os pods | Redis (seção 1); logs `[EmailWorker] failed to read queue lengths` |
 
-As regras sobre esses sinais ficam no `prefeitura-rio/infra` (raia Infra (Terraform), OPS-151): até
-ela ser aplicada, não há alerta do Prometheus/Alertmanager nem do SigNoz para este serviço, e os
-sinais só se leem por consulta. Se um alerta novo for criado, acrescente-o nesta tabela.
+As regras `GoApi*` deste repositório ficam em `monitoring/prometheus/alerting-rules.yaml` (formato,
+instalação e pré-requisitos em `docs/observability.md`, seção "Production alerts") e ainda não estão
+instaladas. As que rodam hoje no Prometheus do `istio-system` (staging e produção) são as do
+`prefeitura-rio/infra` (`superapp/modules/k8s/yamls/istio/prometheus-alerting-rules.yaml`, OPS-151):
+aparecem em `/api/v1/rules` e `/alerts`, mas o Alertmanager está desligado, então ninguém é notificado
+até a OPS-332. Se um alerta novo for criado, acrescente-o nesta tabela e no arquivo de regras.
 
 ## 4. Rotina de incidente
 
@@ -216,6 +227,36 @@ continuar compatível com o schema novo (expand/contract). Veja a seção 4.3 an
   (`git revert <sha>`); o push na `main` dispara `deploy-staging.yaml` de novo.
 - O preview fica no `Service/go-preview` até a promoção (`autoPromotionEnabled: false`; quem
   promove é o workflow depois do smoke test).
+
+**Passo a passo: rollback em staging** (para quem não conhece o serviço; precisa de permissão de
+escrita em Actions no repositório e de leitura no cluster de staging):
+
+0. Prepare o acesso (uma vez por máquina): `gh auth login`; `gcloud auth login`;
+   `gcloud components install gke-gcloud-auth-plugin`; o plugin do Argo Rollouts
+   (`kubectl argo rollouts`, instalação em <https://argoproj.github.io/argo-rollouts/installation/#kubectl-plugin-installation>);
+   e a credencial do cluster de staging, que tem endpoint privado e só responde pelo DNS endpoint:
+   `gcloud container clusters get-credentials application --dns-endpoint --region us-central1 --project rj-superapp-staging`.
+   Sem acesso ao cluster, os passos 2, 3 e 5 funcionam só com o `gh`, e a conferência do passo 4
+   fica pelo run (`gh run view <run-id>` com conclusão `success`) e pelo `/health`.
+1. Confirme o sintoma e a versão em uso: `curl -s https://services.staging.app.dados.rio/go/health`
+   e `kubectl -n argocd get application go -o jsonpath='{.spec.source.kustomize.images}{"\n"}'`
+   (a imagem é `ghcr.io/prefeitura-rio/app-go-api:<sha-do-commit>@sha256:<digest>`).
+2. Ache o último deploy bom anterior: `gh run list --workflow deploy-staging.yaml --limit 10`
+   mostra os runs com o commit de cada um. Escolha o mais recente **antes** do commit com problema,
+   com conclusão `success` e que tenha feito build (`gh run view <run-id> -v` lista os passos e
+   "Build and Push Docker Image" precisa ter rodado; runs de mudança só em `k8s/` pulam o build e não servem).
+3. Reexecute esse run: `gh run rerun <run-id>` e acompanhe com `gh run watch <run-id>`. Ele refaz a
+   imagem daquele commit, aponta o Application `go` para ela, sobe o preview, roda o smoke test e só
+   então promove. Se o smoke test falhar, o run aborta e nada muda no serviço ativo.
+4. Confira: `kubectl -n argocd get application go -o jsonpath='{.spec.source.kustomize.images}{"\n"}'`
+   mostra o SHA do commit escolhido, `kubectl argo rollouts get rollout go -n go` mostra `Healthy` e o `/health` do
+   passo 1 responde `{"status":"ok"}`.
+5. Torne o rollback permanente: o próximo push na `main` volta a implantar o código com problema.
+   Abra um PR com `git revert <sha-do-commit-com-problema>` e registre na issue do incidente o run
+   reexecutado e o PR.
+
+O GitHub só reexecuta runs de até 30 dias; para um commit mais antigo, use direto o revert por PR
+(passo 5). As migrations não são desfeitas pelo rollback (seção 4.3).
 
 ### 4.2 Escalar e reiniciar com segurança
 
