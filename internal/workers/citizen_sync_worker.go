@@ -3,6 +3,7 @@ package workers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -111,7 +112,10 @@ func (w *CitizenSyncWorker) Start(ctx context.Context) error {
 	}
 }
 
-// runSync executes a full sync cycle
+// runSync executes a full sync cycle. A cycle in which every CPF it tried
+// failed (RMI down, circuit open) is a failure, so the last success timestamp
+// does not move and the stale sync alert sees the outage; the CPFs the RMI
+// answered with an expected business result are not failures.
 func (w *CitizenSyncWorker) runSync(ctx context.Context) (err error) {
 	defer func() { observability.ObserveSyncRun(observability.SyncWorkerCitizen, err) }()
 
@@ -152,6 +156,9 @@ func (w *CitizenSyncWorker) runSync(ctx context.Context) (err error) {
 	// Log stats
 	w.logSyncStats(ctx)
 
+	if failed > 0 && synced == 0 {
+		return fmt.Errorf("no citizen synced: %d of %d failed", failed, len(cpfsToSync))
+	}
 	return nil
 }
 

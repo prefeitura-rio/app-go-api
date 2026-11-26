@@ -21,6 +21,7 @@ const (
 	syncRunSuccess = "success"
 	syncRunFailure = "failure"
 	syncRunSkipped = "skipped"
+	syncRunBackoff = "backoff"
 )
 
 // Outcome of one synced item, the "result" label of goapi_sync_items_total.
@@ -48,11 +49,11 @@ const (
 var (
 	syncLastSuccess = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "goapi_sync_last_success_timestamp_seconds",
-		Help: "Horário Unix do último ciclo de sync concluído sem erro neste pod (0 = nenhum ainda). Agregue com max() entre os pods.",
+		Help: "Horário Unix do último ciclo de sync bem-sucedido neste pod (0 = nenhum ainda): sem erro e com algum item sincronizado ou nenhuma falha. Agregue com max() entre os pods.",
 	}, []string{"worker"})
 	syncRunsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "goapi_sync_runs_total",
-		Help: "Ciclos de sync por resultado: success, failure ou skipped (outro pod segurava o lock).",
+		Help: "Ciclos de sync por resultado: success, failure (erro ou todos os itens tentados falharam), skipped (outro pod segurava o lock) ou backoff (nada a tentar, com os itens esperando nova tentativa depois de uma falha do RMI).",
 	}, []string{"worker", "result"})
 	syncItemsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "goapi_sync_items_total",
@@ -73,7 +74,7 @@ func init() {
 	// the absence of a sync is visible as a 0 timestamp.
 	for _, worker := range []string{SyncWorkerOrgao, SyncWorkerCitizen} {
 		syncLastSuccess.WithLabelValues(worker)
-		for _, result := range []string{syncRunSuccess, syncRunFailure, syncRunSkipped} {
+		for _, result := range []string{syncRunSuccess, syncRunFailure, syncRunSkipped, syncRunBackoff} {
 			syncRunsTotal.WithLabelValues(worker, result)
 		}
 		for _, result := range []string{SyncItemSynced, SyncItemSkipped, SyncItemFailed} {
@@ -103,6 +104,14 @@ func ObserveSyncRun(worker string, err error) {
 // pod held the lock. It does not move the last success timestamp.
 func ObserveSyncSkipped(worker string) {
 	syncRunsTotal.WithLabelValues(worker, syncRunSkipped).Inc()
+}
+
+// ObserveSyncBackoff records a sync cycle that had nothing to try because the
+// items that failed in an RMI outage are waiting for their retry. It is neither
+// a success nor a failure, so the last success timestamp does not move and the
+// stale sync alert sees the outage.
+func ObserveSyncBackoff(worker string) {
+	syncRunsTotal.WithLabelValues(worker, syncRunBackoff).Inc()
 }
 
 // AddSyncItems adds n items with the given result to the worker's count.

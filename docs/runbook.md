@@ -73,9 +73,9 @@ conteúdo de um `Secret` do Kubernetes nem cole dados de cidadãos (CPF, nome, e
 | Métrica | Leitura |
 |---|---|
 | `goapi_http_request_duration_seconds{method,route}` | Latência por template de rota (nunca o caminho cru, que pode ter CPF); caminho sem rota vira `(rota não encontrada)` |
-| `goapi_sync_last_success_timestamp_seconds{worker}` | Horário Unix do último ciclo sem erro de `orgao_sync`/`citizen_sync` neste pod (0 = nenhum desde o início) |
-| `goapi_sync_runs_total{worker,result}` | Ciclos por resultado: `success`, `failure`, `skipped` (outro pod tinha o lock) |
-| `goapi_sync_items_total{worker,result}` | Itens `synced`, `skipped` (resposta esperada do RMI) e `failed` |
+| `goapi_sync_last_success_timestamp_seconds{worker}` | Horário Unix do último ciclo bem-sucedido de `orgao_sync`/`citizen_sync` neste pod (0 = nenhum desde o início): sem erro e com algum item sincronizado ou nenhuma falha |
+| `goapi_sync_runs_total{worker,result}` | Ciclos por resultado: `success`; `failure` (erro, ou todos os itens tentados falharam: RMI fora, circuito aberto); `skipped` (outro pod tinha o lock); `backoff` (nada a tentar porque os órgãos que falharam com o RMI fora esperam a nova tentativa, `ORGAO_SYNC_FAILED_RETRY_THRESHOLD`). `failure` e `backoff` não movem o horário do último sucesso |
+| `goapi_sync_items_total{worker,result}` | Itens `synced`, `skipped` (o RMI respondeu sobre o próprio item: cidadão ou órgão inexistente, id inválido) e `failed` |
 | `goapi_import_jobs_total{result}` | Jobs de importação `completed`, `failed` e `reaped` (interrompidos, fechados pelo reaper) |
 | `goapi_email_queue_length{queue}` | Tamanho de `pending` (`email:queue`), `delayed` (`email:queue:delayed`) e `dead_letter` (`email:queue:failed`), lido do Redis a cada coleta |
 | `goapi_email_queue_up` | `1` se a última leitura das filas no Redis funcionou; `0` se falhou (sem tamanhos nessa coleta) |
