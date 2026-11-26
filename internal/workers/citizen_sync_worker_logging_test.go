@@ -35,6 +35,12 @@ const (
 
 func newCitizenSyncTestWorker(t *testing.T) (*CitizenSyncWorker, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
+	w, _, infoBuf, errorBuf := newCitizenSyncTestWorkerWithDB(t)
+	return w, infoBuf, errorBuf
+}
+
+func newCitizenSyncTestWorkerWithDB(t *testing.T) (*CitizenSyncWorker, *gorm.DB, *bytes.Buffer, *bytes.Buffer) {
+	t.Helper()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -66,7 +72,7 @@ func newCitizenSyncTestWorker(t *testing.T) (*CitizenSyncWorker, *bytes.Buffer, 
 		infoLog:             log.New(&infoBuf, "", 0),
 		errorLog:            log.New(&errorBuf, "", 0),
 	}
-	return w, &infoBuf, &errorBuf
+	return w, db, &infoBuf, &errorBuf
 }
 
 func TestCitizenSyncWorker_SyncCitizens_DoesNotLogCitizenName(t *testing.T) {

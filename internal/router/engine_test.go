@@ -83,7 +83,7 @@ func TestNewEngine_RecordsRequestLatencyByRoute(t *testing.T) {
 	r := newEngine()
 	r.GET("/engine-metrics/:id", func(c *gin.Context) { c.Status(http.StatusOK) })
 	r.GET("/engine-metrics-panic", func(c *gin.Context) { panic("falha simulada") })
-	registerMetricsRoute(r)
+	registerMetricsRoute(r, nil)
 
 	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/engine-metrics/1", nil))
 	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/engine-metrics-panic", nil))

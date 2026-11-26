@@ -68,6 +68,13 @@ metrics (`rmi_client_*`, see `docs/runbook.md` section 2) and the per-route requ
 |---|---|---|
 | `goapi_http_request_duration_seconds` (histogram, buckets 0.05 … 10 s) | `method`, `route` | Duration of every request. `route` is the Gin route template (`/api/v1/enrollments/user/:cpf`), never the raw path, which may carry a CPF; a path with no route is `(rota não encontrada)` and a non-standard method is `OTHER` |
 | `rmi_client_circuit_breaker_state` (gauge) | `client` (`api`, `orgao_sync`) | `0` closed, `1` half-open, `2` open |
+| `goapi_sync_last_success_timestamp_seconds` (gauge) | `worker` (`orgao_sync`, `citizen_sync`) | Unix time of the last successful sync cycle in this pod (`0` = none yet): no error, and some item synced or none failed; aggregate with `max` across pods |
+| `goapi_sync_runs_total` (counter) | `worker`, `result` (`success`, `failure`, `skipped`, `backoff`) | Sync cycles by outcome. `failure` = an error, or every item tried failed (RMI down, circuit open); `skipped` = another pod held the lock; `backoff` = nothing to try because the orgaos that failed in an RMI outage wait for their retry (`ORGAO_SYNC_FAILED_RETRY_THRESHOLD`). Neither `failure` nor `backoff` moves the last success timestamp |
+| `goapi_sync_items_total` (counter) | `worker`, `result` (`synced`, `skipped`, `failed`) | Items handled by the sync cycles; `skipped` = the RMI answered about the item itself (citizen or orgao unknown, invalid id), not an outage |
+| `goapi_import_jobs_total` (counter) | `result` (`completed`, `failed`, `reaped`) | Finished import jobs; `reaped` = closed as failed by the stale job reaper because its pod stopped |
+| `goapi_email_queue_length` (gauge, read from Redis on each scrape) | `queue` (`pending`, `delayed`, `dead_letter`) | Tasks in `email:queue`, `email:queue:delayed` and `email:queue:failed`; the same in every pod, aggregate with `max` |
+| `goapi_email_queue_up` (gauge) | — | `1` when the last read of the e-mail queues worked, `0` when Redis could not be read (no lengths are reported then) |
+| `goapi_email_dead_letter_total` (counter) | `reason` (`panic`, `retries_exhausted`) | E-mail tasks moved to the dead-letter queue |
 
 The `go` Rollout (staging and production) carries the `prometheus.io/scrape|port|path` annotations
 (port `8080`, path `/metrics`). The Istio sidecar injector rewrites them to the agent port
@@ -80,6 +87,13 @@ and `app` target labels. From the public entry point `/metrics` answers 403 (`ex
 The production alert rules live in [`monitoring/prometheus/alerting-rules.yaml`](../monitoring/prometheus/alerting-rules.yaml).
 This repository only versions them; installing them in the monitoring stack and routing the
 notifications belongs to the Infra lane (`prefeitura-rio/infra`).
+
+The rules that run today in the Prometheus of `istio-system` (staging and production) are a separate
+set, versioned in `prefeitura-rio/infra` at `superapp/modules/k8s/yamls/istio/prometheus-alerting-rules.yaml`
+(OPS-151): 5xx and p95 of the service (`istio_*`), p95 per route, sync stale or failing, import jobs
+reaped, scrape target down, and the e-mail queue stuck, unreadable or with a growing dead-letter
+queue, over the `goapi_*` series above. They show in `/api/v1/rules` and `/alerts`; the Alertmanager
+is still off, so they notify no one yet. `docs/runbook.md` section 3 lists both sets.
 
 ### Format
 

@@ -152,7 +152,7 @@ func TestAlertingRules_AppMetricsAreExposed(t *testing.T) {
 
 	r := newEngine()
 	r.GET("/api/public/alerting-rules-test", func(c *gin.Context) { c.Status(http.StatusOK) })
-	registerMetricsRoute(r)
+	registerMetricsRoute(r, nil)
 	_ = clients.NewRMIClient("http://rmi.invalid", time.Second, clients.WithName("alerting-rules-test"))
 	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/public/alerting-rules-test", nil))
 

@@ -14,6 +14,7 @@ import (
 
 	"github.com/prefeitura-rio/app-go-api/internal/models"
 	"github.com/prefeitura-rio/app-go-api/internal/models/empregabilidade"
+	"github.com/prefeitura-rio/app-go-api/internal/observability"
 	"github.com/prefeitura-rio/app-go-api/internal/services"
 )
 
@@ -207,12 +208,14 @@ func (w *EmailWorker) consume(ctx context.Context) {
 			if errors.Is(err, errEmailTaskPanicked) {
 				log.Printf("[EmailWorker] task %s moved to dead-letter after panic: %v", task.Type, err)
 				w.pushToKey(ctx, emailDeadLetterKey, &task)
+				observability.ObserveEmailDeadLetter(observability.EmailDeadLetterPanic)
 				continue
 			}
 
 			if task.Attempts >= emailMaxRetries {
 				log.Printf("[EmailWorker] task %s exhausted retries, moving to dead-letter: %v", task.Type, err)
 				w.pushToKey(ctx, emailDeadLetterKey, &task)
+				observability.ObserveEmailDeadLetter(observability.EmailDeadLetterRetriesExhausted)
 			} else {
 				// Calculate backoff delay
 				delay := w.getRetryDelay(task.Attempts)

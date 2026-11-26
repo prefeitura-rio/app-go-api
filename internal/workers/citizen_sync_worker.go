@@ -3,6 +3,7 @@ package workers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/prefeitura-rio/app-go-api/internal/clients"
 	"github.com/prefeitura-rio/app-go-api/internal/config"
 	"github.com/prefeitura-rio/app-go-api/internal/models"
+	"github.com/prefeitura-rio/app-go-api/internal/observability"
 	"github.com/prefeitura-rio/app-go-api/internal/repository"
 )
 
@@ -110,8 +112,13 @@ func (w *CitizenSyncWorker) Start(ctx context.Context) error {
 	}
 }
 
-// runSync executes a full sync cycle
-func (w *CitizenSyncWorker) runSync(ctx context.Context) error {
+// runSync executes a full sync cycle. A cycle in which every CPF it tried
+// failed (RMI down, circuit open) is a failure, so the last success timestamp
+// does not move and the stale sync alert sees the outage; the CPFs the RMI
+// answered with an expected business result are not failures.
+func (w *CitizenSyncWorker) runSync(ctx context.Context) (err error) {
+	defer func() { observability.ObserveSyncRun(observability.SyncWorkerCitizen, err) }()
+
 	startTime := time.Now()
 	w.infoLogger().Println("[CitizenSyncWorker] Starting sync cycle...")
 
@@ -138,6 +145,9 @@ func (w *CitizenSyncWorker) runSync(ctx context.Context) error {
 
 	// Sync citizens
 	synced, skipped, failed := w.syncCitizens(ctx, cpfsToSync, token)
+	observability.AddSyncItems(observability.SyncWorkerCitizen, observability.SyncItemSynced, synced)
+	observability.AddSyncItems(observability.SyncWorkerCitizen, observability.SyncItemSkipped, skipped)
+	observability.AddSyncItems(observability.SyncWorkerCitizen, observability.SyncItemFailed, failed)
 
 	duration := time.Since(startTime)
 	w.infoLogger().Printf("[CitizenSyncWorker] Sync cycle completed in %v: %d synced, %d skipped (not found or invalid CPF), %d failed",
@@ -146,6 +156,9 @@ func (w *CitizenSyncWorker) runSync(ctx context.Context) error {
 	// Log stats
 	w.logSyncStats(ctx)
 
+	if failed > 0 && synced == 0 {
+		return fmt.Errorf("no citizen synced: %d of %d failed", failed, len(cpfsToSync))
+	}
 	return nil
 }
 
